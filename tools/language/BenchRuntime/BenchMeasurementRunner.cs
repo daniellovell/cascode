@@ -26,6 +26,10 @@ public sealed class BenchMeasurementRunner
         StringComparer.OrdinalIgnoreCase
     );
     private readonly HashSet<string> _measurementStack = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<string> FindCrossingOptionalArgumentNames = new(
+        new[] { "dir", "cross", "from", "to" },
+        StringComparer.OrdinalIgnoreCase
+    );
 
     /// <summary>
     /// Captures analysis datasets available while evaluating bench measurements.
@@ -634,38 +638,65 @@ public sealed class BenchMeasurementRunner
             return false;
         }
 
-        if (call.Args.Count != 1)
+        var independentName = GetIndependentVariableKind(recv) switch
         {
-            throw new InvalidOperationException($"{call.Method} requires 1 argument.");
-        }
-
-        var independentVariable = GetIndependentVariableKind(recv) switch
-        {
-            BenchNumericKind.TimeS => RequireTime(
-                EvaluateExpr(call.Args[0].Value, locals),
-                call.Method
-            ),
-            BenchNumericKind.FrequencyHz => RequireFrequency(
-                EvaluateExpr(call.Args[0].Value, locals),
-                call.Method
-            ),
+            BenchNumericKind.TimeS => "t",
+            BenchNumericKind.FrequencyHz => "f",
             _ => throw new InvalidOperationException(
                 $"Unsupported independent variable kind for {recv.GetType().Name}."
             ),
         };
+        var args = BindMethodArguments(call, locals, call.Method, new[] { independentName });
+        var independentVariable = RequireIndependentVariable(
+            recv,
+            args[independentName],
+            call.Method
+        );
 
+        if (TrySliceByIndependentBoundary(recv, independentVariable.Value, isFrom, out result))
+        {
+            return true;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
+        );
+    }
+
+    private static BenchNumber RequireIndependentVariable(
+        BenchValue recv,
+        BenchValue value,
+        string methodName
+    )
+    {
+        return GetIndependentVariableKind(recv) switch
+        {
+            BenchNumericKind.TimeS => RequireTime(value, methodName),
+            BenchNumericKind.FrequencyHz => RequireFrequency(value, methodName),
+            _ => throw new InvalidOperationException(
+                $"Unsupported independent variable kind for {recv.GetType().Name}."
+            ),
+        };
+    }
+
+    private static bool TrySliceByIndependentBoundary(
+        BenchValue recv,
+        double boundary,
+        bool isFrom,
+        out BenchValue result
+    )
+    {
         if (recv is BenchGainSpectrum gain)
         {
             result = Slice(
                 gain.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchGainSpectrum(
-                        gain.FrequenciesHz[range],
-                        gain.Values[range],
-                        gain.ValueKind
-                    )
+                range => new BenchGainSpectrum(
+                    gain.FrequenciesHz[range],
+                    gain.Values[range],
+                    gain.ValueKind
+                )
             );
             return true;
         }
@@ -674,10 +705,9 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 scalar.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchScalarSpectrum(scalar.FrequenciesHz[range], scalar.Values[range])
+                range => new BenchScalarSpectrum(scalar.FrequenciesHz[range], scalar.Values[range])
             );
             return true;
         }
@@ -686,13 +716,12 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 timeSpectrum.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchTimeSpectrum(
-                        timeSpectrum.FrequenciesHz[range],
-                        timeSpectrum.ValuesS[range]
-                    )
+                range => new BenchTimeSpectrum(
+                    timeSpectrum.FrequenciesHz[range],
+                    timeSpectrum.ValuesS[range]
+                )
             );
             return true;
         }
@@ -701,9 +730,9 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 phase.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) => new BenchPhaseSpectrum(phase.FrequenciesHz[range], phase.Degrees[range])
+                range => new BenchPhaseSpectrum(phase.FrequenciesHz[range], phase.Degrees[range])
             );
             return true;
         }
@@ -712,10 +741,12 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 noise.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchNoiseSpectrum(noise.FrequenciesHz[range], noise.ValuesVPerRtHz[range])
+                range => new BenchNoiseSpectrum(
+                    noise.FrequenciesHz[range],
+                    noise.ValuesVPerRtHz[range]
+                )
             );
             return true;
         }
@@ -724,13 +755,12 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 complexVoltage.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchComplexVoltageSpectrum(
-                        complexVoltage.FrequenciesHz[range],
-                        complexVoltage.Values[range]
-                    )
+                range => new BenchComplexVoltageSpectrum(
+                    complexVoltage.FrequenciesHz[range],
+                    complexVoltage.Values[range]
+                )
             );
             return true;
         }
@@ -739,13 +769,12 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 complexCurrent.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchComplexCurrentSpectrum(
-                        complexCurrent.FrequenciesHz[range],
-                        complexCurrent.Values[range]
-                    )
+                range => new BenchComplexCurrentSpectrum(
+                    complexCurrent.FrequenciesHz[range],
+                    complexCurrent.Values[range]
+                )
             );
             return true;
         }
@@ -754,13 +783,12 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 voltageSpectrum.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchVoltageSpectrum(
-                        voltageSpectrum.FrequenciesHz[range],
-                        voltageSpectrum.Values[range]
-                    )
+                range => new BenchVoltageSpectrum(
+                    voltageSpectrum.FrequenciesHz[range],
+                    voltageSpectrum.Values[range]
+                )
             );
             return true;
         }
@@ -769,13 +797,12 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 currentSpectrum.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchCurrentSpectrum(
-                        currentSpectrum.FrequenciesHz[range],
-                        currentSpectrum.Values[range]
-                    )
+                range => new BenchCurrentSpectrum(
+                    currentSpectrum.FrequenciesHz[range],
+                    currentSpectrum.Values[range]
+                )
             );
             return true;
         }
@@ -784,14 +811,13 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 waveform.TimePointsS,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchWaveform(
-                        waveform.TimePointsS[range],
-                        waveform.Values[range],
-                        waveform.ValueKind
-                    )
+                range => new BenchWaveform(
+                    waveform.TimePointsS[range],
+                    waveform.Values[range],
+                    waveform.ValueKind
+                )
             );
             return true;
         }
@@ -800,17 +826,18 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 transfer.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
-                (range) =>
-                    new BenchTransferFunction(transfer.FrequenciesHz[range], transfer.Values[range])
+                range => new BenchTransferFunction(
+                    transfer.FrequenciesHz[range],
+                    transfer.Values[range]
+                )
             );
             return true;
         }
 
-        throw new InvalidOperationException(
-            $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
-        );
+        result = BenchMissing.Value;
+        return false;
     }
 
     private BenchValue EvaluateMethodCall(
@@ -847,17 +874,8 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("SplitParallel", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "Impedance.SplitParallel requires 1 argument (n)."
-                    );
-                }
-
-                var count = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "SplitParallel(n)"
-                );
+                var args = BindMethodArguments(call, locals, "SplitParallel", new[] { "n" });
+                var count = RequireNumber(args["n"], "SplitParallel(n)");
                 if (
                     count.Kind != BenchNumericKind.Scalar
                     || count.Value <= 0
@@ -880,21 +898,24 @@ public sealed class BenchMeasurementRunner
 
         if (call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase))
         {
-            if (call.Args.Count != 2)
-            {
-                throw new InvalidOperationException("Range requires 2 arguments.");
-            }
-
-            var fromCall = new MeasurementMethodCall(call.Receiver, "From", new[] { call.Args[0] });
-            if (!TryEvaluateFromTo(recv, fromCall, locals, out var fromResult))
+            var args = BindMethodArguments(call, locals, "Range", new[] { "from", "to" });
+            var from = RequireIndependentVariable(recv, args["from"], "Range.from");
+            if (!TrySliceByIndependentBoundary(recv, from.Value, isFrom: true, out var fromResult))
             {
                 throw new InvalidOperationException(
                     $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
                 );
             }
 
-            var toCall = new MeasurementMethodCall(call.Receiver, "To", new[] { call.Args[1] });
-            if (!TryEvaluateFromTo(fromResult, toCall, locals, out var toResult))
+            var to = RequireIndependentVariable(fromResult, args["to"], "Range.to");
+            if (
+                !TrySliceByIndependentBoundary(
+                    fromResult,
+                    to.Value,
+                    isFrom: false,
+                    out var toResult
+                )
+            )
             {
                 throw new InvalidOperationException(
                     $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
@@ -908,7 +929,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("S", StringComparison.OrdinalIgnoreCase))
             {
-                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "S");
+                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "S", new[] { "i", "j" });
                 return BuildTransferFunction(sm, new BenchPortPair(toPort, fromPort), "S");
             }
 
@@ -1016,31 +1037,22 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "GainSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(g.FrequenciesHz, g.Values, f.Value);
                 return new BenchNumber(g.ValueKind, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "GainSpectrum.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (
                     threshold.Kind != g.ValueKind
                     && threshold.Kind != BenchNumericKind.Scalar
@@ -1093,31 +1105,22 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "ScalarSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(ss.FrequenciesHz, ss.Values, f.Value);
                 return new BenchNumber(BenchNumericKind.Scalar, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "ScalarSpectrum.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (threshold.Kind != BenchNumericKind.Scalar)
                 {
                     throw new InvalidOperationException(
@@ -1148,31 +1151,22 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "TimeSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(ts.FrequenciesHz, ts.ValuesS, f.Value);
                 return new BenchNumber(BenchNumericKind.TimeS, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "TimeSpectrum.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (
                     threshold.Kind != BenchNumericKind.TimeS
                     && threshold.Kind != BenchNumericKind.Scalar
@@ -1206,31 +1200,22 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "PhaseSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(p.FrequenciesHz, p.Degrees, f.Value);
                 return new BenchNumber(BenchNumericKind.PhaseDeg, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "PhaseSpectrum.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (
                     threshold.Kind != BenchNumericKind.PhaseDeg
                     && threshold.Kind != BenchNumericKind.Scalar
@@ -1282,29 +1267,17 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "NoiseSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(n.FrequenciesHz, n.ValuesVPerRtHz, f.Value);
                 return new BenchNumber(BenchNumericKind.NoiseVoltageVPerRtHz, v);
             }
 
             if (call.Method.Equals("Integrate", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 2)
-                {
-                    throw new InvalidOperationException(
-                        "NoiseSpectrum.Integrate requires (from, to)."
-                    );
-                }
-
-                var from = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "from");
-                var to = RequireFrequency(EvaluateExpr(call.Args[1].Value, locals), "to");
+                var args = BindMethodArguments(call, locals, "Integrate", new[] { "from", "to" });
+                var from = RequireFrequency(args["from"], "from");
+                var to = RequireFrequency(args["to"], "to");
                 var rms = IntegrateNoiseRms(
                     n.FrequenciesHz,
                     n.ValuesVPerRtHz,
@@ -1343,14 +1316,8 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "ComplexVoltageSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogXComplex(cvs.FrequenciesHz, cvs.Values, f.Value);
                 return new BenchComplexNumber(BenchNumericKind.VoltageV, v);
             }
@@ -1386,14 +1353,8 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "ComplexCurrentSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogXComplex(ccs.FrequenciesHz, ccs.Values, f.Value);
                 return new BenchComplexNumber(BenchNumericKind.CurrentA, v);
             }
@@ -1429,31 +1390,22 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "VoltageSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(vs.FrequenciesHz, vs.Values, f.Value);
                 return new BenchNumber(BenchNumericKind.VoltageV, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "VoltageSpectrum.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (
                     threshold.Kind != BenchNumericKind.VoltageV
                     && threshold.Kind != BenchNumericKind.Scalar
@@ -1504,31 +1456,22 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException(
-                        "CurrentSpectrum.ValueAt requires 1 argument."
-                    );
-                }
-
-                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(cs.FrequenciesHz, cs.Values, f.Value);
                 return new BenchNumber(BenchNumericKind.CurrentA, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "CurrentSpectrum.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (
                     threshold.Kind != BenchNumericKind.CurrentA
                     && threshold.Kind != BenchNumericKind.Scalar
@@ -1604,12 +1547,8 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 1)
-                {
-                    throw new InvalidOperationException("Waveform.ValueAt requires 1 argument.");
-                }
-
-                var t = RequireTime(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "t" });
+                var t = RequireTime(args["t"], "ValueAt");
                 var v = InterpolateLinearX(w.TimePointsS, w.Values, t.Value);
                 return new BenchNumber(w.ValueKind, v);
             }
@@ -1634,17 +1573,14 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count < 1)
-                {
-                    throw new InvalidOperationException(
-                        "Waveform.FindCrossing requires a threshold argument."
-                    );
-                }
-
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
+                var args = BindMethodArguments(
+                    call,
+                    locals,
+                    "FindCrossing",
+                    new[] { "threshold" },
+                    FindCrossingOptionalArgumentNames
                 );
+                var threshold = RequireNumber(args["threshold"], "FindCrossing(threshold)");
                 if (
                     threshold.Kind != w.ValueKind
                     && threshold.Kind != BenchNumericKind.Scalar
@@ -1952,36 +1888,83 @@ public sealed class BenchMeasurementRunner
         string targetKind
     )
     {
+        return ResolveArgs(
+            call.Args,
+            parameters.Select(p => p.Name).ToArray(),
+            locals,
+            targetName,
+            targetKind
+        );
+    }
+
+    private Dictionary<string, BenchValue> BindMethodArguments(
+        MeasurementMethodCall call,
+        Dictionary<string, BenchValue> locals,
+        string methodName,
+        IReadOnlyList<string> parameterNames,
+        IReadOnlySet<string>? optionalParameterNames = null
+    )
+    {
+        return ResolveArgs(
+            call.Args,
+            parameterNames,
+            locals,
+            methodName,
+            "method",
+            optionalParameterNames
+        );
+    }
+
+    private Dictionary<string, BenchValue> ResolveArgs(
+        IReadOnlyList<MeasurementCallArg> args,
+        IReadOnlyList<string> parameterNames,
+        Dictionary<string, BenchValue> locals,
+        string targetName,
+        string targetKind,
+        IReadOnlySet<string>? optionalParameterNames = null
+    )
+    {
         var values = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
 
-        var positional = call.Args.Where(a => a.Name is null).ToList();
-        var named = call
-            .Args.Where(a => a.Name is not null)
+        var positional = args.Where(a => a.Name is null).ToList();
+        var named = args.Where(a => a.Name is not null)
             .ToDictionary(a => a.Name!, a => a.Value, StringComparer.Ordinal);
 
-        for (var i = 0; i < parameters.Count; i++)
+        for (var i = 0; i < parameterNames.Count; i++)
         {
-            var p = parameters[i];
-            if (named.TryGetValue(p.Name, out var expr))
+            var parameterName = parameterNames[i];
+            if (named.TryGetValue(parameterName, out var expr))
             {
-                values[p.Name] = EvaluateExpr(expr, locals);
-                named.Remove(p.Name);
+                values[parameterName] = EvaluateExpr(expr, locals);
+                named.Remove(parameterName);
             }
             else if (i < positional.Count)
             {
-                values[p.Name] = EvaluateExpr(positional[i].Value, locals);
+                values[parameterName] = EvaluateExpr(positional[i].Value, locals);
             }
             else
             {
                 throw new InvalidOperationException(
-                    $"Missing argument '{p.Name}' for {targetKind} '{targetName}'."
+                    $"Missing argument '{parameterName}' for {targetKind} '{targetName}'."
                 );
             }
         }
 
-        if (named.Count > 0)
+        if (positional.Count > parameterNames.Count)
         {
-            var unexpectedArgs = string.Join(", ", named.Keys.Select(k => $"'{k}'"));
+            throw new InvalidOperationException(
+                $"Too many positional arguments for {targetKind} '{targetName}'."
+            );
+        }
+
+        var unexpectedNames = named
+            .Keys.Where(name =>
+                optionalParameterNames is null || !optionalParameterNames.Contains(name)
+            )
+            .ToArray();
+        if (unexpectedNames.Length > 0)
+        {
+            var unexpectedArgs = string.Join(", ", unexpectedNames.Select(k => $"'{k}'"));
             throw new InvalidOperationException(
                 $"Unexpected argument(s) {unexpectedArgs} for {targetKind} '{targetName}'."
             );
@@ -2926,16 +2909,22 @@ public sealed class BenchMeasurementRunner
     private (int ToPort, int FromPort) RequirePortPairArgs(
         MeasurementMethodCall call,
         Dictionary<string, BenchValue> locals,
-        string methodName
+        string methodName,
+        IReadOnlyList<string>? parameterNames = null
     )
     {
-        if (call.Args.Count != 2)
+        var names = parameterNames ?? new[] { "to", "from" };
+        if (names.Count != 2)
         {
-            throw new InvalidOperationException($"{methodName} requires (to, from).");
+            throw new InvalidOperationException(
+                $"{methodName} port pair requires exactly 2 names."
+            );
         }
-
-        var to = RequirePortIndex(EvaluateExpr(call.Args[0].Value, locals), $"{methodName}.to");
-        var from = RequirePortIndex(EvaluateExpr(call.Args[1].Value, locals), $"{methodName}.from");
+        var toName = names[0];
+        var fromName = names[1];
+        var args = BindMethodArguments(call, locals, methodName, names);
+        var to = RequirePortIndex(args[toName], $"{methodName}.to");
+        var from = RequirePortIndex(args[fromName], $"{methodName}.from");
         return (to, from);
     }
 
@@ -2945,12 +2934,8 @@ public sealed class BenchMeasurementRunner
         string methodName
     )
     {
-        if (call.Args.Count != 1)
-        {
-            throw new InvalidOperationException($"{methodName} requires (port).");
-        }
-
-        var port = RequirePortIndex(EvaluateExpr(call.Args[0].Value, locals), $"{methodName}.port");
+        var args = BindMethodArguments(call, locals, methodName, new[] { "port" });
+        var port = RequirePortIndex(args["port"], $"{methodName}.port");
         return (port, 0);
     }
 

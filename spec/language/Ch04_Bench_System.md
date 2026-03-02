@@ -564,7 +564,7 @@ Spectrum methods:
 
 - `S.ValueAt(f)` → interpolated real-valued or complex-valued scalar at frequency `f`
 - `S.From(f)` / `S.To(f)` → truncated spectrum with frequency range `>= f` or `<= f` (same spectrum type)
-- `S.Range(f1, f2)` → equivalent to `S.From(f1).To(f2)` (same spectrum type)
+- `S.Range(from, to)` → equivalent to `S.From(from).To(to)` (same spectrum type)
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
@@ -572,7 +572,7 @@ Waveform methods:
 
 - `W.ValueAt(t)` → interpolated scalar at time `t`
 - `W.From(t)` / `W.To(t)` → truncated waveform with time range `>= t` or `<= t` (same waveform type)
-- `W.Range(t1, t2)` → equivalent to `W.From(t1).To(t2)` (same waveform type)
+- `W.Range(from, to)` → equivalent to `W.From(from).To(to)` (same waveform type)
 
 For complex AC spectra (`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`), `ValueAt(f)` returns a complex point
 interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
@@ -582,6 +582,8 @@ spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sample
 (`voltage(ac, OUT).ValueAt(f).Mag()`). These two forms are equivalent for magnitude interpolation.
 `From`, `To`, and `Range` are chainable with each other and with `ValueAt`, for example
 `voltage(ac, OUT).Range(100Hz, 1MHz).ValueAt(500kHz)`.
+Method arguments can be passed positionally or by name (including mixed usage), and named
+arguments are validated against each method's declared parameter names.
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).
