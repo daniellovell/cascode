@@ -25,45 +25,67 @@ public sealed class BenchRunHelpersStdlibTests
     public void BuildSearchRoots_IncludesStdlibRoot_WhenWorkspaceRootDiffers()
     {
         var workspace = "/some/project/root";
+        var stdlibRoot = BenchRunHelpers.GetBundledStdlibRoot();
+        Assert.NotNull(stdlibRoot);
+        var normalizedStdlib = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stdlibRoot));
+
         var roots = BenchRunHelpers.BuildSearchRoots(workspace);
 
         Assert.Equal(workspace, roots[0]);
-        // Workspace, CWD, and bundled stdlib are all distinct in this scenario.
-        Assert.True(roots.Count >= 2, "Expected at least workspace + CWD or stdlib.");
+        Assert.True(roots.Count >= 2, "Expected at least workspace + CWD/stdlib.");
         Assert.Contains(roots, r => r == workspace);
+        Assert.Contains(roots, r => r == normalizedStdlib);
     }
 
     [Fact]
     public void BuildSearchRoots_Deduplicates_WhenWorkspaceEqualsStdlib()
     {
-        // When the workspace root is the same as the bundled stdlib root,
-        // we should not get duplicates.
         var stdlibRoot = BenchRunHelpers.GetBundledStdlibRoot();
         Assert.NotNull(stdlibRoot);
 
         var roots = BenchRunHelpers.BuildSearchRoots(stdlibRoot);
-        Assert.Equal(roots.Distinct(StringComparer.Ordinal).Count(), roots.Count);
+        var comparer = OperatingSystem.IsLinux()
+            ? StringComparer.Ordinal
+            : StringComparer.OrdinalIgnoreCase;
+        Assert.Equal(roots.Distinct(comparer).Count(), roots.Count);
+    }
+
+    [Fact]
+    public void BuildSearchRoots_Deduplicates_TrailingSeparatorVariant()
+    {
+        var stdlibRoot = BenchRunHelpers.GetBundledStdlibRoot();
+        Assert.NotNull(stdlibRoot);
+        var trimmed = Path.TrimEndingDirectorySeparator(stdlibRoot);
+
+        var rootsFromRaw = BenchRunHelpers.BuildSearchRoots(stdlibRoot);
+        var rootsFromTrimmed = BenchRunHelpers.BuildSearchRoots(trimmed);
+
+        Assert.Equal(rootsFromRaw.Count, rootsFromTrimmed.Count);
     }
 
     [Fact]
     public void BuildSearchRoots_IncludesCwd_BetweenWorkspaceAndStdlib()
     {
         var workspace = "/nonexistent/workspace/root";
-        var cwd = Directory.GetCurrentDirectory();
+        var cwd = Path.TrimEndingDirectorySeparator(
+            Path.GetFullPath(Directory.GetCurrentDirectory())
+        );
         var roots = BenchRunHelpers.BuildSearchRoots(workspace);
         var rootsList = roots.ToList();
 
         Assert.Equal(workspace, roots[0]);
-        // CWD should appear after workspace root.
         var cwdIndex = rootsList.IndexOf(cwd);
         Assert.True(cwdIndex > 0, "CWD should appear after workspace root.");
 
-        // If stdlib is present, CWD should come before it.
         var stdlibRoot = BenchRunHelpers.GetBundledStdlibRoot();
         if (stdlibRoot is not null)
         {
-            var stdlibIndex = rootsList.IndexOf(stdlibRoot);
-            Assert.True(cwdIndex < stdlibIndex, "CWD should appear before bundled stdlib.");
+            var normalizedStdlib = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stdlibRoot));
+            var stdlibIndex = rootsList.IndexOf(normalizedStdlib);
+            // CWD and stdlib may deduplicate to the same entry (e.g. in test runners);
+            // only assert ordering when they are distinct entries.
+            if (normalizedStdlib != cwd)
+                Assert.True(cwdIndex < stdlibIndex, "CWD should appear before bundled stdlib.");
         }
     }
 }

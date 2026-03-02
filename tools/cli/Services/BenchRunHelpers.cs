@@ -134,18 +134,33 @@ internal static class BenchRunHelpers
 
     public static IReadOnlyList<string> BuildSearchRoots(string workspaceRoot)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var comparer = OperatingSystem.IsLinux()
+            ? StringComparer.Ordinal
+            : StringComparer.OrdinalIgnoreCase;
+        var seen = new HashSet<string>(comparer);
         var roots = new List<string>(3);
-        if (seen.Add(workspaceRoot))
-            roots.Add(workspaceRoot);
-        var cwd = Directory.GetCurrentDirectory();
+
+        var ws = NormalizePath(workspaceRoot);
+        if (seen.Add(ws))
+            roots.Add(ws);
+
+        var cwd = NormalizePath(Directory.GetCurrentDirectory());
         if (seen.Add(cwd))
             roots.Add(cwd);
+
         var stdlibRoot = GetBundledStdlibRoot();
-        if (stdlibRoot is not null && seen.Add(stdlibRoot))
-            roots.Add(stdlibRoot);
+        if (stdlibRoot is not null)
+        {
+            var std = NormalizePath(stdlibRoot);
+            if (seen.Add(std))
+                roots.Add(std);
+        }
+
         return roots;
     }
+
+    private static string NormalizePath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
     public static string? FindWorkspaceRoot(string inputPath)
     {
