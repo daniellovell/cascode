@@ -153,7 +153,32 @@ public static class ComplianceChecker
                 Message = $"Measurement error: {measurement.Error}",
             };
         }
-        var actual = measurement.Value;
+
+        if (measurement.Values is not null)
+        {
+            return EvaluateSeriesConstraint(constraint, metricKey, expected, measurement);
+        }
+
+        if (!measurement.Value.HasValue)
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                FailureReason = ConstraintResult.NoMeasurement,
+                Message = $"Measurement '{metricKey}' did not provide a scalar value.",
+            };
+        }
+
+        var actual = measurement.Value.Value;
         if (!IsFinite(actual))
         {
             return new ConstraintResult
@@ -190,6 +215,96 @@ public static class ComplianceChecker
             Passed = passed,
             FailureReason = passed ? null : ConstraintResult.ConstraintViolation,
             Message = passed ? "PASS" : "FAIL",
+        };
+    }
+
+    private static ConstraintResult EvaluateSeriesConstraint(
+        NumericConstraint constraint,
+        string metricKey,
+        double expected,
+        MeasurementResult measurement
+    )
+    {
+        var series = measurement.Values!;
+        if (series.Length == 0)
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                FailureReason = ConstraintResult.EmptySpectrum,
+                Message = $"Measurement '{metricKey}' returned no samples.",
+            };
+        }
+
+        if (series.Any(v => !IsFinite(v)))
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                FailureReason = ConstraintResult.NonFiniteValue,
+                Message = "Non-finite measurement value in spectrum/waveform.",
+            };
+        }
+
+        var passed = series.All(actual => EvaluateOperator(constraint.Op, actual, expected));
+        var worstCase = GetWorstCaseActual(constraint.Op, expected, series);
+
+        return new ConstraintResult
+        {
+            Id = constraint.Id,
+            Metric = metricKey,
+            Node = constraint.Node?.ToString(),
+            Unit = constraint.Unit,
+            Operator = constraint.Op,
+            ExpectedRaw = constraint.Value,
+            Expected = expected,
+            Actual = worstCase,
+            ActualUnit = measurement.Unit,
+            Passed = passed,
+            FailureReason = passed ? null : ConstraintResult.ConstraintViolation,
+            Message = passed ? "PASS" : "FAIL",
+        };
+    }
+
+    private static double GetWorstCaseActual(
+        string op,
+        double expected,
+        IReadOnlyList<double> values
+    )
+    {
+        if (values.Count == 0)
+        {
+            throw new InvalidOperationException("Series must contain at least one value.");
+        }
+
+        return op switch
+        {
+            ">=" or ">" => values.Min(),
+            "<=" or "<" => values.Max(),
+            "==" => values.Aggregate(
+                values[0],
+                (worst, current) =>
+                    Math.Abs(current - expected) > Math.Abs(worst - expected) ? current : worst
+            ),
+            _ => throw new InvalidOperationException($"Unknown operator: {op}"),
         };
     }
 

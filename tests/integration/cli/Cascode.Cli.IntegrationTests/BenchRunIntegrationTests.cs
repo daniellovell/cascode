@@ -76,7 +76,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.Equal("RcLowpass", results!.Circuit);
         Assert.Equal("lp", results.Bench);
         Assert.True(results.Measurements.ContainsKey("LowpassBandwidth"));
-        Assert.False(double.IsNaN(results.Measurements["LowpassBandwidth"].Value));
+        Assert.True(results.Measurements["LowpassBandwidth"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["LowpassBandwidth"].Value!.Value));
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -176,8 +177,10 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(results.Measurements.ContainsKey("SupplyCurrentPeak"));
         Assert.True(string.IsNullOrEmpty(results.Measurements["InternalNodePeak"].Error));
         Assert.True(string.IsNullOrEmpty(results.Measurements["SupplyCurrentPeak"].Error));
-        Assert.False(double.IsNaN(results.Measurements["InternalNodePeak"].Value));
-        Assert.False(double.IsNaN(results.Measurements["SupplyCurrentPeak"].Value));
+        Assert.True(results.Measurements["InternalNodePeak"].Value.HasValue);
+        Assert.True(results.Measurements["SupplyCurrentPeak"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["InternalNodePeak"].Value!.Value));
+        Assert.False(double.IsNaN(results.Measurements["SupplyCurrentPeak"].Value!.Value));
     }
 
     [Fact]
@@ -217,7 +220,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.Equal("dc", results.Bench);
         Assert.True(results.Measurements.ContainsKey("MidVoltage"));
         Assert.True(string.IsNullOrEmpty(results.Measurements["MidVoltage"].Error));
-        Assert.False(double.IsNaN(results.Measurements["MidVoltage"].Value));
+        Assert.True(results.Measurements["MidVoltage"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["MidVoltage"].Value!.Value));
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),

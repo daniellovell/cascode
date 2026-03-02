@@ -2236,6 +2236,62 @@ public static class BenchSemanticChecker
                         or MeasurementTypeKind.Time;
             }
 
+            // Element-wise constraints allow spectrum/waveform measurements to be declared
+            // with the corresponding scalar physical unit (e.g., dB, V, A, s, deg).
+            if (
+                target.Kind == MeasurementTypeKind.VoltageRatio
+                && value.Kind == MeasurementTypeKind.GainSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Phase
+                && value.Kind == MeasurementTypeKind.PhaseSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Time
+                && value.Kind == MeasurementTypeKind.TimeSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Voltage
+                && value.Kind
+                    is MeasurementTypeKind.VoltageSpectrum
+                        or MeasurementTypeKind.VoltageWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Current
+                && value.Kind
+                    is MeasurementTypeKind.CurrentSpectrum
+                        or MeasurementTypeKind.CurrentWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Scalar
+                && value.Kind == MeasurementTypeKind.ScalarSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.NoiseSpectralDensity
+                && value.Kind == MeasurementTypeKind.NoiseSpectrum
+            )
+            {
+                return true;
+            }
+
             return false;
         }
 
