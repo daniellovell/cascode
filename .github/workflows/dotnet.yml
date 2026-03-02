@@ -29,17 +29,34 @@ jobs:
           cache-dependency-path: |
             **/packages.lock.json
 
-      - name: Setup micromamba
-        if: runner.os != 'Windows'
-        uses: mamba-org/setup-micromamba@v2
-        with:
-          environment-file: tests/simulation/environment.yml
-          environment-name: cascode-sim
-          cache-environment: true
+      - name: Install ngspice build deps (Linux)
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          bison flex autoconf automake libtool
+          libreadline-dev libx11-dev libxaw7-dev
+
+      - name: Build & install ngspice (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -L -o ngspice.tar.gz 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2.tar.gz/download'
+          tar xzf ngspice.tar.gz
+          cd ngspice-45.2
+          sudo ./compile_linux.sh
+
+      - name: Install ngspice (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ngspice
+
+      - name: Install ngspice (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2_64.7z/download' -OutFile ngspice.7z
+          7z x ngspice.7z -oC:\ngspice
+          echo "C:\ngspice\Spice64\bin" >> $env:GITHUB_PATH
 
       - name: Verify ngspice installation
-        if: runner.os != 'Windows'
-        shell: bash -el {0}
         run: ngspice --version
 
       - name: Restore (locked)
@@ -61,13 +78,10 @@ jobs:
         run: dotnet csharpier check .
 
       - name: Test with Coverage
-        shell: bash -el {0}
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage" --filter "Category!=Simulation"
-          else
-            dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
-          fi
+        run: >
+          dotnet test Cascode.sln --configuration Release --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --collect "XPlat Code Coverage"
 
       - name: Upload Test Results
         if: always()
