@@ -2794,7 +2794,7 @@ bench EmptySpectrumBandBench {{
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
-        Assert.Contains("Sequence contains no elements", ex.Message);
+        Assert.Contains("Empty range after slicing.", ex.Message);
     }
 
     [Fact]
@@ -2859,7 +2859,7 @@ bench EmptyWaveformWindowBench {{
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
-        Assert.Contains("Sequence contains no elements", ex.Message);
+        Assert.Contains("Empty range after slicing.", ex.Message);
     }
 
     private static double ToDb20(double magnitude) => 20.0 * Math.Log10(Math.Max(1e-15, magnitude));
