@@ -960,6 +960,17 @@ public static class BenchSemanticChecker
     {
         var recv = InferExprType(call.Receiver, scope, measurementTypes, benchesByName);
 
+        if (
+            (
+                call.Method.Equals("From", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("To", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase)
+            ) && IsArrayKind(recv.Kind)
+        )
+        {
+            return recv;
+        }
+
         if (recv.Kind == MeasurementTypeKind.TransferFunction)
         {
             if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
@@ -1276,6 +1287,20 @@ public static class BenchSemanticChecker
         // Unknown methods: treat as scalar for now and let runtime produce a better error.
         return MeasurementType.Scalar();
     }
+
+    private static bool IsArrayKind(MeasurementTypeKind kind) =>
+        kind == MeasurementTypeKind.GainSpectrum
+        || kind == MeasurementTypeKind.ScalarSpectrum
+        || kind == MeasurementTypeKind.TimeSpectrum
+        || kind == MeasurementTypeKind.PhaseSpectrum
+        || kind == MeasurementTypeKind.ComplexVoltageSpectrum
+        || kind == MeasurementTypeKind.ComplexCurrentSpectrum
+        || kind == MeasurementTypeKind.VoltageSpectrum
+        || kind == MeasurementTypeKind.CurrentSpectrum
+        || kind == MeasurementTypeKind.NoiseSpectrum
+        || kind == MeasurementTypeKind.VoltageWaveform
+        || kind == MeasurementTypeKind.CurrentWaveform
+        || kind == MeasurementTypeKind.TransferFunction;
 
     private static MeasurementType InferCallType(
         MeasurementCall call,
@@ -2282,6 +2307,62 @@ public static class BenchSemanticChecker
                         or MeasurementTypeKind.Capacitance
                         or MeasurementTypeKind.Inductance
                         or MeasurementTypeKind.Time;
+            }
+
+            // Element-wise constraints allow spectrum/waveform measurements to be declared
+            // with the corresponding scalar physical unit (e.g., dB, V, A, s, deg).
+            if (
+                target.Kind == MeasurementTypeKind.VoltageRatio
+                && value.Kind == MeasurementTypeKind.GainSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Phase
+                && value.Kind == MeasurementTypeKind.PhaseSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Time
+                && value.Kind == MeasurementTypeKind.TimeSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Voltage
+                && value.Kind
+                    is MeasurementTypeKind.VoltageSpectrum
+                        or MeasurementTypeKind.VoltageWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Current
+                && value.Kind
+                    is MeasurementTypeKind.CurrentSpectrum
+                        or MeasurementTypeKind.CurrentWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Scalar
+                && value.Kind == MeasurementTypeKind.ScalarSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.NoiseSpectralDensity
+                && value.Kind == MeasurementTypeKind.NoiseSpectrum
+            )
+            {
+                return true;
             }
 
             return false;

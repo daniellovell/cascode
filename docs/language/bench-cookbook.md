@@ -216,6 +216,25 @@ SParameterMatrix S = sparam(sp)
 return db20(S.S(2, 1).Mag()).ValueAt(f)
 ```
 
+To constrain a full frequency band, return a sliced spectrum and apply a numeric constraint directly
+to that measurement. Numeric constraints on spectrums and waveforms are evaluated element-wise, so
+every sample in the selected band must satisfy the bound:
+
+```cascode
+measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+  SParameterMatrix S = sparam(sp)
+  return db20(S.S(2, 1).Mag()).From(from).To(to)
+}
+```
+
+```cascode
+constraints {
+  numeric {
+    c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=100kHz, to=10MHz) >= 10dB
+  }
+}
+```
+
 Reference implementation: [`lib/std/bench/SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas).
 
 > [!IMPORTANT]

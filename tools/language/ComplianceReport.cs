@@ -54,11 +54,16 @@ public sealed class ConstraintResult
     /// <summary>Machine-readable failure reason: no measurement found for the constraint.</summary>
     public const string NoMeasurement = "no_measurement";
 
-    /// <summary>Machine-readable failure reason: measurement value was non-finite (NaN/Inf).</summary>
+    /// <summary>Machine-readable failure reason: measurement value was non-finite
+    /// (NaN/Inf).</summary>
     public const string NonFiniteValue = "non_finite_value";
 
     /// <summary>Machine-readable failure reason: measured value violated the constraint.</summary>
     public const string ConstraintViolation = "constraint_violation";
+
+    /// <summary>Machine-readable failure reason: measurement returned an empty
+    /// spectrum/waveform.</summary>
+    public const string EmptySpectrum = "empty_spectrum";
 
     /// <summary>Constraint ID (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;

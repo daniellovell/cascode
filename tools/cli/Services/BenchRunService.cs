@@ -987,7 +987,8 @@ public class BenchRunService
                     continue;
                 }
 
-                var resultValue = double.NaN;
+                double? resultValue = null;
+                double[]? resultValues = null;
                 string? error = null;
                 if (v.Value is BenchNumber num)
                 {
@@ -996,6 +997,10 @@ public class BenchRunService
                 else if (v.Value is BenchError err)
                 {
                     error = err.Message;
+                }
+                else if (TryExtractSeriesValues(v.Value, out var extractedValues))
+                {
+                    resultValues = extractedValues;
                 }
                 else
                 {
@@ -1006,6 +1011,7 @@ public class BenchRunService
                 {
                     Metric = metric,
                     Value = resultValue,
+                    Values = resultValues,
                     Unit = v.Unit,
                     Node = node,
                     Bench = instanceName,
@@ -2145,7 +2151,10 @@ public class BenchRunService
             {
                 if (byMetric.TryGetValue(metric, out var m))
                 {
-                    row.Add(m.Value.ToString("G17", CultureInfo.InvariantCulture));
+                    row.Add(
+                        m.Value?.ToString("G17", CultureInfo.InvariantCulture)
+                            ?? double.NaN.ToString("G17", CultureInfo.InvariantCulture)
+                    );
                 }
                 else
                 {
@@ -2170,5 +2179,23 @@ public class BenchRunService
             dict[shortName] = dataset.ValuesByName[vectorName][index];
         }
         return dict;
+    }
+
+    private static bool TryExtractSeriesValues(BenchValue value, out double[]? values)
+    {
+        values = value switch
+        {
+            BenchGainSpectrum spectrum => spectrum.Values,
+            BenchScalarSpectrum spectrum => spectrum.Values,
+            BenchTimeSpectrum spectrum => spectrum.ValuesS,
+            BenchPhaseSpectrum spectrum => spectrum.Degrees,
+            BenchNoiseSpectrum spectrum => spectrum.ValuesVPerRtHz,
+            BenchVoltageSpectrum spectrum => spectrum.Values,
+            BenchCurrentSpectrum spectrum => spectrum.Values,
+            BenchWaveform waveform => waveform.Values,
+            _ => null,
+        };
+
+        return values is not null;
     }
 }

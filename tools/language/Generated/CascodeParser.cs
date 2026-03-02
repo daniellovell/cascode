@@ -6506,11 +6506,11 @@ public partial class CascodeParser : Parser {
 	}
 
 	public partial class BenchMetricRefContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(CascodeParser.IDENT); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
-			return GetToken(CascodeParser.IDENT, i);
-		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(CascodeParser.IDENT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLONCOLON() { return GetToken(CascodeParser.COLONCOLON, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public IdPartContext idPart() {
+			return GetRuleContext<IdPartContext>(0);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] LPAREN() { return GetTokens(CascodeParser.LPAREN); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN(int i) {
 			return GetToken(CascodeParser.LPAREN, i);
@@ -6573,7 +6573,7 @@ public partial class CascodeParser : Parser {
 			State = 1091;
 			Match(COLONCOLON);
 			State = 1092;
-			Match(IDENT);
+			idPart();
 			State = 1098;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
@@ -11172,7 +11172,7 @@ public partial class CascodeParser : Parser {
 	}
 
 	public partial class MeasurementDeclContext : ParserRuleContext {
-		public IToken name;
+		public IdPartContext name;
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MEASUREMENT_KW() { return GetToken(CascodeParser.MEASUREMENT_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(CascodeParser.COLON, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public UnitTypeContext unitType() {
@@ -11183,7 +11183,9 @@ public partial class CascodeParser : Parser {
 			return GetRuleContext<MeasurementBodyContext>(0);
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RBRACE() { return GetToken(CascodeParser.RBRACE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(CascodeParser.IDENT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public IdPartContext idPart() {
+			return GetRuleContext<IdPartContext>(0);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OVERRIDE_KW() { return GetToken(CascodeParser.OVERRIDE_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN() { return GetToken(CascodeParser.LPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPAREN() { return GetToken(CascodeParser.RPAREN, 0); }
@@ -11224,7 +11226,7 @@ public partial class CascodeParser : Parser {
 			State = 1612;
 			Match(MEASUREMENT_KW);
 			State = 1613;
-			_localctx.name = Match(IDENT);
+			_localctx.name = idPart();
 			State = 1619;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
@@ -12061,11 +12063,11 @@ public partial class CascodeParser : Parser {
 	}
 
 	public partial class BenchMeasurementRefContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(CascodeParser.IDENT); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
-			return GetToken(CascodeParser.IDENT, i);
-		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(CascodeParser.IDENT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLONCOLON() { return GetToken(CascodeParser.COLONCOLON, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public IdPartContext idPart() {
+			return GetRuleContext<IdPartContext>(0);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN() { return GetToken(CascodeParser.LPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPAREN() { return GetToken(CascodeParser.RPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public MeasurementArgListContext measurementArgList() {
@@ -12097,7 +12099,7 @@ public partial class CascodeParser : Parser {
 			State = 1700;
 			Match(COLONCOLON);
 			State = 1701;
-			Match(IDENT);
+			idPart();
 			State = 1707;
 			ErrorHandler.Sync(this);
 			switch ( Interpreter.AdaptivePredict(TokenStream,160,Context) ) {
@@ -13076,11 +13078,11 @@ public partial class CascodeParser : Parser {
 		3,154,77,0,1082,159,1,0,0,0,1083,1089,5,166,0,0,1084,1086,5,151,0,0,1085,
 		1087,3,310,155,0,1086,1085,1,0,0,0,1086,1087,1,0,0,0,1087,1088,1,0,0,0,
 		1088,1090,5,152,0,0,1089,1084,1,0,0,0,1089,1090,1,0,0,0,1090,1091,1,0,
-		0,0,1091,1092,5,144,0,0,1092,1098,5,166,0,0,1093,1095,5,151,0,0,1094,1096,
-		3,310,155,0,1095,1094,1,0,0,0,1095,1096,1,0,0,0,1096,1097,1,0,0,0,1097,
-		1099,5,152,0,0,1098,1093,1,0,0,0,1098,1099,1,0,0,0,1099,161,1,0,0,0,1100,
-		1101,3,164,82,0,1101,1102,5,144,0,0,1102,1103,3,128,64,0,1103,163,1,0,
-		0,0,1104,1105,7,11,0,0,1105,165,1,0,0,0,1106,1107,5,166,0,0,1107,1108,
+		0,0,1091,1092,5,144,0,0,1092,1098,3,126,63,0,1093,1095,5,151,0,0,1094,
+		1096,3,310,155,0,1095,1094,1,0,0,0,1095,1096,1,0,0,0,1096,1097,1,0,0,0,
+		1097,1099,5,152,0,0,1098,1093,1,0,0,0,1098,1099,1,0,0,0,1099,161,1,0,0,
+		0,1100,1101,3,164,82,0,1101,1102,5,144,0,0,1102,1103,3,128,64,0,1103,163,
+		1,0,0,0,1104,1105,7,11,0,0,1105,165,1,0,0,0,1106,1107,5,166,0,0,1107,1108,
 		5,146,0,0,1108,1109,5,166,0,0,1109,1110,5,142,0,0,1110,1111,3,154,77,0,
 		1111,1112,5,84,0,0,1112,1113,3,168,84,0,1113,167,1,0,0,0,1114,1115,7,12,
 		0,0,1115,169,1,0,0,0,1116,1117,5,166,0,0,1117,1118,5,146,0,0,1118,1123,
@@ -13236,7 +13238,7 @@ public partial class CascodeParser : Parser {
 		0,1602,1601,1,0,0,0,1603,1606,1,0,0,0,1604,1602,1,0,0,0,1604,1605,1,0,
 		0,0,1605,1607,1,0,0,0,1606,1604,1,0,0,0,1607,1608,5,156,0,0,1608,285,1,
 		0,0,0,1609,1611,5,10,0,0,1610,1609,1,0,0,0,1610,1611,1,0,0,0,1611,1612,
-		1,0,0,0,1612,1613,5,103,0,0,1613,1619,5,166,0,0,1614,1616,5,151,0,0,1615,
+		1,0,0,0,1612,1613,5,103,0,0,1613,1619,3,126,63,0,1614,1616,5,151,0,0,1615,
 		1617,3,250,125,0,1616,1615,1,0,0,0,1616,1617,1,0,0,0,1617,1618,1,0,0,0,
 		1618,1620,5,152,0,0,1619,1614,1,0,0,0,1619,1620,1,0,0,0,1620,1621,1,0,
 		0,0,1621,1622,5,146,0,0,1622,1623,3,288,144,0,1623,1624,5,155,0,0,1624,
@@ -13265,7 +13267,7 @@ public partial class CascodeParser : Parser {
 		0,0,1697,1685,1,0,0,0,1697,1686,1,0,0,0,1697,1690,1,0,0,0,1697,1691,1,
 		0,0,0,1697,1692,1,0,0,0,1697,1693,1,0,0,0,1697,1694,1,0,0,0,1697,1695,
 		1,0,0,0,1697,1696,1,0,0,0,1698,305,1,0,0,0,1699,1700,5,166,0,0,1700,1701,
-		5,144,0,0,1701,1707,5,166,0,0,1702,1704,5,151,0,0,1703,1705,3,310,155,
+		5,144,0,0,1701,1707,3,126,63,0,1702,1704,5,151,0,0,1703,1705,3,310,155,
 		0,1704,1703,1,0,0,0,1704,1705,1,0,0,0,1705,1706,1,0,0,0,1706,1708,5,152,
 		0,0,1707,1702,1,0,0,0,1707,1708,1,0,0,0,1708,307,1,0,0,0,1709,1710,3,126,
 		63,0,1710,1712,5,151,0,0,1711,1713,3,310,155,0,1712,1711,1,0,0,0,1712,

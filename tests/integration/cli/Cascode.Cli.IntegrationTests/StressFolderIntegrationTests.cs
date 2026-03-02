@@ -330,8 +330,27 @@ public sealed class StressFolderIntegrationTests : IDisposable
                 {
                     if (string.IsNullOrEmpty(m.Error))
                     {
-                        Assert.False(double.IsNaN(m.Value));
-                        Assert.False(double.IsInfinity(m.Value));
+                        if (m.Values is not null)
+                        {
+                            Assert.True(m.Values.Length > 0);
+                            Assert.All(
+                                m.Values,
+                                value =>
+                                {
+                                    Assert.False(double.IsNaN(value));
+                                    Assert.False(double.IsInfinity(value));
+                                }
+                            );
+                        }
+                        else
+                        {
+                            Assert.True(
+                                m.Value.HasValue,
+                                "expected scalar Value when Values is null"
+                            );
+                            Assert.False(double.IsNaN(m.Value.Value));
+                            Assert.False(double.IsInfinity(m.Value.Value));
+                        }
                     }
                 }
             );
@@ -341,8 +360,9 @@ public sealed class StressFolderIntegrationTests : IDisposable
             await AssertDiffToDiffLoadSplitIfApplicable(plan, tbPath);
         }
 
-        // For every EL circuit, ensure its numeric constraints resolve to measured values (not missing/error).
-        // This is the core stress invariant: adding a new constraint should fail CI until the backend exists.
+        // For every EL circuit, ensure its numeric constraints resolve to measured values (not
+        // missing/error). This is the core stress invariant: adding a new constraint should fail CI
+        // until the backend exists.
         foreach (
             var circuit in doc.Circuits.Where(c =>
                 c.Level == CascodeLevel.EL && !c.Inline && c.Constraints?.Numeric?.Count > 0
