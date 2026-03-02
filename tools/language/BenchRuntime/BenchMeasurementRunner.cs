@@ -610,7 +610,13 @@ public sealed class BenchMeasurementRunner
                 return EvaluateMeasurementInvocation(measurement, args: null);
             }
 
-            var args = BindMeasurementArguments(measurement, call, locals);
+            var args = BindFunctionCallArguments(
+                call,
+                locals,
+                measurement.Parameters.Select(p => p.Name).ToArray(),
+                measurement.Name,
+                "measurement"
+            );
             return EvaluateMeasurementInvocation(measurement, args);
         }
 
@@ -619,7 +625,13 @@ public sealed class BenchMeasurementRunner
             throw new InvalidOperationException($"Unknown function '{call.Name}'.");
         }
 
-        var fnArgs = BindCallArguments(fn, call, locals);
+        var fnArgs = BindFunctionCallArguments(
+            call,
+            locals,
+            fn.Parameters.Select(p => p.Name).ToArray(),
+            fn.Name,
+            "function"
+        );
         return ExecuteStatements(fn.Body, fnArgs);
     }
 
@@ -646,7 +658,7 @@ public sealed class BenchMeasurementRunner
                 $"Unsupported axis kind for {recv.GetType().Name}."
             ),
         };
-        var args = BindMethodArguments(call, locals, call.Method, new[] { axisCoordinateName });
+        var args = BindMethodCallArguments(call, locals, call.Method, new[] { axisCoordinateName });
         var axisCoordinate = RequireAxisCoordinate(recv, args[axisCoordinateName], call.Method);
 
         if (TrySliceByAxisBoundary(recv, axisCoordinate.Value, isFrom, out result))
@@ -870,7 +882,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("SplitParallel", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "SplitParallel", new[] { "n" });
+                var args = BindMethodCallArguments(call, locals, "SplitParallel", new[] { "n" });
                 var count = RequireNumber(args["n"], "SplitParallel(n)");
                 if (
                     count.Kind != BenchNumericKind.Scalar
@@ -894,7 +906,7 @@ public sealed class BenchMeasurementRunner
 
         if (call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase))
         {
-            var args = BindMethodArguments(call, locals, "Range", new[] { "from", "to" });
+            var args = BindMethodCallArguments(call, locals, "Range", new[] { "from", "to" });
             var from = RequireAxisCoordinate(recv, args["from"], "Range.from");
             if (!TrySliceByAxisBoundary(recv, from.Value, isFrom: true, out var fromResult))
             {
@@ -1026,7 +1038,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(g.FrequenciesHz, g.Values, f.Value);
                 return new BenchNumber(g.ValueKind, v);
@@ -1034,7 +1046,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1094,7 +1106,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(ss.FrequenciesHz, ss.Values, f.Value);
                 return new BenchNumber(BenchNumericKind.Scalar, v);
@@ -1102,7 +1114,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1140,7 +1152,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(ts.FrequenciesHz, ts.ValuesS, f.Value);
                 return new BenchNumber(BenchNumericKind.TimeS, v);
@@ -1148,7 +1160,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1189,7 +1201,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(p.FrequenciesHz, p.Degrees, f.Value);
                 return new BenchNumber(BenchNumericKind.PhaseDeg, v);
@@ -1197,7 +1209,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1256,7 +1268,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(n.FrequenciesHz, n.ValuesVPerRtHz, f.Value);
                 return new BenchNumber(BenchNumericKind.NoiseVoltageVPerRtHz, v);
@@ -1264,7 +1276,12 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("Integrate", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "Integrate", new[] { "from", "to" });
+                var args = BindMethodCallArguments(
+                    call,
+                    locals,
+                    "Integrate",
+                    new[] { "from", "to" }
+                );
                 var from = RequireFrequency(args["from"], "from");
                 var to = RequireFrequency(args["to"], "to");
                 var rms = IntegrateNoiseRms(
@@ -1305,7 +1322,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogXComplex(cvs.FrequenciesHz, cvs.Values, f.Value);
                 return new BenchComplexNumber(BenchNumericKind.VoltageV, v);
@@ -1342,7 +1359,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogXComplex(ccs.FrequenciesHz, ccs.Values, f.Value);
                 return new BenchComplexNumber(BenchNumericKind.CurrentA, v);
@@ -1379,7 +1396,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(vs.FrequenciesHz, vs.Values, f.Value);
                 return new BenchNumber(BenchNumericKind.VoltageV, v);
@@ -1387,7 +1404,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1445,7 +1462,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "f" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "f" });
                 var f = RequireFrequency(args["f"], "ValueAt");
                 var v = InterpolateLogX(cs.FrequenciesHz, cs.Values, f.Value);
                 return new BenchNumber(BenchNumericKind.CurrentA, v);
@@ -1453,7 +1470,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1536,7 +1553,7 @@ public sealed class BenchMeasurementRunner
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(call, locals, "ValueAt", new[] { "t" });
+                var args = BindMethodCallArguments(call, locals, "ValueAt", new[] { "t" });
                 var t = RequireTime(args["t"], "ValueAt");
                 var v = InterpolateLinearX(w.TimePointsS, w.Values, t.Value);
                 return new BenchNumber(w.ValueKind, v);
@@ -1562,7 +1579,7 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
-                var args = BindMethodArguments(
+                var args = BindMethodCallArguments(
                     call,
                     locals,
                     "FindCrossing",
@@ -1732,7 +1749,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalVoltage(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "analysis", "terminal" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "analysis", "terminal" });
         var analysisName = ResolveAnalysisName(args["analysis"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis))
         {
@@ -1776,7 +1793,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalCurrent(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "analysis", "element_pin" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "analysis", "element_pin" });
         var analysisName = ResolveAnalysisName(args["analysis"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis))
         {
@@ -1835,7 +1852,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalSParam(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "analysis" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "analysis" });
         var analysisName = ResolveAnalysisName(args["analysis"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis))
         {
@@ -1893,24 +1910,27 @@ public sealed class BenchMeasurementRunner
         return true;
     }
 
-    private Dictionary<string, BenchValue> BindArgumentsCore(
-        IReadOnlyList<TypedParameter> parameters,
+    private Dictionary<string, BenchValue> BindFunctionCallArguments(
         MeasurementCall call,
         Dictionary<string, BenchValue> locals,
+        IReadOnlyList<string> parameterNames
+    )
+    {
+        return ResolveArgs(call.Args, parameterNames, locals, call.Name, "function");
+    }
+
+    private Dictionary<string, BenchValue> BindFunctionCallArguments(
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals,
+        IReadOnlyList<string> parameterNames,
         string targetName,
         string targetKind
     )
     {
-        return ResolveArgs(
-            call.Args,
-            parameters.Select(p => p.Name).ToArray(),
-            locals,
-            targetName,
-            targetKind
-        );
+        return ResolveArgs(call.Args, parameterNames, locals, targetName, targetKind);
     }
 
-    private Dictionary<string, BenchValue> BindMethodArguments(
+    private Dictionary<string, BenchValue> BindMethodCallArguments(
         MeasurementMethodCall call,
         Dictionary<string, BenchValue> locals,
         string methodName,
@@ -1926,15 +1946,6 @@ public sealed class BenchMeasurementRunner
             "method",
             optionalParameterNames
         );
-    }
-
-    private Dictionary<string, BenchValue> BindFunctionArguments(
-        MeasurementCall call,
-        Dictionary<string, BenchValue> locals,
-        IReadOnlyList<string> parameterNames
-    )
-    {
-        return ResolveArgs(call.Args, parameterNames, locals, call.Name, "function");
     }
 
     private Dictionary<string, BenchValue> ResolveArgs(
@@ -1995,21 +2006,6 @@ public sealed class BenchMeasurementRunner
         return values;
     }
 
-    private Dictionary<string, BenchValue> BindMeasurementArguments(
-        MeasurementDefinition measurement,
-        MeasurementCall call,
-        Dictionary<string, BenchValue> locals
-    )
-    {
-        return BindArgumentsCore(
-            measurement.Parameters,
-            call,
-            locals,
-            measurement.Name,
-            "measurement"
-        );
-    }
-
     private static string MakeMeasurementCacheKey(
         MeasurementDefinition measurement,
         IReadOnlyDictionary<string, BenchValue>? args
@@ -2050,21 +2046,12 @@ public sealed class BenchMeasurementRunner
         };
     }
 
-    private Dictionary<string, BenchValue> BindCallArguments(
-        FunctionDefinition fn,
-        MeasurementCall call,
-        Dictionary<string, BenchValue> locals
-    )
-    {
-        return BindArgumentsCore(fn.Parameters, call, locals, fn.Name, "function");
-    }
-
     private BenchTransferFunction EvalTransfer(
         MeasurementCall call,
         Dictionary<string, BenchValue> locals
     )
     {
-        var args = BindFunctionArguments(call, locals, new[] { "ac", "stim", "resp" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "ac", "stim", "resp" });
         var analysisName = ResolveAnalysisName(args["ac"]);
 
         if (!_analyses.TryGetValue(analysisName, out var analysis) || analysis.Ac is null)
@@ -2095,7 +2082,7 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var args = BindFunctionArguments(call, locals, new[] { "noise", "terminal" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "noise", "terminal" });
         var analysisName = ResolveAnalysisName(args["noise"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis) || analysis.Noise is null)
         {
@@ -2118,7 +2105,7 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var args = BindFunctionArguments(call, locals, new[] { "noise", "ac", "stim", "resp" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "noise", "ac", "stim", "resp" });
 
         var noiseAnalysisName = ResolveAnalysisName(args["noise"]);
         if (!_analyses.TryGetValue(noiseAnalysisName, out var noise) || noise.Noise is null)
@@ -2277,7 +2264,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchGainSpectrum EvalDb20(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "spectrum" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "spectrum" });
         var g = (BenchGainSpectrum)args["spectrum"];
         var values = g.Values.Select(v => v > 0 ? 20.0 * Math.Log10(v) : DbFloor).ToArray();
         return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
@@ -2285,7 +2272,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchGainSpectrum EvalDb10(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "spectrum" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "spectrum" });
         var g = (BenchGainSpectrum)args["spectrum"];
         var values = g.Values.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor).ToArray();
         return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
@@ -2445,21 +2432,21 @@ public sealed class BenchMeasurementRunner
 
     private BenchNumber EvalAbs(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "x" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "x" });
         var x = RequireNumber(args["x"], "abs");
         return new BenchNumber(x.Kind, Math.Abs(x.Value));
     }
 
     private BenchNumber EvalSqrt(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "x" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "x" });
         var x = RequireNumber(args["x"], "sqrt");
         return new BenchNumber(x.Kind, Math.Sqrt(x.Value));
     }
 
     private BenchNumber EvalPeriod(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var args = BindFunctionArguments(call, locals, new[] { "f" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "f" });
         var f = RequireFrequency(args["f"], "period");
         if (f.Value <= 0)
         {
@@ -2476,7 +2463,7 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var args = BindFunctionArguments(call, locals, new[] { "pwr", "ret" });
+        var args = BindFunctionCallArguments(call, locals, new[] { "pwr", "ret" });
         var pwr = RequireTerminal(args["pwr"], "pwr");
         var ret = RequireTerminal(args["ret"], "ret");
         if (pwr.LeafNodes.Count == 0 || ret.LeafNodes.Count == 0)
@@ -2933,7 +2920,7 @@ public sealed class BenchMeasurementRunner
         }
         var toName = names[0];
         var fromName = names[1];
-        var args = BindMethodArguments(call, locals, methodName, names);
+        var args = BindMethodCallArguments(call, locals, methodName, names);
         var to = RequirePortIndex(args[toName], $"{methodName}.to");
         var from = RequirePortIndex(args[fromName], $"{methodName}.from");
         return (to, from);
@@ -2945,7 +2932,7 @@ public sealed class BenchMeasurementRunner
         string methodName
     )
     {
-        var args = BindMethodArguments(call, locals, methodName, new[] { "port" });
+        var args = BindMethodCallArguments(call, locals, methodName, new[] { "port" });
         var port = RequirePortIndex(args["port"], $"{methodName}.port");
         return (port, 0);
     }
