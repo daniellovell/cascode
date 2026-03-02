@@ -964,6 +964,7 @@ public static class BenchSemanticChecker
             (
                 call.Method.Equals("From", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("To", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase)
             ) && IsArrayKind(recv.Kind)
         )
         {

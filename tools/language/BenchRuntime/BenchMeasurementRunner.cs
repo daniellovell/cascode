@@ -878,6 +878,32 @@ public sealed class BenchMeasurementRunner
             return fromToResult;
         }
 
+        if (call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 2 || call.Args.Any(a => a.Name is not null))
+            {
+                throw new InvalidOperationException("Range requires 2 positional arguments.");
+            }
+
+            var fromCall = new MeasurementMethodCall(call.Receiver, "From", new[] { call.Args[0] });
+            if (!TryEvaluateFromTo(recv, fromCall, locals, out var fromResult))
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
+                );
+            }
+
+            var toCall = new MeasurementMethodCall(call.Receiver, "To", new[] { call.Args[1] });
+            if (!TryEvaluateFromTo(fromResult, toCall, locals, out var toResult))
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
+                );
+            }
+
+            return toResult;
+        }
+
         if (recv is BenchSParameterMatrix sm)
         {
             if (call.Method.Equals("S", StringComparison.OrdinalIgnoreCase))
