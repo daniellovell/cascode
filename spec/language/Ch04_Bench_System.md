@@ -539,7 +539,7 @@ commonly used primitives in the standard library.
 | `voltage(analysis, terminal)` | `ComplexVoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
 | `noise(noise, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
-| `input_referred_noise(noise, ac, stim, resp)` | `NoiseSpectrum` | Divides output noise density by `|transfer|` |
+| `input_referred_noise(noise, ac, stim, resp)` | `NoiseSpectrum` | Divides output noise density by `\|transfer\|` |
 | `sparam(analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
