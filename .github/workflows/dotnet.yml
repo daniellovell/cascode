@@ -52,7 +52,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2_64.7z/download' -OutFile ngspice.7z
+          curl.exe -L -o ngspice.7z 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2_64.7z/download'
           7z x ngspice.7z -oC:\ngspice
           echo "C:\ngspice\Spice64\bin" >> $env:GITHUB_PATH
 
