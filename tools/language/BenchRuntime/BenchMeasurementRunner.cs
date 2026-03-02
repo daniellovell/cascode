@@ -638,22 +638,18 @@ public sealed class BenchMeasurementRunner
             return false;
         }
 
-        var independentName = GetIndependentVariableKind(recv) switch
+        var axisCoordinateName = GetAxisKind(recv) switch
         {
             BenchNumericKind.TimeS => "t",
             BenchNumericKind.FrequencyHz => "f",
             _ => throw new InvalidOperationException(
-                $"Unsupported independent variable kind for {recv.GetType().Name}."
+                $"Unsupported axis kind for {recv.GetType().Name}."
             ),
         };
-        var args = BindMethodArguments(call, locals, call.Method, new[] { independentName });
-        var independentVariable = RequireIndependentVariable(
-            recv,
-            args[independentName],
-            call.Method
-        );
+        var args = BindMethodArguments(call, locals, call.Method, new[] { axisCoordinateName });
+        var axisCoordinate = RequireAxisCoordinate(recv, args[axisCoordinateName], call.Method);
 
-        if (TrySliceByIndependentBoundary(recv, independentVariable.Value, isFrom, out result))
+        if (TrySliceByAxisBoundary(recv, axisCoordinate.Value, isFrom, out result))
         {
             return true;
         }
@@ -663,23 +659,23 @@ public sealed class BenchMeasurementRunner
         );
     }
 
-    private static BenchNumber RequireIndependentVariable(
+    private static BenchNumber RequireAxisCoordinate(
         BenchValue recv,
         BenchValue value,
         string methodName
     )
     {
-        return GetIndependentVariableKind(recv) switch
+        return GetAxisKind(recv) switch
         {
             BenchNumericKind.TimeS => RequireTime(value, methodName),
             BenchNumericKind.FrequencyHz => RequireFrequency(value, methodName),
             _ => throw new InvalidOperationException(
-                $"Unsupported independent variable kind for {recv.GetType().Name}."
+                $"Unsupported axis kind for {recv.GetType().Name}."
             ),
         };
     }
 
-    private static bool TrySliceByIndependentBoundary(
+    private static bool TrySliceByAxisBoundary(
         BenchValue recv,
         double boundary,
         bool isFrom,
@@ -899,23 +895,16 @@ public sealed class BenchMeasurementRunner
         if (call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase))
         {
             var args = BindMethodArguments(call, locals, "Range", new[] { "from", "to" });
-            var from = RequireIndependentVariable(recv, args["from"], "Range.from");
-            if (!TrySliceByIndependentBoundary(recv, from.Value, isFrom: true, out var fromResult))
+            var from = RequireAxisCoordinate(recv, args["from"], "Range.from");
+            if (!TrySliceByAxisBoundary(recv, from.Value, isFrom: true, out var fromResult))
             {
                 throw new InvalidOperationException(
                     $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
                 );
             }
 
-            var to = RequireIndependentVariable(fromResult, args["to"], "Range.to");
-            if (
-                !TrySliceByIndependentBoundary(
-                    fromResult,
-                    to.Value,
-                    isFrom: false,
-                    out var toResult
-                )
-            )
+            var to = RequireAxisCoordinate(fromResult, args["to"], "Range.to");
+            if (!TrySliceByAxisBoundary(fromResult, to.Value, isFrom: false, out var toResult))
             {
                 throw new InvalidOperationException(
                     $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
@@ -3483,7 +3472,7 @@ public sealed class BenchMeasurementRunner
         return n;
     }
 
-    private static BenchNumericKind GetIndependentVariableKind(BenchValue receiver)
+    private static BenchNumericKind GetAxisKind(BenchValue receiver)
     {
         if (receiver is BenchWaveform)
         {
