@@ -10,7 +10,7 @@ internal sealed class NgspiceNotFoundException : InvalidOperationException
     internal static string InstallInstructions { get; } =
         "Install ngspice 45:\n"
         + "  macOS:   brew install ngspice\n"
-        + "  Linux:   sudo apt install ngspice  (or build from source)\n"
+        + "  Linux:   build from source — https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/\n"
         + "  Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/";
 
     internal static NgspiceNotFoundException NotFound() =>
