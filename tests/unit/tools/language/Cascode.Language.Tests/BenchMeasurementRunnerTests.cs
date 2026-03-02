@@ -2501,10 +2501,10 @@ bench WaveformRangeBench {{
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "WaveformRangeBench");
         var tran = new TranDataset(
-            TimePoints: new[] { 0.0, 1e-9, 2e-9, 3e-9, 4e-9, 5e-9 },
+            TimePoints: new[] { 0.0, 1e-9, 2e-9, 4e-9, 5e-9 },
             NodeVoltages: new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase)
             {
-                ["OUT"] = new[] { 0.0, 1.0, 4.0, 9.0, 16.0, 25.0 },
+                ["OUT"] = new[] { 0.0, 1.0, 4.0, 16.0, 25.0 },
             }
         );
 
@@ -2535,7 +2535,7 @@ bench WaveformRangeBench {{
 
         var values = runner.RunMetrics(new[] { "WindowMax", "WindowAt3ns" });
         Assert.Equal(16.0, values["WindowMax"].Value, precision: 9);
-        Assert.Equal(9.0, values["WindowAt3ns"].Value, precision: 9);
+        Assert.Equal(10.0, values["WindowAt3ns"].Value, precision: 9);
     }
 
     [Fact]
