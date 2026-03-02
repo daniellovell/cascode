@@ -1628,7 +1628,8 @@ public sealed class BenchMeasurementRunner
             .Args.Where(arg => arg.Name is not null)
             .ToDictionary(arg => arg.Name!, arg => arg.Value, StringComparer.Ordinal);
 
-        MeasurementExpr ResolveRequiredExpr(string parameterName, int positionalIndex)
+        var positionalIndex = 0;
+        MeasurementExpr ResolveRequiredExpr(string parameterName)
         {
             if (named.TryGetValue(parameterName, out var namedExpr))
             {
@@ -1638,7 +1639,7 @@ public sealed class BenchMeasurementRunner
 
             if (positionalIndex < positional.Count)
             {
-                return positional[positionalIndex].Value;
+                return positional[positionalIndex++].Value;
             }
 
             throw new InvalidOperationException(
@@ -1646,11 +1647,11 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var analysisExpr = ResolveRequiredExpr("analysis", 0);
-        var targetExpr = ResolveRequiredExpr("target", 1);
-        var paramExpr = ResolveRequiredExpr("param", 2);
+        var analysisExpr = ResolveRequiredExpr("analysis");
+        var targetExpr = ResolveRequiredExpr("target");
+        var paramExpr = ResolveRequiredExpr("param");
 
-        if (positional.Count > 3)
+        if (positionalIndex < positional.Count)
         {
             throw new InvalidOperationException(
                 $"Too many positional arguments for function '{call.Name}'."

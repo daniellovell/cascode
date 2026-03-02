@@ -547,7 +547,10 @@ bench TestBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
         var runner = new BenchMeasurementRunner(
@@ -588,7 +591,10 @@ bench TestBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
         var runner = new BenchMeasurementRunner(
@@ -645,7 +651,10 @@ bench TestBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
         var runner = new BenchMeasurementRunner(
@@ -688,7 +697,10 @@ bench OpParamBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "OpParamBench");
         var runner = new BenchMeasurementRunner(
@@ -774,7 +786,10 @@ bench ExplicitMagnitudeBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "ExplicitMagnitudeBench"
@@ -920,7 +935,10 @@ bench WrappedPhaseBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "WrappedPhaseBench");
         var ac = new AcDataset(
@@ -999,7 +1017,10 @@ bench NearZeroPhaseBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NearZeroPhaseBench");
         var ac = new AcDataset(
@@ -1109,7 +1130,10 @@ bench TinyMagnitudePhaseBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "TinyMagnitudePhaseBench"
@@ -1205,7 +1229,10 @@ bench ComplexBinaryBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "ComplexBinaryBench");
         var ac = new AcDataset(
@@ -2605,7 +2632,10 @@ bench BadSpectrumRangeBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "BadSpectrumRangeBench"
@@ -2682,7 +2712,10 @@ bench BadWaveformRangeBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "BadWaveformRangeBench"
@@ -2748,7 +2781,10 @@ bench EmptySpectrumBandBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "EmptySpectrumBandBench"
@@ -2825,7 +2861,10 @@ bench EmptyWaveformWindowBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "EmptyWaveformWindowBench"
@@ -3047,7 +3086,10 @@ bench UnexpectedNamedArgBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "UnexpectedNamedArgBench"
@@ -3118,7 +3160,10 @@ bench NamedRangeOrderBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NamedRangeOrderBench");
         var ac = new AcDataset(
@@ -3193,7 +3238,10 @@ bench BadRangeArgCountBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "BadRangeArgCountBench"
@@ -3375,7 +3423,10 @@ bench UnexpectedNamedFunctionArgBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "UnexpectedNamedFunctionArgBench"
@@ -3413,7 +3464,10 @@ bench TooManyPositionalFunctionArgsBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "TooManyPositionalFunctionArgsBench"
