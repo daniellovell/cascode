@@ -880,9 +880,9 @@ public sealed class BenchMeasurementRunner
 
         if (call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase))
         {
-            if (call.Args.Count != 2 || call.Args.Any(a => a.Name is not null))
+            if (call.Args.Count != 2)
             {
-                throw new InvalidOperationException("Range requires 2 positional arguments.");
+                throw new InvalidOperationException("Range requires 2 arguments.");
             }
 
             var fromCall = new MeasurementMethodCall(call.Receiver, "From", new[] { call.Args[0] });
