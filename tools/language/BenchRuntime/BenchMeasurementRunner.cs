@@ -619,6 +619,200 @@ public sealed class BenchMeasurementRunner
         return ExecuteStatements(fn.Body, fnArgs);
     }
 
+    private bool TryEvaluateFromTo(
+        BenchValue recv,
+        MeasurementMethodCall call,
+        Dictionary<string, BenchValue> locals,
+        out BenchValue result
+    )
+    {
+        var isFrom = call.Method.Equals("From", StringComparison.OrdinalIgnoreCase);
+        var isTo = call.Method.Equals("To", StringComparison.OrdinalIgnoreCase);
+        if (!isFrom && !isTo)
+        {
+            result = BenchMissing.Value;
+            return false;
+        }
+
+        if (call.Args.Count != 1)
+        {
+            throw new InvalidOperationException($"{call.Method} requires 1 argument.");
+        }
+
+        var independentVariable = GetIndependentVariableKind(recv) switch
+        {
+            BenchNumericKind.TimeS => RequireTime(
+                EvaluateExpr(call.Args[0].Value, locals),
+                call.Method
+            ),
+            BenchNumericKind.FrequencyHz => RequireFrequency(
+                EvaluateExpr(call.Args[0].Value, locals),
+                call.Method
+            ),
+            _ => throw new InvalidOperationException(
+                $"Unsupported independent variable kind for {recv.GetType().Name}."
+            ),
+        };
+
+        if (recv is BenchGainSpectrum gain)
+        {
+            result = Slice(
+                gain.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchGainSpectrum(
+                        gain.FrequenciesHz[range],
+                        gain.Values[range],
+                        gain.ValueKind
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchScalarSpectrum scalar)
+        {
+            result = Slice(
+                scalar.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchScalarSpectrum(scalar.FrequenciesHz[range], scalar.Values[range])
+            );
+            return true;
+        }
+
+        if (recv is BenchTimeSpectrum timeSpectrum)
+        {
+            result = Slice(
+                timeSpectrum.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchTimeSpectrum(
+                        timeSpectrum.FrequenciesHz[range],
+                        timeSpectrum.ValuesS[range]
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchPhaseSpectrum phase)
+        {
+            result = Slice(
+                phase.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) => new BenchPhaseSpectrum(phase.FrequenciesHz[range], phase.Degrees[range])
+            );
+            return true;
+        }
+
+        if (recv is BenchNoiseSpectrum noise)
+        {
+            result = Slice(
+                noise.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchNoiseSpectrum(noise.FrequenciesHz[range], noise.ValuesVPerRtHz[range])
+            );
+            return true;
+        }
+
+        if (recv is BenchComplexVoltageSpectrum complexVoltage)
+        {
+            result = Slice(
+                complexVoltage.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchComplexVoltageSpectrum(
+                        complexVoltage.FrequenciesHz[range],
+                        complexVoltage.Values[range]
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchComplexCurrentSpectrum complexCurrent)
+        {
+            result = Slice(
+                complexCurrent.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchComplexCurrentSpectrum(
+                        complexCurrent.FrequenciesHz[range],
+                        complexCurrent.Values[range]
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchVoltageSpectrum voltageSpectrum)
+        {
+            result = Slice(
+                voltageSpectrum.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchVoltageSpectrum(
+                        voltageSpectrum.FrequenciesHz[range],
+                        voltageSpectrum.Values[range]
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchCurrentSpectrum currentSpectrum)
+        {
+            result = Slice(
+                currentSpectrum.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchCurrentSpectrum(
+                        currentSpectrum.FrequenciesHz[range],
+                        currentSpectrum.Values[range]
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchWaveform waveform)
+        {
+            result = Slice(
+                waveform.TimePointsS,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchWaveform(
+                        waveform.TimePointsS[range],
+                        waveform.Values[range],
+                        waveform.ValueKind
+                    )
+            );
+            return true;
+        }
+
+        if (recv is BenchTransferFunction transfer)
+        {
+            result = Slice(
+                transfer.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchTransferFunction(transfer.FrequenciesHz[range], transfer.Values[range])
+            );
+            return true;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
+        );
+    }
+
     private BenchValue EvaluateMethodCall(
         MeasurementMethodCall call,
         Dictionary<string, BenchValue> locals
@@ -677,6 +871,37 @@ public sealed class BenchMeasurementRunner
 
                 return ScaleImpedance(z, factor: count.Value);
             }
+        }
+
+        if (TryEvaluateFromTo(recv, call, locals, out var fromToResult))
+        {
+            return fromToResult;
+        }
+
+        if (call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 2)
+            {
+                throw new InvalidOperationException("Range requires 2 arguments.");
+            }
+
+            var fromCall = new MeasurementMethodCall(call.Receiver, "From", new[] { call.Args[0] });
+            if (!TryEvaluateFromTo(recv, fromCall, locals, out var fromResult))
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
+                );
+            }
+
+            var toCall = new MeasurementMethodCall(call.Receiver, "To", new[] { call.Args[1] });
+            if (!TryEvaluateFromTo(fromResult, toCall, locals, out var toResult))
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported method call '{call.Method}' on {recv.GetType().Name}."
+                );
+            }
+
+            return toResult;
         }
 
         if (recv is BenchSParameterMatrix sm)
@@ -2902,6 +3127,63 @@ public sealed class BenchMeasurementRunner
         return 20.0 * Math.Log10(Math.Max(v, MinMag));
     }
 
+    private static Range SliceFrom(double[] axis, double boundary) =>
+        LowerBound(axis, boundary)..axis.Length;
+
+    private static Range SliceTo(double[] axis, double boundary) => 0..UpperBound(axis, boundary);
+
+    private static T Slice<T>(double[] axis, double boundary, bool isFrom, Func<Range, T> factory)
+    {
+        var range = isFrom ? SliceFrom(axis, boundary) : SliceTo(axis, boundary);
+        var start = range.Start.GetOffset(axis.Length);
+        var end = range.End.GetOffset(axis.Length);
+        if (start >= end)
+        {
+            throw new InvalidOperationException($"Empty range after slicing.");
+        }
+        return factory(range);
+    }
+
+    private static int LowerBound(double[] axis, double boundary)
+    {
+        var lo = 0;
+        var hi = axis.Length;
+        while (lo < hi)
+        {
+            var mid = lo + ((hi - lo) / 2);
+            if (axis[mid] < boundary)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+
+        return lo;
+    }
+
+    private static int UpperBound(double[] axis, double boundary)
+    {
+        var lo = 0;
+        var hi = axis.Length;
+        while (lo < hi)
+        {
+            var mid = lo + ((hi - lo) / 2);
+            if (axis[mid] <= boundary)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+
+        return lo;
+    }
+
     private static double InterpolateLogX(double[] xs, double[] ys, double x)
     {
         if (xs.Length == 0 || ys.Length == 0)
@@ -3214,6 +3496,33 @@ public sealed class BenchMeasurementRunner
             throw new InvalidOperationException($"Expected Time for {context}, got {n.Kind}.");
         }
         return n;
+    }
+
+    private static BenchNumericKind GetIndependentVariableKind(BenchValue receiver)
+    {
+        if (receiver is BenchWaveform)
+        {
+            return BenchNumericKind.TimeS;
+        }
+        if (
+            receiver
+            is BenchGainSpectrum
+                or BenchScalarSpectrum
+                or BenchTimeSpectrum
+                or BenchPhaseSpectrum
+                or BenchNoiseSpectrum
+                or BenchComplexVoltageSpectrum
+                or BenchComplexCurrentSpectrum
+                or BenchVoltageSpectrum
+                or BenchCurrentSpectrum
+                or BenchTransferFunction
+        )
+        {
+            return BenchNumericKind.FrequencyHz;
+        }
+        throw new InvalidOperationException(
+            $"Unsupported independent variable kind for {receiver.GetType().Name}."
+        );
     }
 
     private static double ParseInvariant(string raw) =>
