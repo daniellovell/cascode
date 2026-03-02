@@ -123,6 +123,45 @@ internal static class BenchRunHelpers
         return map.Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public static string? GetBundledStdlibRoot()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var libStdPath = Path.Combine(baseDir, "lib", "std");
+        if (Directory.Exists(libStdPath))
+            return baseDir;
+        return null;
+    }
+
+    public static IReadOnlyList<string> BuildSearchRoots(string workspaceRoot)
+    {
+        var comparer = OperatingSystem.IsLinux()
+            ? StringComparer.Ordinal
+            : StringComparer.OrdinalIgnoreCase;
+        var seen = new HashSet<string>(comparer);
+        var roots = new List<string>(3);
+
+        var ws = NormalizePath(workspaceRoot);
+        if (seen.Add(ws))
+            roots.Add(ws);
+
+        var cwd = NormalizePath(Directory.GetCurrentDirectory());
+        if (seen.Add(cwd))
+            roots.Add(cwd);
+
+        var stdlibRoot = GetBundledStdlibRoot();
+        if (stdlibRoot is not null)
+        {
+            var std = NormalizePath(stdlibRoot);
+            if (seen.Add(std))
+                roots.Add(std);
+        }
+
+        return roots;
+    }
+
+    private static string NormalizePath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
     public static string? FindWorkspaceRoot(string inputPath)
     {
         var dir = new DirectoryInfo(

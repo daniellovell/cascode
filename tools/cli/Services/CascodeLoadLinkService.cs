@@ -103,7 +103,14 @@ internal static class CascodeLoadLinkService
             : Path.GetFullPath(linkArtifactsDir);
         Directory.CreateDirectory(outDir);
 
-        var link = CascodeLinker.LinkFile(resolvedPath, outDir, workspaceRoot, logger);
+        var searchRoots = BenchRunHelpers.BuildSearchRoots(workspaceRoot);
+        var link = CascodeLinker.LinkFile(
+            resolvedPath,
+            outDir,
+            searchRoots,
+            CascodeLinkOptions.Default,
+            logger
+        );
         if (!link.Success || string.IsNullOrWhiteSpace(link.LinkedCasPath))
         {
             diagnostics = link.Diagnostics;
