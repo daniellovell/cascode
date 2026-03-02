@@ -25,15 +25,16 @@ public sealed class BenchRunHelpersStdlibTests
     public void BuildSearchRoots_IncludesStdlibRoot_WhenWorkspaceRootDiffers()
     {
         var workspace = "/some/project/root";
+        var expected = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workspace));
         var stdlibRoot = BenchRunHelpers.GetBundledStdlibRoot();
         Assert.NotNull(stdlibRoot);
         var normalizedStdlib = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stdlibRoot));
 
         var roots = BenchRunHelpers.BuildSearchRoots(workspace);
 
-        Assert.Equal(workspace, roots[0]);
+        Assert.Equal(expected, roots[0]);
         Assert.True(roots.Count >= 2, "Expected at least workspace + CWD/stdlib.");
-        Assert.Contains(roots, r => r == workspace);
+        Assert.Contains(roots, r => r == expected);
         Assert.Contains(roots, r => r == normalizedStdlib);
     }
 
@@ -67,13 +68,14 @@ public sealed class BenchRunHelpersStdlibTests
     public void BuildSearchRoots_IncludesCwd_BetweenWorkspaceAndStdlib()
     {
         var workspace = "/nonexistent/workspace/root";
+        var expected = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workspace));
         var cwd = Path.TrimEndingDirectorySeparator(
             Path.GetFullPath(Directory.GetCurrentDirectory())
         );
         var roots = BenchRunHelpers.BuildSearchRoots(workspace);
         var rootsList = roots.ToList();
 
-        Assert.Equal(workspace, roots[0]);
+        Assert.Equal(expected, roots[0]);
         var cwdIndex = rootsList.IndexOf(cwd);
         Assert.True(cwdIndex > 0, "CWD should appear after workspace root.");
 
