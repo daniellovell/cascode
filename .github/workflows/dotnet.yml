@@ -9,6 +9,9 @@ on:
     paths-ignore:
       - 'build/**'
 
+env:
+  NGSPICE_VERSION: '45.2'
+
 jobs:
   build_test:
     strategy:
@@ -39,20 +42,21 @@ jobs:
       - name: Build & install ngspice (Linux)
         if: runner.os == 'Linux'
         run: |
-          curl -L -o ngspice.tar.gz 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2.tar.gz/download'
+          curl -L -o ngspice.tar.gz 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/${{ env.NGSPICE_VERSION }}/ngspice-${{ env.NGSPICE_VERSION }}.tar.gz/download'
           tar xzf ngspice.tar.gz
-          cd ngspice-45.2
+          cd ngspice-${{ env.NGSPICE_VERSION }}
           sudo ./compile_linux.sh
 
       - name: Install ngspice (macOS)
         if: runner.os == 'macOS'
+        # brew does not support versioning and only keeps the latest version.
         run: brew install ngspice
 
       - name: Install ngspice (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          curl.exe -L -o ngspice.7z 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2_64.7z/download'
+          curl.exe -L -o ngspice.7z 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/${{ env.NGSPICE_VERSION }}/ngspice-${{ env.NGSPICE_VERSION }}_64.7z/download'
           7z x ngspice.7z -oC:\ngspice
           echo "C:\ngspice\Spice64\bin" >> $env:GITHUB_PATH
 
@@ -118,7 +122,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.102'
+          dotnet-version: '10.0.103'
           cache: true
           cache-dependency-path: |
             **/packages.lock.json
