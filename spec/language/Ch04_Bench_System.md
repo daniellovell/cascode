@@ -522,7 +522,7 @@ Common structured result types produced by measurement primitives:
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
-| `SParameterMatrix` | `sparam(sp_analysis)` | Frequency-indexed matrix of complex S-parameters |
+| `SParameterMatrix` | `sparam(analysis)` | Frequency-indexed matrix of complex S-parameters |
 
 ---
 
@@ -538,18 +538,21 @@ commonly used primitives in the standard library.
 | `transfer(ac, stim, resp)` | `TransferFunction` | Computes the complex transfer `V(resp)/V(stim)` over an AC sweep |
 | `voltage(analysis, terminal)` | `ComplexVoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
-| `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
-| `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
-| `sparam(sp_analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
+| `noise(noise, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
+| `input_referred_noise(noise, ac, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
+| `sparam(analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
-| `quiescent_power(PWR, RET)` | `W` | Computes DC rail power from the applied supply source |
+| `quiescent_power(pwr, ret)` | `W` | Computes DC rail power from the applied supply source |
 | `period(f)` | `Time` | Returns `1/f` |
 | `abs(x)` | scalar type | Absolute value (numeric) |
 | `sqrt(x)` | scalar type | Square root (numeric) |
 
 `current(...)` requires a harness element pin reference such as `harness.VDD.P`. The bench runtime
 maps `harness.<SupplyName>.P` / `.N` to the injected supply source that applies the rail.
+
+Built-in function arguments support positional and named forms. Runtime validation rejects missing
+required arguments, excess positional arguments, and unexpected named arguments.
 
 ### 4.7.2 Methods on Structured Values
 

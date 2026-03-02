@@ -1606,12 +1606,49 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalOpParam(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        if (call.Args.Count != 3)
+        var positional = call.Args.Where(arg => arg.Name is null).ToList();
+        var named = call
+            .Args.Where(arg => arg.Name is not null)
+            .ToDictionary(arg => arg.Name!, arg => arg.Value, StringComparer.Ordinal);
+
+        MeasurementExpr ResolveRequiredExpr(string parameterName, int positionalIndex)
         {
-            throw new InvalidOperationException("op_param requires exactly 3 arguments.");
+            if (named.TryGetValue(parameterName, out var namedExpr))
+            {
+                named.Remove(parameterName);
+                return namedExpr;
+            }
+
+            if (positionalIndex < positional.Count)
+            {
+                return positional[positionalIndex].Value;
+            }
+
+            throw new InvalidOperationException(
+                $"Missing argument '{parameterName}' for function '{call.Name}'."
+            );
         }
 
-        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        var analysisExpr = ResolveRequiredExpr("analysis", 0);
+        var targetExpr = ResolveRequiredExpr("target", 1);
+        var paramExpr = ResolveRequiredExpr("param", 2);
+
+        if (positional.Count > 3)
+        {
+            throw new InvalidOperationException(
+                $"Too many positional arguments for function '{call.Name}'."
+            );
+        }
+
+        if (named.Count > 0)
+        {
+            var unexpectedArgs = string.Join(", ", named.Keys.Select(key => $"'{key}'"));
+            throw new InvalidOperationException(
+                $"Unexpected argument(s) {unexpectedArgs} for function '{call.Name}'."
+            );
+        }
+
+        var analysisName = ResolveAnalysisName(EvaluateExpr(analysisExpr, locals));
         if (!_analyses.ContainsKey(analysisName))
         {
             throw new InvalidOperationException(
@@ -1619,7 +1656,7 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var targetName = ResolveOpParamSymbol(call.Args[1].Value, locals, isTarget: true);
+        var targetName = ResolveOpParamSymbol(targetExpr, locals, isTarget: true);
         if (!targetName.Equals("dut", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -1627,8 +1664,7 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var paramName = ResolveOpParamSymbol(call.Args[2].Value, locals, isTarget: false);
-
+        var paramName = ResolveOpParamSymbol(paramExpr, locals, isTarget: false);
         var normalized = NormalizeOpParamName(paramName);
         if (!_dutOpParamsByName.TryGetValue(normalized, out var value))
         {
@@ -1696,18 +1732,14 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalVoltage(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        if (call.Args.Count != 2)
-        {
-            throw new InvalidOperationException("voltage requires (analysis, terminal).");
-        }
-
-        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "analysis", "terminal" });
+        var analysisName = ResolveAnalysisName(args["analysis"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis))
         {
             throw new InvalidOperationException($"voltage: unknown analysis '{analysisName}'.");
         }
 
-        var terminal = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "terminal");
+        var terminal = RequireTerminal(args["terminal"], "terminal");
 
         if (analysis.Op is not null)
         {
@@ -1744,18 +1776,14 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalCurrent(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        if (call.Args.Count != 2)
-        {
-            throw new InvalidOperationException("current requires (analysis, element_pin).");
-        }
-
-        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "analysis", "element_pin" });
+        var analysisName = ResolveAnalysisName(args["analysis"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis))
         {
             throw new InvalidOperationException($"current: unknown analysis '{analysisName}'.");
         }
 
-        var pin = EvaluateExpr(call.Args[1].Value, locals) as BenchElementPinRef;
+        var pin = args["element_pin"] as BenchElementPinRef;
         if (pin is null)
         {
             throw new InvalidOperationException(
@@ -1807,12 +1835,8 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvalSParam(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        if (call.Args.Count != 1)
-        {
-            throw new InvalidOperationException("sparam requires (sp_analysis).");
-        }
-
-        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "analysis" });
+        var analysisName = ResolveAnalysisName(args["analysis"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis))
         {
             throw new InvalidOperationException($"sparam: unknown analysis '{analysisName}'.");
@@ -1902,6 +1926,15 @@ public sealed class BenchMeasurementRunner
             "method",
             optionalParameterNames
         );
+    }
+
+    private Dictionary<string, BenchValue> BindFunctionArguments(
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals,
+        IReadOnlyList<string> parameterNames
+    )
+    {
+        return ResolveArgs(call.Args, parameterNames, locals, call.Name, "function");
     }
 
     private Dictionary<string, BenchValue> ResolveArgs(
@@ -2031,15 +2064,8 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var analysisRef = EvaluateExpr(call.Args[0].Value, locals);
-        var analysisName = analysisRef switch
-        {
-            BenchAnalysisRef a => a.Name,
-            BenchSymbol s => s.Name,
-            _ => throw new InvalidOperationException(
-                "transfer: first argument must be an analysis reference."
-            ),
-        };
+        var args = BindFunctionArguments(call, locals, new[] { "ac", "stim", "resp" });
+        var analysisName = ResolveAnalysisName(args["ac"]);
 
         if (!_analyses.TryGetValue(analysisName, out var analysis) || analysis.Ac is null)
         {
@@ -2048,8 +2074,8 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var stim = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "stim");
-        var resp = RequireTerminal(EvaluateExpr(call.Args[2].Value, locals), "resp");
+        var stim = RequireTerminal(args["stim"], "stim");
+        var resp = RequireTerminal(args["resp"], "resp");
 
         var f = analysis.Ac.FrequenciesHz;
         var values = new Complex[f.Length];
@@ -2069,7 +2095,8 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "noise", "terminal" });
+        var analysisName = ResolveAnalysisName(args["noise"]);
         if (!_analyses.TryGetValue(analysisName, out var analysis) || analysis.Noise is null)
         {
             throw new InvalidOperationException(
@@ -2078,7 +2105,7 @@ public sealed class BenchMeasurementRunner
         }
 
         // Validate node argument type (even though the dataset is analysis-defined).
-        _ = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "node");
+        _ = RequireTerminal(args["terminal"], "terminal");
 
         return new BenchNoiseSpectrum(
             analysis.Noise.FrequenciesHz,
@@ -2091,7 +2118,9 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var noiseAnalysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "noise", "ac", "stim", "resp" });
+
+        var noiseAnalysisName = ResolveAnalysisName(args["noise"]);
         if (!_analyses.TryGetValue(noiseAnalysisName, out var noise) || noise.Noise is null)
         {
             throw new InvalidOperationException(
@@ -2099,7 +2128,7 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var acAnalysisName = ResolveAnalysisName(call.Args[1].Value, locals);
+        var acAnalysisName = ResolveAnalysisName(args["ac"]);
         if (!_analyses.TryGetValue(acAnalysisName, out var ac) || ac.Ac is null)
         {
             throw new InvalidOperationException(
@@ -2107,8 +2136,8 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var stim = RequireTerminal(EvaluateExpr(call.Args[2].Value, locals), "stim");
-        var resp = RequireTerminal(EvaluateExpr(call.Args[3].Value, locals), "resp");
+        var stim = RequireTerminal(args["stim"], "stim");
+        var resp = RequireTerminal(args["resp"], "resp");
 
         var tf = ComputeTransfer(ac.Ac, stim, resp);
         var mags = tf.Values.Select(v => v.Magnitude).ToArray();
@@ -2165,10 +2194,9 @@ public sealed class BenchMeasurementRunner
         return Math.Sqrt(area);
     }
 
-    private string ResolveAnalysisName(MeasurementExpr expr, Dictionary<string, BenchValue> locals)
+    private static string ResolveAnalysisName(BenchValue value)
     {
-        var v = EvaluateExpr(expr, locals);
-        return v switch
+        return value switch
         {
             BenchAnalysisRef a => a.Name,
             BenchSymbol s => s.Name,
@@ -2249,14 +2277,16 @@ public sealed class BenchMeasurementRunner
 
     private BenchGainSpectrum EvalDb20(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var g = (BenchGainSpectrum)EvaluateExpr(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "spectrum" });
+        var g = (BenchGainSpectrum)args["spectrum"];
         var values = g.Values.Select(v => v > 0 ? 20.0 * Math.Log10(v) : DbFloor).ToArray();
         return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
     }
 
     private BenchGainSpectrum EvalDb10(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var g = (BenchGainSpectrum)EvaluateExpr(call.Args[0].Value, locals);
+        var args = BindFunctionArguments(call, locals, new[] { "spectrum" });
+        var g = (BenchGainSpectrum)args["spectrum"];
         var values = g.Values.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor).ToArray();
         return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
     }
@@ -2415,24 +2445,22 @@ public sealed class BenchMeasurementRunner
 
     private BenchNumber EvalAbs(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var x = RequireNumber(EvaluateExpr(call.Args[0].Value, locals), "abs");
+        var args = BindFunctionArguments(call, locals, new[] { "x" });
+        var x = RequireNumber(args["x"], "abs");
         return new BenchNumber(x.Kind, Math.Abs(x.Value));
     }
 
     private BenchNumber EvalSqrt(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        var x = RequireNumber(EvaluateExpr(call.Args[0].Value, locals), "sqrt");
+        var args = BindFunctionArguments(call, locals, new[] { "x" });
+        var x = RequireNumber(args["x"], "sqrt");
         return new BenchNumber(x.Kind, Math.Sqrt(x.Value));
     }
 
     private BenchNumber EvalPeriod(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
-        if (call.Args.Count != 1)
-        {
-            throw new InvalidOperationException("period requires exactly one Frequency argument.");
-        }
-
-        var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "period");
+        var args = BindFunctionArguments(call, locals, new[] { "f" });
+        var f = RequireFrequency(args["f"], "period");
         if (f.Value <= 0)
         {
             throw new InvalidOperationException(
@@ -2448,15 +2476,9 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        if (call.Args.Count != 2)
-        {
-            throw new InvalidOperationException(
-                "quiescent_power requires two terminals: quiescent_power(PWR, RET)."
-            );
-        }
-
-        var pwr = RequireTerminal(EvaluateExpr(call.Args[0].Value, locals), "PWR");
-        var ret = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "RET");
+        var args = BindFunctionArguments(call, locals, new[] { "pwr", "ret" });
+        var pwr = RequireTerminal(args["pwr"], "pwr");
+        var ret = RequireTerminal(args["ret"], "ret");
         if (pwr.LeafNodes.Count == 0 || ret.LeafNodes.Count == 0)
         {
             throw new InvalidOperationException("quiescent_power requires scalar terminals.");
