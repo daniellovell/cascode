@@ -648,7 +648,7 @@ Built-in constructors and conversions commonly used in the standard library incl
 - `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` → `NoiseSpectrum`
 - `voltage(analysis, terminal)` → `ComplexVoltageSpectrum` or `VoltageWaveform`
 - `current(analysis, harness_pin)` → `ComplexCurrentSpectrum` or `CurrentWaveform`
-- `sparam(sp_analysis)` → `SParameterMatrix`
+- `sparam(analysis)` → `SParameterMatrix`
 - `db20(GainSpectrum)` / `db10(GainSpectrum)` → `GainSpectrum` in dB
 - `quiescent_power(PWR, RET)` → rail power (for power benches)
 
