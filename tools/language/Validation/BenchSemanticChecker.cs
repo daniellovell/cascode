@@ -1298,6 +1298,7 @@ public static class BenchSemanticChecker
         || kind == MeasurementTypeKind.VoltageSpectrum
         || kind == MeasurementTypeKind.CurrentSpectrum
         || kind == MeasurementTypeKind.NoiseSpectrum
+        || kind == MeasurementTypeKind.ImpedanceSpectrum
         || kind == MeasurementTypeKind.VoltageWaveform
         || kind == MeasurementTypeKind.CurrentWaveform
         || kind == MeasurementTypeKind.TransferFunction;

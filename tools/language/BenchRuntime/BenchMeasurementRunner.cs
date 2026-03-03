@@ -782,6 +782,21 @@ public sealed class BenchMeasurementRunner
             return true;
         }
 
+        if (recv is BenchImpedanceSpectrum impedanceSpectrum)
+        {
+            result = Slice(
+                impedanceSpectrum.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchImpedanceSpectrum(
+                        impedanceSpectrum.FrequenciesHz[range],
+                        impedanceSpectrum.ValuesOhm[range]
+                    )
+            );
+            return true;
+        }
+
         if (recv is BenchWaveform waveform)
         {
             result = Slice(
@@ -3665,6 +3680,7 @@ public sealed class BenchMeasurementRunner
                 or BenchComplexCurrentSpectrum
                 or BenchVoltageSpectrum
                 or BenchCurrentSpectrum
+                or BenchImpedanceSpectrum
                 or BenchTransferFunction
         )
         {
