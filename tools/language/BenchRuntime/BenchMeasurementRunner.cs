@@ -821,7 +821,7 @@ public sealed class BenchMeasurementRunner
         {
             result = Slice(
                 impedanceSpectrum.FrequenciesHz,
-                independentVariable.Value,
+                boundary,
                 isFrom,
                 (range) =>
                     new BenchImpedanceSpectrum(
