@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 3.2
 
 include lib.std
 include lib.pdk.sky130.devices.nfet_01v8
