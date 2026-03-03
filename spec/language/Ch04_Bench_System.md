@@ -203,7 +203,7 @@ This differential interpretation applies consistently to:
 
 - `transfer(ac, stim, resp)` (both the stimulus and response terminals)
 - `voltage(analysis, terminal)` for AC spectra and transient waveforms
-- `NoiseAnalysis(..., output=terminal)` and `noise(noise_analysis, terminal)`
+- `NoiseAnalysis(..., output=terminal)` and `noise(noise, terminal)`
 
 Example (differential response):
 
@@ -517,7 +517,7 @@ Common structured result types produced by measurement primitives:
 | `TransferFunction` | `transfer(ac, stim, resp)` | Complex frequency response |
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
-| `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
+| `NoiseSpectrum` | `noise(noise, terminal)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
 | `ComplexVoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
