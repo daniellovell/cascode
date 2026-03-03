@@ -88,7 +88,7 @@ circuit RcLowpass {
   constraints {
     numeric {
       // 1k || 1p -> fc ~ 159 MHz
-      c_fc = lp::LowpassBandwidth >= 50MHz
+      c_fc = lp::LowpassBandwidth >= 150MHz
       c_gain = lp::PassbandGain >= 0dB
     }
   }
