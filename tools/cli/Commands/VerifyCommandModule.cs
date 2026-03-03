@@ -8,6 +8,7 @@ using Cascode.Cli.Output;
 using Cascode.Cli.Services;
 using Cascode.Language;
 using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
 namespace Cascode.Cli.Commands;
 
@@ -340,7 +341,87 @@ internal sealed partial class VerifyCommandModule : ICommandModule
 
     private static void RenderVerifyReport(ICliOutput output, VerifySummary summary)
     {
+        if (output.Mode == CliOutputMode.Spectre && output.Out is not null)
+        {
+            RenderVerifySpectre(summary, output.Out);
+            return;
+        }
+
         RenderVerifyPlain(summary, output.WriteLine);
+    }
+
+    private static void RenderVerifySpectre(VerifySummary summary, IAnsiConsole console)
+    {
+        if (summary.Circuits.Count == 1)
+        {
+            RenderVerifySpectreCircuit(
+                summary.Circuits[0],
+                console,
+                summary.Global.TotalCircuits > 1
+            );
+            return;
+        }
+
+        console.Write(new Rule("[bold]Verify[/]") { Style = Style.Parse("grey") });
+        console.MarkupLine($"[grey]Artifacts:[/] {summary.Global.ArtifactCount}");
+        console.MarkupLine($"[grey]Circuits:[/] {summary.Global.TotalCircuits}");
+        console.MarkupLine(
+            $"[grey]Global Compliance:[/] {Markup.Escape(FormatComplianceSummary(summary.Global.PassedConstraints, summary.Global.TotalConstraints))}"
+        );
+        console.MarkupLine(
+            $"[grey]Global Result:[/] {summary.Global.PassedCircuits}/{summary.Global.TotalCircuits} circuits compliant"
+        );
+        console.WriteLine();
+
+        foreach (var circuit in summary.Circuits)
+        {
+            RenderVerifySpectreCircuit(circuit, console, includeResult: true);
+            console.WriteLine();
+        }
+    }
+
+    private static void RenderVerifySpectreCircuit(
+        VerifyCircuitResult circuit,
+        IAnsiConsole console,
+        bool includeResult
+    )
+    {
+        console.Write(
+            new Rule($"[bold]{Markup.Escape(circuit.CircuitName)}[/]")
+            {
+                Style = Style.Parse("grey"),
+            }
+        );
+        if (circuit.Benches.Count > 0)
+        {
+            console.MarkupLine(
+                $"[grey]Benches:[/] {Markup.Escape(string.Join(", ", circuit.Benches))}"
+            );
+        }
+
+        if (circuit.Artifacts.Count == 1)
+        {
+            console.MarkupLine(
+                $"[grey]Artifact:[/] {Markup.Escape(circuit.Artifacts[0].Input.Path)}"
+            );
+        }
+        else
+        {
+            console.MarkupLine($"[grey]Artifacts:[/] {circuit.Artifacts.Count}");
+            foreach (var artifact in circuit.Artifacts)
+            {
+                console.MarkupLine($"  [grey]-[/] {Markup.Escape(artifact.Input.Path)}");
+            }
+        }
+
+        console.WriteLine();
+        ComplianceReportRenderer.RenderComplianceTable(circuit.Compliance, console);
+        if (includeResult)
+        {
+            console.MarkupLine(
+                $"[grey]Result:[/] {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
+            );
+        }
     }
 
     private static void RenderVerifyPlain(VerifySummary summary, Action<string> writeLine)
