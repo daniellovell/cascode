@@ -197,20 +197,25 @@ public class CascodeWriterTests
         CascodeWriter.Write(doc, writer);
         var output = writer.ToString();
 
-        Assert.True(
-            output.IndexOf("z_numeric = transfer::Gain >= 10dB", System.StringComparison.Ordinal)
-                < output.IndexOf(
-                    "a_numeric = transfer::Bandwidth >= 5MHz",
-                    System.StringComparison.Ordinal
-                )
+        AssertAppearsInOrder(
+            output,
+            "z_numeric = transfer::Gain >= 10dB",
+            "a_numeric = transfer::Bandwidth >= 5MHz"
         );
-        Assert.True(
-            output.IndexOf("z_tech : vdd == 1.8V on global", System.StringComparison.Ordinal)
-                < output.IndexOf("a_tech : temp == 27C on global", System.StringComparison.Ordinal)
+        AssertAppearsInOrder(
+            output,
+            "z_tech : vdd == 1.8V on global",
+            "a_tech : temp == 27C on global"
         );
-        Assert.True(
-            output.IndexOf("z_graph : connected ...", System.StringComparison.Ordinal)
-                < output.IndexOf("a_graph : acyclic ...", System.StringComparison.Ordinal)
-        );
+        AssertAppearsInOrder(output, "z_graph : connected ...", "a_graph : acyclic ...");
+    }
+
+    private static void AssertAppearsInOrder(string text, string first, string second)
+    {
+        var firstIndex = text.IndexOf(first, System.StringComparison.Ordinal);
+        var secondIndex = text.IndexOf(second, System.StringComparison.Ordinal);
+        Assert.True(firstIndex >= 0, $"Expected to find '{first}' in output.");
+        Assert.True(secondIndex >= 0, $"Expected to find '{second}' in output.");
+        Assert.True(firstIndex < secondIndex, $"Expected '{first}' to appear before '{second}'.");
     }
 }
