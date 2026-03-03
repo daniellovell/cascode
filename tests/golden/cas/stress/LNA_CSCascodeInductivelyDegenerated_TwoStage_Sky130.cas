@@ -4,7 +4,7 @@ include lib.std
 include lib.pdk.sky130.devices.nfet_01v8
 include lib.pdk.sky130.devices.pfet_01v8
 
-circuit LNA_Sky130_CSCascodeInductivelyDegenerated_TwoStage_Sky130 implements SingleEndedAmp {
+circuit LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130 implements SingleEndedAmp {
   level EL
 
   supply VDD
