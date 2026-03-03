@@ -1,0 +1,59 @@
+VERSION 4.0
+
+include lib.std
+include lib.pdk.sky130.devices.nfet_01v8
+include lib.pdk.sky130.devices.pfet_01v8
+
+circuit LNA_Sky130_CSCascodeInductivelyDegenerated_Sky130 implements SingleEndedAmp {
+  level EL
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    net nmatch : analog
+    net ng : analog
+    net nd : analog
+    net ns : analog
+    net ncas : analog
+    net vcas : analog
+
+    Inductor LM = new Ideal_Inductor(size(L=10n)) { .P--IN, .N--nmatch }
+    Capacitor CM = new Ideal_Capacitor(size(C=300f)) { .P--nmatch, .N--GND }
+    Inductor LG = new Ideal_Inductor(size(L=32n)) { .P--nmatch, .N--ng }
+
+    Inductor LS = new Ideal_Inductor(size(L=2.6n)) { .P--ns, .N--GND }
+    Inductor LD = new Ideal_Inductor(size(L=5n)) { .P--VDD, .N--nd }
+
+    Resistor RCAS_TOP = new Ideal_Resistor(size(R=100k)) { .P--VDD, .N--vcas }
+    Resistor RCAS_BOT = new Ideal_Resistor(size(R=200k)) { .P--vcas, .N--GND }
+    Capacitor CCAS = new Ideal_Capacitor(size(C=20p)) { .P--vcas, .N--GND }
+
+    NMOS M1 = new nfet_01v8(size(W=55u, L=180n, M=1)) { .D--ncas, .G--ng, .S--ns, .B--GND }
+    NMOS M2 = new nfet_01v8(size(W=33u, L=180n, M=1)) { .D--nd, .G--vcas, .S--ncas, .B--GND }
+
+    Capacitor COUT = new Ideal_Capacitor(size(C=1p)) { .P--nd, .N--OUT }
+  }
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=2.3GHz, to=2.5GHz) at net::OUT >= 10dB
+      c_input_return_loss_spectrum = sparam_bench::InputReturnLossSpectrum(from=2.3GHz, to=2.5GHz) at net::OUT >= 15dB
+      c_noise_figure_spectrum = sparam_bench::NoiseFigureSpectrum(from=2.3GHz, to=2.5GHz) at net::OUT <= 3dB
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 8mW
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
