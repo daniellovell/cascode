@@ -230,7 +230,7 @@ measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
 ```cascode
 constraints {
   numeric {
-    c_forward_gain_spectrum = sparam::ForwardGainSpectrum(from=100kHz, to=10MHz) >= 10dB
+    c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=100kHz, to=10MHz) >= 10dB
   }
 }
 ```

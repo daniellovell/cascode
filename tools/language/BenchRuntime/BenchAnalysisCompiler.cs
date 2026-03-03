@@ -33,6 +33,27 @@ internal static class BenchAnalysisCompiler
                 }
             }
 
+            var enableNoise = false;
+            if (
+                a.Type == BenchValueType.SPAnalysis
+                && a.Parameters.TryGetValue("noise", out var noiseExpr)
+            )
+            {
+                var raw = evalRunner.EvaluateExpressionForPlan(noiseExpr, benchParams);
+                if (
+                    raw is not BenchNumber noise
+                    || noise.Kind != BenchNumericKind.Scalar
+                    || (noise.Value != 0 && noise.Value != 1)
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"SPAnalysis '{a.Name}' noise must be 0 or 1."
+                    );
+                }
+
+                enableNoise = noise.Value == 1;
+            }
+
             var samples = 100;
             if (a.Parameters.TryGetValue("samples", out var samplesExpr))
             {
@@ -85,7 +106,15 @@ internal static class BenchAnalysisCompiler
                 }
 
                 analyses.Add(
-                    new BenchPlanAnalysis(a.Type, a.Name, space, samples, startV.Value, stopV.Value)
+                    new BenchPlanAnalysis(
+                        a.Type,
+                        a.Name,
+                        space,
+                        samples,
+                        startV.Value,
+                        stopV.Value,
+                        EnableNoise: enableNoise
+                    )
                 );
             }
 

@@ -41,6 +41,7 @@ public sealed class BenchMeasurementRunner
     /// <param name="TranCurrents">Transient current dataset when available.</param>
     /// <param name="AcCurrents">AC current dataset when available.</param>
     /// <param name="SParameters">S-parameter dataset when available.</param>
+    /// <param name="SpNoise">S-parameter noise data when available.</param>
     /// <param name="Op">DC operating-point node voltages keyed by node name.</param>
     public sealed record AnalysisContext(
         string Name,
@@ -54,6 +55,7 @@ public sealed class BenchMeasurementRunner
         TranDataset? TranCurrents = null,
         AcDataset? AcCurrents = null,
         BenchSParameterMatrix? SParameters = null,
+        SpNoiseDataset? SpNoise = null,
         IReadOnlyDictionary<string, double>? Op = null
     );
 
@@ -988,6 +990,29 @@ public sealed class BenchMeasurementRunner
                     "GroupDelay"
                 );
                 return BuildGroupDelaySpectrum(transfer);
+            }
+
+            if (call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("NF requires exactly 0 arguments.");
+                }
+
+                var noiseData = FindSpNoiseDataset(sm);
+                if (noiseData is null)
+                {
+                    throw new InvalidOperationException(
+                        "NF: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+                    );
+                }
+
+                var values = noiseData.NoiseFigure.ToArray();
+                return new BenchGainSpectrum(
+                    noiseData.FrequenciesHz,
+                    values,
+                    BenchNumericKind.VoltageRatioDb
+                );
             }
         }
 
@@ -3006,6 +3031,19 @@ public sealed class BenchMeasurementRunner
     {
         var values = tf.Values.Select(v => -ToDb20(v.Magnitude)).ToArray();
         return new BenchGainSpectrum(tf.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
+    }
+
+    private SpNoiseDataset? FindSpNoiseDataset(BenchSParameterMatrix sm)
+    {
+        foreach (var analysis in _analyses.Values)
+        {
+            if (ReferenceEquals(analysis.SParameters, sm))
+            {
+                return analysis.SpNoise;
+            }
+        }
+
+        return null;
     }
 
     private static BenchScalarSpectrum BuildStabilityKSpectrum(BenchSParameterMatrix sm)

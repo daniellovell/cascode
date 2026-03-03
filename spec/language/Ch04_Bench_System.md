@@ -405,14 +405,16 @@ NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 ### 4.4.4 S-parameter analysis contract
 
 `SPAnalysis` requests a multiport S-parameter sweep over frequency. It accepts the same
-frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) and operates on
-all `Port` instances declared in the bench. There is no explicit parameter linking the analysis to
-specific ports; the runtime discovers all port instances and configures the simulation
-accordingly.
+frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) plus an optional
+`noise` flag (`0` or `1`) and operates on all `Port` instances declared in the bench. There is no
+explicit parameter linking the analysis to specific ports; the runtime discovers all port instances
+and configures the simulation accordingly. When `noise=1`, the simulator computes correlated noise
+parameters together with the S-parameter sweep, and `S.NF()` becomes available to read noise
+figure in dB.
 
 ```cascode
 analysis {
-  SPAnalysis sp = new SPAnalysis(space=Log, samples=200, start=100MHz, stop=10GHz)
+  SPAnalysis sp = new SPAnalysis(space=Log, samples=200, start=100MHz, stop=10GHz, noise=0)
 }
 ```
 
@@ -422,6 +424,7 @@ analysis {
 | `stop` | `Frequency` | yes | — | Stop frequency of the sweep |
 | `space` | `Log` or `Lin` | no | `Log` | Frequency spacing |
 | `samples` | integer | no | 100 | Number of frequency points |
+| `noise` | `0` or `1` | no | `0` | Enable noise computation during S-parameter analysis |
 
 The bench fill block provides DC bias, coupling networks, and any other circuit elements required
 for the operating point. The fill block does not need to provide port excitation sources or
@@ -612,6 +615,7 @@ Derived metric methods:
 | `S.MSG()` | `GainSpectrum` | Maximum stable gain in linear units (2-port only) |
 | `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
 | `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
+| `S.NF()` | `GainSpectrum` | Noise figure in dB; requires `SPAnalysis(noise=1)` |
 
 The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
 called on an `SParameterMatrix` from a bench with more than two ports.

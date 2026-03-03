@@ -12,27 +12,9 @@ function get_load_impedance(Impedance fallback) : Impedance {
   return fallback
 }
 
-bench TwoPortSParam {
+abstract bench AbstractTwoPortSParam {
   resp P1 : analog
   resp P2 : analog
-
-  fill {
-    net gnd : ground
-
-    GND _ = new GND() {
-      .GND--gnd
-    }
-
-    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
-      .P--P1
-      .N--gnd
-    }
-
-    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
-      .P--P2
-      .N--gnd
-    }
-  }
 
   analysis {
     SPAnalysis sp = new SPAnalysis(
@@ -110,9 +92,9 @@ bench TwoPortSParam {
   }
 }
 
-bench TwoPortMixedModeSParam {
-  resp P1 : Diff
-  resp P2 : Diff
+bench TwoPortSParam extends AbstractTwoPortSParam {
+  resp P1 : analog
+  resp P2 : analog
 
   fill {
     net gnd : ground
@@ -121,26 +103,60 @@ bench TwoPortMixedModeSParam {
       .GND--gnd
     }
 
-    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
-      .P--P1.P
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
-      .P--P2.P
-      .N--gnd
-    }
-
-    Port port3 = new Port(N=3, Z=50Ohm, V=env.InputCommonModeRange) {
-      .P--P1.N
-      .N--gnd
-    }
-
-    Port port4 = new Port(N=4, Z=50Ohm, V=env.OutputCommonModeRange) {
-      .P--P2.N
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2
       .N--gnd
     }
   }
+}
+
+bench TwoPortSParamNoise extends AbstractTwoPortSParam {
+  resp P1 : analog
+  resp P2 : analog
+
+  override analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      noise=1)
+  }
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2
+      .N--gnd
+    }
+  }
+
+  measurements {
+    measurement NoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().ValueAt(f)
+    }
+  }
+}
+
+bench TwoPortMixedModeSParam {
+  resp P1 : Diff
+  resp P2 : Diff
 
   analysis {
     SPAnalysis sp = new SPAnalysis(
@@ -148,6 +164,34 @@ bench TwoPortMixedModeSParam {
       samples=100,
       start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
       stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1.P
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2.P
+      .N--gnd
+    }
+
+    Port port3 = new Port(N=3, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1.N
+      .N--gnd
+    }
+
+    Port port4 = new Port(N=4, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2.N
+      .N--gnd
+    }
   }
 
   measurements {

@@ -64,6 +64,31 @@ public static class NgspiceWrdataSpParser
         return new BenchSParameterMatrix(frequencies, elements);
     }
 
+    public static SpNoiseDataset ParseNoiseFigure(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
+        var frequencies = new double[lines.Length];
+        var noiseFigure = new double[lines.Length];
+
+        for (var row = 0; row < lines.Length; row++)
+        {
+            var parts = lines[row].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 3)
+            {
+                throw new InvalidOperationException(
+                    $"Unexpected wrdata column count in '{path}' at line {row + 1}: expected 3, got {parts.Length}."
+                );
+            }
+
+            frequencies[row] = ParseDouble(parts[0]);
+            noiseFigure[row] = ParseDouble(parts[1]);
+        }
+
+        return new SpNoiseDataset(frequencies, noiseFigure);
+    }
+
     private static double ParseDouble(string raw)
     {
         if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
