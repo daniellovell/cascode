@@ -232,4 +232,88 @@ public sealed class BenchRunIntegrationTests : IDisposable
         );
         CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
     }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_CSeries_SParamConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/CSeries.cas");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var resultsPath = Path.Combine(_outputDir, "CSeries_Sky130_sparam_bench_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        Assert.Equal("CSeries_Sky130", results!.Circuit);
+        Assert.Equal("sparam_bench", results.Bench);
+        Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
+
+        var combinedResultsPath = Path.Combine(_outputDir, "CSeries_Sky130_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "verify",
+            cascodePath,
+            combinedResultsPath
+        );
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_RSeries_SParamConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RSeries.cas");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var resultsPath = Path.Combine(_outputDir, "RSeries_Sky130_sparam_bench_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        Assert.Equal("RSeries_Sky130", results!.Circuit);
+        Assert.Equal("sparam_bench", results.Bench);
+        Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
+
+        var combinedResultsPath = Path.Combine(_outputDir, "RSeries_Sky130_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "verify",
+            cascodePath,
+            combinedResultsPath
+        );
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
 }

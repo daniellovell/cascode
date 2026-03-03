@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using Cascode.Language.BenchRuntime;
 
@@ -546,7 +547,10 @@ bench TestBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
         var runner = new BenchMeasurementRunner(
@@ -587,7 +591,10 @@ bench TestBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
         var runner = new BenchMeasurementRunner(
@@ -644,7 +651,10 @@ bench TestBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
         var runner = new BenchMeasurementRunner(
@@ -687,7 +697,10 @@ bench OpParamBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "OpParamBench");
         var runner = new BenchMeasurementRunner(
@@ -773,7 +786,10 @@ bench ExplicitMagnitudeBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "ExplicitMagnitudeBench"
@@ -919,7 +935,10 @@ bench WrappedPhaseBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "WrappedPhaseBench");
         var ac = new AcDataset(
@@ -998,7 +1017,10 @@ bench NearZeroPhaseBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NearZeroPhaseBench");
         var ac = new AcDataset(
@@ -1108,7 +1130,10 @@ bench TinyMagnitudePhaseBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "TinyMagnitudePhaseBench"
@@ -1204,7 +1229,10 @@ bench ComplexBinaryBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "ComplexBinaryBench");
         var ac = new AcDataset(
@@ -3121,7 +3149,10 @@ bench BadSpectrumRangeBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "BadSpectrumRangeBench"
@@ -3172,7 +3203,7 @@ bench BadSpectrumRangeBench {{
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
-        Assert.Contains("Expected Frequency for From", ex.Message);
+        Assert.Contains("Expected Frequency for Range.from", ex.Message);
     }
 
     [Fact]
@@ -3198,7 +3229,10 @@ bench BadWaveformRangeBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "BadWaveformRangeBench"
@@ -3237,7 +3271,7 @@ bench BadWaveformRangeBench {{
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
-        Assert.Contains("Expected Time for From", ex.Message);
+        Assert.Contains("Expected Time for Range.from", ex.Message);
     }
 
     [Fact]
@@ -3264,7 +3298,10 @@ bench EmptySpectrumBandBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "EmptySpectrumBandBench"
@@ -3341,7 +3378,10 @@ bench EmptyWaveformWindowBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "EmptyWaveformWindowBench"
@@ -3384,6 +3424,314 @@ bench EmptyWaveformWindowBench {{
     }
 
     [Fact]
+    public void BuiltinMethods_NamedAndMixedArguments_ResolveCorrectly()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BuiltinNamedArgsBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=3, start=1Hz, stop=100Hz)
+    NoiseAnalysis noise_ac = new NoiseAnalysis(space=Log, samples=2, start=10Hz, stop=100Hz, output=OUT)
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement NamedValueAt : dB {{
+      GainSpectrum G = db20(transfer(ac, IN, OUT).Mag())
+      return G.ValueAt(f=10Hz)
+    }}
+
+    measurement ReorderedRange : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).Range(from=10Hz, to=100Hz).ValueAt(f=10Hz)
+    }}
+
+    measurement NamedIntegrate : Vrms {{
+      return noise(noise_ac, OUT).Integrate(from=10Hz, to=100Hz)
+    }}
+
+    measurement MixedSAccess : dB {{
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, j=1).Mag()).ValueAt(f=1GHz)
+    }}
+
+    measurement NamedReturnLoss : dB {{
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(port=1).ValueAt(f=1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "BuiltinNamedArgsBench"
+        );
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 10.0, 100.0 },
+            NodeVoltages: new Dictionary<string, Complex[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new[]
+                {
+                    new Complex(1.0, 0.0),
+                    new Complex(1.0, 0.0),
+                    new Complex(1.0, 0.0),
+                },
+                ["OUT"] = new[]
+                {
+                    new Complex(0.1, 0.0),
+                    new Complex(0.5, 0.0),
+                    new Complex(2.0, 0.0),
+                },
+            }
+        );
+        var noise = new NoiseDataset(
+            FrequenciesHz: new[] { 10.0, 100.0 },
+            OutputNoiseVPerRtHz: new[] { 1e-9, 1e-9 }
+        );
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9 },
+            Elements: new Dictionary<BenchPortPair, Complex[]>
+            {
+                [new BenchPortPair(2, 1)] = new[] { new Complex(0.5, 0.0) },
+                [new BenchPortPair(1, 1)] = new[] { new Complex(0.1, 0.0) },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+                ["noise_ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "noise_ac",
+                    StartHz: 10,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Noise: noise
+                ),
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 1e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(
+            new[]
+            {
+                "NamedValueAt",
+                "ReorderedRange",
+                "NamedIntegrate",
+                "MixedSAccess",
+                "NamedReturnLoss",
+            }
+        );
+        Assert.Equal(ToDb20(0.5), values["NamedValueAt"].Value, precision: 9);
+        Assert.Equal(ToDb20(0.5), values["ReorderedRange"].Value, precision: 9);
+        Assert.Equal(Math.Sqrt(90.0) * 1e-9, values["NamedIntegrate"].Value, precision: 15);
+        Assert.Equal(ToDb20(0.5), values["MixedSAccess"].Value, precision: 9);
+        Assert.Equal(20.0, values["NamedReturnLoss"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void BuiltinMethod_UnexpectedNamedArg_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnexpectedNamedArgBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=10Hz)
+  }}
+
+  measurements {{
+    measurement Bad : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).ValueAt(f=100Hz, x=1Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "UnexpectedNamedArgBench"
+        );
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 10.0 },
+            NodeVoltages: new Dictionary<string, Complex[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new[] { new Complex(1.0, 0.0), new Complex(1.0, 0.0) },
+                ["OUT"] = new[] { new Complex(1.0, 0.0), new Complex(1.0, 0.0) },
+            }
+        );
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 10,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Unexpected argument(s) 'x' for method 'ValueAt'.", ex.Message);
+    }
+
+    [Fact]
+    public void BuiltinMethod_RangeNamedArgs_AreOrderIndependent()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NamedRangeOrderBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=3, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement Positional : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).Range(10Hz, 100Hz).ValueAt(10Hz)
+    }}
+
+    measurement ReorderedNamed : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).Range(to=100Hz, from=10Hz).ValueAt(10Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NamedRangeOrderBench");
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 10.0, 100.0 },
+            NodeVoltages: new Dictionary<string, Complex[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new[]
+                {
+                    new Complex(1.0, 0.0),
+                    new Complex(1.0, 0.0),
+                    new Complex(1.0, 0.0),
+                },
+                ["OUT"] = new[]
+                {
+                    new Complex(0.1, 0.0),
+                    new Complex(0.5, 0.0),
+                    new Complex(2.0, 0.0),
+                },
+            }
+        );
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "Positional", "ReorderedNamed" });
+        Assert.Equal(values["Positional"].Value, values["ReorderedNamed"].Value, precision: 12);
+    }
+
+    [Fact]
     public void Range_WithWrongArgCount_ThrowsAtRuntime()
     {
         var cascode =
@@ -3407,7 +3755,10 @@ bench BadRangeArgCountBench {{
 
         using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(result.Success);
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
 
         var bench = result.Document!.BenchDefinitions.Single(b =>
             b.Name == "BadRangeArgCountBench"
@@ -3458,7 +3809,200 @@ bench BadRangeArgCountBench {{
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
-        Assert.Contains("Range requires 2 arguments.", ex.Message);
+        Assert.Contains("Missing argument 'to' for method 'Range'.", ex.Message);
+    }
+
+    [Fact]
+    public void BuiltinFunctions_NamedArguments_ResolveCorrectly()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BuiltinFunctionNamedArgsBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=10Hz)
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement ReorderedVoltage : V {{
+      return voltage(terminal=OUT, analysis=ac).ValueAt(f=10Hz).Mag()
+    }}
+
+    measurement NamedSparam : dB {{
+      SParameterMatrix S = sparam(analysis=sp)
+      return db20(S.S(i=1, j=1).Mag()).ValueAt(f=1GHz)
+    }}
+
+    measurement NamedPeriod : s {{
+      return period(f=2Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "BuiltinFunctionNamedArgsBench"
+        );
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 10.0 },
+            NodeVoltages: new Dictionary<string, Complex[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new[] { new Complex(1.0, 0.0), new Complex(1.0, 0.0) },
+                ["OUT"] = new[] { new Complex(1.0, 0.0), new Complex(2.0, 0.0) },
+            }
+        );
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9 },
+            Elements: new Dictionary<BenchPortPair, Complex[]>
+            {
+                [new BenchPortPair(1, 1)] = new[] { new Complex(0.5, 0.0) },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 10,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 1e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "ReorderedVoltage", "NamedSparam", "NamedPeriod" });
+        Assert.Equal(2.0, values["ReorderedVoltage"].Value, precision: 9);
+        Assert.Equal(ToDb20(0.5), values["NamedSparam"].Value, precision: 9);
+        Assert.Equal(0.5, values["NamedPeriod"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void BuiltinFunction_UnexpectedNamedArgument_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnexpectedNamedFunctionArgBench {{
+  measurements {{
+    measurement Bad : s {{
+      return period(f=10Hz, x=1Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "UnexpectedNamedFunctionArgBench"
+        );
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Unexpected argument(s) 'x' for function 'period'.", ex.Message);
+    }
+
+    [Fact]
+    public void BuiltinFunction_TooManyPositionalArguments_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TooManyPositionalFunctionArgsBench {{
+  measurements {{
+    measurement Bad : V {{
+      return abs(1V, 2V)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "TooManyPositionalFunctionArgsBench"
+        );
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Too many positional arguments for function 'abs'.", ex.Message);
     }
 
     private static double ToDb20(double magnitude) => 20.0 * Math.Log10(Math.Max(1e-15, magnitude));

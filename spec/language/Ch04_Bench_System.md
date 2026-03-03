@@ -203,7 +203,7 @@ This differential interpretation applies consistently to:
 
 - `transfer(ac, stim, resp)` (both the stimulus and response terminals)
 - `voltage(analysis, terminal)` for AC spectra and transient waveforms
-- `NoiseAnalysis(..., output=terminal)` and `noise(noise_analysis, terminal)`
+- `NoiseAnalysis(..., output=terminal)` and `noise(noise, terminal)`
 
 Example (differential response):
 
@@ -520,12 +520,12 @@ Common structured result types produced by measurement primitives:
 | `TransferFunction` | `transfer(ac, stim, resp)` | Complex frequency response |
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
-| `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
+| `NoiseSpectrum` | `noise(noise, terminal)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
 | `ComplexVoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
-| `SParameterMatrix` | `sparam(sp_analysis)` | Frequency-indexed matrix of complex S-parameters |
+| `SParameterMatrix` | `sparam(analysis)` | Frequency-indexed matrix of complex S-parameters |
 
 ---
 
@@ -541,18 +541,21 @@ commonly used primitives in the standard library.
 | `transfer(ac, stim, resp)` | `TransferFunction` | Computes the complex transfer `V(resp)/V(stim)` over an AC sweep |
 | `voltage(analysis, terminal)` | `ComplexVoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
-| `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
-| `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
-| `sparam(sp_analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
+| `noise(noise, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
+| `input_referred_noise(noise, ac, stim, resp)` | `NoiseSpectrum` | Divides output noise density by the gain |
+| `sparam(analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
-| `quiescent_power(PWR, RET)` | `W` | Computes DC rail power from the applied supply source |
+| `quiescent_power(pwr, ret)` | `W` | Computes DC rail power from the applied supply source |
 | `period(f)` | `Time` | Returns `1/f` |
 | `abs(x)` | scalar type | Absolute value (numeric) |
 | `sqrt(x)` | scalar type | Square root (numeric) |
 
 `current(...)` requires a harness element pin reference such as `harness.VDD.P`. The bench runtime
 maps `harness.<SupplyName>.P` / `.N` to the injected supply source that applies the rail.
+
+Built-in function arguments support positional and named forms. Runtime validation rejects missing
+required arguments, excess positional arguments, and unexpected named arguments.
 
 ### 4.7.2 Methods on Structured Values
 
@@ -567,7 +570,7 @@ Spectrum methods:
 
 - `S.ValueAt(f)` → interpolated real-valued or complex-valued scalar at frequency `f`
 - `S.From(f)` / `S.To(f)` → truncated spectrum with frequency range `>= f` or `<= f` (same spectrum type)
-- `S.Range(f1, f2)` → equivalent to `S.From(f1).To(f2)` (same spectrum type)
+- `S.Range(from, to)` → equivalent to `S.From(from).To(to)` (same spectrum type)
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
@@ -575,7 +578,7 @@ Waveform methods:
 
 - `W.ValueAt(t)` → interpolated scalar at time `t`
 - `W.From(t)` / `W.To(t)` → truncated waveform with time range `>= t` or `<= t` (same waveform type)
-- `W.Range(t1, t2)` → equivalent to `W.From(t1).To(t2)` (same waveform type)
+- `W.Range(from, to)` → equivalent to `W.From(from).To(to)` (same waveform type)
 
 For complex AC spectra (`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`), `ValueAt(f)` returns a complex point
 interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
@@ -585,6 +588,8 @@ spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sample
 (`voltage(ac, OUT).ValueAt(f).Mag()`). These two forms are equivalent for magnitude interpolation.
 `From`, `To`, and `Range` are chainable with each other and with `ValueAt`, for example
 `voltage(ac, OUT).Range(100Hz, 1MHz).ValueAt(500kHz)`.
+Method arguments can be passed positionally or by name (including mixed usage), and named
+arguments are validated against each method's declared parameter names.
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).

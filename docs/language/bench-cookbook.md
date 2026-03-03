@@ -41,6 +41,8 @@ transfer function and spectrum post-processing:
 TransferFunction H = transfer(ac, IN, OUT)
 GainSpectrum G = db20(H.Mag())
 Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+Frequency f10 = G.Range(to=1MHz, from=100Hz).ValueAt(f=10kHz)
+Time tclk = period(f=1MHz)
 ```
 
 Reference implementations live in [`lib/std/bench/TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas):

@@ -1298,6 +1298,7 @@ public static class BenchSemanticChecker
         || kind == MeasurementTypeKind.VoltageSpectrum
         || kind == MeasurementTypeKind.CurrentSpectrum
         || kind == MeasurementTypeKind.NoiseSpectrum
+        || kind == MeasurementTypeKind.ImpedanceSpectrum
         || kind == MeasurementTypeKind.VoltageWaveform
         || kind == MeasurementTypeKind.CurrentWaveform
         || kind == MeasurementTypeKind.TransferFunction;
@@ -1916,6 +1917,7 @@ public static class BenchSemanticChecker
             {
                 ["start"] = MeasurementTypeKind.Frequency,
                 ["stop"] = MeasurementTypeKind.Frequency,
+                ["noise"] = MeasurementTypeKind.Scalar,
             },
             _ => new Dictionary<string, MeasurementTypeKind>(),
         };
@@ -1940,7 +1942,48 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+
+            if (
+                analysis.Type == BenchValueType.SPAnalysis
+                && name.Equals("noise", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                ValidateSpNoiseFlag(analysis, expr, actual, diagnostics);
+            }
         }
+    }
+
+    private static void ValidateSpNoiseFlag(
+        AnalysisDeclaration analysis,
+        MeasurementExpr expr,
+        MeasurementType actual,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (actual.Kind != MeasurementTypeKind.Scalar)
+        {
+            return;
+        }
+
+        if (!TryResolveConstantInt(expr, out var noiseFlag))
+        {
+            return;
+        }
+
+        if (noiseFlag == 0 || noiseFlag == 1)
+        {
+            return;
+        }
+
+        diagnostics.Add(
+            new Diagnostic(
+                $"CAS2006: Analysis parameter '{analysis.Name}.noise' must be 0 or 1, got {noiseFlag}.",
+                DiagnosticSeverity.Error,
+                "<bench>",
+                1,
+                1
+            )
+        );
     }
 
     private sealed class TypeScope
