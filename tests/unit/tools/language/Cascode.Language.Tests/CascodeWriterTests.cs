@@ -123,4 +123,94 @@ public class CascodeWriterTests
 
         Assert.Contains("sweep InputDCBias [0.3V:100mV:1.5V]", output);
     }
+
+    [Fact]
+    public void CascodeWriter_Constraints_PreserveDeclarationOrder()
+    {
+        var circuit = new Circuit
+        {
+            Name = "OrderTest",
+            Level = CascodeLevel.EL,
+            Constraints = new ConstraintsBlock
+            {
+                Numeric = new List<NumericConstraint>
+                {
+                    new()
+                    {
+                        Id = "z_numeric",
+                        BenchBase = "transfer",
+                        Metric = "Gain",
+                        Op = ">=",
+                        Value = "10",
+                        Unit = "dB",
+                    },
+                    new()
+                    {
+                        Id = "a_numeric",
+                        BenchBase = "transfer",
+                        Metric = "Bandwidth",
+                        Op = ">=",
+                        Value = "5M",
+                        Unit = "Hz",
+                    },
+                },
+                Tech = new List<TechConstraint>
+                {
+                    new()
+                    {
+                        Id = "z_tech",
+                        Param = "vdd",
+                        Op = "==",
+                        Value = "1.8",
+                        Unit = "V",
+                        Scope = "global",
+                    },
+                    new()
+                    {
+                        Id = "a_tech",
+                        Param = "temp",
+                        Op = "==",
+                        Value = "27",
+                        Unit = "C",
+                        Scope = "global",
+                    },
+                },
+                Graph = new List<GraphConstraint>
+                {
+                    new()
+                    {
+                        Id = "z_graph",
+                        Rule = "connected",
+                        Properties = new Dictionary<string, string>(),
+                    },
+                    new()
+                    {
+                        Id = "a_graph",
+                        Rule = "acyclic",
+                        Properties = new Dictionary<string, string>(),
+                    },
+                },
+            },
+        };
+        var doc = new CascodeDocument { Circuits = new List<Circuit> { circuit } };
+        using var writer = new StringWriter();
+        CascodeWriter.Write(doc, writer);
+        var output = writer.ToString();
+
+        Assert.True(
+            output.IndexOf("z_numeric = transfer::Gain >= 10dB", System.StringComparison.Ordinal)
+                < output.IndexOf(
+                    "a_numeric = transfer::Bandwidth >= 5MHz",
+                    System.StringComparison.Ordinal
+                )
+        );
+        Assert.True(
+            output.IndexOf("z_tech : vdd == 1.8V on global", System.StringComparison.Ordinal)
+                < output.IndexOf("a_tech : temp == 27C on global", System.StringComparison.Ordinal)
+        );
+        Assert.True(
+            output.IndexOf("z_graph : connected ...", System.StringComparison.Ordinal)
+                < output.IndexOf("a_graph : acyclic ...", System.StringComparison.Ordinal)
+        );
+    }
 }

@@ -562,6 +562,82 @@ public class ComplianceCheckerTests
         Assert.Equal(1, report.FailedCount);
     }
 
+    [Fact]
+    public void Check_PreservesConstraintDeclarationOrderInResults()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Constraints = new ConstraintsBlock
+            {
+                Numeric = new List<NumericConstraint>
+                {
+                    new()
+                    {
+                        Id = "z_first",
+                        Bench = "TestBench",
+                        Metric = "M1",
+                        Op = ">=",
+                        Value = "1",
+                        Unit = "",
+                    },
+                    new()
+                    {
+                        Id = "a_second",
+                        Bench = "TestBench",
+                        Metric = "M2",
+                        Op = ">=",
+                        Value = "1",
+                        Unit = "",
+                    },
+                    new()
+                    {
+                        Id = "m_third",
+                        Bench = "TestBench",
+                        Metric = "M3",
+                        Op = ">=",
+                        Value = "1",
+                        Unit = "",
+                    },
+                },
+            },
+        };
+
+        var results = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "TestBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["m1"] = new()
+                {
+                    Metric = "M1",
+                    Value = 2.0,
+                    Unit = "",
+                },
+                ["m2"] = new()
+                {
+                    Metric = "M2",
+                    Value = 2.0,
+                    Unit = "",
+                },
+                ["m3"] = new()
+                {
+                    Metric = "M3",
+                    Value = 2.0,
+                    Unit = "",
+                },
+            },
+        };
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        Assert.Equal(
+            ["z_first", "a_second", "m_third"],
+            report.Results.Select(r => r.Id).ToArray()
+        );
+    }
+
     private static Circuit CreateCircuitWithConstraint(
         string id,
         string metric,

@@ -225,10 +225,14 @@ public static partial class CascodeWriter
     }
 
     /// <summary>
-    /// Writes a Circuit to the provided TextWriter using the canonical Cascode textual representation.
+    /// Writes a Circuit to the provided TextWriter using the canonical Cascode textual
+    /// representation.
     /// </summary>
     /// <remarks>
-    /// Emits the circuit header (name, size parameters, parameters, implemented traits) and then writes the circuit body sections in canonical order, including level/inline/library, supplies, grounds, ports, slot, fill, constraints, harness, env, any pruned render block, bench bindings/extensions, synth entries, and provenance.
+    /// Emits the circuit header (name, size parameters, parameters, implemented traits) and then
+    /// writes the circuit body sections in canonical order, including level/inline/library, supplies,
+    /// grounds, ports, slot, fill, constraints, harness, env, any pruned render block, bench
+    /// bindings/extensions, synth entries, and provenance.
     /// </remarks>
     /// <param name="circuit">The Circuit model to serialize.</param>
     /// <param name="writer">The TextWriter to which the circuit text will be written.</param>
@@ -517,7 +521,7 @@ public static partial class CascodeWriter
         if (constraints.Numeric.Count > 0)
         {
             writer.WriteLine("    numeric {");
-            foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
+            foreach (var c in constraints.Numeric)
             {
                 var node = c.Node is not null ? $" at {c.Node}" : "";
                 var benchArgs =
@@ -549,7 +553,7 @@ public static partial class CascodeWriter
         if (constraints.Tech.Count > 0)
         {
             writer.WriteLine("    tech {");
-            foreach (var c in constraints.Tech.OrderBy(c => c.Id, StringComparer.Ordinal))
+            foreach (var c in constraints.Tech)
             {
                 writer.WriteLine($"      {c.Id} : {c.Param} {c.Op} {c.Value}{c.Unit} on {c.Scope}");
             }
@@ -558,7 +562,7 @@ public static partial class CascodeWriter
         if (constraints.Graph.Count > 0)
         {
             writer.WriteLine("    graph {");
-            foreach (var c in constraints.Graph.OrderBy(c => c.Id, StringComparer.Ordinal))
+            foreach (var c in constraints.Graph)
             {
                 writer.WriteLine($"      {c.Id} : {c.Rule} ..."); // Simplified for now
             }
