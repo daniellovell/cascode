@@ -210,11 +210,11 @@ circuit Top {
         var tb = EmitTestbench(cascode, instanceName: "sp");
 
         Assert.Contains("sp dec 10 1 1K 1", tb, StringComparison.Ordinal);
-        Assert.Contains("wrdata Top_sp__sp.sp.nf.wrdata NF", tb, StringComparison.Ordinal);
+        Assert.Contains("wrdata Top_sp__sp.sp.nf.wrdata NF NFmin Rn", tb, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void EmitAll_DoesNotEmitNoiseFactorWrdata_WhenSpNoiseIsDisabled()
+    public void EmitAll_DoesNotEmitNoiseWrdata_WhenSpNoiseIsDisabled()
     {
         var cascode = """
 VERSION 4.0

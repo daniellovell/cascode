@@ -206,10 +206,14 @@ Group delay uses the phase derivative of `Sij` with respect to angular frequency
 
 ```
 S.NF() → GainSpectrum
+S.NFmin() → GainSpectrum
+S.Rn() → ImpedanceSpectrum
 ```
 
-When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns the sampled noise figure
-values in dB.
+When `SPAnalysis(noise=1)` is enabled, the following noise parameters are available:
+- `S.NF()` returns the sampled noise figure values in dB.
+- `S.NFmin()` returns the minimum noise figure in dB.
+- `S.Rn()` returns unnormalized input noise resistance in Ohms.
 
 ---
 
@@ -220,7 +224,7 @@ values in dB.
 ```cascode
 library lib.std.bench
 
-bench TwoPortSParam {
+bench TwoPortSParamNoise {
   resp P1 : analog
   resp P2 : analog
 
@@ -296,6 +300,16 @@ bench TwoPortSParam {
       SParameterMatrix S = sparam(sp)
       return S.NF().ValueAt(f)
     }
+
+    measurement MinNoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NFmin().ValueAt(f)
+    }
+
+    measurement NoiseResistance(Frequency f) : Ohm {
+      SParameterMatrix S = sparam(sp)
+      return S.Rn().ValueAt(f)
+    }
   }
 }
 ```
@@ -317,7 +331,7 @@ interface SingleEndedAmp {
   ...
 
   benches {
-    bind TwoPortSParam as sparam_bench {
+    bind TwoPortSParamNoise as sparam_bench {
       bench.P1--dut.IN
       bench.P2--dut.OUT
     }

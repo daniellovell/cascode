@@ -817,6 +817,21 @@ public sealed class BenchMeasurementRunner
             return true;
         }
 
+        if (recv is BenchImpedanceSpectrum impedanceSpectrum)
+        {
+            result = Slice(
+                impedanceSpectrum.FrequenciesHz,
+                independentVariable.Value,
+                isFrom,
+                (range) =>
+                    new BenchImpedanceSpectrum(
+                        impedanceSpectrum.FrequenciesHz[range],
+                        impedanceSpectrum.ValuesOhm[range]
+                    )
+            );
+            return true;
+        }
+
         if (recv is BenchWaveform waveform)
         {
             result = Slice(
@@ -985,21 +1000,25 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "StabilityK");
                 return BuildStabilityKSpectrum(sm);
             }
 
             if (call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "MuFactor");
                 return BuildMuSpectrum(sm);
             }
 
             if (call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "MSG");
                 return BuildMsgSpectrum(sm);
             }
 
             if (call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "MAG");
                 return BuildMagSpectrum(sm);
             }
 
@@ -1016,25 +1035,20 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 0)
-                {
-                    throw new InvalidOperationException("NF requires exactly 0 arguments.");
-                }
+                RequireNoPortsArg(call, "NF");
+                return BuildNfSpectrum(sm);
+            }
 
-                var noiseData = FindSpNoiseDataset(sm);
-                if (noiseData is null)
-                {
-                    throw new InvalidOperationException(
-                        "NF: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
-                    );
-                }
+            if (call.Method.Equals("NFmin", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireNoPortsArg(call, "NFmin");
+                return BuildNfMinSpectrum(sm);
+            }
 
-                var values = noiseData.NoiseFigure.ToArray();
-                return new BenchGainSpectrum(
-                    noiseData.FrequenciesHz,
-                    values,
-                    BenchNumericKind.VoltageRatioDb
-                );
+            if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
+            {
+                RequireNoPortsArg(call, "Rn");
+                return BuildRnSpectrum(sm);
             }
         }
 
@@ -1211,6 +1225,64 @@ public sealed class BenchMeasurementRunner
                 var crossing = FindCrossing(
                     ts.FrequenciesHz,
                     ts.ValuesS,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+        }
+
+        // ImpedanceSpectrum methods
+        if (recv is BenchImpedanceSpectrum rs)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "ImpedanceSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(rs.FrequenciesHz, rs.ValuesOhm, f.Value);
+                return new BenchNumber(BenchNumericKind.ImpedanceOhm, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "ImpedanceSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.ImpedanceOhm
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match ImpedanceSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? rs.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? rs.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    rs.FrequenciesHz,
+                    rs.ValuesOhm,
                     threshold.Value,
                     dir,
                     cross,
@@ -2963,6 +3035,14 @@ public sealed class BenchMeasurementRunner
         return (port, 0);
     }
 
+    private static void RequireNoPortsArg(MeasurementMethodCall call, string methodName)
+    {
+        if (call.Args.Count != 0)
+        {
+            throw new InvalidOperationException($"{methodName} requires exactly 0 arguments.");
+        }
+    }
+
     private static int RequirePortIndex(BenchValue value, string context)
     {
         var n = RequireNumber(value, context);
@@ -3028,6 +3108,53 @@ public sealed class BenchMeasurementRunner
         }
 
         return null;
+    }
+
+    private BenchGainSpectrum BuildNfSpectrum(BenchSParameterMatrix sm)
+    {
+        var noiseData = FindSpNoiseDataset(sm);
+        if (noiseData is null)
+        {
+            throw new InvalidOperationException(
+                "NF: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+            );
+        }
+
+        return new BenchGainSpectrum(
+            noiseData.FrequenciesHz,
+            noiseData.NoiseFigure,
+            BenchNumericKind.VoltageRatioDb
+        );
+    }
+
+    private BenchGainSpectrum BuildNfMinSpectrum(BenchSParameterMatrix sm)
+    {
+        var noiseData = FindSpNoiseDataset(sm);
+        if (noiseData is null)
+        {
+            throw new InvalidOperationException(
+                "NFmin: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+            );
+        }
+
+        return new BenchGainSpectrum(
+            noiseData.FrequenciesHz,
+            noiseData.MinNoiseFigure,
+            BenchNumericKind.VoltageRatioDb
+        );
+    }
+
+    private BenchImpedanceSpectrum BuildRnSpectrum(BenchSParameterMatrix sm)
+    {
+        var noiseData = FindSpNoiseDataset(sm);
+        if (noiseData is null)
+        {
+            throw new InvalidOperationException(
+                "Rn: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+            );
+        }
+
+        return new BenchImpedanceSpectrum(noiseData.FrequenciesHz, noiseData.NoiseResistance);
     }
 
     private static BenchScalarSpectrum BuildStabilityKSpectrum(BenchSParameterMatrix sm)
@@ -3537,6 +3664,7 @@ public sealed class BenchMeasurementRunner
                 or BenchComplexCurrentSpectrum
                 or BenchVoltageSpectrum
                 or BenchCurrentSpectrum
+                or BenchImpedanceSpectrum
                 or BenchTransferFunction
         )
         {
