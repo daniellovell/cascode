@@ -40,14 +40,18 @@ internal static class BenchAnalysisCompiler
             )
             {
                 var raw = evalRunner.EvaluateExpressionForPlan(noiseExpr, benchParams);
-                if (raw is not BenchNumber noise)
+                if (
+                    raw is not BenchNumber noise
+                    || noise.Kind != BenchNumericKind.Scalar
+                    || (noise.Value != 0 && noise.Value != 1)
+                )
                 {
                     throw new InvalidOperationException(
-                        $"SPAnalysis '{a.Name}' noise must evaluate to a numeric value (0 or 1)."
+                        $"SPAnalysis '{a.Name}' noise must be 0 or 1."
                     );
                 }
 
-                enableNoise = Math.Abs(noise.Value) > 0;
+                enableNoise = noise.Value == 1;
             }
 
             var samples = 100;
