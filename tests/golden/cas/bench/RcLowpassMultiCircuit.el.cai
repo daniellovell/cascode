@@ -79,7 +79,8 @@ circuit RcLowpassA {
 
   constraints {
     numeric {
-      c_bw = lp::LowpassBandwidth >= 1Hz
+      // 1k || 1p -> fc ~ 159 MHz
+      c_bw = lp::LowpassBandwidth >= 150MHz
     }
   }
 }
@@ -112,7 +113,8 @@ circuit RcLowpassB {
 
   constraints {
     numeric {
-      c_bw = lp::LowpassBandwidth >= 1Hz
+      // 2k || 1p -> fc ~ 80 MHz
+      c_bw = lp::LowpassBandwidth >= 70MHz
     }
   }
 }
