@@ -247,7 +247,7 @@ public sealed class SchematicLayoutProjectionTests
                     {
                         Id = "C1",
                         DeviceType = "Capacitor",
-                        Primitive = "Ideal_Capacitor",
+                        Primitive = "CapacitorIdeal",
                     },
                 ],
             },

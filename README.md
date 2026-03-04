@@ -102,12 +102,12 @@ self-contained example (from `tests/golden/cas/bench/RcLowpass.el.cai`) looks li
 ```cascode
 VERSION 4.0
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params { R = primSize.R }
 }
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"
   params { C = primSize.C }
 }
@@ -143,8 +143,8 @@ circuit RcLowpass {
   ground GND
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=1k)) { .P--IN.P, .N--OUT }
-    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) { .P--OUT, .N--GND }
+    Resistor R1 = new ResistorIdeal(size(R=1k)) { .P--IN.P, .N--OUT }
+    Capacitor C1 = new CapacitorIdeal(size(C=1p)) { .P--OUT, .N--GND }
   }
 
   benches {

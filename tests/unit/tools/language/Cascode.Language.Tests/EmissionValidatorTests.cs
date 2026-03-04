@@ -60,7 +60,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -120,7 +120,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "pmos",
                         Id = "M1",
-                        Primitive = "Level1_PMOS",
+                        Primitive = "PMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -180,7 +180,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -249,7 +249,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -316,7 +316,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT.p" },
@@ -379,7 +379,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -444,7 +444,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -495,9 +495,9 @@ public class EmissionValidatorTests
             [
                 new PrimitiveDefinition
                 {
-                    Name = "Level1_NMOS",
+                    Name = "NMOS_Level1",
                     Kind = "nmos",
-                    Device = "level1_nmos",
+                    Device = "nmos_level1",
                     SizeParameter = "primSize",
                     Params = new Dictionary<string, string>
                     {
@@ -591,7 +591,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "resistor",
                         Id = "R1",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
@@ -672,6 +672,149 @@ public class EmissionValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'R'"));
+    }
+
+    [Fact]
+    public void Validate_CapacitorQ_RequiresQAndFreqParams()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "capacitor",
+                        Id = "C1",
+                        Primitive = "CapQPrim",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "OUT" },
+                        },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "C", "1p" },
+                                { "Q", "50" },
+                                { "freq", "1G" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        var document = new CascodeDocument
+        {
+            Primitives = new List<PrimitiveDefinition>
+            {
+                new()
+                {
+                    Name = "CapQPrim",
+                    Kind = "capacitor",
+                    Device = "capacitor_q",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string> { { "C", "primSize.C" } },
+                },
+            },
+        };
+
+        var result = EmissionValidator.Validate(circuit, document);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'Q'"));
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-003" && e.Message.Contains("'freq'")
+        );
+    }
+
+    [Fact]
+    public void Validate_InductorQ_RequiresFreqParam()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "inductor",
+                        Id = "L1",
+                        Primitive = "IndQPrim",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "OUT" },
+                        },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "L", "10n" },
+                                { "Q", "20" },
+                                { "freq", "100M" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        var document = new CascodeDocument
+        {
+            Primitives = new List<PrimitiveDefinition>
+            {
+                new()
+                {
+                    Name = "IndQPrim",
+                    Kind = "inductor",
+                    Device = "inductor_q",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        { "L", "primSize.L" },
+                        { "Q", "primSize.Q" },
+                    },
+                },
+            },
+        };
+
+        var result = EmissionValidator.Validate(circuit, document);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-003" && e.Message.Contains("'freq'")
+        );
     }
 
     [Fact]
@@ -770,7 +913,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "internal_node" }, // Using internal net
@@ -829,7 +972,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -887,7 +1030,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -960,7 +1103,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1017,7 +1160,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },

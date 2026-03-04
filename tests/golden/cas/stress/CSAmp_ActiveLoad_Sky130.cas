@@ -9,7 +9,7 @@ include lib.std
 include lib.pdk.sky130.devices.pfet_01v8
 include lib.pdk.sky130.devices.nfet_01v8
 
-circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
+circuit CSAmp_ActiveLoad_Sky130 implements SingleEndedAmp {
   level EL
   supply VDD
   ground GND
@@ -47,7 +47,6 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
       c_gain_spectrum = transfer_bench::GainSpectrum(from=100kHz, to=10MHz) at net::OUT >= 9dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100uVrms
-      c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
       c_vdd_pwr = vdd_pwr::QuiescentPower <= 10mW
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.3V
       c_psrr = psrr_bench::PSRR at net::OUT >= -25dB

@@ -47,7 +47,13 @@ function calc_phase_margin(ACAnalysis ac, stim IN, resp OUT) : Phase {
 
   Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
   Phase phi = P.ValueAt(fg)
-  return 180deg + phi
+  return normalize_phase_near_zero(180deg + phi)
+}
+
+function normalize_phase_near_zero(Phase phase) : Phase {
+  if phase > 180deg { return normalize_phase_near_zero(phase - 360deg) }
+  if phase < -180deg { return normalize_phase_near_zero(phase + 360deg) }
+  return phase
 }
 
 function calc_lowpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Frequency gbwConstraint) : Frequency {

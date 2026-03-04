@@ -35,8 +35,8 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | `bench` | `bench DiffToSETransfer { ... }` | Chapter 4 |
 | `Port` (bench harness) | `Port p1 = new Port(N=1, Z=50Ohm, V=0V) { .P--P1, .N--gnd }` | Chapter 4 |
 | `function` | `function f(...) : Frequency { ... }` | 3.12 |
-| `primitive` | `primitive NMOS Level1_NMOS(size s) { ... }` | 3.8 |
-| device instance | `NMOS M1 = new Level1_NMOS(S) { ... }` | 3.9 |
+| `primitive` | `primitive NMOS NMOS_Level1(size s) { ... }` | 3.8 |
+| device instance | `NMOS M1 = new NMOS_Level1(S) { ... }` | 3.9 |
 | `circuit` | `circuit OTA5T implements SingleEndedOpAmp { ... }` | 3.7 |
 | `inline` | `inline` | 3.7 |
 | `slot` | `slot` (bare) or `slot { Some lna = new X() { ... } }` | 3.7 |
@@ -465,8 +465,8 @@ simulator/model implementation and its parameter mapping.
 ### 3.8.1 Syntax
 
 ```cascode
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -521,7 +521,7 @@ expression that names a primitive:
 
 ```cascode
 fill {
-  NMOS M_in = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+  NMOS M_in = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
     .D--OUT
     .G--IN
     .S--GND
@@ -537,7 +537,7 @@ The primitive name supplies the backend/model mapping through the corresponding 
 The size argument may be:
 
 - A named `size` variable: `new nfet_01v8(InputPair)`
-- An inline size expression: `new Level1_NMOS(size(W=2u, L=180n, M=1))`
+- An inline size expression: `new NMOS_Level1(size(W=2u, L=180n, M=1))`
 
 The binding block uses `.Terminal--Net` syntax and may be written with comma-separated bindings or
 one binding per line.

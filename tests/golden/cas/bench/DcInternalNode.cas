@@ -43,7 +43,7 @@ circuit DcInternalNode {
 
   fill {
     net mid : analog
-    Resistor R1 = new Ideal_Resistor(size(R=10k)) { .P--VDD, .N--mid }
-    Resistor R2 = new Ideal_Resistor(size(R=10k)) { .P--mid, .N--GND }
+    Resistor R1 = new ResistorIdeal(size(R=10k)) { .P--VDD, .N--mid }
+    Resistor R2 = new ResistorIdeal(size(R=10k)) { .P--mid, .N--GND }
   }
 }
