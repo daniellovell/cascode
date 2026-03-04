@@ -26,35 +26,35 @@ circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
     net tnode : analog
     net vcm_node : analog
 
-    NMOS M_N = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
+    NMOS M_N = new NMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.P
       .G--IN.P
       .S--tnode
     }
 
-    NMOS M_P = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
+    NMOS M_P = new NMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.N
       .G--IN.N
       .S--tnode
     }
 
-    NMOS M_TAIL = new NMOS_Level1(size(W=4u, L=180n, M=1)) {
+    NMOS M_TAIL = new NMOSLevel1(size(W=4u, L=180n, M=1)) {
       .B--GND
       .D--tnode
       .G--VTAIL
       .S--GND
     }
 
-    PMOS M_LOAD_P = new PMOS_Level1(size(W=2u, L=180n, M=1)) {
+    PMOS M_LOAD_P = new PMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--VDD
       .D--OUT.P
       .G--vcm_node
       .S--VDD
     }
 
-    PMOS M_LOAD_N = new PMOS_Level1(size(W=2u, L=180n, M=1)) {
+    PMOS M_LOAD_N = new PMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--VDD
       .D--OUT.N
       .G--vcm_node
