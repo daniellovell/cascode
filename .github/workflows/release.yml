@@ -101,9 +101,9 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-latest
             rid: linux-arm64
-          - os: macos-15-intel
+          - os: macos-latest
             rid: osx-x64
           - os: macos-latest
             rid: osx-arm64
@@ -130,7 +130,28 @@ jobs:
           bison flex autoconf automake libtool make gcc curl tar
       - name: install ngspice build deps (macOS)
         if: startsWith(matrix.rid, 'osx-')
-        run: brew install bison flex autoconf automake libtool
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install bison flex autoconf automake libtool coreutils gnu-sed findutils gawk
+
+          {
+            echo "$(brew --prefix bison)/bin"
+            echo "$(brew --prefix flex)/bin"
+            echo "$(brew --prefix autoconf)/bin"
+            echo "$(brew --prefix automake)/bin"
+            echo "$(brew --prefix libtool)/bin"
+            echo "$(brew --prefix coreutils)/libexec/gnubin"
+            echo "$(brew --prefix gnu-sed)/libexec/gnubin"
+            echo "$(brew --prefix findutils)/libexec/gnubin"
+            echo "$(brew --prefix gawk)/libexec/gnubin"
+          } >> "$GITHUB_PATH"
+
+          gnu_shims="$RUNNER_TEMP/cascode-gnu-shims"
+          mkdir -p "$gnu_shims"
+          ln -sf "$(command -v aclocal)" "$gnu_shims/aclocal-1.16"
+          ln -sf "$(command -v automake)" "$gnu_shims/automake-1.16"
+          echo "$gnu_shims" >> "$GITHUB_PATH"
       - name: normalize binary name (unix)
         if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
         shell: bash
@@ -174,7 +195,29 @@ jobs:
           install_log="$(mktemp)"
           dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json >"$install_log"
           cat "$install_log"
-          install_path="$(python3 -c 'import json,sys; p=json.load(sys.stdin); ok=bool(p.get(\"Success\")) and bool(p.get(\"InstallPath\")); ok or print(p.get(\"Message\", \"ngspice installation failed\"), file=sys.stderr); print(p.get(\"InstallPath\", \"\"), end=\"\"); sys.exit(0 if ok else 1)' < \"$install_log\")"
+          install_path="$(
+            python3 - "$install_log" <<'PY'
+import json
+import pathlib
+import sys
+
+log_path = pathlib.Path(sys.argv[1])
+line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+
+try:
+    payload = json.loads(line)
+except json.JSONDecodeError as ex:
+    print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+    sys.exit(1)
+
+install_path = payload.get("InstallPath")
+if payload.get("Success") and install_path:
+    print(install_path, end="")
+else:
+    print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+    sys.exit(1)
+PY
+          )"
           [ -n "$install_path" ]
       - name: build ngspice via installer (windows)
         if: startsWith(matrix.rid, 'win-')
@@ -283,7 +326,26 @@ jobs:
           mkdir -p "$CASCODE_HOME"
           json="$(/tmp/cascode-release-smoke/cascode install ngspice --force --json)"
           echo "$json"
-          install_path="$(python3 -c 'import json,sys; p=json.loads(sys.stdin.read()); ok=bool(p.get(\"Success\")) and bool(p.get(\"InstallPath\")) and p.get(\"InstallMode\")==\"release-binary\"; ok or print(p.get(\"Message\", \"install failed\"), file=sys.stderr); print(p.get(\"InstallPath\", \"\"), end=\"\"); sys.exit(0 if ok else 1)' <<< \"$json\")"
+          install_path="$(
+            INSTALL_JSON="$json" python3 - <<'PY'
+import json
+import os
+import sys
+
+try:
+    payload = json.loads(os.environ["INSTALL_JSON"])
+except json.JSONDecodeError as ex:
+    print(f"Failed to parse installer JSON from INSTALL_JSON: {ex}", file=sys.stderr)
+    sys.exit(1)
+
+install_path = payload.get("InstallPath")
+if payload.get("Success") and install_path and payload.get("InstallMode") == "release-binary":
+    print(install_path, end="")
+else:
+    print(payload.get("Message") or "install failed", file=sys.stderr)
+    sys.exit(1)
+PY
+          )"
           "$install_path" --version
 
   npm-publish:

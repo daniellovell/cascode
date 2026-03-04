@@ -19,6 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CASCODE_HOME: ${{ github.workspace }}/.cascode-home-ci
+      DOTNET_TFM: net10.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,7 +49,28 @@ jobs:
 
       - name: Install ngspice build deps (macOS)
         if: runner.os == 'macOS'
-        run: brew install bison flex autoconf automake libtool
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install bison flex autoconf automake libtool coreutils gnu-sed findutils gawk
+
+          {
+            echo "$(brew --prefix bison)/bin"
+            echo "$(brew --prefix flex)/bin"
+            echo "$(brew --prefix autoconf)/bin"
+            echo "$(brew --prefix automake)/bin"
+            echo "$(brew --prefix libtool)/bin"
+            echo "$(brew --prefix coreutils)/libexec/gnubin"
+            echo "$(brew --prefix gnu-sed)/libexec/gnubin"
+            echo "$(brew --prefix findutils)/libexec/gnubin"
+            echo "$(brew --prefix gawk)/libexec/gnubin"
+          } >> "$GITHUB_PATH"
+
+          gnu_shims="$RUNNER_TEMP/cascode-gnu-shims"
+          mkdir -p "$gnu_shims"
+          ln -sf "$(command -v aclocal)" "$gnu_shims/aclocal-1.16"
+          ln -sf "$(command -v automake)" "$gnu_shims/automake-1.16"
+          echo "$gnu_shims" >> "$GITHUB_PATH"
 
       - name: Install ngspice via CLI (unix)
         if: runner.os != 'Windows'
@@ -57,7 +79,7 @@ jobs:
           set -euo pipefail
           install_log="$(mktemp)"
           set +e
-          ./tools/cli/bin/Release/net10.0/Cascode.Cli install ngspice --from-source --json >"$install_log" 2>&1
+          ./tools/cli/bin/Release/${{ env.DOTNET_TFM }}/Cascode.Cli install ngspice --from-source --json >"$install_log" 2>&1
           install_exit=$?
           set -e
 
@@ -66,14 +88,36 @@ jobs:
             exit "$install_exit"
           fi
 
-          install_path="$(python3 -c 'import json,sys; p=json.load(sys.stdin); ip=p.get(\"InstallPath\"); ok=bool(p.get(\"Success\")) and bool(ip); ok or print(p.get(\"Message\", \"ngspice installation failed\"), file=sys.stderr); print(ip if ok else \"\", end=\"\"); sys.exit(0 if ok else 1)' < "$install_log")"
+          install_path="$(
+            python3 - "$install_log" <<'PY'
+import json
+import pathlib
+import sys
+
+log_path = pathlib.Path(sys.argv[1])
+line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+
+try:
+    payload = json.loads(line)
+except json.JSONDecodeError as ex:
+    print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+    sys.exit(1)
+
+install_path = payload.get("InstallPath")
+if payload.get("Success") and install_path:
+    print(install_path, end="")
+else:
+    print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+    sys.exit(1)
+PY
+          )"
           echo "$(dirname "$install_path")" >> "$GITHUB_PATH"
 
       - name: Install ngspice via CLI (windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $jsonOutput = & .\tools\cli\bin\Release\net10.0\Cascode.Cli.exe install ngspice --from-source --json
+          $jsonOutput = & ".\tools\cli\bin\Release\$env:DOTNET_TFM\Cascode.Cli.exe" install ngspice --from-source --json
           Write-Host $jsonOutput
           $result = $jsonOutput | ConvertFrom-Json
           if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
