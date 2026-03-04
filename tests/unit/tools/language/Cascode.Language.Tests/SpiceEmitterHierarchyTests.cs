@@ -858,6 +858,242 @@ public class SpiceEmitterHierarchyTests
     }
 
     [Fact]
+    public void EmitDesign_CapacitorQ_EmitsCapacitorWithRser()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = CascodeLevel.EL,
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "capacitor",
+                                Id = "C1",
+                                Primitive = "Ideal_CapacitorQ",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "IN",
+                                    ["N"] = "OUT",
+                                },
+                                Size = new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["C"] = "1p",
+                                        ["Q"] = "50",
+                                        ["freq"] = "1G",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var topLevel = doc.Circuits.First(c => c.Name == "TopLevel");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("CC1 IN OUT 1p Rser=3.1831", output);
+    }
+
+    [Fact]
+    public void EmitDesign_InductorQ_EmitsInductorWithRser()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = CascodeLevel.EL,
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "inductor",
+                                Id = "L1",
+                                Primitive = "Ideal_InductorQ",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "IN",
+                                    ["N"] = "OUT",
+                                },
+                                Size = new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["L"] = "10n",
+                                        ["Q"] = "20",
+                                        ["freq"] = "100M",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var topLevel = doc.Circuits.First(c => c.Name == "TopLevel");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("LL1 IN OUT 10n Rser=314.159m", output);
+    }
+
+    [Fact]
+    public void EmitDesign_InlineCapacitorQ_EmitsWithHierarchyPrefix()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "CapCell",
+                    Level = CascodeLevel.EL,
+                    Inline = true,
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "P",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "N",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "capacitor",
+                                Id = "C1",
+                                Primitive = "Ideal_CapacitorQ",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "P",
+                                    ["N"] = "N",
+                                },
+                                Size = new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["C"] = "1p",
+                                        ["Q"] = "50",
+                                        ["freq"] = "1G",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = CascodeLevel.EL,
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "q1",
+                                Type = "CapCell",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "OUT",
+                                    ["N"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var topLevel = doc.Circuits.First(c => c.Name == "TopLevel");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("Cq1__C1 OUT GND 1p Rser=3.1831", output);
+    }
+
+    [Fact]
     public void ValidateAndEmit_InvalidHierarchy_ReturnsErrors()
     {
         var doc = new CascodeDocument
@@ -1848,6 +2084,32 @@ public class SpiceEmitterHierarchyTests
                 Device = "inductor",
                 SizeParameter = "primSize",
                 Params = new Dictionary<string, string> { ["L"] = "primSize.L" },
+            },
+            new PrimitiveDefinition
+            {
+                Name = "Ideal_CapacitorQ",
+                Kind = "capacitor",
+                Device = "capacitor_q",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string>
+                {
+                    ["C"] = "primSize.C",
+                    ["Q"] = "primSize.Q",
+                    ["freq"] = "primSize.freq",
+                },
+            },
+            new PrimitiveDefinition
+            {
+                Name = "Ideal_InductorQ",
+                Kind = "inductor",
+                Device = "inductor_q",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string>
+                {
+                    ["L"] = "primSize.L",
+                    ["Q"] = "primSize.Q",
+                    ["freq"] = "primSize.freq",
+                },
             },
         ];
     }

@@ -38,6 +38,14 @@ public static class SpiceEmitter
         "level1_pmos",
     };
 
+    private static readonly Dictionary<string, string> QFactorPassiveDevices = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        { "capacitor_q", "C" },
+        { "inductor_q", "L" },
+    };
+
     private static string SanitizeNetName(string netName)
     {
         return netName.Replace('.', '_');
@@ -1455,6 +1463,20 @@ public static class SpiceEmitter
         return SiValue.TransformForBackend(evaluated, backend);
     }
 
+    private static double EvaluateNumericParam(
+        IReadOnlyDictionary<string, string> paramExpressions,
+        string paramName,
+        ExpressionContext context
+    )
+    {
+        if (!paramExpressions.TryGetValue(paramName, out var expr))
+        {
+            throw new InvalidOperationException($"Missing required parameter '{paramName}'.");
+        }
+
+        return ParameterEvaluator.ParseNumeric(context.Evaluate(expr.Trim()));
+    }
+
     /// <summary>
     /// Composes a hierarchy path into a flat naming prefix.
     /// E.g., ["outer", "inner"] → "outer__inner"
@@ -1601,6 +1623,34 @@ public static class SpiceEmitter
                     .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
             }
+        }
+
+        if (
+            !isBuiltinPassive
+            && !useSubckt
+            && QFactorPassiveDevices.TryGetValue(modelName, out var valueKey)
+            && deviceParams.TryGetValue(valueKey, out var valueExpr)
+        )
+        {
+            isBuiltinPassive = true;
+            passiveValue = RenderEvaluatedExpression(expressionContext, valueExpr, backend);
+            var reactiveVal = ParameterEvaluator.ParseNumeric(
+                expressionContext.Evaluate(valueExpr.Trim())
+            );
+            var qVal = EvaluateNumericParam(deviceParams, "Q", expressionContext);
+            var freqVal = EvaluateNumericParam(deviceParams, "freq", expressionContext);
+            var rser = valueKey switch
+            {
+                "C" => 1.0 / (2.0 * Math.PI * freqVal * reactiveVal * qVal),
+                "L" => (2.0 * Math.PI * freqVal * reactiveVal) / qVal,
+                _ => throw new InvalidOperationException(
+                    $"Unsupported Q-factor passive value key '{valueKey}'."
+                ),
+            };
+            paramExpressions = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Rser"] = SiValue.FormatForBackend(rser, backend),
+            };
         }
 
         var spiceType = useSubckt
