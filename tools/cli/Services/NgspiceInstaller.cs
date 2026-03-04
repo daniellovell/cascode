@@ -235,28 +235,61 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     /// </summary>
     private string? BuildUnixSource(string sourceDir, string prefix)
     {
-        var configure = _runtime.RunCommand(
-            "./configure",
-            new[]
-            {
-                $"--prefix={prefix}",
-                "--without-x",
-                "--without-readline",
-                "--enable-xspice",
-                "--disable-shared",
-                "CFLAGS=-O2",
-            },
-            sourceDir
-        );
+        var configurePath = Path.Combine(sourceDir, "configure");
+        if (!File.Exists(configurePath))
+            return $"ngspice configure script was not found at '{configurePath}'.";
+
+        _runtime.EnsureExecutable(configurePath);
+
+        CommandRunResult configure;
+        try
+        {
+            configure = _runtime.RunCommand(
+                configurePath,
+                new[]
+                {
+                    $"--prefix={prefix}",
+                    "--without-x",
+                    "--without-readline",
+                    "--enable-xspice",
+                    "--disable-shared",
+                    "CFLAGS=-O2",
+                },
+                sourceDir
+            );
+        }
+        catch (Exception ex)
+        {
+            return $"ngspice configure launch failed: {ex.Message}";
+        }
+
         if (configure.ExitCode != 0)
             return $"ngspice configure failed: {TrimOutput(configure.Stderr)}";
 
         var jobs = Math.Max(1, _runtime.ProcessorCount);
-        var makeBuild = _runtime.RunCommand("make", new[] { $"-j{jobs}" }, sourceDir);
+        CommandRunResult makeBuild;
+        try
+        {
+            makeBuild = _runtime.RunCommand("make", new[] { $"-j{jobs}" }, sourceDir);
+        }
+        catch (Exception ex)
+        {
+            return $"ngspice build launch failed: {ex.Message}";
+        }
+
         if (makeBuild.ExitCode != 0)
             return $"ngspice build failed: {TrimOutput(makeBuild.Stderr)}";
 
-        var makeInstall = _runtime.RunCommand("make", new[] { "install" }, sourceDir);
+        CommandRunResult makeInstall;
+        try
+        {
+            makeInstall = _runtime.RunCommand("make", new[] { "install" }, sourceDir);
+        }
+        catch (Exception ex)
+        {
+            return $"ngspice install launch failed: {ex.Message}";
+        }
+
         if (makeInstall.ExitCode != 0)
             return $"ngspice install failed: {TrimOutput(makeInstall.Stderr)}";
 

@@ -55,9 +55,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          json_output="$(./tools/cli/bin/Release/net10.0/Cascode.Cli install ngspice --json)"
-          echo "$json_output"
-          install_path="$(echo "$json_output" | python3 -c 'import json,sys; p=json.load(sys.stdin); ip=p.get(\"InstallPath\"); ok=bool(p.get(\"Success\")) and bool(ip); ok or print(p.get(\"Message\", \"ngspice installation failed\"), file=sys.stderr); print(ip if ok else \"\", end=\"\"); sys.exit(0 if ok else 1)')"
+          install_log="$(mktemp)"
+          set +e
+          ./tools/cli/bin/Release/net10.0/Cascode.Cli install ngspice --json >"$install_log" 2>&1
+          install_exit=$?
+          set -e
+
+          cat "$install_log"
+          if [ "$install_exit" -ne 0 ]; then
+            exit "$install_exit"
+          fi
+
+          install_path="$(python3 -c 'import json,sys; p=json.load(sys.stdin); ip=p.get(\"InstallPath\"); ok=bool(p.get(\"Success\")) and bool(ip); ok or print(p.get(\"Message\", \"ngspice installation failed\"), file=sys.stderr); print(ip if ok else \"\", end=\"\"); sys.exit(0 if ok else 1)' < "$install_log")"
           echo "$(dirname "$install_path")" >> "$GITHUB_PATH"
 
       - name: Install ngspice via CLI (windows)

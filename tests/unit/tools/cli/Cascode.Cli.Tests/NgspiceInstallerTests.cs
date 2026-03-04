@@ -185,7 +185,7 @@ public sealed class NgspiceInstallerTests : IDisposable
             string? workingDirectory
         )
         {
-            if (fileName == "./configure")
+            if (string.Equals(Path.GetFileName(fileName), "configure", StringComparison.Ordinal))
             {
                 ConfigurePrefix = args.FirstOrDefault(a =>
                         a.StartsWith("--prefix=", StringComparison.Ordinal)
@@ -235,7 +235,17 @@ public sealed class NgspiceInstallerTests : IDisposable
 
         public void ExtractTarGz(string archivePath, string destination)
         {
-            Directory.CreateDirectory(Path.Combine(destination, "ngspice-45.2"));
+            var sourceDir = Path.Combine(destination, "ngspice-45.2");
+            Directory.CreateDirectory(sourceDir);
+            var configurePath = Path.Combine(sourceDir, "configure");
+            File.WriteAllText(configurePath, "#!/bin/sh\nexit 0\n");
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(
+                    configurePath,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                );
+            }
         }
 
         public void EnsureExecutable(string path)
