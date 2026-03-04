@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace Cascode.Cli.Services;
 
@@ -17,44 +19,62 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     private const string WindowsArchiveUrl =
         "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2_64.7z/download";
 
+    private static readonly Regex ReleaseVersionPattern = new(
+        @"^\d+\.\d+\.\d+(?:-[0-9A-Za-z\.-]+)?$",
+        RegexOptions.Compiled
+    );
+
     private readonly INgspiceInstallerRuntime _runtime;
+    private readonly IGitHubReleaseClient _releaseClient;
+    private readonly Func<string?> _rawVersionProvider;
 
     public NgspiceInstaller()
-        : this(new DefaultNgspiceInstallerRuntime()) { }
+        : this(new DefaultNgspiceInstallerRuntime(), new GitHubReleaseClient(), GetRawCliVersion)
+    { }
 
-    internal NgspiceInstaller(INgspiceInstallerRuntime runtime)
+    internal NgspiceInstaller(
+        INgspiceInstallerRuntime runtime,
+        IGitHubReleaseClient releaseClient,
+        Func<string?> rawVersionProvider
+    )
     {
         _runtime = runtime;
+        _releaseClient = releaseClient;
+        _rawVersionProvider = rawVersionProvider;
     }
+
+    internal NgspiceInstaller(INgspiceInstallerRuntime runtime)
+        : this(runtime, new GitHubReleaseClient(), GetRawCliVersion) { }
 
     public string Name => "ngspice";
 
     /// <summary>
     /// Installs ngspice 45.2 for the current RID under CASCODE_HOME.
     /// </summary>
-    public SimulatorInstallResult Install(bool force)
+    public SimulatorInstallResult Install(SimulatorInstallOptions options)
     {
+        var installMode = options.FromSource
+            ? SimulatorInstallModes.SourceBuild
+            : SimulatorInstallModes.ReleaseBinary;
         var rid = _runtime.CurrentRid();
         if (rid is null)
             return Fail(
-                "Unsupported platform. ngspice installer supports Linux/macOS/Windows x64+arm64."
+                "Unsupported platform. ngspice installer supports Linux/macOS/Windows x64+arm64.",
+                installMode
             );
 
         var cascodeHome = _runtime.CascodeHome;
         var installBin = NgspiceInstallLayout.GetBinDirectory(cascodeHome, rid);
         var installExe = NgspiceInstallLayout.GetExecutablePath(cascodeHome, rid);
 
-        if (!force && File.Exists(installExe) && TryValidateBinary(installExe, out _))
+        if (!options.Force && File.Exists(installExe) && TryValidateBinary(installExe, out _))
         {
             return Success(
                 $"ngspice {NgspiceInstallLayout.Version} already installed at {installExe}",
-                installExe
+                installExe,
+                installMode
             );
         }
-
-        var checksums = LoadChecksums();
-        if (checksums is null)
-            return Fail("Missing checksum manifest. Reinstall Cascode CLI and retry.");
 
         Directory.CreateDirectory(installBin);
         var tempRoot = Path.Combine(Path.GetTempPath(), $"cascode-ngspice-{Guid.NewGuid():N}");
@@ -62,9 +82,12 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
 
         try
         {
-            return _runtime.IsWindows
-                ? InstallWindows(rid, checksums, tempRoot, installBin, installExe)
-                : InstallUnix(rid, checksums, tempRoot, installBin, installExe);
+            if (options.FromSource)
+            {
+                return InstallFromSource(rid, tempRoot, installBin, installExe);
+            }
+
+            return InstallFromReleaseBinary(rid, tempRoot, installBin, installExe);
         }
         finally
         {
@@ -72,7 +95,130 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         }
     }
 
-    private SimulatorInstallResult InstallWindows(
+    private SimulatorInstallResult InstallFromReleaseBinary(
+        string rid,
+        string tempRoot,
+        string installBin,
+        string installExe
+    )
+    {
+        if (!TryResolveReleaseTag(out var releaseTag, out var tagError))
+            return FailBinary(tagError);
+
+        var release = _releaseClient.FetchReleaseByTag(releaseTag!);
+        if (release is null)
+        {
+            return FailBinary(
+                $"No GitHub release was found for tag '{releaseTag}'."
+                    + " Default install works only for published release tags."
+            );
+        }
+
+        var archiveName = ReleaseArchiveNameForRid(rid);
+        var archiveAsset = release.Assets.FirstOrDefault(a =>
+            string.Equals(a.Name, archiveName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (archiveAsset is null)
+        {
+            return FailBinary($"Release '{releaseTag}' is missing ngspice asset '{archiveName}'.");
+        }
+
+        var checksumName = $"cascode-ngspice-{NgspiceInstallLayout.Version}-sha256.txt";
+        var checksumAsset = release.Assets.FirstOrDefault(a =>
+            string.Equals(a.Name, checksumName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (checksumAsset is null)
+        {
+            return FailBinary(
+                $"Release '{releaseTag}' is missing checksum asset '{checksumName}'."
+            );
+        }
+
+        var checksumPath = Path.Combine(tempRoot, checksumName);
+        try
+        {
+            _runtime.DownloadFile(checksumAsset.BrowserDownloadUrl, checksumPath);
+        }
+        catch (Exception ex)
+        {
+            return FailBinary($"Failed to download checksum asset '{checksumName}': {ex.Message}");
+        }
+
+        var checksums = LoadChecksumsFromFile(checksumPath);
+        if (!checksums.TryGetValue(archiveName, out _))
+        {
+            return FailBinary(
+                $"Checksum manifest '{checksumName}' does not include '{archiveName}'."
+            );
+        }
+
+        var archive = DownloadAndVerifyArchive(
+            tempRoot,
+            archiveName,
+            archiveAsset.BrowserDownloadUrl,
+            checksums,
+            SimulatorInstallModes.ReleaseBinary
+        );
+        if (!archive.Success)
+            return archive;
+
+        var extractDir = Path.Combine(tempRoot, "extract");
+        Directory.CreateDirectory(extractDir);
+
+        try
+        {
+            if (_runtime.IsWindows)
+                _runtime.ExtractZip(archive.InstallPath!, extractDir);
+            else
+                _runtime.ExtractTarGz(archive.InstallPath!, extractDir);
+        }
+        catch (Exception ex)
+        {
+            return FailBinary($"Failed to extract {archiveName}: {ex.Message}");
+        }
+
+        var executableName = _runtime.IsWindows ? "ngspice.exe" : "ngspice";
+        var extractedExe = Directory
+            .EnumerateFiles(extractDir, executableName, SearchOption.AllDirectories)
+            .FirstOrDefault();
+        if (extractedExe is null)
+            return FailBinary(
+                $"Could not find {executableName} in extracted archive '{archiveName}'."
+            );
+
+        CopyDirectoryContents(Path.GetDirectoryName(extractedExe)!, installBin);
+        if (!TryValidateBinary(installExe, out var validationError))
+            return FailBinary($"Installed binary validation failed: {validationError}");
+
+        return Success(
+            $"Installed ngspice {NgspiceInstallLayout.Version} to {installExe} from release {releaseTag}",
+            installExe,
+            SimulatorInstallModes.ReleaseBinary
+        );
+    }
+
+    private SimulatorInstallResult InstallFromSource(
+        string rid,
+        string tempRoot,
+        string installBin,
+        string installExe
+    )
+    {
+        var checksums = LoadBundledSourceChecksums();
+        if (checksums is null)
+        {
+            return Fail(
+                "Missing checksum manifest. Reinstall Cascode CLI and retry.",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
+
+        return _runtime.IsWindows
+            ? InstallWindowsFromSource(rid, checksums, tempRoot, installBin, installExe)
+            : InstallUnixFromSource(rid, checksums, tempRoot, installBin, installExe);
+    }
+
+    private SimulatorInstallResult InstallWindowsFromSource(
         string rid,
         IReadOnlyDictionary<string, string> checksums,
         string tempRoot,
@@ -81,13 +227,19 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     )
     {
         if (_runtime.FindTool("7z") is not string sevenZip)
-            return Fail("Missing required tool: 7z.\nInstall it with: winget install 7zip.7zip");
+        {
+            return Fail(
+                "Missing required tool: 7z.\nInstall it with: winget install 7zip.7zip",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         var archive = DownloadAndVerifyArchive(
             tempRoot,
             WindowsArchiveName,
             WindowsArchiveUrl,
-            checksums
+            checksums,
+            SimulatorInstallModes.SourceBuild
         );
         if (!archive.Success)
             return archive;
@@ -101,26 +253,42 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             workingDirectory: null
         );
         if (extract.ExitCode != 0)
-            return Fail($"Failed to extract {WindowsArchiveName}: {TrimOutput(extract.Stderr)}");
+        {
+            return Fail(
+                $"Failed to extract {WindowsArchiveName}: {TrimOutput(extract.Stderr)}",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         var extractedExe = Directory
             .EnumerateFiles(extractDir, "ngspice.exe", SearchOption.AllDirectories)
             .FirstOrDefault();
         if (extractedExe is null)
-            return Fail($"Could not find ngspice.exe in extracted archive {WindowsArchiveName}.");
+        {
+            return Fail(
+                $"Could not find ngspice.exe in extracted archive {WindowsArchiveName}.",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         CopyDirectoryContents(Path.GetDirectoryName(extractedExe)!, installBin);
         if (!TryValidateBinary(installExe, out var validationError))
-            return Fail($"Installed binary validation failed: {validationError}");
+        {
+            return Fail(
+                $"Installed binary validation failed: {validationError}",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         var note = rid == "win-arm64" ? " (using win-x64 ngspice binary)" : string.Empty;
         return Success(
             $"Installed ngspice {NgspiceInstallLayout.Version} to {installExe}{note}",
-            installExe
+            installExe,
+            SimulatorInstallModes.SourceBuild
         );
     }
 
-    private SimulatorInstallResult InstallUnix(
+    private SimulatorInstallResult InstallUnixFromSource(
         string rid,
         IReadOnlyDictionary<string, string> checksums,
         string tempRoot,
@@ -130,13 +298,14 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     {
         var missing = MissingUnixBuildDependencies();
         if (missing.Count > 0)
-            return Fail(BuildDependencyMessage(missing));
+            return Fail(BuildDependencyMessage(missing), SimulatorInstallModes.SourceBuild);
 
         var archive = DownloadAndVerifyArchive(
             tempRoot,
             SourceArchiveName,
             SourceArchiveUrl,
-            checksums
+            checksums,
+            SimulatorInstallModes.SourceBuild
         );
         if (!archive.Success)
             return archive;
@@ -147,29 +316,45 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             out var extractError
         );
         if (sourceDir is null)
-            return Fail(extractError ?? "ngspice source extraction produced no source directory.");
+        {
+            return Fail(
+                extractError ?? "ngspice source extraction produced no source directory.",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         var buildPrefix = Path.Combine(tempRoot, "install");
         Directory.CreateDirectory(buildPrefix);
 
         var buildError = BuildUnixSource(sourceDir, buildPrefix);
         if (buildError is not null)
-            return Fail(buildError);
+            return Fail(buildError, SimulatorInstallModes.SourceBuild);
 
         var builtExe = Path.Combine(buildPrefix, "bin", "ngspice");
         if (!File.Exists(builtExe))
-            return Fail("ngspice build succeeded but binary was not found under install prefix.");
+        {
+            return Fail(
+                "ngspice build succeeded but binary was not found under install prefix.",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         Directory.CreateDirectory(installBin);
         File.Copy(builtExe, installExe, overwrite: true);
         _runtime.EnsureExecutable(installExe);
 
         if (!TryValidateBinary(installExe, out var validationError))
-            return Fail($"Installed binary validation failed: {validationError}");
+        {
+            return Fail(
+                $"Installed binary validation failed: {validationError}",
+                SimulatorInstallModes.SourceBuild
+            );
+        }
 
         return Success(
             $"Installed ngspice {NgspiceInstallLayout.Version} to {installExe} ({rid})",
-            installExe
+            installExe,
+            SimulatorInstallModes.SourceBuild
         );
     }
 
@@ -180,7 +365,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         string tempRoot,
         string archiveName,
         string url,
-        IReadOnlyDictionary<string, string> checksums
+        IReadOnlyDictionary<string, string> checksums,
+        string installMode
     )
     {
         var archivePath = Path.Combine(tempRoot, archiveName);
@@ -191,17 +377,27 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         }
         catch (Exception ex)
         {
-            return Fail($"Failed to download {archiveName}: {ex.Message}");
+            return installMode == SimulatorInstallModes.ReleaseBinary
+                ? FailBinary($"Failed to download {archiveName}: {ex.Message}")
+                : Fail($"Failed to download {archiveName}: {ex.Message}", installMode);
         }
 
         if (!checksums.TryGetValue(archiveName, out var expected))
-            return Fail($"Checksum not found for {archiveName}.");
+        {
+            return installMode == SimulatorInstallModes.ReleaseBinary
+                ? FailBinary($"Checksum not found for {archiveName}.")
+                : Fail($"Checksum not found for {archiveName}.", installMode);
+        }
 
         var actual = _runtime.ComputeSha256(archivePath).ToLowerInvariant();
         if (!string.Equals(actual, expected.ToLowerInvariant(), StringComparison.Ordinal))
-            return Fail($"Checksum verification failed for {archiveName}.");
+        {
+            return installMode == SimulatorInstallModes.ReleaseBinary
+                ? FailBinary($"Checksum verification failed for {archiveName}.")
+                : Fail($"Checksum verification failed for {archiveName}.", installMode);
+        }
 
-        return Success($"Downloaded {archiveName}", archivePath);
+        return Success($"Downloaded {archiveName}", archivePath, installMode);
     }
 
     /// <summary>
@@ -343,12 +539,17 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     /// <summary>
     /// Loads pinned ngspice archive checksums from bundled CLI assets.
     /// </summary>
-    private IReadOnlyDictionary<string, string>? LoadChecksums()
+    private IReadOnlyDictionary<string, string>? LoadBundledSourceChecksums()
     {
         var manifestPath = Path.Combine(_runtime.BaseDirectory, "Assets", "ngspice-45.2.sha256");
         if (!File.Exists(manifestPath))
             return null;
 
+        return LoadChecksumsFromFile(manifestPath);
+    }
+
+    private static IReadOnlyDictionary<string, string> LoadChecksumsFromFile(string manifestPath)
+    {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var line in File.ReadAllLines(manifestPath))
         {
@@ -362,6 +563,51 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         }
 
         return map;
+    }
+
+    private bool TryResolveReleaseTag(out string? releaseTag, out string error)
+    {
+        releaseTag = null;
+        var rawVersion = _rawVersionProvider();
+        if (string.IsNullOrWhiteSpace(rawVersion))
+        {
+            error = "Could not determine this Cascode CLI version for release asset lookup.";
+            return false;
+        }
+
+        if (string.Equals(rawVersion, "dev", StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Release-binary install is unavailable for dev CLI builds.";
+            return false;
+        }
+
+        if (!ReleaseVersionPattern.IsMatch(rawVersion))
+        {
+            error = $"CLI version '{rawVersion}' does not map to a release tag.";
+            return false;
+        }
+
+        releaseTag = $"v{rawVersion}";
+        error = string.Empty;
+        return true;
+    }
+
+    private static string ReleaseArchiveNameForRid(string rid)
+    {
+        var extension = rid.StartsWith("win-", StringComparison.OrdinalIgnoreCase)
+            ? "zip"
+            : "tar.gz";
+        return $"cascode-ngspice-{NgspiceInstallLayout.Version}-{rid}.{extension}";
+    }
+
+    private static string? GetRawCliVersion()
+    {
+        var asm = typeof(NgspiceInstaller).Assembly;
+        var info =
+            asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (string.IsNullOrWhiteSpace(info))
+            return asm.GetName().Version?.ToString();
+        return info.Split('+', 2)[0];
     }
 
     private static bool TryValidateBinary(string binaryPath, out string error)
@@ -423,18 +669,32 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         catch { }
     }
 
-    private static SimulatorInstallResult Success(string message, string path)
+    private static SimulatorInstallResult Success(string message, string path, string installMode)
     {
         return new SimulatorInstallResult(
             Success: true,
             ExitCode: 0,
             Message: message,
-            InstallPath: path
+            InstallPath: path,
+            InstallMode: installMode
         );
     }
 
-    private static SimulatorInstallResult Fail(string message)
+    private static SimulatorInstallResult Fail(string message, string installMode)
     {
-        return new SimulatorInstallResult(Success: false, ExitCode: 1, Message: message);
+        return new SimulatorInstallResult(
+            Success: false,
+            ExitCode: 1,
+            Message: message,
+            InstallMode: installMode
+        );
+    }
+
+    private static SimulatorInstallResult FailBinary(string message)
+    {
+        return Fail(
+            $"{message}\nRun: cascode install ngspice --from-source",
+            SimulatorInstallModes.ReleaseBinary
+        );
     }
 }

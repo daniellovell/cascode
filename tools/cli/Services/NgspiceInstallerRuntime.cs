@@ -35,6 +35,7 @@ internal interface INgspiceInstallerRuntime
     void DownloadFile(string url, string destination);
     string ComputeSha256(string filePath);
     void ExtractTarGz(string archivePath, string destination);
+    void ExtractZip(string archivePath, string destination);
     void EnsureExecutable(string path);
 }
 
@@ -115,6 +116,11 @@ internal sealed class DefaultNgspiceInstallerRuntime : INgspiceInstallerRuntime
         using var fileStream = File.OpenRead(archivePath);
         using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
         TarFile.ExtractToDirectory(gzipStream, destination, overwriteFiles: true);
+    }
+
+    public void ExtractZip(string archivePath, string destination)
+    {
+        ZipFile.ExtractToDirectory(archivePath, destination);
     }
 
     public void EnsureExecutable(string path)

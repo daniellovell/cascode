@@ -15,12 +15,20 @@ internal sealed class InstallCommandModule : ICommandModule
     private readonly IReadOnlyDictionary<string, ISimulatorInstaller> _installers;
 
     public InstallCommandModule(CliOutputProvider output)
+        : this(output, null) { }
+
+    internal InstallCommandModule(
+        CliOutputProvider output,
+        IReadOnlyDictionary<string, ISimulatorInstaller>? installers
+    )
     {
         _output = output;
-        _installers = new Dictionary<string, ISimulatorInstaller>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["ngspice"] = new NgspiceInstaller(),
-        };
+        _installers =
+            installers
+            ?? new Dictionary<string, ISimulatorInstaller>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["ngspice"] = new NgspiceInstaller(),
+            };
     }
 
     public void Register(CommandRegistry registry)
@@ -40,7 +48,7 @@ internal sealed class InstallCommandModule : ICommandModule
     private CommandResult ShowUsage(string[] args)
     {
         var output = _output.Get();
-        output.WriteLine("Usage: install <tool> [--force] [--json]");
+        output.WriteLine("Usage: install <tool> [--from-source] [--force] [--json]");
         output.WriteLine("");
         output.WriteLine("Tools:");
         output.WriteLine("  ngspice    Install ngspice 45.2 to CASCODE_HOME.");
@@ -51,6 +59,7 @@ internal sealed class InstallCommandModule : ICommandModule
     {
         var output = _output.Get();
         var force = false;
+        var fromSource = false;
         var json = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -67,13 +76,19 @@ internal sealed class InstallCommandModule : ICommandModule
                 continue;
             }
 
+            if (args[i].Equals("--from-source", StringComparison.OrdinalIgnoreCase))
+            {
+                fromSource = true;
+                continue;
+            }
+
             output.Error($"Unknown option '{args[i]}'.");
-            output.WriteLine("Usage: install ngspice [--force] [--json]");
+            output.WriteLine("Usage: install ngspice [--from-source] [--force] [--json]");
             return CommandResult.Failure;
         }
 
         var installer = _installers["ngspice"];
-        var result = installer.Install(force);
+        var result = installer.Install(new SimulatorInstallOptions(force, fromSource));
         if (json)
         {
             output.WriteLine(
@@ -82,7 +97,8 @@ internal sealed class InstallCommandModule : ICommandModule
                         result.Success,
                         result.ExitCode,
                         result.Message,
-                        result.InstallPath
+                        result.InstallPath,
+                        result.InstallMode
                     )
                 )
             );
@@ -104,6 +120,7 @@ internal sealed class InstallCommandModule : ICommandModule
         bool Success,
         int ExitCode,
         string Message,
-        string? InstallPath
+        string? InstallPath,
+        string InstallMode
     );
 }
