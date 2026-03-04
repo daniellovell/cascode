@@ -486,6 +486,7 @@ idPart
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
+    | IMPEDANCE_SPECTRUM_TYPE
     | VOLTAGE_WAVEFORM_TYPE
     | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
@@ -591,7 +592,7 @@ numericConstraint
     ;
 
 benchMetricRef
-    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 nodeRef
@@ -876,6 +877,7 @@ physicalType
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
+    | IMPEDANCE_SPECTRUM_TYPE
     | VOLTAGE_WAVEFORM_TYPE
     | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
@@ -953,7 +955,7 @@ measurementsBlock
     ;
 
 measurementDecl
-    : OVERRIDE_KW? MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
+    : OVERRIDE_KW? MEASUREMENT_KW name=idPart (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
     ;
 
 unitType
@@ -1012,7 +1014,7 @@ measurementPrimary
 // Cross-bench measurement reference used in constraint arguments (and allowed anywhere a measurementExpr is allowed).
 // Syntax: binding_alias::Measurement(args)
 benchMeasurementRef
-    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 measurementFunctionCall
@@ -1179,6 +1181,7 @@ COMPLEX_CURRENT_SPECTRUM_TYPE : 'ComplexCurrentSpectrum' ;
 VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
 CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
 NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;
+IMPEDANCE_SPECTRUM_TYPE     : 'ImpedanceSpectrum' ;
 VOLTAGE_WAVEFORM_TYPE       : 'VoltageWaveform' ;
 CURRENT_WAVEFORM_TYPE       : 'CurrentWaveform' ;
 NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;

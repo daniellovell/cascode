@@ -675,6 +675,149 @@ public class EmissionValidatorTests
     }
 
     [Fact]
+    public void Validate_CapacitorQ_RequiresQAndFreqParams()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "capacitor",
+                        Id = "C1",
+                        Primitive = "CapQPrim",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "OUT" },
+                        },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "C", "1p" },
+                                { "Q", "50" },
+                                { "freq", "1G" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        var document = new CascodeDocument
+        {
+            Primitives = new List<PrimitiveDefinition>
+            {
+                new()
+                {
+                    Name = "CapQPrim",
+                    Kind = "capacitor",
+                    Device = "capacitor_q",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string> { { "C", "primSize.C" } },
+                },
+            },
+        };
+
+        var result = EmissionValidator.Validate(circuit, document);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'Q'"));
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-003" && e.Message.Contains("'freq'")
+        );
+    }
+
+    [Fact]
+    public void Validate_InductorQ_RequiresFreqParam()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "inductor",
+                        Id = "L1",
+                        Primitive = "IndQPrim",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "OUT" },
+                        },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "L", "10n" },
+                                { "Q", "20" },
+                                { "freq", "100M" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+        var document = new CascodeDocument
+        {
+            Primitives = new List<PrimitiveDefinition>
+            {
+                new()
+                {
+                    Name = "IndQPrim",
+                    Kind = "inductor",
+                    Device = "inductor_q",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        { "L", "primSize.L" },
+                        { "Q", "primSize.Q" },
+                    },
+                },
+            },
+        };
+
+        var result = EmissionValidator.Validate(circuit, document);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-003" && e.Message.Contains("'freq'")
+        );
+    }
+
+    [Fact]
     public void Validate_ValidResistor_Succeeds()
     {
         var circuit = new Circuit

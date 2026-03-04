@@ -12,7 +12,7 @@ Target Version: Cascode 4.x
 
 This RFC proposes S-parameter support within Cascode's bench system. The design introduces `SPAnalysis`, `SParameterMatrix`, and a `Port` harness primitive that is instantiated in bench wiring just like `VDC` or `Impedor`.
 
-Ports are single-ended by definition. Each `Port` provides an ngspice S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
+Ports are single-ended by definition. Each `Port` provides an S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
 
 ---
 
@@ -88,7 +88,8 @@ analysis {
     space=Log,
     samples=200,
     start=100MHz,
-    stop=10GHz)
+    stop=10GHz,
+    noise=1)
 }
 ```
 
@@ -100,6 +101,7 @@ analysis {
 | `stop`    | `Frequency`    | yes      | —       | Stop frequency of the sweep  |
 | `space`   | `Log` or `Lin` | no       | `Log`   | Frequency spacing            |
 | `samples` | integer        | no       | 100     | Number of frequency points   |
+| `noise`   | `0` or `1`     | no       | `0`     | Enable correlated noise parameter computation during the sweep, including `NF` extraction |
 
 Like other analyses, arguments may use expressions over `constraints` and `env`.
 
@@ -200,6 +202,19 @@ S.GroupDelay(to, from) → TimeSpectrum
 
 Group delay uses the phase derivative of `Sij` with respect to angular frequency.
 
+### 4.6 Noise Figure
+
+```
+S.NF() → GainSpectrum
+S.NFmin() → GainSpectrum
+S.Rn() → ImpedanceSpectrum
+```
+
+When `SPAnalysis(noise=1)` is enabled, the following noise parameters are available:
+- `S.NF()` returns the sampled noise figure values in dB.
+- `S.NFmin()` returns the minimum noise figure in dB.
+- `S.Rn()` returns unnormalized input noise resistance in Ohms.
+
 ---
 
 ## 5. Complete Examples
@@ -209,7 +224,7 @@ Group delay uses the phase derivative of `Sij` with respect to angular frequency
 ```cascode
 library lib.std.bench
 
-bench TwoPortSParam {
+bench TwoPortSParamNoise {
   resp P1 : analog
   resp P2 : analog
 
@@ -236,7 +251,8 @@ bench TwoPortSParam {
       space=Log,
       samples=100,
       start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      noise=1)
   }
 
   measurements {
@@ -279,6 +295,21 @@ bench TwoPortSParam {
       SParameterMatrix S = sparam(sp)
       return S.GroupDelay(2, 1).ValueAt(f)
     }
+
+    measurement NoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().ValueAt(f)
+    }
+
+    measurement MinNoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NFmin().ValueAt(f)
+    }
+
+    measurement NoiseResistance(Frequency f) : Ohm {
+      SParameterMatrix S = sparam(sp)
+      return S.Rn().ValueAt(f)
+    }
   }
 }
 ```
@@ -300,7 +331,7 @@ interface SingleEndedAmp {
   ...
 
   benches {
-    bind TwoPortSParam as sparam_bench {
+    bind TwoPortSParamNoise as sparam_bench {
       bench.P1--dut.IN
       bench.P2--dut.OUT
     }
@@ -383,15 +414,7 @@ Runtime and linker primitive lists must therefore include `Port` (for example in
 | MAG where `K < 1` | Falls back to MSG with a diagnostic note |
 | Group delay numerical instability | Warning: `Group delay computation may be inaccurate near frequency {f}` |
 
----
-
-## 8. Future Work
-
-Support for noise figure extraction from combined S-parameter and noise data (`SPAnalysis` + `NoiseAnalysis`) remains a natural follow-on extension.
-
----
-
-## 9. Implementation Plan
+## 8. Implementation Plan
 
 1. Update language/runtime recognition, so `Port` is treated as a harness primitive in bench compilation and linking.
 2. Extend bench harness element compilation and testbench emission to map `Port(N, Z, V)` to ngspice `portnum`/`z0` source cards.

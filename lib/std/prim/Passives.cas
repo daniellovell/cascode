@@ -20,3 +20,21 @@ primitive Inductor Ideal_Inductor(size primSize) {
     L = primSize.L
   }
 }
+
+primitive Capacitor CapacitorQ(size primSize) {
+  device "capacitor_q"
+  params {
+    C = primSize.C
+    Q = primSize.Q
+    freq = primSize.freq
+  }
+}
+
+primitive Inductor InductorQ(size primSize) {
+  device "inductor_q"
+  params {
+    L = primSize.L
+    Q = primSize.Q
+    freq = primSize.freq
+  }
+}

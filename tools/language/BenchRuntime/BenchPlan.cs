@@ -17,7 +17,8 @@ public sealed record BenchPlanAnalysis(
     double? StopS = null,
     BenchTerminalRef? OutputTerminal = null,
     string? NoiseInputSource = null,
-    double? StepS = null
+    double? StepS = null,
+    bool EnableNoise = false
 );
 
 public sealed record BenchHarnessElement(

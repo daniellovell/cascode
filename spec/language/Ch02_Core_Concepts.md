@@ -404,6 +404,12 @@ through the same primitive and device instantiation mechanism. A common pattern 
 “ideal” primitives for use in small circuits and testbenches (for example,
 `tests/golden/cas/bench/RcLowpass.el.cai`).
 
+The standard library also includes finite-Q reactive primitives: `CapacitorQ` and
+`InductorQ`. These accept `Q` and `freq` in addition to the reactive value (`C` or `L`). On
+SPICE emission, they emit the reactive element in series with a computed resistor:
+- Capacitors: `R = 1 / (2 * pi * freq * C * Q)`
+- Inductors: `R = (2 * pi * freq * L) / Q`
+
 ---
 
 ## 2.7 Constraints, Harness, and Environment
@@ -648,7 +654,7 @@ Built-in constructors and conversions commonly used in the standard library incl
 - `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` → `NoiseSpectrum`
 - `voltage(analysis, terminal)` → `ComplexVoltageSpectrum` or `VoltageWaveform`
 - `current(analysis, harness_pin)` → `ComplexCurrentSpectrum` or `CurrentWaveform`
-- `sparam(sp_analysis)` → `SParameterMatrix`
+- `sparam(analysis)` → `SParameterMatrix`
 - `db20(GainSpectrum)` / `db10(GainSpectrum)` → `GainSpectrum` in dB
 - `quiescent_power(PWR, RET)` → rail power (for power benches)
 

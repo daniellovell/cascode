@@ -30,9 +30,20 @@ public sealed class MeasurementResult
     [JsonPropertyName("metric")]
     public string Metric { get; init; } = string.Empty;
 
-    /// <summary>Measured value.</summary>
+    /// <summary>
+    /// Measured scalar value. Null when the measurement result is represented by
+    /// <see cref="Values"/>.
+    /// </summary>
     [JsonPropertyName("value")]
-    public double Value { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Value { get; init; }
+
+    /// <summary>
+    /// Measured multi-point values for spectrum/waveform measurements.
+    /// </summary>
+    [JsonPropertyName("values")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double[]? Values { get; init; }
 
     /// <summary>
     /// Optional error message when the measurement evaluation failed.

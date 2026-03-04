@@ -997,9 +997,16 @@ public static class BenchSemanticChecker
                 || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("NFmin", StringComparison.OrdinalIgnoreCase)
             )
             {
                 return MeasurementType.GainSpectrum();
+            }
+
+            if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.ImpedanceSpectrum();
             }
 
             if (
@@ -1056,6 +1063,19 @@ public static class BenchSemanticChecker
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.Time();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ImpedanceSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Impedance();
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
@@ -1278,6 +1298,7 @@ public static class BenchSemanticChecker
         || kind == MeasurementTypeKind.VoltageSpectrum
         || kind == MeasurementTypeKind.CurrentSpectrum
         || kind == MeasurementTypeKind.NoiseSpectrum
+        || kind == MeasurementTypeKind.ImpedanceSpectrum
         || kind == MeasurementTypeKind.VoltageWaveform
         || kind == MeasurementTypeKind.CurrentWaveform
         || kind == MeasurementTypeKind.TransferFunction;
@@ -1641,6 +1662,22 @@ public static class BenchSemanticChecker
             return;
         }
 
+        var sParamMatrixMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "S",
+            "InsertionLoss",
+            "Isolation",
+            "GroupDelay",
+            "ReturnLoss",
+            "VSWR",
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+            "NFmin",
+            "Rn",
+        };
         var indexPairMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "S",
@@ -1653,13 +1690,40 @@ public static class BenchSemanticChecker
             "ReturnLoss",
             "VSWR",
         };
+        var zeroPortMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+            "NFmin",
+            "Rn",
+        };
         var twoPortOnlyMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "StabilityK",
             "MuFactor",
             "MSG",
             "MAG",
+            "NF",
+            "NFmin",
+            "Rn",
         };
+
+        if (!sParamMatrixMethods.Contains(call.Method))
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Unknown SParameterMatrix method '{call.Method}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
 
         if (indexPairMethods.Contains(call.Method))
         {
@@ -1695,7 +1759,6 @@ public static class BenchSemanticChecker
                 benchesByName,
                 diagnostics
             );
-            return;
         }
 
         if (singlePortMethods.Contains(call.Method))
@@ -1723,6 +1786,19 @@ public static class BenchSemanticChecker
                 benchesByName,
                 diagnostics
             );
+        }
+
+        if (zeroPortMethods.Contains(call.Method) && call.Args.Count != 0)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"{call.Method} requires exactly 0 arguments.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
             return;
         }
 
@@ -1740,20 +1816,9 @@ public static class BenchSemanticChecker
                         1
                     )
                 );
+                return;
             }
-
-            return;
         }
-
-        diagnostics.Add(
-            new Diagnostic(
-                $"Unknown SParameterMatrix method '{call.Method}'.",
-                DiagnosticSeverity.Error,
-                "<bench>",
-                1,
-                1
-            )
-        );
     }
 
     private static void ValidatePortArgument(
@@ -1852,6 +1917,7 @@ public static class BenchSemanticChecker
             {
                 ["start"] = MeasurementTypeKind.Frequency,
                 ["stop"] = MeasurementTypeKind.Frequency,
+                ["noise"] = MeasurementTypeKind.Scalar,
             },
             _ => new Dictionary<string, MeasurementTypeKind>(),
         };
@@ -1876,7 +1942,48 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+
+            if (
+                analysis.Type == BenchValueType.SPAnalysis
+                && name.Equals("noise", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                ValidateSpNoiseFlag(analysis, expr, actual, diagnostics);
+            }
         }
+    }
+
+    private static void ValidateSpNoiseFlag(
+        AnalysisDeclaration analysis,
+        MeasurementExpr expr,
+        MeasurementType actual,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (actual.Kind != MeasurementTypeKind.Scalar)
+        {
+            return;
+        }
+
+        if (!TryResolveConstantInt(expr, out var noiseFlag))
+        {
+            return;
+        }
+
+        if (noiseFlag == 0 || noiseFlag == 1)
+        {
+            return;
+        }
+
+        diagnostics.Add(
+            new Diagnostic(
+                $"CAS2006: Analysis parameter '{analysis.Name}.noise' must be 0 or 1, got {noiseFlag}.",
+                DiagnosticSeverity.Error,
+                "<bench>",
+                1,
+                1
+            )
+        );
     }
 
     private sealed class TypeScope
@@ -1993,6 +2100,7 @@ public static class BenchSemanticChecker
         VoltageSpectrum,
         CurrentSpectrum,
         NoiseSpectrum,
+        ImpedanceSpectrum,
         VoltageWaveform,
         CurrentWaveform,
         NoiseSpectralDensity,
@@ -2058,6 +2166,9 @@ public static class BenchSemanticChecker
 
         public static MeasurementType NoiseSpectrum() => new(MeasurementTypeKind.NoiseSpectrum);
 
+        public static MeasurementType ImpedanceSpectrum() =>
+            new(MeasurementTypeKind.ImpedanceSpectrum);
+
         public static MeasurementType VoltageWaveform() => new(MeasurementTypeKind.VoltageWaveform);
 
         public static MeasurementType CurrentWaveform() => new(MeasurementTypeKind.CurrentWaveform);
@@ -2102,6 +2213,7 @@ public static class BenchSemanticChecker
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
                 BenchValueType.CurrentSpectrum => CurrentSpectrum(),
                 BenchValueType.NoiseSpectrum => NoiseSpectrum(),
+                BenchValueType.ImpedanceSpectrum => ImpedanceSpectrum(),
                 BenchValueType.VoltageWaveform => VoltageWaveform(),
                 BenchValueType.CurrentWaveform => CurrentWaveform(),
                 BenchValueType.NoiseSpectralDensity => NoiseSpectralDensity(),
@@ -2152,6 +2264,10 @@ public static class BenchSemanticChecker
             if (unit.Equals("deg", StringComparison.OrdinalIgnoreCase))
             {
                 return Phase();
+            }
+            if (unit.EndsWith("Ohm", StringComparison.OrdinalIgnoreCase))
+            {
+                return Impedance();
             }
             if (unit.EndsWith("s", StringComparison.OrdinalIgnoreCase))
             {
@@ -2234,6 +2350,62 @@ public static class BenchSemanticChecker
                         or MeasurementTypeKind.Capacitance
                         or MeasurementTypeKind.Inductance
                         or MeasurementTypeKind.Time;
+            }
+
+            // Element-wise constraints allow spectrum/waveform measurements to be declared
+            // with the corresponding scalar physical unit (e.g., dB, V, A, s, deg).
+            if (
+                target.Kind == MeasurementTypeKind.VoltageRatio
+                && value.Kind == MeasurementTypeKind.GainSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Phase
+                && value.Kind == MeasurementTypeKind.PhaseSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Time
+                && value.Kind == MeasurementTypeKind.TimeSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Voltage
+                && value.Kind
+                    is MeasurementTypeKind.VoltageSpectrum
+                        or MeasurementTypeKind.VoltageWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Current
+                && value.Kind
+                    is MeasurementTypeKind.CurrentSpectrum
+                        or MeasurementTypeKind.CurrentWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Scalar
+                && value.Kind == MeasurementTypeKind.ScalarSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.NoiseSpectralDensity
+                && value.Kind == MeasurementTypeKind.NoiseSpectrum
+            )
+            {
+                return true;
             }
 
             return false;

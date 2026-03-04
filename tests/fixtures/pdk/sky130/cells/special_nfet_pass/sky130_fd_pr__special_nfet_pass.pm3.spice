@@ -30,7 +30,7 @@
 .subckt  sky130_fd_pr__special_nfet_pass d g s b
 + 
 .param  l = 1 w = 1 ad = 0 as = 0 pd = 0 ps = 0 nrd = 0 nrs = 0 mult = 1 sa = 0 sb = 0 sd = 0.0
-msky130_fd_pr__special_nfet_pass d g s b sky130_fd_pr__special_nfet_pass__model l = 'l' w = {w} ad = {ad} as = {as} pd = {pd} ps = {ps} nrd = {nrd} nrs = {nrs}
+msky130_fd_pr__special_nfet_pass d g s b sky130_fd_pr__special_nfet_pass__model l = 'l' w = {w} ad = {ad} as = {as} pd = {pd} ps = {ps} nrd = {nrd} nrs = {nrs} m = mult
 .model sky130_fd_pr__special_nfet_pass__model.0 nmos
 + lmin = 7.5e-08 lmax = 1.505e-007 wmin = 1.395e-007 wmax = 1.405e-7
 + level = 49.0
