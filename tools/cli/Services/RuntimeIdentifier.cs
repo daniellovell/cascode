@@ -9,19 +9,35 @@ namespace Cascode.Cli.Services;
 internal static class RuntimeIdentifier
 {
     private const string RidOverrideEnvironmentVariable = "CASCODE_RUNTIME_RID";
+    private static readonly string[] SupportedRids =
+    [
+        "win-x64",
+        "win-arm64",
+        "linux-x64",
+        "linux-arm64",
+        "osx-x64",
+        "osx-arm64",
+    ];
 
     /// <summary>
     /// Returns the current RID or <c>null</c> when the OS/architecture is unsupported.
     /// </summary>
-    public static string? CurrentRid()
+    public static string? CurrentRid() =>
+        ResolveCurrentRid(Environment.GetEnvironmentVariable(RidOverrideEnvironmentVariable));
+
+    internal static string? ResolveCurrentRid(string? overriddenRid)
     {
-        var overriddenRid = Environment.GetEnvironmentVariable(RidOverrideEnvironmentVariable);
-        if (
-            overriddenRid is not null
-            && IsSupportedRid(overriddenRid.Trim(), out var normalizedOverride)
-        )
+        if (overriddenRid is not null)
         {
-            return normalizedOverride;
+            if (IsSupportedRid(overriddenRid.Trim(), out var normalizedOverride))
+            {
+                return normalizedOverride;
+            }
+
+            throw new InvalidOperationException(
+                $"Invalid {RidOverrideEnvironmentVariable} value '{overriddenRid}'. "
+                    + $"Supported values: {string.Join(", ", SupportedRids)}."
+            );
         }
 
         string os;
@@ -47,12 +63,6 @@ internal static class RuntimeIdentifier
     private static bool IsSupportedRid(string value, out string normalized)
     {
         normalized = value.ToLowerInvariant();
-        return normalized
-            is "win-x64"
-                or "win-arm64"
-                or "linux-x64"
-                or "linux-arm64"
-                or "osx-x64"
-                or "osx-arm64";
+        return SupportedRids.Contains(normalized, StringComparer.Ordinal);
     }
 }

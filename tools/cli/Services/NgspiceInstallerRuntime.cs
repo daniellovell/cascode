@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using Cascode.Workspace;
 
 namespace Cascode.Cli.Services;
@@ -86,10 +87,15 @@ internal sealed class DefaultNgspiceInstallerRuntime : INgspiceInstallerRuntime
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
-        return new CommandRunResult(process.ExitCode, stdout, stderr);
+        Task.WaitAll(stdoutTask, stderrTask);
+        return new CommandRunResult(
+            process.ExitCode,
+            stdoutTask.GetAwaiter().GetResult(),
+            stderrTask.GetAwaiter().GetResult()
+        );
     }
 
     public void DownloadFile(string url, string destination)

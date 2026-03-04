@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Cascode.Cli.Services;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Cli.Tests;
@@ -12,9 +13,15 @@ namespace Cascode.Cli.Tests;
 public sealed class NgspiceInstallerTests : IDisposable
 {
     private readonly DirectoryInfo _tempDir = Directory.CreateTempSubdirectory();
+    private readonly List<CascodeHomeScope> _homes = new();
 
     public void Dispose()
     {
+        foreach (var home in _homes)
+        {
+            home.Dispose();
+        }
+
         try
         {
             _tempDir.Delete(recursive: true);
@@ -22,12 +29,9 @@ public sealed class NgspiceInstallerTests : IDisposable
         catch { }
     }
 
-    [Fact]
+    [UnixOnlyFact]
     public void Install_DefaultMode_UsesReleaseBinary()
     {
-        if (OperatingSystem.IsWindows())
-            return;
-
         var runtime = CreateRuntime(isWindows: false, isLinux: true, rid: "linux-x64");
         runtime.DownloadBytesByUrl["https://example.invalid/ngspice.tar.gz"] =
             Encoding.UTF8.GetBytes("release-archive");
@@ -237,18 +241,7 @@ public sealed class NgspiceInstallerTests : IDisposable
     {
         var runtime = CreateRuntime(isWindows: false, isLinux: true, rid: "linux-x64");
         runtime.AvailableTools.UnionWith(
-            new[]
-            {
-                "curl",
-                "tar",
-                "bison",
-                "flex",
-                "autoconf",
-                "automake",
-                "libtoolize",
-                "make",
-                "cc",
-            }
+            new[] { "bison", "flex", "autoconf", "automake", "libtoolize", "make", "cc" }
         );
         runtime.DownloadBytes = Encoding.UTF8.GetBytes("source-archive-bytes");
         WriteSourceManifest(
@@ -264,6 +257,31 @@ public sealed class NgspiceInstallerTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal(SimulatorInstallModes.SourceBuild, result.InstallMode);
         Assert.Contains("Checksum verification failed", result.Message);
+    }
+
+    [Fact]
+    public void Install_FromSource_Fails_WhenSourceDirectoryIsUnexpected()
+    {
+        var runtime = CreateRuntime(isWindows: false, isLinux: true, rid: "linux-x64");
+        runtime.AvailableTools.UnionWith(
+            new[] { "bison", "flex", "autoconf", "automake", "libtool", "make", "cc" }
+        );
+        runtime.DownloadBytes = Encoding.UTF8.GetBytes("source-archive-bytes");
+        runtime.SourceExtractDirectoryNames = new[] { "a-dir", "z-dir" };
+        WriteSourceManifest(
+            runtime.BaseDirectory,
+            sourceHash: Sha256Hex(runtime.DownloadBytes),
+            windowsHash: Sha256Hex("windows")
+        );
+
+        var result = new NgspiceInstaller(runtime).Install(
+            new SimulatorInstallOptions(Force: true, FromSource: true)
+        );
+
+        Assert.False(result.Success);
+        Assert.Equal(SimulatorInstallModes.SourceBuild, result.InstallMode);
+        Assert.Contains("Expected extracted source directory", result.Message);
+        Assert.Contains("a-dir, z-dir", result.Message);
     }
 
     [Fact]
@@ -306,26 +324,12 @@ public sealed class NgspiceInstallerTests : IDisposable
         Assert.Contains("winget install 7zip.7zip", result.Message);
     }
 
-    [Fact]
+    [UnixOnlyFact]
     public void Install_FromSource_Succeeds_AndUsesExpectedLayout_OnUnix()
     {
-        if (OperatingSystem.IsWindows())
-            return;
-
         var runtime = CreateRuntime(isWindows: false, isLinux: true, rid: "linux-x64");
         runtime.AvailableTools.UnionWith(
-            new[]
-            {
-                "curl",
-                "tar",
-                "bison",
-                "flex",
-                "autoconf",
-                "automake",
-                "libtool",
-                "make",
-                "cc",
-            }
+            new[] { "bison", "flex", "autoconf", "automake", "libtool", "make", "cc" }
         );
         runtime.DownloadBytes = Encoding.UTF8.GetBytes("source-archive-bytes");
         WriteSourceManifest(
@@ -352,10 +356,16 @@ public sealed class NgspiceInstallerTests : IDisposable
     {
         var root = Path.Combine(_tempDir.FullName, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        var home = CascodeHome.CreateUnder(
+            root,
+            "ngspice-installer-home",
+            setEnvironmentVariable: false
+        );
+        _homes.Add(home);
         return new FakeInstallerRuntime
         {
             BaseDirectory = Path.Combine(root, "base"),
-            CascodeHome = Path.Combine(root, "home"),
+            CascodeHome = home.Path,
             IsWindows = isWindows,
             IsLinux = isLinux,
             Rid = rid,
@@ -413,6 +423,8 @@ public sealed class NgspiceInstallerTests : IDisposable
         public Dictionary<string, byte[]> DownloadBytesByUrl { get; } = new(StringComparer.Ordinal);
 
         public string? ConfigurePrefix { get; private set; }
+        public IReadOnlyList<string> SourceExtractDirectoryNames { get; set; } =
+            new[] { "ngspice-45.2" };
 
         public string? CurrentRid() => Rid;
 
@@ -490,16 +502,19 @@ public sealed class NgspiceInstallerTests : IDisposable
                 return;
             }
 
-            var sourceDir = Path.Combine(destination, "ngspice-45.2");
-            Directory.CreateDirectory(sourceDir);
-            var configurePath = Path.Combine(sourceDir, "configure");
-            File.WriteAllText(configurePath, "#!/bin/sh\nexit 0\n");
-            if (!OperatingSystem.IsWindows())
+            foreach (var sourceDirName in SourceExtractDirectoryNames)
             {
-                File.SetUnixFileMode(
-                    configurePath,
-                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
-                );
+                var sourceDir = Path.Combine(destination, sourceDirName);
+                Directory.CreateDirectory(sourceDir);
+                var configurePath = Path.Combine(sourceDir, "configure");
+                File.WriteAllText(configurePath, "#!/bin/sh\nexit 0\n");
+                if (!OperatingSystem.IsWindows())
+                {
+                    File.SetUnixFileMode(
+                        configurePath,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+                    );
+                }
             }
         }
 

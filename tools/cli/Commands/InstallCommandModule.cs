@@ -11,18 +11,18 @@ namespace Cascode.Cli.Commands;
 /// </summary>
 internal sealed class InstallCommandModule : ICommandModule
 {
-    private readonly CliOutputProvider _output;
+    private readonly Func<ICliOutput> _outputFactory;
     private readonly IReadOnlyDictionary<string, ISimulatorInstaller> _installers;
 
     public InstallCommandModule(CliOutputProvider output)
-        : this(output, null) { }
+        : this(output.Get, null) { }
 
     internal InstallCommandModule(
-        CliOutputProvider output,
+        Func<ICliOutput> outputFactory,
         IReadOnlyDictionary<string, ISimulatorInstaller>? installers
     )
     {
-        _output = output;
+        _outputFactory = outputFactory ?? throw new ArgumentNullException(nameof(outputFactory));
         _installers =
             installers
             ?? new Dictionary<string, ISimulatorInstaller>(StringComparer.OrdinalIgnoreCase)
@@ -47,7 +47,7 @@ internal sealed class InstallCommandModule : ICommandModule
 
     private CommandResult ShowUsage(string[] args)
     {
-        var output = _output.Get();
+        var output = _outputFactory();
         output.WriteLine("Usage: install <tool> [--from-source] [--force] [--json]");
         output.WriteLine("");
         output.WriteLine("Tools:");
@@ -57,7 +57,7 @@ internal sealed class InstallCommandModule : ICommandModule
 
     private CommandResult InstallNgspice(string[] args)
     {
-        var output = _output.Get();
+        var output = _outputFactory();
         var force = false;
         var fromSource = false;
         var json = false;

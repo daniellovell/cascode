@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using Cascode.Cli;
 using Cascode.Cli.Commands;
 using Cascode.Cli.Output;
 using Cascode.Cli.Services;
+using Spectre.Console;
 using Xunit;
 
 namespace Cascode.Cli.Tests;
@@ -15,7 +14,8 @@ public sealed class InstallCommandModuleTests
     public void InstallNgspice_ParsesFromSourceFlag()
     {
         var installer = new FakeInstaller();
-        var module = CreateModule(installer);
+        var output = new CaptureCliOutput();
+        var module = CreateModule(installer, output);
 
         var result = Execute(module, "install", "ngspice", "--from-source", "--force");
 
@@ -38,32 +38,21 @@ public sealed class InstallCommandModuleTests
                 InstallMode: SimulatorInstallModes.ReleaseBinary
             ),
         };
-        var module = CreateModule(installer);
+        var output = new CaptureCliOutput();
+        var module = CreateModule(installer, output);
+        var result = Execute(module, "install", "ngspice", "--json");
 
-        using var stdout = new StringWriter();
-        var originalOut = Console.Out;
-        Console.SetOut(stdout);
-
-        try
-        {
-            var result = Execute(module, "install", "ngspice", "--json");
-            Assert.Equal(0, result.ExitCode);
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-        }
-
-        var output = stdout.ToString();
-        Assert.Contains("\"InstallMode\":\"release-binary\"", output);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains(output.Lines, line => line.Contains("\"InstallMode\":\"release-binary\""));
     }
 
-    private static InstallCommandModule CreateModule(ISimulatorInstaller installer)
+    private static InstallCommandModule CreateModule(
+        ISimulatorInstaller installer,
+        CaptureCliOutput output
+    )
     {
-        var state = new ShellState(Path.GetTempPath());
-        var output = new CliOutputProvider(state, () => false);
         return new InstallCommandModule(
-            output,
+            () => output,
             new Dictionary<string, ISimulatorInstaller>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ngspice"] = installer,
@@ -101,5 +90,31 @@ public sealed class InstallCommandModuleTests
             LastOptions = options;
             return NextResult;
         }
+    }
+
+    private sealed class CaptureCliOutput : ICliOutput
+    {
+        public CliOutputMode Mode => CliOutputMode.Plain;
+        public IAnsiConsole? Out => null;
+        public IAnsiConsole? Err => null;
+        public List<string> Lines { get; } = new();
+
+        public void WriteLine(string text) => Lines.Add(text);
+
+        public void WriteErrorLine(string text) => Lines.Add(text);
+
+        public void Info(string text) => Lines.Add(text);
+
+        public void Success(string text) => Lines.Add(text);
+
+        public void Warning(string text) => Lines.Add(text);
+
+        public void Error(string text) => Lines.Add(text);
+
+        public T RunWithProgress<T>(string initialStatus, Func<Action<string>, T> run) =>
+            run(_ => { });
+
+        public T RunWithMultiTaskProgress<T>(Func<IBenchProgressContext, T> run) =>
+            throw new NotSupportedException();
     }
 }

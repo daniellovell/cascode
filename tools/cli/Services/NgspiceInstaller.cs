@@ -102,89 +102,45 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         string installExe
     )
     {
-        if (!TryResolveReleaseTag(out var releaseTag, out var tagError))
-            return FailBinary(tagError);
-
-        var release = _releaseClient.FetchReleaseByTag(releaseTag!);
-        if (release is null)
+        if (
+            !TryResolveReleaseBinaryInputs(
+                rid,
+                tempRoot,
+                out var releaseTag,
+                out var archiveName,
+                out var archiveUrl,
+                out var checksums,
+                out var failure
+            )
+        )
         {
-            return FailBinary(
-                $"No GitHub release was found for tag '{releaseTag}'."
-                    + " Default install works only for published release tags."
-            );
-        }
-
-        var archiveName = ReleaseArchiveNameForRid(rid);
-        var archiveAsset = release.Assets.FirstOrDefault(a =>
-            string.Equals(a.Name, archiveName, StringComparison.OrdinalIgnoreCase)
-        );
-        if (archiveAsset is null)
-        {
-            return FailBinary($"Release '{releaseTag}' is missing ngspice asset '{archiveName}'.");
-        }
-
-        var checksumName = $"cascode-ngspice-{NgspiceInstallLayout.Version}-sha256.txt";
-        var checksumAsset = release.Assets.FirstOrDefault(a =>
-            string.Equals(a.Name, checksumName, StringComparison.OrdinalIgnoreCase)
-        );
-        if (checksumAsset is null)
-        {
-            return FailBinary(
-                $"Release '{releaseTag}' is missing checksum asset '{checksumName}'."
-            );
-        }
-
-        var checksumPath = Path.Combine(tempRoot, checksumName);
-        try
-        {
-            _runtime.DownloadFile(checksumAsset.BrowserDownloadUrl, checksumPath);
-        }
-        catch (Exception ex)
-        {
-            return FailBinary($"Failed to download checksum asset '{checksumName}': {ex.Message}");
-        }
-
-        var checksums = LoadChecksumsFromFile(checksumPath);
-        if (!checksums.TryGetValue(archiveName, out _))
-        {
-            return FailBinary(
-                $"Checksum manifest '{checksumName}' does not include '{archiveName}'."
-            );
+            return failure!;
         }
 
         var archive = DownloadAndVerifyArchive(
             tempRoot,
             archiveName,
-            archiveAsset.BrowserDownloadUrl,
+            archiveUrl,
             checksums,
             SimulatorInstallModes.ReleaseBinary
         );
         if (!archive.Success)
             return archive;
 
-        var extractDir = Path.Combine(tempRoot, "extract");
-        Directory.CreateDirectory(extractDir);
-
-        try
+        var extractedExe = ExtractReleaseExecutable(
+            tempRoot,
+            archive.InstallPath!,
+            archiveName,
+            out var extractFailure
+        );
+        if (extractFailure is not null)
         {
-            if (_runtime.IsWindows)
-                _runtime.ExtractZip(archive.InstallPath!, extractDir);
-            else
-                _runtime.ExtractTarGz(archive.InstallPath!, extractDir);
+            return extractFailure;
         }
-        catch (Exception ex)
-        {
-            return FailBinary($"Failed to extract {archiveName}: {ex.Message}");
-        }
-
-        var executableName = _runtime.IsWindows ? "ngspice.exe" : "ngspice";
-        var extractedExe = Directory
-            .EnumerateFiles(extractDir, executableName, SearchOption.AllDirectories)
-            .FirstOrDefault();
         if (extractedExe is null)
-            return FailBinary(
-                $"Could not find {executableName} in extracted archive '{archiveName}'."
-            );
+        {
+            return FailBinary($"Could not locate ngspice in extracted archive '{archiveName}'.");
+        }
 
         CopyDirectoryContents(Path.GetDirectoryName(extractedExe)!, installBin);
         if (!TryValidateBinary(installExe, out var validationError))
@@ -195,6 +151,144 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             installExe,
             SimulatorInstallModes.ReleaseBinary
         );
+    }
+
+    private bool TryResolveReleaseBinaryInputs(
+        string rid,
+        string tempRoot,
+        out string releaseTag,
+        out string archiveName,
+        out string archiveUrl,
+        out IReadOnlyDictionary<string, string> checksums,
+        out SimulatorInstallResult? failure
+    )
+    {
+        releaseTag = string.Empty;
+        archiveName = string.Empty;
+        archiveUrl = string.Empty;
+        checksums = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        failure = null;
+
+        if (!TryResolveReleaseTag(out var resolvedTag, out var tagError))
+        {
+            failure = FailBinary(tagError);
+            return false;
+        }
+
+        releaseTag = resolvedTag!;
+        var release = _releaseClient.FetchReleaseByTag(releaseTag);
+        if (release is null)
+        {
+            failure = FailBinary(
+                $"No GitHub release was found for tag '{releaseTag}'."
+                    + " Default install works only for published release tags."
+            );
+            return false;
+        }
+
+        var requestedArchiveName = ReleaseArchiveNameForRid(rid);
+        archiveName = requestedArchiveName;
+        var archiveAsset = release.Assets.FirstOrDefault(a =>
+            string.Equals(a.Name, requestedArchiveName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (archiveAsset is null)
+        {
+            failure = FailBinary(
+                $"Release '{releaseTag}' is missing ngspice asset '{archiveName}'."
+            );
+            return false;
+        }
+
+        archiveUrl = archiveAsset.BrowserDownloadUrl;
+        checksums = LoadReleaseChecksums(tempRoot, release, releaseTag, archiveName, out failure);
+        return failure is null;
+    }
+
+    private IReadOnlyDictionary<string, string> LoadReleaseChecksums(
+        string tempRoot,
+        GitHubRelease release,
+        string releaseTag,
+        string archiveName,
+        out SimulatorInstallResult? failure
+    )
+    {
+        failure = null;
+        var checksumName = $"cascode-ngspice-{NgspiceInstallLayout.Version}-sha256.txt";
+        var checksumAsset = release.Assets.FirstOrDefault(a =>
+            string.Equals(a.Name, checksumName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (checksumAsset is null)
+        {
+            failure = FailBinary(
+                $"Release '{releaseTag}' is missing checksum asset '{checksumName}'."
+            );
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var checksumPath = Path.Combine(tempRoot, checksumName);
+        try
+        {
+            _runtime.DownloadFile(checksumAsset.BrowserDownloadUrl, checksumPath);
+        }
+        catch (Exception ex)
+        {
+            failure = FailBinary(
+                $"Failed to download checksum asset '{checksumName}': {ex.Message}"
+            );
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var checksums = LoadChecksumsFromFile(checksumPath);
+        if (!checksums.TryGetValue(archiveName, out _))
+        {
+            failure = FailBinary(
+                $"Checksum manifest '{checksumName}' does not include '{archiveName}'."
+            );
+        }
+
+        return checksums;
+    }
+
+    private string? ExtractReleaseExecutable(
+        string tempRoot,
+        string archivePath,
+        string archiveName,
+        out SimulatorInstallResult? failure
+    )
+    {
+        failure = null;
+        var extractDir = Path.Combine(tempRoot, "extract");
+        Directory.CreateDirectory(extractDir);
+
+        try
+        {
+            if (_runtime.IsWindows)
+            {
+                _runtime.ExtractZip(archivePath, extractDir);
+            }
+            else
+            {
+                _runtime.ExtractTarGz(archivePath, extractDir);
+            }
+        }
+        catch (Exception ex)
+        {
+            failure = FailBinary($"Failed to extract {archiveName}: {ex.Message}");
+            return null;
+        }
+
+        var executableName = _runtime.IsWindows ? "ngspice.exe" : "ngspice";
+        var extractedExe = Directory
+            .EnumerateFiles(extractDir, executableName, SearchOption.AllDirectories)
+            .FirstOrDefault();
+        if (extractedExe is null)
+        {
+            failure = FailBinary(
+                $"Could not find {executableName} in extracted archive '{archiveName}'."
+            );
+        }
+
+        return extractedExe;
     }
 
     private SimulatorInstallResult InstallFromSource(
@@ -423,7 +517,17 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         if (Directory.Exists(expected))
             return expected;
 
-        return Directory.GetDirectories(extractDir).FirstOrDefault();
+        var candidates = Directory
+            .GetDirectories(extractDir)
+            .Select(Path.GetFileName)
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .OrderBy(static name => name, StringComparer.Ordinal)
+            .ToArray();
+        var listed = candidates.Length == 0 ? "<none>" : string.Join(", ", candidates);
+        error =
+            $"Expected extracted source directory 'ngspice-{NgspiceInstallLayout.Version}' under '{extractDir}', "
+            + $"found: {listed}.";
+        return null;
     }
 
     /// <summary>
@@ -496,17 +600,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     /// </summary>
     private List<string> MissingUnixBuildDependencies()
     {
-        var required = new[]
-        {
-            "curl",
-            "tar",
-            "bison",
-            "flex",
-            "autoconf",
-            "automake",
-            "make",
-            "cc",
-        };
+        var required = new[] { "bison", "flex", "autoconf", "automake", "make", "cc" };
         var missing = new List<string>();
         foreach (var tool in required)
         {
@@ -529,10 +623,10 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         var joined = string.Join(", ", missing);
         if (_runtime.IsLinux)
         {
-            return $"Missing required build tools: {joined}.\nInstall with: sudo apt-get update && sudo apt-get install -y bison flex autoconf automake libtool make gcc curl tar";
+            return $"Missing required build tools: {joined}.\nInstall with: sudo apt-get update && sudo apt-get install -y bison flex autoconf automake libtool make gcc";
         }
 
-        return $"Missing required build tools: {joined}.\nInstall with: brew install bison flex autoconf automake libtool";
+        return $"Missing required build tools: {joined}.\nInstall with: brew install bison flex autoconf automake libtool coreutils gnu-sed findutils gawk";
     }
 
     /// <summary>

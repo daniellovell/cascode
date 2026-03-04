@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using Cascode.Cli.Services;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Cli.Tests;
@@ -9,9 +11,15 @@ namespace Cascode.Cli.Tests;
 public sealed class NgspiceLocatorTests : IDisposable
 {
     private readonly DirectoryInfo _tempDir = Directory.CreateTempSubdirectory();
+    private readonly List<CascodeHomeScope> _homes = new();
 
     public void Dispose()
     {
+        foreach (var home in _homes)
+        {
+            home.Dispose();
+        }
+
         try
         {
             _tempDir.Delete(recursive: true);
@@ -137,12 +145,9 @@ public sealed class NgspiceLocatorTests : IDisposable
         Assert.Equal(45, info.Major);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void Resolve_UsesPathextOnWindows()
     {
-        if (!OperatingSystem.IsWindows())
-            return;
-
         var batPath = Path.Combine(_tempDir.FullName, "ngspice.cmd");
         File.WriteAllText(
             batPath,
@@ -199,8 +204,12 @@ public sealed class NgspiceLocatorTests : IDisposable
 
     private string CreateEmptyHome()
     {
-        var path = Path.Combine(_tempDir.FullName, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(path);
-        return path;
+        var home = CascodeHome.CreateUnder(
+            _tempDir.FullName,
+            "ngspice-locator-home",
+            setEnvironmentVariable: false
+        );
+        _homes.Add(home);
+        return home.Path;
     }
 }
