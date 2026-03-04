@@ -448,7 +448,6 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                     "--without-x",
                     "--without-readline",
                     "--enable-xspice",
-                    "--disable-shared",
                     "CFLAGS=-O2",
                 },
                 sourceDir
