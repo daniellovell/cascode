@@ -142,7 +142,7 @@ public sealed class NgspiceLocatorTests : IDisposable
         Assert.Equal(expectedMinor, minor);
     }
 
-    [Fact]
+    [UnixOnlyFact]
     public void Resolve_PrefersCascodeHomeInstall_OverPath()
     {
         var cascodeHome = CreateEmptyHome();
