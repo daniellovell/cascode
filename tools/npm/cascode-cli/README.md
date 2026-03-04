@@ -12,6 +12,11 @@ How it works
 
       cascode install ngspice
 
+  This default path downloads a prebuilt ngspice package from the same GitHub release tag as the
+  installed Cascode CLI version. To force source mode, run:
+
+      cascode install ngspice --from-source
+
 Environment variables
 - `CASCODE_DOWNLOAD_BASE` (optional): override the GitHub Releases base URL, e.g.
   `https://your.mirror.example.com/cascode/releases/download`.

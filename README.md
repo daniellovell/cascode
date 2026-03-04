@@ -77,6 +77,13 @@ Install ngspice for bench execution:
 cascode install ngspice
 ```
 
+`cascode install ngspice` installs the prebuilt ngspice package from the same GitHub release tag
+as your installed Cascode CLI version. If you need a local build instead, use:
+
+```sh
+cascode install ngspice --from-source
+```
+
 ### Latest vs pre-release
 
 - Stable (latest):

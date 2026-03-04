@@ -101,9 +101,9 @@ jobs:
         include:
           - os: ubuntu-latest
             rid: linux-x64
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             rid: linux-arm64
-          - os: macos-latest
+          - os: macos-15-intel
             rid: osx-x64
           - os: macos-latest
             rid: osx-arm64
@@ -123,6 +123,14 @@ jobs:
       - name: publish
         run: |
           dotnet publish tools/cli/Cascode.Cli.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ env.TAG }} -p:PublishSingleFile=true -p:SelfContained=true -p:PublishTrimmed=false -o build/out/${{ matrix.rid }}
+      - name: install ngspice build deps (linux)
+        if: startsWith(matrix.rid, 'linux-')
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          bison flex autoconf automake libtool make gcc curl tar
+      - name: install ngspice build deps (macOS)
+        if: startsWith(matrix.rid, 'osx-')
+        run: brew install bison flex autoconf automake libtool
       - name: normalize binary name (unix)
         if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
         shell: bash
@@ -154,10 +162,64 @@ jobs:
           Copy-Item ../../../LICENSE .
           Compress-Archive -Path * -DestinationPath ../../cascode-${{ matrix.rid }}.zip -Force
           Pop-Location
+      - name: build ngspice via installer (unix)
+        if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
+        shell: bash
+        env:
+          CASCODE_HOME: ${{ github.workspace }}/build/ngspice-home/${{ matrix.rid }}
+          CASCODE_RUNTIME_RID: ${{ matrix.rid }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$CASCODE_HOME"
+          install_log="$(mktemp)"
+          dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json >"$install_log"
+          cat "$install_log"
+          install_path="$(python3 -c 'import json,sys; p=json.load(sys.stdin); ok=bool(p.get(\"Success\")) and bool(p.get(\"InstallPath\")); ok or print(p.get(\"Message\", \"ngspice installation failed\"), file=sys.stderr); print(p.get(\"InstallPath\", \"\"), end=\"\"); sys.exit(0 if ok else 1)' < \"$install_log\")"
+          [ -n "$install_path" ]
+      - name: build ngspice via installer (windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        env:
+          CASCODE_HOME: ${{ github.workspace }}\\build\\ngspice-home\\${{ matrix.rid }}
+          CASCODE_RUNTIME_RID: ${{ matrix.rid }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:CASCODE_HOME -Force | Out-Null
+          $jsonOutput = dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json
+          Write-Host $jsonOutput
+          $result = $jsonOutput | ConvertFrom-Json
+          if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
+            $message = if ([string]::IsNullOrWhiteSpace($result.Message)) { 'ngspice installation failed' } else { $result.Message }
+            throw $message
+          }
+      - name: package ngspice archive (unix)
+        if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
+        shell: bash
+        env:
+          CASCODE_HOME: ${{ github.workspace }}/build/ngspice-home/${{ matrix.rid }}
+        run: |
+          set -euo pipefail
+          ngspice_root="$CASCODE_HOME/tools/ngspice/45.2/${{ matrix.rid }}"
+          test -d "$ngspice_root/bin"
+          tar -czf "build/cascode-ngspice-45.2-${{ matrix.rid }}.tar.gz" -C "$ngspice_root" bin
+      - name: package ngspice archive (windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        env:
+          CASCODE_HOME: ${{ github.workspace }}\\build\\ngspice-home\\${{ matrix.rid }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ngspiceRoot = "$env:CASCODE_HOME\\tools\\ngspice\\45.2\\${{ matrix.rid }}"
+          if (-not (Test-Path "$ngspiceRoot\\bin")) {
+            throw "ngspice bin directory missing: $ngspiceRoot\\bin"
+          }
+          Compress-Archive -Path "$ngspiceRoot\\bin" -DestinationPath "build/cascode-ngspice-45.2-${{ matrix.rid }}.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: cascode-${{ matrix.rid }}
-          path: build/cascode-${{ matrix.rid }}.*
+          path: |
+            build/cascode-${{ matrix.rid }}.*
+            build/cascode-ngspice-45.2-${{ matrix.rid }}.*
 
   github-release:
     needs: build
@@ -169,6 +231,21 @@ jobs:
           pattern: cascode-*
           path: dist
           merge-multiple: true
+      - name: generate ngspice checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shopt -s nullglob
+          files=(cascode-ngspice-45.2-*.tar.gz cascode-ngspice-45.2-*.zip)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No ngspice archives found to checksum." >&2
+            exit 1
+          fi
+          : > cascode-ngspice-45.2-sha256.txt
+          for file in "${files[@]}"; do
+            sha256sum "$file" >> cascode-ngspice-45.2-sha256.txt
+          done
       - name: create release
         uses: softprops/action-gh-release@v2
         with:
@@ -177,8 +254,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  npm-publish:
+  release-smoke-ngspice:
     needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: set tag
+        shell: bash
+        run: |
+          echo "TAG=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: download release cascode binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            -H "Accept: application/octet-stream" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://github.com/daniellovell/cascode/releases/download/v${TAG}/cascode-linux-x64.tar.gz" \
+            -o /tmp/cascode-linux-x64.tar.gz
+          mkdir -p /tmp/cascode-release-smoke
+          tar -xzf /tmp/cascode-linux-x64.tar.gz -C /tmp/cascode-release-smoke
+          chmod +x /tmp/cascode-release-smoke/cascode
+      - name: verify default ngspice install
+        shell: bash
+        env:
+          CASCODE_HOME: /tmp/cascode-release-smoke-home
+        run: |
+          set -euo pipefail
+          mkdir -p "$CASCODE_HOME"
+          json="$(/tmp/cascode-release-smoke/cascode install ngspice --force --json)"
+          echo "$json"
+          install_path="$(python3 -c 'import json,sys; p=json.loads(sys.stdin.read()); ok=bool(p.get(\"Success\")) and bool(p.get(\"InstallPath\")) and p.get(\"InstallMode\")==\"release-binary\"; ok or print(p.get(\"Message\", \"install failed\"), file=sys.stderr); print(p.get(\"InstallPath\", \"\"), end=\"\"); sys.exit(0 if ok else 1)' <<< \"$json\")"
+          "$install_path" --version
+
+  npm-publish:
+    needs: [github-release, release-smoke-ngspice]
     runs-on: ubuntu-latest
     permissions:
       id-token: write  # Required for OIDC trusted publishing
@@ -221,7 +330,7 @@ jobs:
           }
 
   npm-publish-js-platforms:
-    needs: github-release
+    needs: [github-release, release-smoke-ngspice]
     strategy:
       fail-fast: false
       matrix:
@@ -310,7 +419,7 @@ jobs:
           }
 
   npm-publish-js:
-    needs: [github-release, npm-publish-js-platforms]
+    needs: [github-release, release-smoke-ngspice, npm-publish-js-platforms]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -372,7 +481,7 @@ jobs:
           }
 
   nuget-publish:
-    needs: github-release
+    needs: [github-release, release-smoke-ngspice]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

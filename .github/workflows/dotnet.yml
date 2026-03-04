@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           install_log="$(mktemp)"
           set +e
-          ./tools/cli/bin/Release/net10.0/Cascode.Cli install ngspice --json >"$install_log" 2>&1
+          ./tools/cli/bin/Release/net10.0/Cascode.Cli install ngspice --from-source --json >"$install_log" 2>&1
           install_exit=$?
           set -e
 
@@ -73,7 +73,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $jsonOutput = & .\tools\cli\bin\Release\net10.0\Cascode.Cli.exe install ngspice --json
+          $jsonOutput = & .\tools\cli\bin\Release\net10.0\Cascode.Cli.exe install ngspice --from-source --json
           Write-Host $jsonOutput
           $result = $jsonOutput | ConvertFrom-Json
           if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
