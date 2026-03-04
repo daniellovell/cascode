@@ -330,12 +330,12 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputCommmonModeVDC = new VDC(V=env.InputCommonModeRange) {
+    VDC inputCommonModeVDC = new VDC(V=env.InputCommonModeRange) {
       .P--vcm_in
       .N--gnd
     }
 
-    VDC outputCommmonModeVDC = new VDC(V=env.OutputCommonModeRange) {
+    VDC outputCommonModeVDC = new VDC(V=env.OutputCommonModeRange) {
       .P--vcm_out
       .N--gnd
     }
