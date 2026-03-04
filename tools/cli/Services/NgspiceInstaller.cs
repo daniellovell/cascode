@@ -540,6 +540,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             return $"ngspice configure script was not found at '{configurePath}'.";
 
         _runtime.EnsureExecutable(configurePath);
+        var buildDir = Path.Combine(prefix, "build");
+        Directory.CreateDirectory(buildDir);
 
         CommandRunResult configure;
         try
@@ -554,7 +556,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                     "--enable-xspice",
                     "CFLAGS=-O2",
                 },
-                sourceDir
+                buildDir
             );
         }
         catch (Exception ex)
@@ -569,7 +571,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         CommandRunResult makeBuild;
         try
         {
-            makeBuild = _runtime.RunCommand("make", new[] { $"-j{jobs}" }, sourceDir);
+            makeBuild = _runtime.RunCommand("make", new[] { $"-j{jobs}" }, buildDir);
         }
         catch (Exception ex)
         {
@@ -582,7 +584,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         CommandRunResult makeInstall;
         try
         {
-            makeInstall = _runtime.RunCommand("make", new[] { "install" }, sourceDir);
+            makeInstall = _runtime.RunCommand("make", new[] { "install" }, buildDir);
         }
         catch (Exception ex)
         {
