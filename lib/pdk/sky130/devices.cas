@@ -9,6 +9,7 @@ primitive NMOS nfet_01v8(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__nfet_01v8
   }
 }
@@ -20,6 +21,7 @@ primitive NMOS nfet_01v8_lvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__nfet_01v8_lvt
   }
 }
@@ -31,6 +33,7 @@ primitive NMOS nfet_03v3_nvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__nfet_03v3_nvt
   }
 }
@@ -42,6 +45,7 @@ primitive NMOS nfet_05v0_nvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__nfet_05v0_nvt
   }
 }
@@ -53,6 +57,7 @@ primitive NMOS nfet_g5v0d10v5(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__nfet_g5v0d10v5
   }
 }
@@ -64,6 +69,7 @@ primitive PMOS pfet_01v8(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__pfet_01v8
   }
 }
@@ -75,6 +81,7 @@ primitive PMOS pfet_01v8_hvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__pfet_01v8_hvt
   }
 }
@@ -86,6 +93,7 @@ primitive PMOS pfet_01v8_lvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__pfet_01v8_lvt
   }
 }
@@ -97,6 +105,7 @@ primitive PMOS pfet_g5v0d10v5(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__pfet_g5v0d10v5
   }
 }
@@ -108,6 +117,7 @@ primitive NMOS esd_nfet_01v8(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__esd_nfet_01v8
   }
 }
@@ -119,6 +129,7 @@ primitive NMOS esd_nfet_g5v0d10v5(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__esd_nfet_g5v0d10v5
   }
 }
@@ -130,6 +141,7 @@ primitive PMOS esd_pfet_g5v0d10v5(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__esd_pfet_g5v0d10v5
   }
 }
@@ -141,6 +153,7 @@ primitive NMOS nfet_20v0(size primSize) {
     w = primSize.W
     l = primSize.L
     m = primSize.M
+    nf = primSize.NF
     __op_path0 = m1
   }
 }
@@ -152,6 +165,7 @@ primitive NMOS nfet_20v0_iso(size primSize) {
     w = primSize.W
     l = primSize.L
     m = primSize.M
+    nf = primSize.NF
     __op_path0 = m1
   }
 }
@@ -163,6 +177,7 @@ primitive NMOS nfet_20v0_nvt(size primSize) {
     w = primSize.W
     l = primSize.L
     m = primSize.M
+    nf = primSize.NF
     __op_path0 = m1
   }
 }
@@ -174,6 +189,7 @@ primitive NMOS nfet_20v0_reverse_iso(size primSize) {
     w = primSize.W
     l = primSize.L
     m = primSize.M
+    nf = primSize.NF
     __op_path0 = m1
   }
 }
@@ -185,6 +201,7 @@ primitive NMOS nfet_20v0_zvt(size primSize) {
     w = primSize.W
     l = primSize.L
     m = primSize.M
+    nf = primSize.NF
     __op_path0 = m1
   }
 }
@@ -206,6 +223,7 @@ primitive NMOS nfet_g5v0d16v0(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = xmain1
     __op_path1 = msky130_fd_pr__nfet_g5v0d16v0__base
   }
@@ -218,6 +236,7 @@ primitive NMOS base(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__nfet_g5v0d16v0__base
   }
 }
@@ -229,6 +248,7 @@ primitive PMOS pfet_01v8_mvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__pfet_01v8_mvt
   }
 }
@@ -240,6 +260,7 @@ primitive PMOS pfet_20v0(size primSize) {
     w = primSize.W
     l = primSize.L
     m = primSize.M
+    nf = primSize.NF
     __op_path0 = m1
   }
 }
@@ -261,6 +282,7 @@ primitive PMOS pfet_g5v0d16v0(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = xmain1
     __op_path1 = msky130_fd_pr__pfet_g5v0d16v0__base
   }
@@ -273,6 +295,7 @@ primitive PMOS base_2(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__pfet_g5v0d16v0__base
   }
 }
@@ -284,6 +307,7 @@ primitive NMOS special_nfet_latch(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__special_nfet_latch
   }
 }
@@ -295,6 +319,7 @@ primitive NMOS special_nfet_pass(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__special_nfet_pass
   }
 }
@@ -306,6 +331,7 @@ primitive NMOS special_nfet_pass_flash(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__special_nfet_pass_flash
   }
 }
@@ -317,6 +343,7 @@ primitive NMOS special_nfet_pass_lvt(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__special_nfet_pass_lvt
   }
 }
@@ -328,6 +355,7 @@ primitive PMOS special_pfet_pass(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
     __op_path0 = msky130_fd_pr__special_pfet_pass
   }
 }

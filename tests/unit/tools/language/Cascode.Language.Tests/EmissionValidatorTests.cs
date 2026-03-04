@@ -484,7 +484,7 @@ public class EmissionValidatorTests
     }
 
     [Fact]
-    public void Validate_InlineSizePackMissingPrimitiveField_ReturnsEMIT007()
+    public void Validate_InlineSizePackMissingMultiplier_IsAllowed()
     {
         var circuit = CreateValidCircuit();
         circuit.Fill!.Devices[0].Size!.Entries.Remove("M");
@@ -510,11 +510,42 @@ public class EmissionValidatorTests
         };
 
         var result = EmissionValidator.Validate(circuit, document);
+        Assert.True(
+            result.IsValid,
+            $"Validation failed: {string.Join(", ", result.GetErrors().Select(e => e.Message))}"
+        );
+    }
 
-        Assert.False(result.IsValid);
-        Assert.Contains(
-            result.Diagnostics,
-            e => e.Code == "EMIT-007" && e.Message.Contains("missing required size fields: M")
+    [Fact]
+    public void Validate_InlineSizePackMissingNf_IsAllowed()
+    {
+        var circuit = CreateValidCircuit();
+
+        var document = new CascodeDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                        ["nf"] = "primSize.NF",
+                    },
+                },
+            ],
+        };
+
+        var result = EmissionValidator.Validate(circuit, document);
+        Assert.True(
+            result.IsValid,
+            $"Validation failed: {string.Join(", ", result.GetErrors().Select(e => e.Message))}"
         );
     }
 

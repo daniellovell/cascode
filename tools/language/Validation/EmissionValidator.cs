@@ -408,6 +408,14 @@ public static class EmissionValidator
         {
             foreach (var field in PrimitiveResolver.GetSizeFields(primitive))
             {
+                if (
+                    field.Equals("M", StringComparison.OrdinalIgnoreCase)
+                    || field.Equals("NF", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    continue;
+                }
+
                 required.Add(field);
             }
         }

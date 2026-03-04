@@ -493,14 +493,16 @@ Size packs are constructed with the `size(...)` expression. Two forms are suppor
 Key/value form:
 
 ```cascode
-size S = size(W=2u, L=180n, M=1)
+size S = size(W=2u, L=180n, M=1, NF=2)
 ```
 
 Positional form:
 
 ```cascode
-size S = size(2u, 180n, 1)
+size S = size(2u, 180n, 1, 2)
 ```
+
+For the positional form, entries map in order to `W`, `L`, `M`, and `NF`.
 
 Primitive parameter maps typically reference size fields using dotted access:
 
@@ -508,6 +510,7 @@ Primitive parameter maps typically reference size fields using dotted access:
 primSize.W
 primSize.L
 primSize.M
+primSize.NF
 ```
 
 Computed sizes are permitted via normal expressions (for example, `Sense.M*ratio`).
@@ -521,7 +524,7 @@ expression that names a primitive:
 
 ```cascode
 fill {
-  NMOS M_in = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+  NMOS M_in = new Level1_NMOS(size(W=2u, L=180n, M=1, NF=2)) {
     .D--OUT
     .G--IN
     .S--GND
@@ -537,7 +540,7 @@ The primitive name supplies the backend/model mapping through the corresponding 
 The size argument may be:
 
 - A named `size` variable: `new nfet_01v8(InputPair)`
-- An inline size expression: `new Level1_NMOS(size(W=2u, L=180n, M=1))`
+- An inline size expression: `new Level1_NMOS(size(W=2u, L=180n, M=1, NF=2))`
 
 The binding block uses `.Terminal--Net` syntax and may be written with comma-separated bindings or
 one binding per line.
