@@ -86,7 +86,7 @@ Note that available power (what the source can deliver into a matched load) diff
 
 ## 2. Waveform and Time Accessors
 
-`PSSAnalysis` reuses the same `voltage()` and `current()` accessors as `TranAnalysis`. The PSS waveform covers exactly one solved period, so the resulting `VoltageWaveform` / `CurrentWaveform` objects contain one cycle of the steady-state response.
+`PSSAnalysis` reuses the same `voltage()` and `current()` accessors as `TranAnalysis`, with the same current-source constraints as transient benches. The PSS waveform covers exactly one solved period, so the resulting `VoltageWaveform` / `CurrentWaveform` objects contain one cycle of the steady-state response.
 
 ### 2.1 Voltage and Current
 
@@ -95,7 +95,7 @@ voltage(PSSAnalysis, terminal) → VoltageWaveform
 current(PSSAnalysis, element_pin) → CurrentWaveform
 ```
 
-These behave identically to their transient counterparts. `voltage()` takes a terminal reference (node voltage); `current()` takes a harness element pin reference (branch current through a component), consistent with the existing convention where `current(...)` requires a pin such as `harness.VDD.P` (see spec Section 4.6.2).
+These behave identically to their transient counterparts. `voltage()` takes a terminal reference (node voltage). `current()` uses the same extraction model as transient benches: branch currents are available for harness voltage-source elements written via `i(V...)` vectors (for example `harness.VDD.P`), not as a generic simulator-side element-pin probe for arbitrary devices.
 
 For differential terminals, `voltage(pss, OUT)` produces the differential waveform `V(OUT.P) - V(OUT.N)`, consistent with the existing differential terminal semantics (Section 4.2.5 of the spec).
 
@@ -430,7 +430,7 @@ constraints {
 
 ### 5.1 Data Extraction
 
-After the PSS solver converges, the emitter saves node voltages at the stim and resp terminals from the `pss1` plot using `wrdata`. The runner reads this time-domain waveform (one full period) and applies a discrete Fourier transform to obtain complex harmonic phasors $V_k$ for each terminal.
+After the PSS solver converges, the emitter saves one-period time-domain vectors from the `pss1` plot using `wrdata`: node voltages for relevant terminals, and source branch currents using the same `i(V...)` extraction pattern as transient benches. The runner reads these vectors and applies a discrete Fourier transform to obtain complex harmonic phasors $V_k$ for each terminal.
 
 ### 5.2 Output Power
 
@@ -438,7 +438,7 @@ For a resistive load impedance $R_{load}$, output power at harmonic $k$ is:
 
 $$P_{out,k} = \frac{|V_{OUT,k}|^2}{2\,R_{load}}$$
 
-No branch current extraction from the simulator is needed.
+The current implementation of `OutputPower` does not require simulator branch-current vectors.
 
 ### 5.3 Input Power
 
@@ -464,7 +464,7 @@ The initial implementation assumes purely resistive source and load impedances. 
 
 ## 6. Future Work
 
-Under-signal average supply power measurement (as opposed to quiescent DC power) requires the runtime to extract branch currents through fill-block supply elements during PSS simulation. This is deferred pending a design for terminal-to-element current resolution. The current approach uses the quiescent DC power from a separate `QuiescentPower` bench, which is exact for class-A and a reasonable approximation for moderate compression.
+Under-signal average supply power measurement (as opposed to quiescent DC power) requires a robust mapping from supply intent to the extracted PSS `i(V...)` source-current vectors across bench/interface bindings. That measurement remains deferred. The current approach uses the quiescent DC power from a separate `QuiescentPower` bench, which is exact for class-A and a reasonable approximation for moderate compression.
 
 ---
 
