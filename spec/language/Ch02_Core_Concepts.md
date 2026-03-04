@@ -406,9 +406,9 @@ through the same primitive and device instantiation mechanism. A common pattern 
 
 The standard library also includes finite-Q reactive primitives: `CapacitorQ` and
 `InductorQ`. These accept `Q` and `freq` in addition to the reactive value (`C` or `L`). On
-SPICE emission, they remain single `C` or `L` elements and append a computed `Rser` parameter:
-- Capacitors: `Rser = 1 / (2 * pi * freq * C * Q)`
-- Inductors: `Rser = (2 * pi * freq * L) / Q`
+SPICE emission, they emit the reactive element in series with a computed resistor:
+- Capacitors: `R = 1 / (2 * pi * freq * C * Q)`
+- Inductors: `R = (2 * pi * freq * L) / Q`
 
 ---
 

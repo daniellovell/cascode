@@ -1563,6 +1563,16 @@ public static class SpiceEmitter
         return ParameterEvaluator.ParseNumeric(context.Evaluate(expr.Trim()));
     }
 
+    private static void EnsurePositiveFiniteParameter(double value, string paramName)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0.0)
+        {
+            throw new InvalidOperationException(
+                $"Parameter '{paramName}' must be a finite positive value."
+            );
+        }
+    }
+
     /// <summary>
     /// Composes a hierarchy path into a flat naming prefix.
     /// E.g., ["outer", "inner"] → "outer__inner"
@@ -1727,6 +1737,9 @@ public static class SpiceEmitter
             );
             var qVal = EvaluateNumericParam(deviceParams, "Q", expressionContext);
             var freqVal = EvaluateNumericParam(deviceParams, "freq", expressionContext);
+            EnsurePositiveFiniteParameter(reactiveVal, valueKey);
+            EnsurePositiveFiniteParameter(qVal, "Q");
+            EnsurePositiveFiniteParameter(freqVal, "freq");
             var rser = valueKey switch
             {
                 "C" => 1.0 / (2.0 * Math.PI * freqVal * reactiveVal * qVal),
