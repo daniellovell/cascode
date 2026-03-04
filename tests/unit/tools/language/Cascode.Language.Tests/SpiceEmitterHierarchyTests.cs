@@ -515,7 +515,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "pmos",
                                 Id = "MP",
-                                Primitive = "Level1_PMOS",
+                                Primitive = "PMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "OUT",
@@ -537,7 +537,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "MN",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "OUT",
@@ -662,7 +662,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "mid",
@@ -684,7 +684,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M2",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "OUT",
@@ -798,7 +798,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "resistor",
                                 Id = "R1",
-                                Primitive = "Ideal_Resistor",
+                                Primitive = "ResistorIdeal",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["P"] = "P",
@@ -1533,7 +1533,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M_INNER",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "Z",
@@ -1588,7 +1588,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "pmos",
                                 Id = "M_OUTER",
-                                Primitive = "Level1_PMOS",
+                                Primitive = "PMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "outer_mid",
@@ -1762,7 +1762,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "wrapper_net",
@@ -1895,7 +1895,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M3",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "X",
@@ -2040,9 +2040,9 @@ public class SpiceEmitterHierarchyTests
         [
             new PrimitiveDefinition
             {
-                Name = "Level1_NMOS",
+                Name = "NMOS_Level1",
                 Kind = "nmos",
-                Device = "level1_nmos",
+                Device = "nmos_level1",
                 SizeParameter = "primSize",
                 Params = new Dictionary<string, string>
                 {
@@ -2053,9 +2053,9 @@ public class SpiceEmitterHierarchyTests
             },
             new PrimitiveDefinition
             {
-                Name = "Level1_PMOS",
+                Name = "PMOS_Level1",
                 Kind = "pmos",
-                Device = "level1_pmos",
+                Device = "pmos_level1",
                 SizeParameter = "primSize",
                 Params = new Dictionary<string, string>
                 {
@@ -2066,7 +2066,7 @@ public class SpiceEmitterHierarchyTests
             },
             new PrimitiveDefinition
             {
-                Name = "Ideal_Resistor",
+                Name = "ResistorIdeal",
                 Kind = "resistor",
                 Device = "resistor",
                 SizeParameter = "primSize",
@@ -2074,7 +2074,7 @@ public class SpiceEmitterHierarchyTests
             },
             new PrimitiveDefinition
             {
-                Name = "Ideal_Capacitor",
+                Name = "CapacitorIdeal",
                 Kind = "capacitor",
                 Device = "capacitor",
                 SizeParameter = "primSize",
@@ -2082,7 +2082,7 @@ public class SpiceEmitterHierarchyTests
             },
             new PrimitiveDefinition
             {
-                Name = "Ideal_Inductor",
+                Name = "InductorIdeal",
                 Kind = "inductor",
                 Device = "inductor",
                 SizeParameter = "primSize",

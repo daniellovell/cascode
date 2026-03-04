@@ -172,8 +172,8 @@ internal sealed class EmitCommandModule : ICommandModule
                     return false;
                 }
 
-                return !deviceKey.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
-                    && !deviceKey.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase);
+                return !deviceKey.Equals("nmos_level1", StringComparison.OrdinalIgnoreCase)
+                    && !deviceKey.Equals("pmos_level1", StringComparison.OrdinalIgnoreCase);
             }) == true
         );
 

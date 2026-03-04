@@ -50,8 +50,8 @@ in one language with one syntax. The circuit’s `fill {}` block is just explici
 
 ```cascode
 fill {
-  Resistor R1 = new Ideal_Resistor(size(R=1k)) { .P--IN.P, .N--OUT }
-  Capacitor C1 = new Ideal_Capacitor(size(C=1p)) { .P--OUT, .N--GND }
+  Resistor R1 = new ResistorIdeal(size(R=1k)) { .P--IN.P, .N--OUT }
+  Capacitor C1 = new CapacitorIdeal(size(C=1p)) { .P--OUT, .N--GND }
 }
 ```
 

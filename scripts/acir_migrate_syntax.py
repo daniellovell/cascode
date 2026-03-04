@@ -29,18 +29,18 @@ from typing import Iterable
 DEVICE_KINDS = ("nmos", "pmos", "resistor", "capacitor", "inductor", "diode")
 
 PLACEHOLDER_PRIMITIVES: dict[str, str] = {
-    "nmos": "Level1_NMOS",
-    "pmos": "Level1_PMOS",
-    "resistor": "Ideal_Resistor",
-    "capacitor": "Ideal_Capacitor",
-    "inductor": "Ideal_Inductor",
-    "diode": "Ideal_Diode",
+    "nmos": "NMOS_Level1",
+    "pmos": "PMOS_Level1",
+    "resistor": "ResistorIdeal",
+    "capacitor": "CapacitorIdeal",
+    "inductor": "InductorIdeal",
+    "diode": "DiodeIdeal",
 }
 
 PRIMITIVE_DEFS: dict[str, list[str]] = {
-    "Level1_NMOS": [
-        "primitive nmos Level1_NMOS(size primSize) {",
-        '  device "level1_nmos"',
+    "NMOS_Level1": [
+        "primitive nmos NMOS_Level1(size primSize) {",
+        '  device "nmos_level1"',
         "  params {",
         "    W = primSize.W",
         "    L = primSize.L",
@@ -48,9 +48,9 @@ PRIMITIVE_DEFS: dict[str, list[str]] = {
         "  }",
         "}",
     ],
-    "Level1_PMOS": [
-        "primitive pmos Level1_PMOS(size primSize) {",
-        '  device "level1_pmos"',
+    "PMOS_Level1": [
+        "primitive pmos PMOS_Level1(size primSize) {",
+        '  device "pmos_level1"',
         "  params {",
         "    W = primSize.W",
         "    L = primSize.L",
@@ -58,32 +58,32 @@ PRIMITIVE_DEFS: dict[str, list[str]] = {
         "  }",
         "}",
     ],
-    "Ideal_Resistor": [
-        "primitive resistor Ideal_Resistor(size primSize) {",
+    "ResistorIdeal": [
+        "primitive resistor ResistorIdeal(size primSize) {",
         '  device "resistor"',
         "  params {",
         "    R = primSize.R",
         "  }",
         "}",
     ],
-    "Ideal_Capacitor": [
-        "primitive capacitor Ideal_Capacitor(size primSize) {",
+    "CapacitorIdeal": [
+        "primitive capacitor CapacitorIdeal(size primSize) {",
         '  device "capacitor"',
         "  params {",
         "    C = primSize.C",
         "  }",
         "}",
     ],
-    "Ideal_Inductor": [
-        "primitive inductor Ideal_Inductor(size primSize) {",
+    "InductorIdeal": [
+        "primitive inductor InductorIdeal(size primSize) {",
         '  device "inductor"',
         "  params {",
         "    L = primSize.L",
         "  }",
         "}",
     ],
-    "Ideal_Diode": [
-        "primitive diode Ideal_Diode(size primSize) {",
+    "DiodeIdeal": [
+        "primitive diode DiodeIdeal(size primSize) {",
         '  device "diode"',
         "  params {",
         "    A = primSize.A",

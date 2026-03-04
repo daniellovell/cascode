@@ -34,8 +34,8 @@ public static class SpiceEmitter
     {
         "nmos",
         "pmos",
-        "level1_nmos",
-        "level1_pmos",
+        "nmos_level1",
+        "pmos_level1",
     };
 
     private static readonly Dictionary<string, string> QFactorPassiveDevices = new(
@@ -129,7 +129,7 @@ public static class SpiceEmitter
             circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
         }
 
-        // If the design uses generic MOS model names (e.g. level1_nmos), emit model cards so
+        // If the design uses generic MOS model names (e.g. nmos_level1), emit model cards so
         // ngspice can simulate without a PDK model include.
         if (backend == BenchBackendType.Ngspice)
         {
@@ -1967,10 +1967,10 @@ public static class SpiceEmitter
         {
             var modelLine = model switch
             {
-                "level1_nmos" =>
-                    ".model level1_nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
-                "level1_pmos" =>
-                    ".model level1_pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
+                "nmos_level1" =>
+                    ".model nmos_level1 nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
+                "pmos_level1" =>
+                    ".model pmos_level1 pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
                 "nmos" => ".model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
                 "pmos" => ".model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
                 _ => null,

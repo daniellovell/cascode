@@ -18,7 +18,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       .D--OUT
       .S--GND
@@ -118,7 +118,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       bad_binding
       .D--OUT
@@ -152,7 +152,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G->IN
       .D--OUT
       .S--GND
@@ -572,7 +572,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       {gBinding}
       {dBinding}
       {sBinding}

@@ -16,7 +16,7 @@ circuit RSeries_Sky130 {
   }
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=100)) {
+    Resistor R1 = new ResistorIdeal(size(R=100)) {
       .P--IN
       .N--OUT
     }

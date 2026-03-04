@@ -64,8 +64,8 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
-  device ""level1_nmos""
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
   params {{
     W = primSize.W
     L = primSize.L
@@ -81,13 +81,13 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
   output OUT : analog
   fill {{
     net t : analog
-    NMOS M1 = new Level1_NMOS(InputPair) {{
+    NMOS M1 = new NMOS_Level1(InputPair) {{
       .B--GND
       .D--OUT
       .G--IN
       .S--t
     }}
-    NMOS M2 = new Level1_NMOS(size(W=2u, L=180n, M=1)) {{
+    NMOS M2 = new NMOS_Level1(size(W=2u, L=180n, M=1)) {{
       .B--GND
       .D--t
       .G--IN

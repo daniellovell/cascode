@@ -293,8 +293,8 @@ public static class ElectricalRuleChecker
     {
         "nmos",
         "pmos",
-        "level1_nmos",
-        "level1_pmos",
+        "nmos_level1",
+        "pmos_level1",
     };
 
     /// <summary>

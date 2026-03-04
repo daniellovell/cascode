@@ -2,9 +2,9 @@
   "cascodeVersion": "4.0",
   "primitives": [
     {
-      "name": "Level1_NMOS",
+      "name": "NMOS_Level1",
       "kind": "NMOS",
-      "device": "level1_nmos",
+      "device": "nmos_level1",
       "sizeParam": "primSize",
       "params": {
         "W": "primSize.W",
@@ -13,9 +13,9 @@
       }
     },
     {
-      "name": "Level1_PMOS",
+      "name": "PMOS_Level1",
       "kind": "PMOS",
-      "device": "level1_pmos",
+      "device": "pmos_level1",
       "sizeParam": "primSize",
       "params": {
         "W": "primSize.W",
@@ -73,7 +73,7 @@
     {
       "kind": "NMOS",
       "name": "dp.M_N",
-      "primitive": "Level1_NMOS",
+      "primitive": "NMOS_Level1",
       "connections": {
         "B": "GND",
         "D": "mirror_gate",
@@ -89,7 +89,7 @@
     {
       "kind": "NMOS",
       "name": "dp.M_P",
-      "primitive": "Level1_NMOS",
+      "primitive": "NMOS_Level1",
       "connections": {
         "B": "GND",
         "D": "OUT",
@@ -105,7 +105,7 @@
     {
       "kind": "NMOS",
       "name": "dp.M_TAIL",
-      "primitive": "Level1_NMOS",
+      "primitive": "NMOS_Level1",
       "connections": {
         "B": "GND",
         "D": "tnode",
@@ -121,7 +121,7 @@
     {
       "kind": "PMOS",
       "name": "cm.M_SENSE",
-      "primitive": "Level1_PMOS",
+      "primitive": "PMOS_Level1",
       "connections": {
         "B": "VDD",
         "D": "mirror_gate",
@@ -137,7 +137,7 @@
     {
       "kind": "PMOS",
       "name": "cm.M_TAP0",
-      "primitive": "Level1_PMOS",
+      "primitive": "PMOS_Level1",
       "connections": {
         "B": "VDD",
         "D": "OUT",
