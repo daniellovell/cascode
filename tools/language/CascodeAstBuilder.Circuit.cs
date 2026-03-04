@@ -251,13 +251,13 @@ internal sealed partial class CascodeAstBuilder
         else if (body.sizeExprList() != null)
         {
             var exprs = body.sizeExprList().expr();
-            var keys = new[] { "W", "L", "M" };
+            var keys = new[] { "W", "L", "M", "NF" };
             if (exprs.Length > keys.Length)
             {
                 AddDiagnostic(
                     diagnosticCtx ?? body,
                     DiagnosticSeverity.Error,
-                    "Size expression list supports at most three entries (W, L, M)."
+                    "Size expression list supports at most four entries (W, L, M, NF)."
                 );
             }
 

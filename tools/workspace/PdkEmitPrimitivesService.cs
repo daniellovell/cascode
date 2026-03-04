@@ -598,6 +598,7 @@ public static class PdkEmitPrimitivesService
             builder.AppendLine("    l = primSize.L");
             var multiplicityParam = ResolveSubcktMultiplicityParam(model.Name, subcktDefinitions);
             builder.AppendLine($"    {multiplicityParam} = primSize.M");
+            builder.AppendLine("    nf = primSize.NF");
 
             var opSegments = SpiceSubcktOpPathResolver.TryResolveUniqueOpSegments(
                 model.Name,
@@ -640,11 +641,6 @@ public static class PdkEmitPrimitivesService
         if (HasParameter(definition.ParameterNames, "m"))
         {
             return "m";
-        }
-
-        if (HasParameter(definition.ParameterNames, "nf"))
-        {
-            return "nf";
         }
 
         return "mult";

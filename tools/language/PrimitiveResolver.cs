@@ -102,7 +102,20 @@ public static class PrimitiveResolver
                     return match.Value;
                 }
 
-                return pack.Entries.TryGetValue(field, out var value) ? value : match.Value;
+                if (pack.Entries.TryGetValue(field, out var value))
+                {
+                    return value;
+                }
+
+                if (
+                    field.Equals("M", StringComparison.OrdinalIgnoreCase)
+                    || field.Equals("NF", StringComparison.OrdinalIgnoreCase)
+                )
+                {
+                    return "1";
+                }
+
+                return match.Value;
             }
         );
     }

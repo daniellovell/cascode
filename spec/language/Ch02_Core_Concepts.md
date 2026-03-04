@@ -219,7 +219,7 @@ Circuits may declare parameters in their signature. Parameters are either:
 Defaults are permitted for both:
 
 ```cascode
-circuit CurrentMirror(size Sense = size(W=2u, L=180n, M=1), int ratio = 1) {
+circuit CurrentMirror(size Sense = size(W=2u, L=180n, M=1, NF=2), int ratio = 1) {
   level EL
   // ...
 }
@@ -382,6 +382,7 @@ primitive NMOS nfet_01v8(size primSize) {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
+    nf = primSize.NF
   }
 }
 ```
@@ -391,11 +392,14 @@ primitive name:
 
 ```cascode
 fill {
-  NMOS M1 = new nfet_01v8(size(W=2u, L=180n, M=1)) { .D--OUT, .G--IN, .S--GND, .B--GND }
+  NMOS M1 = new nfet_01v8(size(W=2u, L=180n, M=1, NF=2)) {
+    .D--OUT, .G--IN, .S--GND, .B--GND
+  }
 }
 ```
 
-Size packs (`size(...)`) support computed expressions (for example, `size(S.W, S.L, S.M*ratio)`).
+Size packs (`size(...)`) support computed expressions (for example,
+`size(S.W, S.L, S.M*ratio, S.NF)`).
 
 ### 2.6.1 Passive devices
 

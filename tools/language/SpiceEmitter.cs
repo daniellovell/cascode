@@ -1898,7 +1898,10 @@ public static class SpiceEmitter
                     return true;
                 }
 
-                if (field.Equals("M", StringComparison.OrdinalIgnoreCase))
+                if (
+                    field.Equals("M", StringComparison.OrdinalIgnoreCase)
+                    || field.Equals("NF", StringComparison.OrdinalIgnoreCase)
+                )
                 {
                     expression = "1";
                     return true;

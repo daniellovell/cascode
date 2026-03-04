@@ -73,9 +73,9 @@ public sealed class PdkEmitPrimitivesLayoutTests
         );
         Assert.Contains("library lib.pdk.sky130.diodes", diodesText, StringComparison.Ordinal);
 
-        // Portable size tuple contract: emitted primitives map multiplicity from primSize.M.
-        Assert.DoesNotContain("primSize.NF", devicesText, StringComparison.Ordinal);
-        Assert.DoesNotContain("NF=[", devicesText, StringComparison.Ordinal);
+        // Portable size tuple contract: emitted primitives map multiplicity from primSize.M
+        // and map fingers from primSize.NF when present in the generated primitive definitions.
+        Assert.Contains("nf = primSize.NF", devicesText, StringComparison.Ordinal);
         Assert.Contains("M=[", devicesText, StringComparison.Ordinal);
         Assert.Contains(
             "primitive NMOS nfet_20v0(size primSize)",

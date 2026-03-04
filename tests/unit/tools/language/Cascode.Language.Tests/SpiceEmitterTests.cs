@@ -497,4 +497,78 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
 
         Assert.Empty(doc.BenchDefinitions);
     }
+
+    [Fact]
+    public void Parse_PositionalSizeLiteralWithNf_MapsFourthFieldToNf()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit Top(size Sense = size(2u, 180n, 3, 4)) {{
+  level EL
+  supply VDD
+  ground GND
+  fill {{
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "positional-size-nf.cas");
+        Assert.True(result.Success);
+
+        var doc = result.Document!;
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        var sense = Assert.Single(top.Sizes);
+        Assert.NotNull(sense.Default);
+        Assert.Equal("2u", sense.Default!.Entries["W"]);
+        Assert.Equal("180n", sense.Default!.Entries["L"]);
+        Assert.Equal("3", sense.Default!.Entries["M"]);
+        Assert.Equal("4", sense.Default!.Entries["NF"]);
+    }
+
+    [Fact]
+    public void EmitDesign_DefaultsNfToOneWhenPrimitiveUsesPrimSizeNf()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+    nf = primSize.NF
+  }}
+}}
+
+circuit Top {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  supply VDD
+  ground GND
+  fill {{
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n, M=3)) {{
+      .D--OUT
+      .G--IN
+      .S--GND
+      .B--GND
+    }}
+  }}
+}}
+";
+
+        var parseResult = CascodeReader.TryParse(cascode, "nf-default.cas");
+        Assert.True(parseResult.Success);
+        var document = parseResult.Document!;
+        var top = document.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: document);
+        var output = writer.ToString();
+
+        Assert.Contains("m=3", output);
+        Assert.Contains("nf=1", output);
+    }
 }
