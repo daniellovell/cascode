@@ -1,7 +1,7 @@
 DeviceId,Row,Column,MirrorX
-RCAS_TOP,1,0,false
-RCAS_BOT,3,0,false
-CCAS,3,1,false
+RCAS1_TOP,1,0,false
+RCAS1_BOT,3,0,false
+CCAS1,3,1,false
 LM,3,2,false
 CM,4,3,false
 LG,3,4,false
