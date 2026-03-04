@@ -404,6 +404,12 @@ through the same primitive and device instantiation mechanism. A common pattern 
 “ideal” primitives for use in small circuits and testbenches (for example,
 `tests/golden/cas/bench/RcLowpass.el.cai`).
 
+The standard library also includes finite-Q reactive primitives: `CapacitorQ` and
+`InductorQ`. These accept `Q` and `freq` in addition to the reactive value (`C` or `L`). On
+SPICE emission, they emit the reactive element in series with a computed resistor:
+- Capacitors: `R = 1 / (2 * pi * freq * C * Q)`
+- Inductors: `R = (2 * pi * freq * L) / Q`
+
 ---
 
 ## 2.7 Constraints, Harness, and Environment
