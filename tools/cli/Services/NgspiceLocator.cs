@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text.RegularExpressions;
+using Cascode.Workspace;
 
 namespace Cascode.Cli.Services;
 
@@ -11,18 +13,29 @@ internal static class NgspiceLocator
     internal sealed record NgspiceInfo(string Path, int Major, int Minor);
 
     private static readonly Lazy<NgspiceInfo> _cached = new(() =>
-        Resolve(pathOverride: null, pathextOverride: null)
+        Resolve(pathOverride: null, pathextOverride: null, cascodeHomeOverride: null)
     );
 
     public static NgspiceInfo Resolve() => _cached.Value;
 
     internal static NgspiceInfo Resolve(string? pathOverride, string? pathextOverride)
     {
-        var path = ToolLocator.FindOnPath("ngspice", pathOverride, pathextOverride);
+        return Resolve(pathOverride, pathextOverride, cascodeHomeOverride: null);
+    }
+
+    internal static NgspiceInfo Resolve(
+        string? pathOverride,
+        string? pathextOverride,
+        string? cascodeHomeOverride
+    )
+    {
+        var path =
+            FindInstalled(cascodeHomeOverride)
+            ?? ToolLocator.FindOnPath("ngspice", pathOverride, pathextOverride);
         if (path is null)
             throw NgspiceNotFoundException.NotFound();
 
-        var (major, minor) = QueryVersion(path);
+        var (major, minor) = QueryVersionForPath(path);
         if (major != RequiredMajor)
             throw NgspiceNotFoundException.WrongVersion(major);
 
@@ -34,7 +47,7 @@ internal static class NgspiceLocator
         RegexOptions.Compiled
     );
 
-    private static (int Major, int Minor) QueryVersion(string ngspicePath)
+    internal static (int Major, int Minor) QueryVersionForPath(string ngspicePath)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -58,5 +71,16 @@ internal static class NgspiceLocator
         var major = int.Parse(match.Groups[1].Value);
         var minor = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 0;
         return (major, minor);
+    }
+
+    private static string? FindInstalled(string? cascodeHomeOverride)
+    {
+        var rid = RuntimeIdentifier.CurrentRid();
+        if (rid is null)
+            return null;
+
+        var cascodeHome = cascodeHomeOverride ?? WorkspacePaths.GetCascodeHome();
+        var path = NgspiceInstallLayout.GetExecutablePath(cascodeHome, rid);
+        return File.Exists(path) ? path : null;
     }
 }

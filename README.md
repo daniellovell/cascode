@@ -71,6 +71,12 @@ cascode --version
 cascode --help
 ```
 
+Install ngspice for bench execution:
+
+```sh
+cascode install ngspice
+```
+
 ### Latest vs pre-release
 
 - Stable (latest):

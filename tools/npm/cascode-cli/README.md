@@ -8,6 +8,9 @@ How it works
 - On install, a small script downloads a prebuilt, self-contained `cascode` binary
   for your OS/architecture from the GitHub Releases page.
 - The `cascode` command is provided via the package `bin` and forwards args to the binary.
+- Simulator dependencies are managed by the CLI. Install ngspice with:
+
+      cascode install ngspice
 
 Environment variables
 - `CASCODE_DOWNLOAD_BASE` (optional): override the GitHub Releases base URL, e.g.
@@ -24,4 +27,3 @@ Notes
 - Release artifacts are expected to be named `cascode-<rid>.<zip|tar.gz>`, where rid is one of:
   `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64`, `linux-arm64`.
 - The repository’s release workflow should publish those assets alongside tags matching the npm package version.
-

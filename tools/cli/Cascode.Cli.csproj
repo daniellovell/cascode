@@ -40,6 +40,7 @@
   <!-- Ensure README.md is included in the NuGet package for PackageReadmeFile -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+    <Content Include="Assets\ngspice-45.2.sha256" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Bundle lib/std alongside the published output so the CLI can resolve includes -->
