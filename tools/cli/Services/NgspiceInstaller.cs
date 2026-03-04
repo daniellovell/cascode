@@ -309,7 +309,6 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             "flex",
             "autoconf",
             "automake",
-            "libtool",
             "make",
             "cc",
         };
@@ -319,6 +318,10 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             if (_runtime.FindTool(tool) is null)
                 missing.Add(tool);
         }
+
+        // Ubuntu commonly exposes libtool functionality as libtoolize.
+        if (_runtime.FindTool("libtool") is null && _runtime.FindTool("libtoolize") is null)
+            missing.Add("libtool");
 
         return missing;
     }

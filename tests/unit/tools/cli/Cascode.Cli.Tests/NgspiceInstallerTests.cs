@@ -35,7 +35,7 @@ public sealed class NgspiceInstallerTests : IDisposable
                 "flex",
                 "autoconf",
                 "automake",
-                "libtool",
+                "libtoolize",
                 "make",
                 "cc",
             }
