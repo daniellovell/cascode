@@ -16,7 +16,7 @@ circuit CSeries_Sky130 {
   }
 
   fill {
-    Capacitor C1 = new Ideal_CapacitorQ(size(C=3.18309886184n, Q=1, freq=1M)) {
+    Capacitor C1 = new CapacitorQ(size(C=3.18309886184n, Q=1, freq=1M)) {
       .P--IN
       .N--OUT
     }

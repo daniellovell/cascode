@@ -894,7 +894,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "capacitor",
                                 Id = "C1",
-                                Primitive = "Ideal_CapacitorQ",
+                                Primitive = "CapacitorQ",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["P"] = "IN",
@@ -963,7 +963,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "inductor",
                                 Id = "L1",
-                                Primitive = "Ideal_InductorQ",
+                                Primitive = "InductorQ",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["P"] = "IN",
@@ -1033,7 +1033,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "capacitor",
                                 Id = "C1",
-                                Primitive = "Ideal_CapacitorQ",
+                                Primitive = "CapacitorQ",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["P"] = "P",
@@ -2090,7 +2090,7 @@ public class SpiceEmitterHierarchyTests
             },
             new PrimitiveDefinition
             {
-                Name = "Ideal_CapacitorQ",
+                Name = "CapacitorQ",
                 Kind = "capacitor",
                 Device = "capacitor_q",
                 SizeParameter = "primSize",
@@ -2103,7 +2103,7 @@ public class SpiceEmitterHierarchyTests
             },
             new PrimitiveDefinition
             {
-                Name = "Ideal_InductorQ",
+                Name = "InductorQ",
                 Kind = "inductor",
                 Device = "inductor_q",
                 SizeParameter = "primSize",

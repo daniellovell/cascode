@@ -21,7 +21,7 @@ primitive Inductor Ideal_Inductor(size primSize) {
   }
 }
 
-primitive Capacitor Ideal_CapacitorQ(size primSize) {
+primitive Capacitor CapacitorQ(size primSize) {
   device "capacitor_q"
   params {
     C = primSize.C
@@ -30,7 +30,7 @@ primitive Capacitor Ideal_CapacitorQ(size primSize) {
   }
 }
 
-primitive Inductor Ideal_InductorQ(size primSize) {
+primitive Inductor InductorQ(size primSize) {
   device "inductor_q"
   params {
     L = primSize.L
