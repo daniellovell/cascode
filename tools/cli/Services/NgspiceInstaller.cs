@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -727,10 +728,59 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             error = string.Empty;
             return true;
         }
+        catch (Exception ex) when (OperatingSystem.IsWindows())
+        {
+            var fileVersionMajor = TryReadWindowsFileVersionMajor(binaryPath);
+            if (fileVersionMajor is null)
+            {
+                error = ex.Message;
+                return false;
+            }
+
+            if (fileVersionMajor != NgspiceLocator.RequiredMajor)
+            {
+                error =
+                    $"binary reports ngspice {fileVersionMajor}, but Cascode requires {NgspiceLocator.RequiredMajor}.";
+                return false;
+            }
+
+            error = string.Empty;
+            return true;
+        }
         catch (Exception ex)
         {
             error = ex.Message;
             return false;
+        }
+    }
+
+    private static int? TryReadWindowsFileVersionMajor(string binaryPath)
+    {
+        try
+        {
+            var info = FileVersionInfo.GetVersionInfo(binaryPath);
+            if (info.FileMajorPart > 0)
+            {
+                return info.FileMajorPart;
+            }
+
+            var versionText = info.ProductVersion;
+            if (string.IsNullOrWhiteSpace(versionText))
+            {
+                versionText = info.FileVersion;
+            }
+
+            if (string.IsNullOrWhiteSpace(versionText))
+            {
+                return null;
+            }
+
+            var majorToken = versionText.Split('.', 2)[0];
+            return int.TryParse(majorToken, out var major) ? major : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 
