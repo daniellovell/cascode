@@ -553,6 +553,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                     $"--prefix={prefix}",
                     "--without-x",
                     "--without-readline",
+                    "--disable-openmp",
                     "--enable-xspice",
                     "CFLAGS=-O2",
                 },
