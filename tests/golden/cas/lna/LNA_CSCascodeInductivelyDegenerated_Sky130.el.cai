@@ -1,0 +1,122 @@
+VERSION 4.0
+
+primitive Resistor ResistorIdeal(size primSize) {
+  device "resistor"
+  params {
+    R = primSize.R
+  }
+}
+
+primitive Capacitor CapacitorIdeal(size primSize) {
+  device "capacitor"
+  params {
+    C = primSize.C
+  }
+}
+
+primitive Inductor InductorIdeal(size primSize) {
+  device "inductor"
+  params {
+    L = primSize.L
+  }
+}
+
+primitive NMOS nfet_01v8(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+circuit LNA_CSCascodeInductivelyDegenerated_Sky130 implements SingleEndedAmp {
+  level EL
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    net nmatch : analog
+    net ng : analog
+    net nd : analog
+    net ns : analog
+    net ncas : analog
+    net vcas : analog
+
+    Inductor LM = new InductorIdeal(size(L=10n)) {
+      .P--IN
+      .N--nmatch
+    }
+    Capacitor CM = new CapacitorIdeal(size(C=300f)) {
+      .P--nmatch
+      .N--GND
+    }
+    Inductor LG = new InductorIdeal(size(L=32n)) {
+      .P--nmatch
+      .N--ng
+    }
+
+    Inductor LS = new InductorIdeal(size(L=2.6n)) {
+      .P--ns
+      .N--GND
+    }
+    Inductor LD = new InductorIdeal(size(L=5n)) {
+      .P--VDD
+      .N--nd
+    }
+
+    Resistor RCAS_TOP = new ResistorIdeal(size(R=100k)) {
+      .P--VDD
+      .N--vcas
+    }
+    Resistor RCAS_BOT = new ResistorIdeal(size(R=200k)) {
+      .P--vcas
+      .N--GND
+    }
+    Capacitor CCAS = new CapacitorIdeal(size(C=20p)) {
+      .P--vcas
+      .N--GND
+    }
+
+    NMOS M1 = new nfet_01v8(size(W=55u, L=180n, M=1)) {
+      .B--GND
+      .D--ncas
+      .G--ng
+      .S--ns
+    }
+    NMOS M2 = new nfet_01v8(size(W=33u, L=180n, M=1)) {
+      .B--GND
+      .D--nd
+      .G--vcas
+      .S--ncas
+    }
+
+    Capacitor COUT = new CapacitorIdeal(size(C=1p)) {
+      .P--nd
+      .N--OUT
+    }
+  }
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=2.3GHz, to=2.5GHz) >= 12dB
+      c_input_return_loss_spectrum = sparam_bench::InputReturnLossSpectrum(from=2.3GHz, to=2.5GHz) >= 15dB
+      c_noise_figure_spectrum = sparam_bench::NoiseFigureSpectrum(from=2.3GHz, to=2.5GHz) <= 1dB
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 4mW
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}

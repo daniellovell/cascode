@@ -16,11 +16,11 @@ public class PlacementGoldenTests
         "tests/golden/render/OTA5TFullyDiff.placement.csv"
     )]
     [InlineData(
-        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.el.cai",
+        "tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_Sky130.el.cai",
         "tests/golden/render/LNA_CSCascodeInductivelyDegenerated.placement.csv"
     )]
     [InlineData(
-        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.el.cai",
+        "tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.el.cai",
         "tests/golden/render/LNA_CSCascodeInductivelyDegenerated_TwoStage.placement.csv"
     )]
     public void Placement_MatchesGolden(string cascodePath, string goldenPath)

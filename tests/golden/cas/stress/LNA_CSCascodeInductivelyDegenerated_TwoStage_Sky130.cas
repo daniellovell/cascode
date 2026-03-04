@@ -23,27 +23,27 @@ circuit LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130 implements SingleEnd
     net vcas1 : analog
     net vgb2 : analog
 
-    Capacitor CCAS1 = new Ideal_Capacitor(size(C=20p)) { .P--vcas1, .N--GND }
-    Capacitor CGB2 = new Ideal_Capacitor(size(C=20p)) { .P--vgb2, .N--GND }
-    Capacitor CINT = new Ideal_Capacitor(size(C=1.35p)) { .P--nd1, .N--ng2 }
-    Capacitor CM = new Ideal_Capacitor(size(C=240f)) { .P--nmatch, .N--GND }
-    Capacitor COUT = new Ideal_Capacitor(size(C=600f)) { .P--nd2, .N--OUT }
+    Capacitor CCAS1 = new CapacitorIdeal(size(C=20p)) { .P--vcas1, .N--GND }
+    Capacitor CGB2 = new CapacitorIdeal(size(C=20p)) { .P--vgb2, .N--GND }
+    Capacitor CINT = new CapacitorIdeal(size(C=1.35p)) { .P--nd1, .N--ng2 }
+    Capacitor CM = new CapacitorIdeal(size(C=240f)) { .P--nmatch, .N--GND }
+    Capacitor COUT = new CapacitorIdeal(size(C=600f)) { .P--nd2, .N--OUT }
 
-    Inductor LD1 = new Ideal_Inductor(size(L=5.6n)) { .P--VDD, .N--nd1 }
-    Inductor LD2 = new Ideal_Inductor(size(L=6.8n)) { .P--VDD, .N--nd2 }
-    Inductor LG = new Ideal_Inductor(size(L=31n)) { .P--nmatch, .N--ng1 }
-    Inductor LM = new Ideal_Inductor(size(L=9.5n)) { .P--IN, .N--nmatch }
-    Inductor LS1 = new Ideal_Inductor(size(L=2.1n)) { .P--ns1, .N--GND }
+    Inductor LD1 = new InductorIdeal(size(L=5.6n)) { .P--VDD, .N--nd1 }
+    Inductor LD2 = new InductorIdeal(size(L=6.8n)) { .P--VDD, .N--nd2 }
+    Inductor LG = new InductorIdeal(size(L=31n)) { .P--nmatch, .N--ng1 }
+    Inductor LM = new InductorIdeal(size(L=9.5n)) { .P--IN, .N--nmatch }
+    Inductor LS1 = new InductorIdeal(size(L=2.1n)) { .P--ns1, .N--GND }
 
     NMOS M1 = new nfet_01v8(size(W=58u, L=180n, M=1)) { .D--ncas1, .G--ng1, .S--ns1, .B--GND }
     NMOS M2 = new nfet_01v8(size(W=35u, L=180n, M=1)) { .D--nd1, .G--vcas1, .S--ncas1, .B--GND }
     NMOS M3 = new nfet_01v8(size(W=39u, L=180n, M=1)) { .D--nd2, .G--ng2, .S--GND, .B--GND }
 
-    Resistor RCAS1_TOP = new Ideal_Resistor(size(R=100k)) { .P--VDD, .N--vcas1 }
-    Resistor RCAS1_BOT = new Ideal_Resistor(size(R=200k)) { .P--vcas1, .N--GND }
-    Resistor RG2 = new Ideal_Resistor(size(R=1k)) { .P--vgb2, .N--ng2 }
-    Resistor RGB2_TOP = new Ideal_Resistor(size(R=200k)) { .P--VDD, .N--vgb2 }
-    Resistor RGB2_BOT = new Ideal_Resistor(size(R=220k)) { .P--vgb2, .N--GND }
+    Resistor RCAS1_TOP = new ResistorIdeal(size(R=100k)) { .P--VDD, .N--vcas1 }
+    Resistor RCAS1_BOT = new ResistorIdeal(size(R=200k)) { .P--vcas1, .N--GND }
+    Resistor RG2 = new ResistorIdeal(size(R=1k)) { .P--vgb2, .N--ng2 }
+    Resistor RGB2_TOP = new ResistorIdeal(size(R=200k)) { .P--VDD, .N--vgb2 }
+    Resistor RGB2_BOT = new ResistorIdeal(size(R=220k)) { .P--vgb2, .N--GND }
   }
 
   env {
