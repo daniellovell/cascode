@@ -858,7 +858,7 @@ public class SpiceEmitterHierarchyTests
     }
 
     [Fact]
-    public void EmitDesign_CapacitorQ_EmitsCapacitorWithRser()
+    public void EmitDesign_CapacitorQ_EmitsSeriesResistorModel()
     {
         var doc = new CascodeDocument
         {
@@ -922,11 +922,12 @@ public class SpiceEmitterHierarchyTests
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
         var output = writer.ToString();
 
-        Assert.Contains("CC1 IN OUT 1p Rser=3.1831", output);
+        Assert.Contains("CC1 IN C1__esr_n 1p", output);
+        Assert.Contains("RC1__esr C1__esr_n OUT 3.1831", output);
     }
 
     [Fact]
-    public void EmitDesign_InductorQ_EmitsInductorWithRser()
+    public void EmitDesign_InductorQ_EmitsSeriesResistorModel()
     {
         var doc = new CascodeDocument
         {
@@ -990,11 +991,12 @@ public class SpiceEmitterHierarchyTests
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
         var output = writer.ToString();
 
-        Assert.Contains("LL1 IN OUT 10n Rser=314.159m", output);
+        Assert.Contains("LL1 IN L1__esr_n 10n", output);
+        Assert.Contains("RL1__esr L1__esr_n OUT 314.159m", output);
     }
 
     [Fact]
-    public void EmitDesign_InlineCapacitorQ_EmitsWithHierarchyPrefix()
+    public void EmitDesign_InlineCapacitorQ_EmitsSeriesResistorWithHierarchyPrefix()
     {
         var doc = new CascodeDocument
         {
@@ -1090,7 +1092,8 @@ public class SpiceEmitterHierarchyTests
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
         var output = writer.ToString();
 
-        Assert.Contains("Cq1__C1 OUT GND 1p Rser=3.1831", output);
+        Assert.Contains("Cq1__C1 OUT q1__C1__esr_n 1p", output);
+        Assert.Contains("Rq1__C1__esr q1__C1__esr_n GND 3.1831", output);
     }
 
     [Fact]

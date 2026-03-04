@@ -935,6 +935,43 @@ public static class SpiceEmitter
             backend
         );
 
+        var hasTwoTerminals = info.TerminalBindings.Count == 2;
+        var terminalNets = hasTwoTerminals ? info.TerminalBindings.Values.ToArray() : null;
+        if (
+            info.IsBuiltinPassive
+            && !string.IsNullOrWhiteSpace(info.SeriesResistanceValue)
+            && terminalNets is not null
+        )
+        {
+            var positiveNet = terminalNets[0];
+            var negativeNet = terminalNets[1];
+            var seriesNode = SanitizeNetName($"{device.Id}__esr_n");
+
+            var passiveSb = new StringBuilder();
+            passiveSb.Append(info.SpiceType);
+            passiveSb.Append(device.Id);
+            passiveSb.Append(' ');
+            passiveSb.Append(SanitizeNetName(positiveNet));
+            passiveSb.Append(' ');
+            passiveSb.Append(seriesNode);
+            passiveSb.Append(' ');
+            if (!string.IsNullOrWhiteSpace(info.PassiveValue))
+            {
+                passiveSb.Append(info.PassiveValue);
+            }
+            AppendParamAssignments(
+                passiveSb,
+                info.ParamExpressions,
+                expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+            );
+            writer.WriteLine(passiveSb.ToString().TrimEnd());
+
+            writer.WriteLine(
+                $"R{device.Id}__esr {seriesNode} {SanitizeNetName(negativeNet)} {info.SeriesResistanceValue}"
+            );
+            return;
+        }
+
         var sb = new StringBuilder();
         sb.Append(info.SpiceType);
         sb.Append(device.Id);
@@ -1376,6 +1413,55 @@ public static class SpiceEmitter
             backend
         );
 
+        var hasTwoTerminals = info.TerminalBindings.Count == 2;
+        var terminalNets = hasTwoTerminals ? info.TerminalBindings.Values.ToArray() : null;
+        if (
+            info.IsBuiltinPassive
+            && !string.IsNullOrWhiteSpace(info.SeriesResistanceValue)
+            && terminalNets is not null
+        )
+        {
+            var positiveNet = terminalNets[0];
+            var negativeNet = terminalNets[1];
+            var prefix = BuildHierarchyPrefix(hierarchyPath);
+            var devicePrefix = $"{prefix}__{device.Id}";
+            var seriesNode = SanitizeNetName($"{devicePrefix}__esr_n");
+
+            var passiveSb = new StringBuilder();
+            passiveSb.Append(info.SpiceType);
+            passiveSb.Append(devicePrefix);
+            passiveSb.Append(' ');
+            passiveSb.Append(
+                SanitizeNetName(
+                    SubstituteNet(
+                        positiveNet,
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                )
+            );
+            passiveSb.Append(' ');
+            passiveSb.Append(seriesNode);
+            passiveSb.Append(' ');
+            if (!string.IsNullOrWhiteSpace(info.PassiveValue))
+            {
+                passiveSb.Append(info.PassiveValue);
+            }
+            AppendParamAssignments(
+                passiveSb,
+                info.ParamExpressions,
+                expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+            );
+            writer.WriteLine(passiveSb.ToString().TrimEnd());
+
+            writer.WriteLine(
+                $"R{devicePrefix}__esr {seriesNode} {SanitizeNetName(SubstituteNet(negativeNet, hierarchyPath, netSubstitutions, internalNets, resolution))} {info.SeriesResistanceValue}"
+            );
+            return;
+        }
+
         var sb = new StringBuilder();
         sb.Append(info.SpiceType);
         sb.Append(BuildHierarchyPrefix(hierarchyPath));
@@ -1559,6 +1645,7 @@ public static class SpiceEmitter
         public required bool UseSubckt { get; init; }
         public required bool IsBuiltinPassive { get; init; }
         public required string? PassiveValue { get; init; }
+        public required string? SeriesResistanceValue { get; init; }
         public required string SpiceType { get; init; }
         public required IReadOnlyDictionary<string, string> TerminalBindings { get; init; }
         public required IReadOnlyDictionary<string, string> ParamExpressions { get; init; }
@@ -1607,6 +1694,7 @@ public static class SpiceEmitter
 
         var paramExpressions = deviceParams;
         string? passiveValue = null;
+        string? seriesResistanceValue = null;
         if (isBuiltinPassive)
         {
             var key = deviceKind switch
@@ -1647,10 +1735,14 @@ public static class SpiceEmitter
                     $"Unsupported Q-factor passive value key '{valueKey}'."
                 ),
             };
-            paramExpressions = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["Rser"] = SiValue.FormatForBackend(rser, backend),
-            };
+            seriesResistanceValue = SiValue.FormatForBackend(rser, backend);
+            paramExpressions = deviceParams
+                .Where(kvp =>
+                    !kvp.Key.Equals(valueKey, StringComparison.OrdinalIgnoreCase)
+                    && !kvp.Key.Equals("Q", StringComparison.OrdinalIgnoreCase)
+                    && !kvp.Key.Equals("freq", StringComparison.OrdinalIgnoreCase)
+                )
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
         }
 
         var spiceType = useSubckt
@@ -1677,6 +1769,7 @@ public static class SpiceEmitter
             UseSubckt = useSubckt,
             IsBuiltinPassive = isBuiltinPassive,
             PassiveValue = passiveValue,
+            SeriesResistanceValue = seriesResistanceValue,
             SpiceType = spiceType,
             TerminalBindings = terminalBindings,
             ParamExpressions = paramExpressions,
