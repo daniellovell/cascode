@@ -60,7 +60,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -120,7 +120,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "pmos",
                         Id = "M1",
-                        Primitive = "Level1_PMOS",
+                        Primitive = "PMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -180,7 +180,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -249,7 +249,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -316,7 +316,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT.p" },
@@ -379,7 +379,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -444,7 +444,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -495,9 +495,9 @@ public class EmissionValidatorTests
             [
                 new PrimitiveDefinition
                 {
-                    Name = "Level1_NMOS",
+                    Name = "NMOS_Level1",
                     Kind = "nmos",
-                    Device = "level1_nmos",
+                    Device = "nmos_level1",
                     SizeParameter = "primSize",
                     Params = new Dictionary<string, string>
                     {
@@ -591,7 +591,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "resistor",
                         Id = "R1",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
@@ -913,7 +913,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "internal_node" }, // Using internal net
@@ -972,7 +972,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1030,7 +1030,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1103,7 +1103,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1160,7 +1160,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },

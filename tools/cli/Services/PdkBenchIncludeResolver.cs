@@ -209,8 +209,8 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
                         || key.Equals("diode", StringComparison.OrdinalIgnoreCase)
                         || key.Equals("nmos", StringComparison.OrdinalIgnoreCase)
                         || key.Equals("pmos", StringComparison.OrdinalIgnoreCase)
-                        || key.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
-                        || key.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("nmos_level1", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("pmos_level1", StringComparison.OrdinalIgnoreCase)
                     )
                     {
                         continue;

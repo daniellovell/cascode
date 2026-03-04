@@ -5,14 +5,14 @@ bundle Diff {
   N : analog
 }
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"
   params {
     C = primSize.C
@@ -58,12 +58,12 @@ circuit RcLowpassA {
   ground GND
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=1k)) {
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {
       .P--IN.P
       .N--OUT
     }
 
-    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+    Capacitor C1 = new CapacitorIdeal(size(C=1p)) {
       .P--OUT
       .N--GND
     }
@@ -92,12 +92,12 @@ circuit RcLowpassB {
   ground GND
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=2k)) {
+    Resistor R1 = new ResistorIdeal(size(R=2k)) {
       .P--IN.P
       .N--OUT
     }
 
-    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+    Capacitor C1 = new CapacitorIdeal(size(C=1p)) {
       .P--OUT
       .N--GND
     }

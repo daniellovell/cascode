@@ -1,7 +1,7 @@
 VERSION 4.0
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -9,8 +9,8 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -27,13 +27,13 @@ circuit CommonSourceAmp implements SingleEndedAmp {
   output OUT : analog
   input VBIAS : bias
   fill {
-    NMOS M_in = new Level1_NMOS(size(W=10u, L=180n, M=1)) {
+    NMOS M_in = new NMOS_Level1(size(W=10u, L=180n, M=1)) {
       .D--OUT
       .G--IN
       .S--GND
       .B--GND
     }
-    PMOS load.M = new Level1_PMOS(size(W=20u, L=180n, M=1)) {
+    PMOS load.M = new PMOS_Level1(size(W=20u, L=180n, M=1)) {
       .D--OUT
       .G--VBIAS
       .S--VDD

@@ -49,8 +49,8 @@ circuit TranInternalCurrent {
 
   fill {
     net n : analog
-    Resistor R1 = new Ideal_Resistor(size(R=10k)) { .P--VDD, .N--n }
-    Resistor R2 = new Ideal_Resistor(size(R=10k)) { .P--IN, .N--n }
-    Capacitor C1 = new Ideal_Capacitor(size(C=1n)) { .P--n, .N--GND }
+    Resistor R1 = new ResistorIdeal(size(R=10k)) { .P--VDD, .N--n }
+    Resistor R2 = new ResistorIdeal(size(R=10k)) { .P--IN, .N--n }
+    Capacitor C1 = new CapacitorIdeal(size(C=1n)) { .P--n, .N--GND }
   }
 }

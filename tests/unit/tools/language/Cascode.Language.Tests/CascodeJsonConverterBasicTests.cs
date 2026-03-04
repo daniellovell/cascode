@@ -68,7 +68,7 @@ public class CascodeJsonConverterBasicTests
         Assert.Equal("nmos", component.GetProperty("kind").GetString());
         Assert.Equal("M1", component.GetProperty("name").GetString());
         Assert.Equal("IN", component.GetProperty("connections").GetProperty("G").GetString());
-        Assert.Equal("Level1_NMOS", component.GetProperty("primitive").GetString());
+        Assert.Equal("NMOS_Level1", component.GetProperty("primitive").GetString());
         Assert.Equal("1u", component.GetProperty("size").GetProperty("W").GetString());
     }
 
@@ -135,7 +135,7 @@ public class CascodeJsonConverterBasicTests
             ""components"": [{{
                 ""kind"": ""nmos"",
                 ""name"": ""M1"",
-                ""primitive"": ""Level1_NMOS"",
+                ""primitive"": ""NMOS_Level1"",
                 ""connections"": {{ ""G"": ""IN"", ""D"": ""OUT"", ""S"": ""GND"", ""B"": ""GND"" }},
                 ""size"": {{ ""W"": ""1u"", ""L"": ""180n"" }}
             }}],
@@ -150,7 +150,7 @@ public class CascodeJsonConverterBasicTests
         Assert.Equal("nmos", device.DeviceType);
         Assert.Equal("M1", device.Id);
         Assert.Equal("IN", device.Bindings["G"]);
-        Assert.Equal("Level1_NMOS", device.Primitive);
+        Assert.Equal("NMOS_Level1", device.Primitive);
         Assert.Equal("1u", device.Size?.Entries["W"]);
     }
 
