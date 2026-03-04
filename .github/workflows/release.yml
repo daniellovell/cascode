@@ -197,26 +197,26 @@ jobs:
           cat "$install_log"
           install_path="$(
             python3 - "$install_log" <<'PY'
-import json
-import pathlib
-import sys
+          import json
+          import pathlib
+          import sys
 
-log_path = pathlib.Path(sys.argv[1])
-line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+          log_path = pathlib.Path(sys.argv[1])
+          line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
 
-try:
-    payload = json.loads(line)
-except json.JSONDecodeError as ex:
-    print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
-    sys.exit(1)
+          try:
+              payload = json.loads(line)
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+              sys.exit(1)
 
-install_path = payload.get("InstallPath")
-if payload.get("Success") and install_path:
-    print(install_path, end="")
-else:
-    print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
-    sys.exit(1)
-PY
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path:
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+              sys.exit(1)
+          PY
           )"
           [ -n "$install_path" ]
       - name: build ngspice via installer (windows)
@@ -328,23 +328,23 @@ PY
           echo "$json"
           install_path="$(
             INSTALL_JSON="$json" python3 - <<'PY'
-import json
-import os
-import sys
+          import json
+          import os
+          import sys
 
-try:
-    payload = json.loads(os.environ["INSTALL_JSON"])
-except json.JSONDecodeError as ex:
-    print(f"Failed to parse installer JSON from INSTALL_JSON: {ex}", file=sys.stderr)
-    sys.exit(1)
+          try:
+              payload = json.loads(os.environ["INSTALL_JSON"])
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from INSTALL_JSON: {ex}", file=sys.stderr)
+              sys.exit(1)
 
-install_path = payload.get("InstallPath")
-if payload.get("Success") and install_path and payload.get("InstallMode") == "release-binary":
-    print(install_path, end="")
-else:
-    print(payload.get("Message") or "install failed", file=sys.stderr)
-    sys.exit(1)
-PY
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path and payload.get("InstallMode") == "release-binary":
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "install failed", file=sys.stderr)
+              sys.exit(1)
+          PY
           )"
           "$install_path" --version
 

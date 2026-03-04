@@ -90,26 +90,26 @@ jobs:
 
           install_path="$(
             python3 - "$install_log" <<'PY'
-import json
-import pathlib
-import sys
+          import json
+          import pathlib
+          import sys
 
-log_path = pathlib.Path(sys.argv[1])
-line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+          log_path = pathlib.Path(sys.argv[1])
+          line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
 
-try:
-    payload = json.loads(line)
-except json.JSONDecodeError as ex:
-    print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
-    sys.exit(1)
+          try:
+              payload = json.loads(line)
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+              sys.exit(1)
 
-install_path = payload.get("InstallPath")
-if payload.get("Success") and install_path:
-    print(install_path, end="")
-else:
-    print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
-    sys.exit(1)
-PY
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path:
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+              sys.exit(1)
+          PY
           )"
           echo "$(dirname "$install_path")" >> "$GITHUB_PATH"
 
