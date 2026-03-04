@@ -13,7 +13,7 @@
 * limitations under the License.
 
 * SKY130 Spice File.
-.model sky130_fd_pr__diode_pw2nd_05v5 d
+.model diode_pw2nd_05v5 d
 + level = 3.0
 + tlevc = 1.0
 + area = 1.0e+12
