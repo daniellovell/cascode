@@ -125,6 +125,23 @@ public sealed class NgspiceLocatorTests : IDisposable
         Assert.Contains("cascode install ngspice", ex.Message);
     }
 
+    [Theory]
+    [InlineData("** ngspice-45.2 : Circuit level simulation program", 45, 2)]
+    [InlineData("ngspice version 45.2", 45, 2)]
+    [InlineData("NgSpIcE version 45", 45, 0)]
+    public void TryParseVersionText_AcceptsSupportedFormats(
+        string text,
+        int expectedMajor,
+        int expectedMinor
+    )
+    {
+        var parsed = NgspiceLocator.TryParseVersionText(text, out var major, out var minor);
+
+        Assert.True(parsed);
+        Assert.Equal(expectedMajor, major);
+        Assert.Equal(expectedMinor, minor);
+    }
+
     [Fact]
     public void Resolve_PrefersCascodeHomeInstall_OverPath()
     {
