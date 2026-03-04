@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Cascode.Workspace;
 
 namespace Cascode.Cli.Services;
@@ -46,31 +47,59 @@ internal static class NgspiceLocator
         @"ngspice-(\d+)(?:\.(\d+))?",
         RegexOptions.Compiled
     );
+    private static readonly TimeSpan VersionProbeTimeout = TimeSpan.FromSeconds(15);
 
     internal static (int Major, int Minor) QueryVersionForPath(string ngspicePath)
+    {
+        var args = OperatingSystem.IsWindows()
+            ? new[] { "--version", "-v" }
+            : new[] { "--version" };
+        foreach (var arg in args)
+        {
+            var output = RunVersionProbe(ngspicePath, arg);
+            var match = VersionRegex.Match(output);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var major = int.Parse(match.Groups[1].Value);
+            var minor = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 0;
+            return (major, minor);
+        }
+
+        throw NgspiceNotFoundException.Unparseable();
+    }
+
+    private static string RunVersionProbe(string ngspicePath, string arg)
     {
         var startInfo = new ProcessStartInfo
         {
             FileName = ngspicePath,
-            ArgumentList = { "--version" },
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        startInfo.ArgumentList.Add(arg);
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
 
-        var match = VersionRegex.Match(stdout);
-        if (!match.Success)
+        if (!process.WaitForExit((int)VersionProbeTimeout.TotalMilliseconds))
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch { }
             throw NgspiceNotFoundException.Unparseable();
+        }
 
-        var major = int.Parse(match.Groups[1].Value);
-        var minor = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 0;
-        return (major, minor);
+        Task.WaitAll(stdoutTask, stderrTask);
+        return $"{stdoutTask.GetAwaiter().GetResult()}\n{stderrTask.GetAwaiter().GetResult()}";
     }
 
     private static string? FindInstalled(string? cascodeHomeOverride)
