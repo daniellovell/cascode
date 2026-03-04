@@ -720,6 +720,7 @@ internal sealed partial class CascodeAstBuilder
             "ACAnalysis" => BenchValueType.ACAnalysis,
             "DCAnalysis" => BenchValueType.DCAnalysis,
             "TranAnalysis" => BenchValueType.TranAnalysis,
+            "PSSAnalysis" => BenchValueType.PSSAnalysis,
             "NoiseAnalysis" => BenchValueType.NoiseAnalysis,
             "STBAnalysis" => BenchValueType.STBAnalysis,
             "SPAnalysis" => BenchValueType.SPAnalysis,

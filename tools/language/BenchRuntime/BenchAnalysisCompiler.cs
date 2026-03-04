@@ -248,6 +248,84 @@ internal static class BenchAnalysisCompiler
                 );
             }
 
+            if (a.Type == BenchValueType.PSSAnalysis)
+            {
+                if (!a.Parameters.TryGetValue("fguess", out var fguessExpr))
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'fguess'."
+                    );
+                }
+                if (!a.Parameters.TryGetValue("tstab", out var tstabExpr))
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'tstab'."
+                    );
+                }
+                if (!a.Parameters.TryGetValue("harmonics", out var harmonicsExpr))
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'harmonics'."
+                    );
+                }
+
+                var fguessV =
+                    evalRunner.EvaluateExpressionForPlan(fguessExpr, benchParams) as BenchNumber;
+                var tstabV =
+                    evalRunner.EvaluateExpressionForPlan(tstabExpr, benchParams) as BenchNumber;
+                var harmonicsV =
+                    evalRunner.EvaluateExpressionForPlan(harmonicsExpr, benchParams) as BenchNumber;
+
+                if (fguessV is null || fguessV.Kind != BenchNumericKind.FrequencyHz)
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}.fguess' expects 'Frequency'."
+                    );
+                }
+
+                if (tstabV is null || tstabV.Kind != BenchNumericKind.TimeS)
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}.tstab' expects 'Time'."
+                    );
+                }
+
+                if (
+                    harmonicsV is null
+                    || harmonicsV.Kind != BenchNumericKind.Scalar
+                    || harmonicsV.Value < 1
+                    || harmonicsV.Value != Math.Round(harmonicsV.Value)
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}.harmonics' expects a positive integer."
+                    );
+                }
+
+                var outputTerminal = ResolvePssOutputTerminal(bench, evalRunner, benchParams);
+                if (outputTerminal.LeafNodes.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        "PSSAnalysis requires at least one resp terminal."
+                    );
+                }
+
+                analyses.Add(
+                    new BenchPlanAnalysis(
+                        a.Type,
+                        a.Name,
+                        "",
+                        0,
+                        0,
+                        0,
+                        FguessHz: fguessV.Value,
+                        TstabS: tstabV.Value,
+                        Harmonics: (int)harmonicsV.Value,
+                        OscNode: outputTerminal.LeafNodes[0]
+                    )
+                );
+            }
+
             if (a.Type == BenchValueType.DCAnalysis)
             {
                 // For now, we treat DCAnalysis as a DC operating point (op). Sweeps are modeled
@@ -264,6 +342,25 @@ internal static class BenchAnalysisCompiler
         }
 
         return analyses;
+    }
+
+    private static BenchTerminalRef ResolvePssOutputTerminal(
+        BenchDefinition bench,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        var output = bench.Terminals.FirstOrDefault(t => t.Role == BenchTerminalRole.Resp);
+        if (output is null)
+        {
+            throw new InvalidOperationException("PSSAnalysis requires at least one resp terminal.");
+        }
+
+        return evalRunner.EvaluateExpressionForPlan(new MeasurementPath(output.Name), benchParams)
+                as BenchTerminalRef
+            ?? throw new InvalidOperationException(
+                $"PSSAnalysis terminal '{output.Name}' did not resolve to a terminal."
+            );
     }
 
     private static string? FindNoiseInputSource(BenchNetlist netlist)

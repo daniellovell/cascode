@@ -881,6 +881,7 @@ public static partial class CascodeWriter
             BenchValueType.ACAnalysis => "ACAnalysis",
             BenchValueType.DCAnalysis => "DCAnalysis",
             BenchValueType.TranAnalysis => "TranAnalysis",
+            BenchValueType.PSSAnalysis => "PSSAnalysis",
             BenchValueType.NoiseAnalysis => "NoiseAnalysis",
             BenchValueType.STBAnalysis => "STBAnalysis",
             _ => type.ToString(),

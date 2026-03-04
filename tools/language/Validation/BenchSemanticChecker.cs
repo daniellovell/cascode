@@ -1330,6 +1330,7 @@ public static class BenchSemanticChecker
                         MeasurementTypeKind.ACAnalysis => MeasurementType.ComplexVoltageSpectrum(),
                         MeasurementTypeKind.DCAnalysis => MeasurementType.Voltage(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.VoltageWaveform(),
+                        MeasurementTypeKind.PSSAnalysis => MeasurementType.VoltageWaveform(),
                         _ => MeasurementType.Scalar(),
                     };
                 }
@@ -1349,6 +1350,7 @@ public static class BenchSemanticChecker
                     {
                         MeasurementTypeKind.ACAnalysis => MeasurementType.ComplexCurrentSpectrum(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.CurrentWaveform(),
+                        MeasurementTypeKind.PSSAnalysis => MeasurementType.CurrentWaveform(),
                         _ => MeasurementType.Scalar(),
                     };
                 }
@@ -1392,6 +1394,29 @@ public static class BenchSemanticChecker
                 // period(Frequency) returns Time
                 return MeasurementType.Time();
             case "op_param":
+                return MeasurementType.Scalar();
+            case "duration":
+                return MeasurementType.Time();
+            case "mean":
+                if (call.Args.Count >= 1)
+                {
+                    var waveformType = InferExprType(
+                        call.Args[0].Value,
+                        scope,
+                        measurementTypes,
+                        benchesByName
+                    );
+                    return waveformType.Kind switch
+                    {
+                        MeasurementTypeKind.VoltageWaveform => MeasurementType.Voltage(),
+                        MeasurementTypeKind.CurrentWaveform => MeasurementType.Current(),
+                        _ => MeasurementType.Scalar(),
+                    };
+                }
+                return MeasurementType.Scalar();
+            case "harmonic_power":
+                return MeasurementType.Scalar();
+            case "thd":
                 return MeasurementType.Scalar();
         }
 
@@ -1637,6 +1662,222 @@ public static class BenchSemanticChecker
                 diagnostics.Add(
                     new Diagnostic(
                         $"CAS2011: sparam first argument must be an SPAnalysis, got '{analysisType}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+
+        if (call.Name.Equals("duration", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"duration requires exactly 1 argument, got {call.Args.Count}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            var waveformType = InferExprType(
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (
+                waveformType.Kind != MeasurementTypeKind.VoltageWaveform
+                && waveformType.Kind != MeasurementTypeKind.CurrentWaveform
+            )
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "duration first argument must be a VoltageWaveform or CurrentWaveform.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            return;
+        }
+
+        if (call.Name.Equals("mean", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"mean requires exactly 1 argument, got {call.Args.Count}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            var waveformType = InferExprType(
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (
+                waveformType.Kind != MeasurementTypeKind.VoltageWaveform
+                && waveformType.Kind != MeasurementTypeKind.CurrentWaveform
+            )
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "mean argument must be a VoltageWaveform or CurrentWaveform.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            return;
+        }
+
+        if (call.Name.Equals("harmonic_power", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 2 && call.Args.Count != 3)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"harmonic_power requires 2 or 3 arguments, got {call.Args.Count}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            var waveformType = InferExprType(
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (waveformType.Kind != MeasurementTypeKind.VoltageWaveform)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "harmonic_power first argument must be a VoltageWaveform.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            var impedanceType = InferExprType(
+                call.Args[1].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (impedanceType.Kind != MeasurementTypeKind.Impedance)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "harmonic_power second argument must be an Impedance.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            if (call.Args.Count == 3)
+            {
+                var harmonicType = InferExprType(
+                    call.Args[2].Value,
+                    scope,
+                    measurementTypes,
+                    benchesByName
+                );
+                if (harmonicType.Kind != MeasurementTypeKind.Scalar)
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            "harmonic_power third argument must be an Int.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+
+            return;
+        }
+
+        if (call.Name.Equals("thd", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 2)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"thd requires exactly 2 arguments, got {call.Args.Count}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            var waveformType = InferExprType(
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (waveformType.Kind != MeasurementTypeKind.VoltageWaveform)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "thd first argument must be a VoltageWaveform.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            var harmonicsType = InferExprType(
+                call.Args[1].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (harmonicsType.Kind != MeasurementTypeKind.Scalar)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "thd second argument must be an Int.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -1907,6 +2148,12 @@ public static class BenchSemanticChecker
                 ["stop"] = MeasurementTypeKind.Time,
                 ["step"] = MeasurementTypeKind.Time,
             },
+            BenchValueType.PSSAnalysis => new Dictionary<string, MeasurementTypeKind>
+            {
+                ["fguess"] = MeasurementTypeKind.Frequency,
+                ["tstab"] = MeasurementTypeKind.Time,
+                ["harmonics"] = MeasurementTypeKind.Scalar,
+            },
             BenchValueType.NoiseAnalysis => new Dictionary<string, MeasurementTypeKind>
             {
                 ["start"] = MeasurementTypeKind.Frequency,
@@ -1921,6 +2168,26 @@ public static class BenchSemanticChecker
             },
             _ => new Dictionary<string, MeasurementTypeKind>(),
         };
+
+        var required =
+            analysis.Type == BenchValueType.PSSAnalysis
+                ? new[] { "fguess", "tstab", "harmonics" }
+                : Array.Empty<string>();
+        foreach (var name in required)
+        {
+            if (!analysis.Parameters.ContainsKey(name))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: {analysis.Type} '{analysis.Name}' missing required parameter '{name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
 
         foreach (var (name, expr) in analysis.Parameters)
         {
@@ -2032,6 +2299,7 @@ public static class BenchSemanticChecker
                     || baseType.Kind == MeasurementTypeKind.NoiseAnalysis
                     || baseType.Kind == MeasurementTypeKind.DCAnalysis
                     || baseType.Kind == MeasurementTypeKind.TranAnalysis
+                    || baseType.Kind == MeasurementTypeKind.PSSAnalysis
                     || baseType.Kind == MeasurementTypeKind.STBAnalysis
                     || baseType.Kind == MeasurementTypeKind.SPAnalysis
                 )
@@ -2112,6 +2380,7 @@ public static class BenchSemanticChecker
         ACAnalysis,
         DCAnalysis,
         TranAnalysis,
+        PSSAnalysis,
         NoiseAnalysis,
         STBAnalysis,
         SPAnalysis,
@@ -2224,6 +2493,7 @@ public static class BenchSemanticChecker
                 BenchValueType.TranAnalysis => new MeasurementType(
                     MeasurementTypeKind.TranAnalysis
                 ),
+                BenchValueType.PSSAnalysis => new MeasurementType(MeasurementTypeKind.PSSAnalysis),
                 BenchValueType.NoiseAnalysis => new MeasurementType(
                     MeasurementTypeKind.NoiseAnalysis
                 ),

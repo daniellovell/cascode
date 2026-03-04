@@ -16,6 +16,10 @@ public sealed record BenchPlanAnalysis(
     double? StartS = null,
     double? StopS = null,
     BenchTerminalRef? OutputTerminal = null,
+    double? FguessHz = null,
+    double? TstabS = null,
+    int? Harmonics = null,
+    string? OscNode = null,
     string? NoiseInputSource = null,
     double? StepS = null,
     bool EnableNoise = false

@@ -539,7 +539,7 @@ Four built-in functions are added to the function registry:
 | `fguess` is not a `Frequency` | `PSSAnalysis '{name}.fguess' expects 'Frequency' but got '{type}'` |
 | `tstab` is not a `Time` | `PSSAnalysis '{name}.tstab' expects 'Time' but got '{type}'` |
 | `voltage(pss, ...)` first argument is not a `PSSAnalysis` | Same error as for other analysis types |
-| No `resp` terminal for oscillating node resolution | `PSSAnalysis requires at least one resp terminal for oscillating node` |
+| No `resp` terminal for oscillating node resolution | `PSSAnalysis requires at least one resp terminal` |
 | `harmonic_power` first argument is not a `VoltageWaveform` | `harmonic_power first argument must be a VoltageWaveform` |
 | `harmonic_power` second argument is not an `Impedance` | `harmonic_power second argument must be an Impedance` |
 | `mean` argument is not a `VoltageWaveform` or `CurrentWaveform` | `mean argument must be a VoltageWaveform or CurrentWaveform` |
