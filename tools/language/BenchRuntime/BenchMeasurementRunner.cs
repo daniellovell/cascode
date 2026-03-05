@@ -42,7 +42,9 @@ public sealed class BenchMeasurementRunner
     /// <param name="Ac">AC analysis dataset when available.</param>
     /// <param name="Noise">Noise analysis dataset when available.</param>
     /// <param name="Tran">Transient analysis dataset when available.</param>
+    /// <param name="Pss">Periodic steady-state analysis dataset when available.</param>
     /// <param name="TranCurrents">Transient current dataset when available.</param>
+    /// <param name="PssCurrents">Periodic steady-state current dataset when available.</param>
     /// <param name="AcCurrents">AC current dataset when available.</param>
     /// <param name="SParameters">S-parameter dataset when available.</param>
     /// <param name="SpNoise">S-parameter noise data when available.</param>
@@ -56,7 +58,9 @@ public sealed class BenchMeasurementRunner
         AcDataset? Ac = null,
         NoiseDataset? Noise = null,
         TranDataset? Tran = null,
+        PssDataset? Pss = null,
         TranDataset? TranCurrents = null,
+        PssDataset? PssCurrents = null,
         AcDataset? AcCurrents = null,
         BenchSParameterMatrix? SParameters = null,
         SpNoiseDataset? SpNoise = null,
@@ -545,7 +549,7 @@ public sealed class BenchMeasurementRunner
             {
                 if (member.Equals("start", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (analysis.Tran is not null)
+                    if (analysis.Tran is not null || analysis.Pss is not null)
                     {
                         return new BenchNumber(BenchNumericKind.TimeS, analysis.StartS);
                     }
@@ -553,7 +557,7 @@ public sealed class BenchMeasurementRunner
                 }
                 if (member.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (analysis.Tran is not null)
+                    if (analysis.Tran is not null || analysis.Pss is not null)
                     {
                         return new BenchNumber(BenchNumericKind.TimeS, analysis.StopS);
                     }
@@ -1883,6 +1887,17 @@ public sealed class BenchMeasurementRunner
             return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
         }
 
+        if (analysis.Pss is not null)
+        {
+            var t = analysis.Pss.TimePoints;
+            var values = new double[t.Length];
+            for (var i = 0; i < t.Length; i++)
+            {
+                values[i] = TerminalVoltage(analysis.Pss, terminal, i);
+            }
+            return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
+        }
+
         if (analysis.Ac is not null)
         {
             var f = analysis.Ac.FrequenciesHz;
@@ -1929,6 +1944,23 @@ public sealed class BenchMeasurementRunner
             var signed = values.Select(v => sign * v).ToArray();
             return new BenchWaveform(
                 analysis.TranCurrents.TimePoints,
+                signed,
+                BenchNumericKind.CurrentA
+            );
+        }
+
+        if (analysis.PssCurrents is not null)
+        {
+            if (!analysis.PssCurrents.NodeVoltages.TryGetValue(sourceName, out var values))
+            {
+                throw new InvalidOperationException(
+                    $"current(pss, ...): missing current vector for '{sourceName}'."
+                );
+            }
+
+            var signed = values.Select(v => sign * v).ToArray();
+            return new BenchWaveform(
+                analysis.PssCurrents.TimePoints,
                 signed,
                 BenchNumericKind.CurrentA
             );
@@ -2371,6 +2403,21 @@ public sealed class BenchMeasurementRunner
         }
 
         return tran.NodeVoltages[t.LeafNodes[0]][index] - tran.NodeVoltages[t.LeafNodes[1]][index];
+    }
+
+    private static double TerminalVoltage(PssDataset pss, BenchTerminalRef t, int index)
+    {
+        if (t.LeafNodes.Count == 0)
+        {
+            return 0;
+        }
+
+        if (t.LeafNodes.Count == 1)
+        {
+            return pss.NodeVoltages[t.LeafNodes[0]][index];
+        }
+
+        return pss.NodeVoltages[t.LeafNodes[0]][index] - pss.NodeVoltages[t.LeafNodes[1]][index];
     }
 
     /// <summary>

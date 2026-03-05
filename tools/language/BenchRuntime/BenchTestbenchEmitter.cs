@@ -470,6 +470,68 @@ public static class BenchTestbenchEmitter
             }
         }
 
+        var pssIndex = 0;
+        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.PSSAnalysis))
+        {
+            pssIndex++;
+            var fguessHz =
+                a.FguessHz
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing FguessHz in plan."
+                );
+            var tstabS =
+                a.TstabS
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing TstabS in plan."
+                );
+            var harmonics =
+                a.Harmonics
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing Harmonics in plan."
+                );
+            var oscNode =
+                a.OscNode
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing OscNode in plan."
+                );
+
+            var fguess = SiValue.FormatForBackend(fguessHz, backend);
+            var tstab = SiValue.FormatForBackend(tstabS, backend);
+            sb.AppendLine($"pss {fguess} {tstab} {oscNode} 1000 {harmonics}");
+            sb.AppendLine($"setplot pss{pssIndex}");
+
+            var wrdata = BenchRuntimePaths.GetPssWrdataPath(
+                outputDir,
+                plan.CircuitName,
+                plan.InstanceName,
+                a.Name
+            );
+            sb.Append($"wrdata {Path.GetFileName(wrdata)}");
+            foreach (var node in plan.AcNodeKeys)
+            {
+                sb.Append(' ');
+                sb.Append($"v({node})");
+            }
+            sb.AppendLine();
+
+            if (plan.RequiresCurrents && currentSources.Count > 0)
+            {
+                var iWrdata = BenchRuntimePaths.GetPssCurrentsWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.InstanceName,
+                    a.Name
+                );
+                sb.Append($"wrdata {Path.GetFileName(iWrdata)}");
+                foreach (var s in currentSources)
+                {
+                    sb.Append(' ');
+                    sb.Append($"i(V{s.Id})");
+                }
+                sb.AppendLine();
+            }
+        }
+
         sb.AppendLine("quit");
         sb.AppendLine(".endc");
         sb.AppendLine(".end");

@@ -96,7 +96,7 @@ bench PssBuiltinsBench {{
                     StopHz: 0,
                     StartS: 0,
                     StopS: periodS,
-                    Tran: new TranDataset(
+                    Pss: new PssDataset(
                         TimePoints: t,
                         NodeVoltages: new Dictionary<string, double[]>(
                             StringComparer.OrdinalIgnoreCase
@@ -106,7 +106,7 @@ bench PssBuiltinsBench {{
                             ["IN"] = new double[samples],
                         }
                     ),
-                    TranCurrents: new TranDataset(
+                    PssCurrents: new PssDataset(
                         TimePoints: t,
                         NodeVoltages: new Dictionary<string, double[]>(
                             StringComparer.OrdinalIgnoreCase
@@ -221,5 +221,96 @@ bench PssBuiltinTypeErrors {{
             result.Diagnostics,
             d => d.Message.Contains("thd second argument must be an Int", StringComparison.Ordinal)
         );
+    }
+
+    [Fact]
+    public void Pss_CurrentReportsPssSpecificMissingVectorError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssCurrentMissing {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1MHz, tstab=10us, harmonics=3)
+  }}
+
+  measurements {{
+    measurement InputCurrentMax : A {{
+      CurrentWaveform iin = current(pss, harness.src.P)
+      return iin.Max()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "PssCurrentMissing");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 1e-6,
+                    Pss: new PssDataset(
+                        TimePoints: new[] { 0.0, 1e-6 },
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUT"] = new[] { 0.0, 0.0 },
+                            ["IN"] = new[] { 0.0, 0.0 },
+                        }
+                    ),
+                    PssCurrents: new PssDataset(
+                        TimePoints: new[] { 0.0, 1e-6 },
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                    )
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements:
+            [
+                new BenchHarnessElement(
+                    Type: "VSIN",
+                    Id: "src",
+                    Pins: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["P"] = "IN",
+                        ["N"] = "0",
+                    },
+                    Parameters: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                ),
+            ]
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetrics(new[] { "InputCurrentMax" })
+        );
+        Assert.Contains("current(pss, ...): missing current vector for 'Vsrc'", ex.Message);
     }
 }
