@@ -178,11 +178,11 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
   }
 
   measurements {
-    measurement HarmonicFrequency : Hz {
+    measurement FundamentalFrequency : Hz {
       VoltageWaveform vout = voltage(pss, OUT)
       return 1 / duration(vout)
     }
-    measurement HarmonicPeriod : s {
+    measurement FundamentalPeriod : s {
       VoltageWaveform vout = voltage(pss, OUT)
       return duration(vout)
     }
@@ -441,7 +441,7 @@ Constraints reference measurements through the bind name:
 ```cascode
 constraints {
   numeric {
-    c_osc_freq = pss_bench(guess_freq=2.4GHz)::HarmonicFrequency >= 2.3GHz
+    c_osc_freq = pss_bench(guess_freq=2.4GHz)::FundamentalFrequency >= 2.3GHz
     c_output_pwr = pss_bench(guess_freq=2.4GHz)::OutputPower >= 10mW
     c_pae = pss_bench(guess_freq=2.4GHz)::PAE >= 0.3
   }

@@ -7,6 +7,12 @@ library lib.std.bench
 // Benches are parameterized by stimulus frequency. Different invocations with different
 // frequencies produce separate testbench instances (e.g., tran_bench(stim_freq=1kHz)::...).
 
+function get_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower { return sqrt(8 * env.SourceImpedance * env.InputPower) }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}
+
 abstract bench AbstractTran(Frequency stim_freq = 1kHz) {
   abstract stim IN
   abstract resp OUT
@@ -50,10 +56,10 @@ bench DiffToSETran extends AbstractTran {
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
     // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=25mV, freq=stim_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -96,10 +102,10 @@ bench DiffToDiffTran extends AbstractTran {
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
     // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=25mV, freq=stim_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -146,7 +152,7 @@ bench SEToSETran extends AbstractTran {
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
     // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN vin = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+    VSIN vin = new VSIN(A=get_input_amplitude(get_input_amplitude(25mV)), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
 

@@ -1,0 +1,191 @@
+VERSION 4.0
+
+library lib.std.bench
+
+function get_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower { return sqrt(8 * env.SourceImpedance * env.InputPower) }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}
+
+abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
+  abstract resp OUT
+
+  analysis {
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=guess_freq,
+      tstab=10ns,
+      harmonics=10)
+  }
+
+  measurements {
+    measurement FundamentalFrequency : Hz {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }
+    measurement FundamentalPeriod : s {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return duration(vout)
+    }
+    measurement OutputPower : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return harmonic_power(vout, env.LoadImpedance)
+    }
+    measurement OutputPowerHarmonic(Int k) : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return harmonic_power(vout, env.LoadImpedance, k)
+    }
+    measurement SupplyPower(Current dcCurrent) : W {
+      return harness.VDD * abs(dcCurrent)
+    }
+    measurement DrainEfficiency(Power dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Power pout = harmonic_power(vout, env.LoadImpedance)
+      return pout / dcPower
+    }
+  }
+}
+
+abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
+  abstract stim IN
+  abstract resp OUT
+
+  measurements {
+    measurement InputPower : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      return harmonic_power(vin, env.SourceImpedance)
+    }
+    measurement InputPowerHarmonic(Int k) : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      return harmonic_power(vin, env.SourceImpedance, k)
+    }
+    measurement Gain : dB {
+      VoltageWaveform vout = voltage(pss, OUT)
+      VoltageWaveform vin = voltage(pss, IN)
+      Power pout = harmonic_power(vout, env.LoadImpedance)
+      Power pin = harmonic_power(vin, env.SourceImpedance)
+      return 10 * log10(pout / pin)
+    }
+    measurement THD(Int harmonics) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return thd(vout, harmonics)
+    }
+    measurement PAE(Power dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      VoltageWaveform vin = voltage(pss, IN)
+      Power pout = harmonic_power(vout, env.LoadImpedance)
+      Power pin = harmonic_power(vin, env.SourceImpedance)
+      return (pout - pin) / dcPower
+    }
+  }
+}
+
+bench SEOscPSS extends AbstractOutputPSS {
+  resp OUT : analog
+
+  fill {
+    net gnd : ground
+    GND _ = new GND() { .GND--gnd }
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+}
+
+bench DiffOscPSS extends AbstractOutputPSS {
+  resp OUT : Diff
+
+  fill {
+    net gnd : ground
+    GND _ = new GND() { .GND--gnd }
+
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+}
+
+bench SEToSEPSS extends AbstractInputOutputPSS {
+  stim IN : analog
+  resp OUT : analog
+
+  fill {
+    net vcm_in : analog
+    net gnd : ground
+
+    GND _ = new GND() { .GND--gnd }
+
+    VDC inputCommonModeDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm_in
+      .N--gnd
+    }
+
+    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+      .N--vcm_in
+    }
+
+    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
+    vin.P--sourceZ.P
+    sourceZ.N--IN
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+}
+
+bench DiffToDiffPSS extends AbstractInputOutputPSS {
+  stim IN : Diff
+  resp OUT : Diff
+
+  fill {
+    net vcm_in : analog
+    net vcm_out : analog
+    net gnd : ground
+
+    GND _ = new GND() { .GND--gnd }
+
+    VDC inputCommonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm_in
+      .N--gnd
+    }
+
+    VDC outputCommonModeVDC = new VDC(V=env.OutputCommonModeRange) {
+      .P--vcm_out
+      .N--gnd
+    }
+
+    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+      .N--vcm_in
+    }
+    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
+      .N--vcm_in
+    }
+
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    inP.P--sourceP.P
+    sourceP.N--IN.P
+
+    inN.P--sourceN.P
+    sourceN.N--IN.N
+
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--vcm_out
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--vcm_out
+    }
+  }
+}

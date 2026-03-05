@@ -11,6 +11,62 @@ namespace Cascode.Language.Tests;
 public sealed class BenchTestbenchEmitterPssTests
 {
     [Fact]
+    public void EmitAll_PssBench_MatchesGoldenTestbench()
+    {
+        var cascode = """
+VERSION 4.0
+
+bench PssBench {
+  resp OUT : analog
+
+  fill {
+    net gnd : ground
+    GND g = new GND() { .GND--gnd }
+    Impedor loadZ = new Impedor(Z=50Ohm) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7)
+  }
+
+  measurements {
+    measurement Freq : Hz {
+      return 1Hz
+    }
+  }
+}
+
+circuit Top {
+  level EL
+  output OUT : analog
+
+  constraints {
+    numeric {
+      c_freq = pss::Freq >= 0Hz
+    }
+  }
+
+  benches {
+    bind PssBench as pss {
+      bench.OUT--dut.OUT
+    }
+  }
+
+  fill { }
+}
+""";
+
+        var tb = EmitTestbench(cascode, instanceName: "pss");
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var goldenPath = Path.Combine(repoRoot, "tests/golden/bench/Top_pss.sp");
+        var expected = File.ReadAllText(goldenPath);
+        Assert.Equal(expected, tb);
+    }
+
+    [Fact]
     public void EmitAll_EmitsPssCommandAndVoltageWrdata()
     {
         var cascode = """

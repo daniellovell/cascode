@@ -10,7 +10,7 @@ emitted testbench.
 
 ## Quick references
 
-- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
+- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PSSBenches.cas`](../../lib/std/bench/PSSBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
 - Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
@@ -33,7 +33,7 @@ passband gain, \(-3\) dB bandwidth, gain-bandwidth, or phase margin.
 
 ### Minimal pattern
 
-Transfer benches typically include an explicit input bias (common-mode) so the DUT is not floating,
+Transfer benches typically include an explicit input bias (common-mode), so the DUT is not floating,
 a stimulus source plus source impedance, and a load impedance. Measurements are built from a
 transfer function and spectrum post-processing:
 
@@ -65,7 +65,7 @@ noise.
 
 ### Minimal pattern
 
-Noise benches typically pair a `NoiseAnalysis` with an `ACAnalysis` so they can compute input-referred
+Noise benches typically pair a `NoiseAnalysis` with an `ACAnalysis`, so they can compute input-referred
 noise by dividing output noise density by the transfer magnitude:
 
 ```cascode
@@ -127,6 +127,40 @@ the supply-to-output transfer. The standard library provides:
 - `SupplyToSERejectionSEInput` (analog input, analog output)
 
 All three are defined in [`lib/std/bench/PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas).
+
+## Recipe: PSS benches (periodic steady-state metrics)
+
+### When to use
+
+Use a PSS bench when you need large-signal periodic metrics such as harmonic output power, THD, and
+efficiency under driven or autonomous oscillation.
+
+### Minimal pattern
+
+PSS benches run a `PSSAnalysis`, read one solved period as a waveform, and derive metrics from
+`duration`, `mean`, `harmonic_power`, and `thd`:
+
+```cascode
+analysis {
+  PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=10ns, harmonics=10)
+}
+
+measurement OutputPower : W {
+  VoltageWaveform vout = voltage(pss, OUT)
+  return harmonic_power(vout, env.LoadImpedance)
+}
+```
+
+Reference implementations are in [`lib/std/bench/PSSBenches.cas`](../../lib/std/bench/PSSBenches.cas):
+`SEOscPSS`, `DiffOscPSS`, `SEToSEPSS`, and `DiffToDiffPSS`.
+
+### Common pitfalls
+
+- For input/output benches, drive amplitude is resolved by `get_input_amplitude(25mV)`: first
+  `env.InputPower`, then `env.InputAmplitude`, then the fallback.
+- Supply power under drive should be computed from a supply branch current waveform in the binding,
+  for example `mean(current(pss, supplyDC.P))`, then forwarded to `SupplyPower`.
+- PSS requires at least one `resp` terminal, so the runtime can resolve the oscillating node.
 
 ### Output-referred vs input-referred PSRR
 
