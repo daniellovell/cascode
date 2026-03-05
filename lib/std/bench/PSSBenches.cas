@@ -126,18 +126,12 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
   resp OUT : analog
 
   fill {
-    net vcm_in : analog
     net gnd : ground
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputBiasDC = new VDC(V=env.InputCommonModeRange) {
-      .P--vcm_in
-      .N--gnd
-    }
-
     VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
-      .N--vcm_in
+      .N--gnd
     }
 
     Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
@@ -156,27 +150,15 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
   resp OUT : Diff
 
   fill {
-    net vcm_in : analog
-    net vcm_out : analog
     net gnd : ground
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputCommonModeVDC = new VDC(V=env.InputCommonModeRange) {
-      .P--vcm_in
-      .N--gnd
-    }
-
-    VDC outputCommonModeVDC = new VDC(V=env.OutputCommonModeRange) {
-      .P--vcm_out
-      .N--gnd
-    }
-
     VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
-      .N--vcm_in
+      .N--gnd
     }
     VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
-      .N--vcm_in
+      .N--gnd
     }
 
     Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
@@ -190,11 +172,11 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
       .P--OUT.P
-      .N--vcm_out
+      .N--gnd
     }
     Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
       .P--OUT.N
-      .N--vcm_out
+      .N--gnd
     }
   }
 }

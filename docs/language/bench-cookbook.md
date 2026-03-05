@@ -157,6 +157,11 @@ Reference implementations are in [`lib/std/bench/PSSBenches.cas`](../../lib/std/
 
 ### Common pitfalls
 
+- PSS bench fill blocks do not provide input or output common-mode biasing — `VSIN` sources are
+  referenced to ground. The interface binding is responsible for establishing the DUT's DC operating
+  point, following the same pattern as `QuiescentPower` and `DCBias` bindings (see
+  [bench/binding design contract](../../AGENTS.md)). Without binding-side bias, amplifier inputs
+  may float and the PSS solver will see incorrect or degenerate operating points.
 - For input/output benches, drive amplitude is resolved by `get_input_amplitude(25mV)`: first
   `env.InputPower`, then `env.InputAmplitude`, then the fallback.
 - `harmonic_power` expects an `Impedance`-typed argument; assign `env.LoadImpedance` /

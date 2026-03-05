@@ -5,6 +5,8 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Language;
+using Cascode.Language.BenchRuntime;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -305,6 +307,61 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
 
         var combinedResultsPath = Path.Combine(_outputDir, "RSeries_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "verify",
+            cascodePath,
+            combinedResultsPath
+        );
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_LCSeries_PSSConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/LCSeries.cas");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var instanceName = BenchInvocationName.Compute(
+            "pss_bench",
+            new[] { new MetricCallArg("guess_freq", "100MHz") }
+        );
+        var resultsPath = Path.Combine(_outputDir, $"LCSeries_{instanceName}_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        Assert.Equal("LCSeries", results!.Circuit);
+        Assert.Equal(instanceName, results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("FundamentalFrequency"),
+            "FundamentalFrequency measurement missing"
+        );
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["FundamentalFrequency"].Error),
+            "FundamentalFrequency had error: " + results.Measurements["FundamentalFrequency"].Error
+        );
+        Assert.True(results.Measurements["FundamentalFrequency"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["FundamentalFrequency"].Value!.Value));
+
+        var combinedResultsPath = Path.Combine(_outputDir, "LCSeries_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(

@@ -497,7 +497,7 @@ public static class BenchTestbenchEmitter
 
             var fguess = SiValue.FormatForBackend(fguessHz, backend);
             var tstab = SiValue.FormatForBackend(tstabS, backend);
-            sb.AppendLine($"pss {fguess} {tstab} {oscNode} 1000 {harmonics}");
+            sb.AppendLine($"pss {fguess} {tstab} {oscNode} 1000 {harmonics} 50 1e-3");
             sb.AppendLine($"setplot pss{pssIndex}");
 
             var wrdata = BenchRuntimePaths.GetPssWrdataPath(
