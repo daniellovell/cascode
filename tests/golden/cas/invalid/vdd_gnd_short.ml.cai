@@ -1,7 +1,7 @@
-VERSION 4.0
+VERSION 4.1
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -22,7 +22,7 @@ circuit VddGndShortExample {
   input IN : analog
 
   fill {
-    NMOS M_short = new Level1_NMOS(size(W=??, L=??, M=??)) {
+    NMOS M_short = new NMOS_Level1(size(W=??, L=??, M=??)) {
       .G--IN
       .D--VDD
       .S--GND

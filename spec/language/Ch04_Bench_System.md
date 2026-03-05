@@ -203,7 +203,7 @@ This differential interpretation applies consistently to:
 
 - `transfer(ac, stim, resp)` (both the stimulus and response terminals)
 - `voltage(analysis, terminal)` for AC spectra and transient waveforms
-- `NoiseAnalysis(..., output=terminal)` and `noise(noise_analysis, terminal)`
+- `NoiseAnalysis(..., output=terminal)` and `noise(noise, terminal)`
 
 Example (differential response):
 
@@ -405,14 +405,16 @@ NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 ### 4.4.4 S-parameter analysis contract
 
 `SPAnalysis` requests a multiport S-parameter sweep over frequency. It accepts the same
-frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) and operates on
-all `Port` instances declared in the bench. There is no explicit parameter linking the analysis to
-specific ports; the runtime discovers all port instances and configures the simulation
-accordingly.
+frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) plus an optional
+`noise` flag (`0` or `1`) and operates on all `Port` instances declared in the bench. There is no
+explicit parameter linking the analysis to specific ports; the runtime discovers all port instances
+and configures the simulation accordingly. When `noise=1`, the simulator computes correlated noise
+parameters together with the S-parameter sweep, and `S.NF()` becomes available to read noise
+figure in dB.
 
 ```cascode
 analysis {
-  SPAnalysis sp = new SPAnalysis(space=Log, samples=200, start=100MHz, stop=10GHz)
+  SPAnalysis sp = new SPAnalysis(space=Log, samples=200, start=100MHz, stop=10GHz, noise=0)
 }
 ```
 
@@ -422,6 +424,7 @@ analysis {
 | `stop` | `Frequency` | yes | — | Stop frequency of the sweep |
 | `space` | `Log` or `Lin` | no | `Log` | Frequency spacing |
 | `samples` | integer | no | 100 | Number of frequency points |
+| `noise` | `0` or `1` | no | `0` | Enable noise computation during S-parameter analysis |
 
 The bench fill block provides DC bias, coupling networks, and any other circuit elements required
 for the operating point. The fill block does not need to provide port excitation sources or
@@ -517,12 +520,12 @@ Common structured result types produced by measurement primitives:
 | `TransferFunction` | `transfer(ac, stim, resp)` | Complex frequency response |
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
-| `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
+| `NoiseSpectrum` | `noise(noise, terminal)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
 | `ComplexVoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
-| `SParameterMatrix` | `sparam(sp_analysis)` | Frequency-indexed matrix of complex S-parameters |
+| `SParameterMatrix` | `sparam(analysis)` | Frequency-indexed matrix of complex S-parameters |
 
 ---
 
@@ -538,18 +541,21 @@ commonly used primitives in the standard library.
 | `transfer(ac, stim, resp)` | `TransferFunction` | Computes the complex transfer `V(resp)/V(stim)` over an AC sweep |
 | `voltage(analysis, terminal)` | `ComplexVoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
-| `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
-| `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
-| `sparam(sp_analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
+| `noise(noise, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
+| `input_referred_noise(noise, ac, stim, resp)` | `NoiseSpectrum` | Divides output noise density by the gain |
+| `sparam(analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
-| `quiescent_power(PWR, RET)` | `W` | Computes DC rail power from the applied supply source |
+| `quiescent_power(pwr, ret)` | `W` | Computes DC rail power from the applied supply source |
 | `period(f)` | `Time` | Returns `1/f` |
 | `abs(x)` | scalar type | Absolute value (numeric) |
 | `sqrt(x)` | scalar type | Square root (numeric) |
 
 `current(...)` requires a harness element pin reference such as `harness.VDD.P`. The bench runtime
 maps `harness.<SupplyName>.P` / `.N` to the injected supply source that applies the rail.
+
+Built-in function arguments support positional and named forms. Runtime validation rejects missing
+required arguments, excess positional arguments, and unexpected named arguments.
 
 ### 4.7.2 Methods on Structured Values
 
@@ -564,7 +570,7 @@ Spectrum methods:
 
 - `S.ValueAt(f)` → interpolated real-valued or complex-valued scalar at frequency `f`
 - `S.From(f)` / `S.To(f)` → truncated spectrum with frequency range `>= f` or `<= f` (same spectrum type)
-- `S.Range(f1, f2)` → equivalent to `S.From(f1).To(f2)` (same spectrum type)
+- `S.Range(from, to)` → equivalent to `S.From(from).To(to)` (same spectrum type)
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
@@ -572,7 +578,7 @@ Waveform methods:
 
 - `W.ValueAt(t)` → interpolated scalar at time `t`
 - `W.From(t)` / `W.To(t)` → truncated waveform with time range `>= t` or `<= t` (same waveform type)
-- `W.Range(t1, t2)` → equivalent to `W.From(t1).To(t2)` (same waveform type)
+- `W.Range(from, to)` → equivalent to `W.From(from).To(to)` (same waveform type)
 
 For complex AC spectra (`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`), `ValueAt(f)` returns a complex point
 interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
@@ -582,6 +588,8 @@ spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sample
 (`voltage(ac, OUT).ValueAt(f).Mag()`). These two forms are equivalent for magnitude interpolation.
 `From`, `To`, and `Range` are chainable with each other and with `ValueAt`, for example
 `voltage(ac, OUT).Range(100Hz, 1MHz).ValueAt(500kHz)`.
+Method arguments can be passed positionally or by name (including mixed usage), and named
+arguments are validated against each method's declared parameter names.
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).
@@ -612,6 +620,7 @@ Derived metric methods:
 | `S.MSG()` | `GainSpectrum` | Maximum stable gain in linear units (2-port only) |
 | `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
 | `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
+| `S.NF()` | `GainSpectrum` | Noise figure in dB; requires `SPAnalysis(noise=1)` |
 
 The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
 called on an `SParameterMatrix` from a bench with more than two ports.
@@ -753,6 +762,17 @@ The general form is:
 
 Bench arguments specialize a parameterized bench binding (see [Section 4.1.2](#412-bench-parameters)). Measurement arguments invoke a parameterized
 measurement within the selected bench (see [Section 4.5.3](#453-calling-other-measurements)).
+
+When a constrained measurement returns a scalar value, the operator applies to that scalar directly.
+When a constrained measurement returns a spectrum or waveform, the operator applies element-wise to
+all returned samples. The constraint passes only if every sample satisfies the comparison. Compliance
+reports expose a single `Actual` value for these constraints as a worst-case sample:
+
+- `>=` / `>` reports the minimum sample.
+- `<=` / `<` reports the maximum sample.
+- `==` reports the sample with the largest absolute error from the expected value.
+
+An empty spectrum or waveform result fails unconditionally because there are no samples to validate.
 
 ### 4.8.4 Emission and Execution Model
 

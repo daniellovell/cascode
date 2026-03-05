@@ -1,14 +1,14 @@
-VERSION 4.0
+VERSION 4.1
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -24,13 +24,13 @@ circuit CSAmpResistive implements SingleEndedAmp {
   input IN : analog
   output OUT : analog
   fill {
-    NMOS M_in = new Level1_NMOS(size(W=10u, L=180n, M=1)) {
+    NMOS M_in = new NMOS_Level1(size(W=10u, L=180n, M=1)) {
       .D--OUT
       .G--IN
       .S--GND
       .B--GND
     }
-    Resistor R_load = new Ideal_Resistor(size(R=10k)) {
+    Resistor R_load = new ResistorIdeal(size(R=10k)) {
       .P--VDD
       .N--OUT
     }

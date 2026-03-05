@@ -76,7 +76,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.Equal("RcLowpass", results!.Circuit);
         Assert.Equal("lp", results.Bench);
         Assert.True(results.Measurements.ContainsKey("LowpassBandwidth"));
-        Assert.False(double.IsNaN(results.Measurements["LowpassBandwidth"].Value));
+        Assert.True(results.Measurements["LowpassBandwidth"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["LowpassBandwidth"].Value!.Value));
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -176,8 +177,10 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(results.Measurements.ContainsKey("SupplyCurrentPeak"));
         Assert.True(string.IsNullOrEmpty(results.Measurements["InternalNodePeak"].Error));
         Assert.True(string.IsNullOrEmpty(results.Measurements["SupplyCurrentPeak"].Error));
-        Assert.False(double.IsNaN(results.Measurements["InternalNodePeak"].Value));
-        Assert.False(double.IsNaN(results.Measurements["SupplyCurrentPeak"].Value));
+        Assert.True(results.Measurements["InternalNodePeak"].Value.HasValue);
+        Assert.True(results.Measurements["SupplyCurrentPeak"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["InternalNodePeak"].Value!.Value));
+        Assert.False(double.IsNaN(results.Measurements["SupplyCurrentPeak"].Value!.Value));
     }
 
     [Fact]
@@ -217,7 +220,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.Equal("dc", results.Bench);
         Assert.True(results.Measurements.ContainsKey("MidVoltage"));
         Assert.True(string.IsNullOrEmpty(results.Measurements["MidVoltage"].Error));
-        Assert.False(double.IsNaN(results.Measurements["MidVoltage"].Value));
+        Assert.True(results.Measurements["MidVoltage"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["MidVoltage"].Value!.Value));
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -225,6 +229,90 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "verify",
             cascodePath,
             resultsPath
+        );
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_CSeries_SParamConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/CSeries.cas");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var resultsPath = Path.Combine(_outputDir, "CSeries_Sky130_sparam_bench_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        Assert.Equal("CSeries_Sky130", results!.Circuit);
+        Assert.Equal("sparam_bench", results.Bench);
+        Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
+
+        var combinedResultsPath = Path.Combine(_outputDir, "CSeries_Sky130_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "verify",
+            cascodePath,
+            combinedResultsPath
+        );
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_RSeries_SParamConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RSeries.cas");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var resultsPath = Path.Combine(_outputDir, "RSeries_Sky130_sparam_bench_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        Assert.Equal("RSeries_Sky130", results!.Circuit);
+        Assert.Equal("sparam_bench", results.Bench);
+        Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
+
+        var combinedResultsPath = Path.Combine(_outputDir, "RSeries_Sky130_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "verify",
+            cascodePath,
+            combinedResultsPath
         );
         CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
     }

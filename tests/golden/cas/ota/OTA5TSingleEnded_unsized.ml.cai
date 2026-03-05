@@ -1,7 +1,7 @@
-VERSION 4.0
+VERSION 4.1
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -9,8 +9,8 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -37,31 +37,31 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   fill {
     net mirror_gate : analog
     net tnode : analog
-    NMOS dp.M_N = new Level1_NMOS(size(W=??, L=??, M=??)) {
+    NMOS dp.M_N = new NMOS_Level1(size(W=??, L=??, M=??)) {
       .B--GND
       .D--mirror_gate
       .G--IN.P
       .S--tnode
     }
-    NMOS dp.M_P = new Level1_NMOS(size(W=??, L=??, M=??)) {
+    NMOS dp.M_P = new NMOS_Level1(size(W=??, L=??, M=??)) {
       .B--GND
       .D--OUT
       .G--IN.N
       .S--tnode
     }
-    NMOS dp.M_TAIL = new Level1_NMOS(size(W=??, L=??, M=??)) {
+    NMOS dp.M_TAIL = new NMOS_Level1(size(W=??, L=??, M=??)) {
       .B--GND
       .D--tnode
       .G--VTAIL
       .S--GND
     }
-    PMOS cm.M_SENSE = new Level1_PMOS(size(W=??, L=??, M=??)) {
+    PMOS cm.M_SENSE = new PMOS_Level1(size(W=??, L=??, M=??)) {
       .B--VDD
       .D--mirror_gate
       .G--mirror_gate
       .S--VDD
     }
-    PMOS cm.M_TAP0 = new Level1_PMOS(size(W=??, L=??, M=??)) {
+    PMOS cm.M_TAP0 = new PMOS_Level1(size(W=??, L=??, M=??)) {
       .B--VDD
       .D--OUT
       .G--mirror_gate

@@ -1,13 +1,13 @@
-VERSION 4.0
+VERSION 4.1
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"
   params {
     C = primSize.C
   }
 }
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params {
     R = primSize.R
@@ -24,15 +24,15 @@ circuit DiffRCFilter implements DifferentialFilter {
   output OUT.P : analog
   output OUT.N : analog
   fill {
-    Resistor R_P = new Ideal_Resistor(size(R=10k)) {
+    Resistor R_P = new ResistorIdeal(size(R=10k)) {
       .P--IN_P
       .N--OUT.P
     }
-    Resistor R_N = new Ideal_Resistor(size(R=10k)) {
+    Resistor R_N = new ResistorIdeal(size(R=10k)) {
       .P--IN_N
       .N--OUT.N
     }
-    Capacitor C_DIFF = new Ideal_Capacitor(size(C=1p)) {
+    Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
       .P--OUT.P
       .N--OUT.N
     }

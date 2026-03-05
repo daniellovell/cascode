@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 4.1
 
 library lib.std.bench
 
@@ -12,7 +12,87 @@ function get_load_impedance(Impedance fallback) : Impedance {
   return fallback
 }
 
-bench TwoPortSParam {
+abstract bench AbstractTwoPortSParam {
+  resp P1 : analog
+  resp P2 : analog
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement ForwardGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(f)
+    }
+
+    measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }
+
+    measurement InputReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).ValueAt(f)
+    }
+
+    measurement InputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).From(from).To(to)
+    }
+
+    measurement OutputReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).ValueAt(f)
+    }
+
+    measurement OutputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).From(from).To(to)
+    }
+
+    measurement ReverseIsolation(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.Isolation(1, 2).ValueAt(f)
+    }
+
+    measurement ReverseIsolationSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.Isolation(1, 2).From(from).To(to)
+    }
+
+    measurement InputVSWR(Frequency f) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.VSWR(1).ValueAt(f)
+    }
+
+    measurement InputVSWRSpectrum(Frequency from, Frequency to) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.VSWR(1).From(from).To(to)
+    }
+
+    measurement StabilityK(Frequency f) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.StabilityK().ValueAt(f)
+    }
+
+    measurement MaxAvailableGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.MAG()).ValueAt(f)
+    }
+
+    measurement ForwardGroupDelay(Frequency f) : s {
+      SParameterMatrix S = sparam(sp)
+      return S.GroupDelay(2, 1).ValueAt(f)
+    }
+  }
+}
+
+bench TwoPortSParam extends AbstractTwoPortSParam {
   resp P1 : analog
   resp P2 : analog
 
@@ -33,61 +113,20 @@ bench TwoPortSParam {
       .N--gnd
     }
   }
+}
 
-  analysis {
+bench TwoPortSParamNoise extends AbstractTwoPortSParam {
+  resp P1 : analog
+  resp P2 : analog
+
+  override analysis {
     SPAnalysis sp = new SPAnalysis(
       space=Log,
       samples=100,
       start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      noise=1)
   }
-
-  measurements {
-    measurement ForwardGain(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return db20(S.S(2, 1).Mag()).ValueAt(f)
-    }
-
-    measurement InputReturnLoss(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(1).ValueAt(f)
-    }
-
-    measurement OutputReturnLoss(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(2).ValueAt(f)
-    }
-
-    measurement ReverseIsolation(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.Isolation(1, 2).ValueAt(f)
-    }
-
-    measurement InputVSWR(Frequency f) : Scalar {
-      SParameterMatrix S = sparam(sp)
-      return S.VSWR(1).ValueAt(f)
-    }
-
-    measurement StabilityK(Frequency f) : Scalar {
-      SParameterMatrix S = sparam(sp)
-      return S.StabilityK().ValueAt(f)
-    }
-
-    measurement MaxAvailableGain(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return db20(S.MAG()).ValueAt(f)
-    }
-
-    measurement ForwardGroupDelay(Frequency f) : s {
-      SParameterMatrix S = sparam(sp)
-      return S.GroupDelay(2, 1).ValueAt(f)
-    }
-  }
-}
-
-bench TwoPortMixedModeSParam {
-  resp P1 : Diff
-  resp P2 : Diff
 
   fill {
     net gnd : ground
@@ -96,26 +135,38 @@ bench TwoPortMixedModeSParam {
       .GND--gnd
     }
 
-    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
-      .P--P1.P
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
-      .P--P2.P
-      .N--gnd
-    }
-
-    Port port3 = new Port(N=3, Z=50Ohm, V=env.InputCommonModeRange) {
-      .P--P1.N
-      .N--gnd
-    }
-
-    Port port4 = new Port(N=4, Z=50Ohm, V=env.OutputCommonModeRange) {
-      .P--P2.N
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2
       .N--gnd
     }
   }
+
+  measurements {
+    measurement NoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().ValueAt(f)
+    }
+
+    measurement MinNoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NFmin().ValueAt(f)
+    }
+
+    measurement NoiseResistance(Frequency f) : Ohm {
+      SParameterMatrix S = sparam(sp)
+      return S.Rn().ValueAt(f)
+    }
+  }
+}
+
+bench TwoPortMixedModeSParam {
+  resp P1 : Diff
+  resp P2 : Diff
 
   analysis {
     SPAnalysis sp = new SPAnalysis(
@@ -123,6 +174,34 @@ bench TwoPortMixedModeSParam {
       samples=100,
       start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
       stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1.P
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2.P
+      .N--gnd
+    }
+
+    Port port3 = new Port(N=3, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1.N
+      .N--gnd
+    }
+
+    Port port4 = new Port(N=4, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2.N
+      .N--gnd
+    }
   }
 
   measurements {

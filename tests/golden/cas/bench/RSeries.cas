@@ -1,0 +1,42 @@
+VERSION 4.1
+
+include lib.std
+
+
+circuit RSeries_Sky130 {
+  level EL
+
+  input IN : analog
+  output OUT : analog
+  ground GND
+
+  env {
+    InputCommonModeRange = 0V
+    OutputCommonModeRange = 0V
+  }
+
+  fill {
+    Resistor R1 = new ResistorIdeal(size(R=100)) {
+      .P--IN
+      .N--OUT
+    }
+  }
+
+  benches {
+    bind TwoPortSParamNoise as sparam_bench {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      c_input_return_loss = sparam_bench::InputReturnLoss(f=1MHz) == 6.02059991328dB
+      c_forward_gain = sparam_bench::ForwardGain(f=1MHz) == -6.02059991328dB
+      // The network is reciprocal.
+      c_output_return_loss = sparam_bench::OutputReturnLoss(f=1MHz) == 6.02059991328dB
+      c_reverse_isolation = sparam_bench::ReverseIsolation(f=1MHz) == 6.02059991328dB
+      c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) == 100Ohm
+    }
+  }
+}

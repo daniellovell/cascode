@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 4.1
 
 bundle Diff {
   P : analog
@@ -22,8 +22,8 @@ interface DiffPairLike {
 
 
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -31,8 +31,8 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -87,9 +87,9 @@ circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   input TAIL : bias
   fill {
     net tnode : analog
-    NMOS M_N = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
-    NMOS M_P = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
-    NMOS M_TAIL = new Level1_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+    NMOS M_N = new NMOS_Level1(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    NMOS M_P = new NMOS_Level1(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    NMOS M_TAIL = new NMOS_Level1(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
   }
 }
 
@@ -100,8 +100,8 @@ circuit CurrentMirror(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implement
   input SENSE : analog
   output TAP[0] : analog
   fill {
-    PMOS M_SENSE = new Level1_PMOS(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    PMOS M_SENSE = new PMOS_Level1(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
     size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
-    PMOS M_TAP0 = new Level1_PMOS(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+    PMOS M_TAP0 = new PMOS_Level1(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
   }
 }

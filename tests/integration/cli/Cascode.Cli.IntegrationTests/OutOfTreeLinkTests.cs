@@ -39,7 +39,7 @@ public sealed class OutOfTreeLinkTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 4.0
+            VERSION 4.1
 
             include lib.std
 
@@ -105,7 +105,7 @@ public sealed class OutOfTreeLinkTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 4.0
+            VERSION 4.1
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -176,7 +176,7 @@ public sealed class OutOfTreeLinkTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 4.0
+            VERSION 4.1
 
             include lib.pdk.sky130.devices.nfet_01v8
 

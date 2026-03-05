@@ -8,6 +8,7 @@ namespace Cascode.Cli.IntegrationTests;
 public sealed class PdkCharRunWithoutSpectreTests
 {
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task PdkCharRun_SpectreRequested_FallsBackToNgspiceWithWarning()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();

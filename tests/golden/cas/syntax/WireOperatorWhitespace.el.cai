@@ -1,7 +1,7 @@
-VERSION 4.0
+VERSION 4.1
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -49,7 +49,7 @@ circuit WireOperatorWhitespace implements SingleEndedOpAmp {
     // D--mid: no whitespace
     // G -- IN.P: spaces around operator
     // S  --GND: leading space only
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {
       .B--GND
       .D--mid
       .G--IN.P
@@ -57,7 +57,7 @@ circuit WireOperatorWhitespace implements SingleEndedOpAmp {
     }
     // B--  GND: trailing space only
     // remaining: no whitespace
-    NMOS M2 = new Level1_NMOS(size(W=1u, L=180n)) {
+    NMOS M2 = new NMOS_Level1(size(W=1u, L=180n)) {
       .B--GND
       .D--OUT
       .G--IN.N
@@ -93,7 +93,7 @@ circuit DiffPairSub implements LoadLike {
   output OUT : Diff
   fill {
     net tnode : analog
-    NMOS M_N = new Level1_NMOS(size(W=2u, L=180n)) {
+    NMOS M_N = new NMOS_Level1(size(W=2u, L=180n)) {
       .B--GND
       .D--OUT.N
       .G--IN.P
@@ -101,14 +101,14 @@ circuit DiffPairSub implements LoadLike {
     }
     // D  --OUT.P: leading space only
     // S--  tnode: trailing space only
-    NMOS M_P = new Level1_NMOS(size(W=2u, L=180n)) {
+    NMOS M_P = new NMOS_Level1(size(W=2u, L=180n)) {
       .B--GND
       .D--OUT.P
       .G--IN.N
       .S--tnode
     }
     // all bindings with spaces around operator
-    NMOS M_TAIL = new Level1_NMOS(size(W=4u, L=180n)) {
+    NMOS M_TAIL = new NMOS_Level1(size(W=4u, L=180n)) {
       .B--GND
       .D--tnode
       .G--VDD

@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 4.1
 
 // Stress test: fully-differential 5T OTA using generic Level-1 devices (no PDK needed).
 //
@@ -26,47 +26,47 @@ circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
     net tnode : analog
     net vcm_node : analog
 
-    NMOS M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS M_N = new NMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.P
       .G--IN.P
       .S--tnode
     }
 
-    NMOS M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS M_P = new NMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.N
       .G--IN.N
       .S--tnode
     }
 
-    NMOS M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+    NMOS M_TAIL = new NMOSLevel1(size(W=4u, L=180n, M=1)) {
       .B--GND
       .D--tnode
       .G--VTAIL
       .S--GND
     }
 
-    PMOS M_LOAD_P = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS M_LOAD_P = new PMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--VDD
       .D--OUT.P
       .G--vcm_node
       .S--VDD
     }
 
-    PMOS M_LOAD_N = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS M_LOAD_N = new PMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--VDD
       .D--OUT.N
       .G--vcm_node
       .S--VDD
     }
 
-    Resistor R_CMFB_P = new Ideal_Resistor(size(R=500k)) {
+    Resistor R_CMFB_P = new ResistorIdeal(size(R=500k)) {
       .P--OUT.P
       .N--vcm_node
     }
 
-    Resistor R_CMFB_N = new Ideal_Resistor(size(R=500k)) {
+    Resistor R_CMFB_N = new ResistorIdeal(size(R=500k)) {
       .P--OUT.N
       .N--vcm_node
     }

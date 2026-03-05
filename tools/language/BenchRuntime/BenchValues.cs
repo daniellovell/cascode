@@ -58,6 +58,13 @@ public sealed record BenchSParameterMatrix(
     IReadOnlyDictionary<BenchPortPair, Complex[]> Elements
 ) : BenchValue;
 
+public sealed record SpNoiseDataset(
+    double[] FrequenciesHz,
+    double[] NoiseFigure,
+    double[] MinNoiseFigure,
+    double[] NoiseResistance
+);
+
 public sealed record BenchGainSpectrum(
     double[] FrequenciesHz,
     double[] Values,
@@ -71,6 +78,9 @@ public sealed record BenchTimeSpectrum(double[] FrequenciesHz, double[] ValuesS)
 public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees) : BenchValue;
 
 public sealed record BenchNoiseSpectrum(double[] FrequenciesHz, double[] ValuesVPerRtHz)
+    : BenchValue;
+
+public sealed record BenchImpedanceSpectrum(double[] FrequenciesHz, double[] ValuesOhm)
     : BenchValue;
 
 public sealed record BenchComplexVoltageSpectrum(double[] FrequenciesHz, Complex[] Values)
@@ -93,7 +103,8 @@ public sealed record BenchSymbol(string Name) : BenchValue;
 
 /// <summary>
 /// A parallel impedance network represented as a set of primitive components (R/C/L) in parallel.
-/// This stays intentionally constrained: the RFC only requires the parallel-combination operator (||).
+/// This stays intentionally constrained: the RFC only requires the parallel-combination operator
+/// (||).
 /// </summary>
 public sealed record BenchImpedanceParallel(IReadOnlyList<BenchNumber> Elements) : BenchValue;
 
