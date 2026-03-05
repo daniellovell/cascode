@@ -9,7 +9,7 @@ Target Version: Cascode 4.x
 
 ## Abstract
 
-This RFC proposes periodic steady-state (PSS) analysis within Cascode's bench system. The design introduces `PSSAnalysis` as a new analysis type that integrates with the existing `voltage()`, `current()`, and waveform infrastructure — the same accessors used for `TranAnalysis`. New built-ins `duration`, `harmonic_power`, and `thd` support waveform time-span extraction, per-harmonic power computation, and distortion analysis from periodic waveforms.
+This RFC proposes periodic steady-state (PSS) analysis within Cascode's bench system. The design introduces `PSSAnalysis` as a new analysis type that integrates with the existing `voltage()`, `current()`, and waveform infrastructure — the same accessors used for `TranAnalysis`. New built-ins `duration`, `mean`, `harmonic_power`, and `thd` support waveform time-span extraction, DC-component averaging, per-harmonic power computation, and distortion analysis from periodic waveforms.
 
 PSS analysis finds the periodic steady-state response of a nonlinear circuit driven at (or near) a specified frequency. The solver produces one period of the steady-state waveform, from which bench measurements can extract the solved oscillation frequency, harmonic voltages/currents, and harmonic power. This enables characterization of power amplifiers, oscillators, mixers, and other large-signal periodic circuits.
 
@@ -110,7 +110,20 @@ duration(CurrentWaveform) → Time
 
 This computes $t_{end} - t_{start}$ from the waveform's time vector. For PSS waveforms, the duration is exactly one solved period. The solved frequency is its reciprocal: $f = 1 / \text{duration}(w)$. This built-in is general-purpose and applies to any waveform, not just PSS.
 
-### 2.3 Harmonic Power
+### 2.3 Mean
+
+A `mean` built-in returns the time-averaged (DC component) value of a waveform:
+
+```
+mean(VoltageWaveform) → Voltage
+mean(CurrentWaveform) → Current
+```
+
+For a discrete time-domain waveform with $N$ samples, the result is the arithmetic mean of the sample values. For a PSS current waveform through a supply source, `mean(current(pss, supplyDC.P))` gives the average supply current over one period — the quantity needed for supply power computation under large-signal drive.
+
+Like `duration`, this built-in is general-purpose and applies to any waveform, not just PSS.
+
+### 2.4 Harmonic Power
 
 A new `harmonic_power` built-in computes real power at a specific harmonic from a periodic voltage waveform and a known impedance:
 
@@ -125,7 +138,7 @@ $$P_k = \frac{|V_k|^2}{2\,R}$$
 
 where $R$ is the resistive component of the impedance. This built-in is not PSS-specific — it operates on any `VoltageWaveform`, including those from `TranAnalysis`, though its primary use case is periodic waveforms where the DFT is well-defined.
 
-### 2.4 THD
+### 2.5 THD
 
 A `thd` built-in computes total harmonic distortion from a periodic voltage waveform:
 
@@ -139,7 +152,7 @@ $$\text{THD} = \frac{\sqrt{\sum_{k=2}^{N} |V_k|^2}}{|V_1|}$$
 
 where $V_k$ is the $k$-th harmonic phasor and $N$ is `harmonics`. The impedance cancels from the ratio, so no impedance argument is needed. Like `harmonic_power`, this built-in works on any `VoltageWaveform` but is primarily intended for periodic waveforms.
 
-### 2.5 Input Power via Voltage and Current
+### 2.6 Input Power via Voltage and Current
 
 For input power, the measurement can use `voltage(pss, IN)` for the terminal voltage and `current(pss, sourceZ.P)` for the branch current through the source impedance element, computing $P_{in,k} = \tfrac{1}{2}\,\text{Re}\{V_k\,I_k^*\}$ at each harmonic. Alternatively, when the source impedance and drive amplitude are known, input power can be derived from the terminal voltage waveform and impedance alone via `harmonic_power` (see Section 5.3).
 
@@ -181,9 +194,19 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
       VoltageWaveform vout = voltage(pss, OUT)
       return harmonic_power(vout, env.LoadImpedance, k)
     }
+    measurement SupplyPower(Current dcCurrent) : W {
+      return harness.VDD * abs(dcCurrent)
+    }
+    measurement DrainEfficiency(Power dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Power pout = harmonic_power(vout, env.LoadImpedance)
+      return pout / dcPower
+    }
   }
 }
 ```
+
+`SupplyPower` receives the mean supply current from the caller (typically a binding that extracts it from the PSS waveform via `mean(current(pss, supplyDC.P))`). The supply voltage `harness.VDD` resolves to the declared VDC supply voltage in the harness context. `DrainEfficiency` takes a precomputed `Power dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits.
 
 ### 3.2 AbstractInputOutputPSS
 
@@ -214,11 +237,6 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
       VoltageWaveform vout = voltage(pss, OUT)
       return thd(vout, harmonics)
     }
-    measurement DrainEfficiency(Power dcPower) : Scalar {
-      VoltageWaveform vout = voltage(pss, OUT)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      return pout / dcPower
-    }
     measurement PAE(Power dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
@@ -229,6 +247,8 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
   }
 }
 ```
+
+`DrainEfficiency` is inherited from `AbstractOutputPSS`. `PAE` takes `Power dcPower`; the binding passes the result of `SupplyPower`.
 
 ### 3.3 Concrete Benches
 
@@ -389,28 +409,32 @@ interface SingleEndedPA {
   }
 
   benches {
-    bind QuiescentPower as vdd_pwr {
-      bench.PWR--dut.VDD
-      bench.RET--dut.GND
-
-      GND g = new GND() { .GND--gnd }
-      Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { .P--gnd, .N--dut.IN }
-    }
-
     bind SEToSEPSS as pss_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT
 
+      fill {
+        net gnd : ground
+        GND g = new GND() { .GND--gnd }
+
+        VDC supplyDC = new VDC(V=harness.VDD) {
+          .P--dut.VDD
+          .N--gnd
+        }
+      }
+
       measurements {
-        measurement DrainEfficiency : Scalar = base::DrainEfficiency(dcPower=vdd_pwr::QuiescentPower)
-        measurement PAE : Scalar = base::PAE(dcPower=vdd_pwr::QuiescentPower)
+        Current idc = mean(current(pss, supplyDC.P))
+        measurement SupplyPower : W = base::SupplyPower(dcCurrent=idc)
+        measurement DrainEfficiency : Scalar = base::DrainEfficiency(dcPower=SupplyPower())
+        measurement PAE : Scalar = base::PAE(dcPower=SupplyPower())
       }
     }
   }
 }
 ```
 
-The `DrainEfficiency` and `PAE` measurements on `AbstractInputOutputPSS` take a `dcPower` parameter. The binding exports no-arg versions that wire in the DC supply power from the `QuiescentPower` bench, following the same cross-bench forwarding pattern used for CMRR and PSRR (see `FullyDifferentialOpAmp`).
+The binding declares a `VDC` supply source explicitly so that `current(pss, supplyDC.P)` can extract the branch current through it during PSS. The `mean` built-in averages the one-period current waveform to obtain the DC supply current, which is then forwarded to the inherited `SupplyPower`, `DrainEfficiency`, and `PAE` measurements. No separate `QuiescentPower` bench is needed — the supply current is measured directly under large-signal periodic drive, which captures class-dependent current draw that a DC operating-point measurement would miss.
 
 Constraints reference measurements through the bind name:
 
@@ -452,25 +476,27 @@ $$P_{in,k} = \tfrac{1}{2}\,\text{Re}\{V_{IN,k}\,I_{in,k}^*\}$$
 
 This requires only `v(in_node)` from the PSS waveform combined with the source parameters already present in the bench plan.
 
-### 5.4 Differential Power
+### 5.4 Supply Power
+
+Supply power under periodic drive is computed from the mean (DC component) of the supply branch current over one PSS period:
+
+$$P_{supply} = V_{DD} \cdot |\bar{I}_{DD}|$$
+
+where $\bar{I}_{DD} = \text{mean}(i_{DD}(t))$ is the arithmetic mean of the extracted `i(V...)` current waveform through the binding's VDC supply source. This captures the actual average current draw under large-signal conditions, which differs from the quiescent operating-point current for class-AB, class-B, and class-C amplifiers where conduction angle varies with signal amplitude.
+
+### 5.5 Differential Power
 
 For differential terminals, the voltage used in power calculations is the differential quantity `V(P) - V(N)`. The impedance used is the full differential impedance (not the per-leg shunt value). Concretely, if the fill block uses `DiffToShunt()` to split the load, the power calculation reassembles the differential impedance from the declared `env.LoadImpedance`.
 
-### 5.5 Limitations
+### 5.6 Limitations
 
 The initial implementation assumes purely resistive source and load impedances. Complex impedances (for example `1GOhm || 15pF`) will use only the resistive component for power calculation, consistent with how `Port` reference impedances are handled in S-parameter analysis. Support for reactive impedance power calculation may be added in a future revision.
 
 ---
 
-## 6. Future Work
+## 6. Grammar and Recognition Changes
 
-Under-signal average supply power measurement (as opposed to quiescent DC power) requires a robust mapping from supply intent to the extracted PSS `i(V...)` source-current vectors across bench/interface bindings. That measurement remains deferred. The current approach uses the quiescent DC power from a separate `QuiescentPower` bench, which is exact for class-A and a reasonable approximation for moderate compression.
-
----
-
-## 7. Grammar and Recognition Changes
-
-### 7.1 PSSAnalysis Type
+### 6.1 PSSAnalysis Type
 
 `PSSAnalysis` is added to the analysis type alternatives:
 
@@ -488,23 +514,24 @@ analysisType
 PSS_ANALYSIS_TYPE : 'PSSAnalysis' ;
 ```
 
-### 7.2 Accessor Integration
+### 6.2 Accessor Integration
 
 No new result type is needed. `voltage()` and `current()` gain a `PSSAnalysis` branch in their analysis-type dispatch, returning `VoltageWaveform` and `CurrentWaveform` respectively (same as `TranAnalysis`).
 
-### 7.3 New Built-ins
+### 6.3 New Built-ins
 
-Three built-in functions are added to the function registry:
+Four built-in functions are added to the function registry:
 
 - `duration(VoltageWaveform | CurrentWaveform) → Time` — time span of a waveform. For PSS, this is the solved period.
+- `mean(VoltageWaveform | CurrentWaveform) → Voltage | Current` — arithmetic mean of a waveform's sample values (the DC component). Returns a scalar in the waveform's native unit.
 - `harmonic_power(VoltageWaveform, Impedance [, Int]) → Power (W)` — real power at a specific harmonic from a periodic voltage waveform across a known impedance. Fundamental frequency inferred from waveform time span.
 - `thd(VoltageWaveform, Int) → Scalar` — total harmonic distortion (voltage-domain) of a periodic waveform. Fundamental frequency inferred from waveform time span.
 
 ---
 
-## 8. Error Conditions
+## 7. Error Conditions
 
-### 8.1 Semantic Errors
+### 7.1 Semantic Errors
 
 | Condition | Error |
 | --- | --- |
@@ -515,10 +542,11 @@ Three built-in functions are added to the function registry:
 | No `resp` terminal for oscillating node resolution | `PSSAnalysis requires at least one resp terminal for oscillating node` |
 | `harmonic_power` first argument is not a `VoltageWaveform` | `harmonic_power first argument must be a VoltageWaveform` |
 | `harmonic_power` second argument is not an `Impedance` | `harmonic_power second argument must be an Impedance` |
+| `mean` argument is not a `VoltageWaveform` or `CurrentWaveform` | `mean argument must be a VoltageWaveform or CurrentWaveform` |
 | `thd` first argument is not a `VoltageWaveform` | `thd first argument must be a VoltageWaveform` |
 | `thd` second argument is not an `Int` | `thd second argument must be an Int` |
 
-### 8.2 Runtime Errors
+### 7.2 Runtime Errors
 
 | Condition | Behavior |
 | --- | --- |
@@ -528,12 +556,12 @@ Three built-in functions are added to the function registry:
 
 ---
 
-## 9. Implementation Plan
+## 8. Implementation Plan
 
 1. Add `PSSAnalysis` to the grammar, AST, and semantic validation. Extend `voltage()` and `current()` type dispatch to handle `PSSAnalysis` (returning `VoltageWaveform` / `CurrentWaveform`).
-2. Add the `duration`, `harmonic_power`, and `thd` built-ins to the semantic checker and measurement runner (waveform time span, DFT, power/distortion computation).
+2. Add the `duration`, `mean`, `harmonic_power`, and `thd` built-ins to the semantic checker and measurement runner (waveform time span, DC-component averaging, DFT, power/distortion computation).
 3. Extend `BenchPlanAnalysis` with PSS-specific fields (`FguessHz`, `TstabS`, `Harmonics`, `OscNode`) and add compilation in `BenchAnalysisCompiler`.
-4. Extend `BenchTestbenchEmitter` to emit the ngspice `pss` command and `wrdata` extraction for terminal node voltages.
+4. Extend `BenchTestbenchEmitter` to emit the ngspice `pss` command and `wrdata` extraction for terminal node voltages and source branch currents.
 5. Extend `BenchMeasurementRunner` to evaluate `voltage` / `current` for PSS analysis contexts (parse PSS wrdata, return waveform values).
 6. Add `PSSBenches.cas` to the standard library with the bench hierarchy described in Section 3.
-7. Add unit tests for validation, plan compilation, DFT correctness, and power calculation, plus golden tests for emitted PSS testbenches.
+7. Add unit tests for validation, plan compilation, DFT correctness, mean computation, and power calculation, plus golden tests for emitted PSS testbenches.
