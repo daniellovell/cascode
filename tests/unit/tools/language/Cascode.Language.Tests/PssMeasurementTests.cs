@@ -219,7 +219,11 @@ bench PssBuiltinTypeErrors {{
         );
         Assert.Contains(
             result.Diagnostics,
-            d => d.Message.Contains("thd second argument must be an Int", StringComparison.Ordinal)
+            d =>
+                d.Message.Contains(
+                    "thd second argument must be an integer scalar",
+                    StringComparison.Ordinal
+                )
         );
     }
 

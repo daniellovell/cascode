@@ -3,7 +3,7 @@ VERSION 4.0
 include lib.std
 
 
-circuit CSeries_Sky130 {
+circuit CSeries {
   level EL
 
   input IN : analog

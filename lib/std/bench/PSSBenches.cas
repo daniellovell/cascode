@@ -29,18 +29,21 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
     }
     measurement OutputPower : W {
       VoltageWaveform vout = voltage(pss, OUT)
-      return harmonic_power(vout, env.LoadImpedance)
+      Impedance loadImp = env.LoadImpedance
+      return harmonic_power(vout, loadImp)
     }
-    measurement OutputPowerHarmonic(Int k) : W {
+    measurement OutputPowerHarmonic(Scalar k) : W {
       VoltageWaveform vout = voltage(pss, OUT)
-      return harmonic_power(vout, env.LoadImpedance, k)
+      Impedance loadImp = env.LoadImpedance
+      return harmonic_power(vout, loadImp, k)
     }
-    measurement SupplyPower(Current dcCurrent) : W {
+    measurement SupplyPower(Scalar dcCurrent) : W {
       return harness.VDD * abs(dcCurrent)
     }
-    measurement DrainEfficiency(Power dcPower) : Scalar {
+    measurement DrainEfficiency(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
       return pout / dcPower
     }
   }
@@ -53,28 +56,34 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
   measurements {
     measurement InputPower : W {
       VoltageWaveform vin = voltage(pss, IN)
-      return harmonic_power(vin, env.SourceImpedance)
+      Impedance sourceImp = env.SourceImpedance
+      return harmonic_power(vin, sourceImp)
     }
-    measurement InputPowerHarmonic(Int k) : W {
+    measurement InputPowerHarmonic(Scalar k) : W {
       VoltageWaveform vin = voltage(pss, IN)
-      return harmonic_power(vin, env.SourceImpedance, k)
+      Impedance sourceImp = env.SourceImpedance
+      return harmonic_power(vin, sourceImp, k)
     }
     measurement Gain : dB {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      Power pin = harmonic_power(vin, env.SourceImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Impedance sourceImp = env.SourceImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
       return 10 * log10(pout / pin)
     }
-    measurement THD(Int harmonics) : Scalar {
+    measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       return thd(vout, harmonics)
     }
-    measurement PAE(Power dcPower) : Scalar {
+    measurement PAE(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      Power pin = harmonic_power(vin, env.SourceImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Impedance sourceImp = env.SourceImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
       return (pout - pin) / dcPower
     }
   }
@@ -122,7 +131,7 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputCommonModeDC = new VDC(V=env.InputCommonModeRange) {
+    VDC inputBiasDC = new VDC(V=env.InputCommonModeRange) {
       .P--vcm_in
       .N--gnd
     }

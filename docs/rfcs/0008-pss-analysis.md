@@ -128,8 +128,8 @@ Like `duration`, this built-in is general-purpose and applies to any waveform, n
 A new `harmonic_power` built-in computes real power at a specific harmonic from a periodic voltage waveform and a known impedance:
 
 ```
-harmonic_power(VoltageWaveform, Impedance) → Power (W)
-harmonic_power(VoltageWaveform, Impedance, Int k) → Power (W)
+harmonic_power(VoltageWaveform, Impedance) → power-valued scalar (W)
+harmonic_power(VoltageWaveform, Impedance, Scalar k) → power-valued scalar (W)
 ```
 
 The two-argument form defaults to the fundamental ($k = 1$). The fundamental frequency is inferred from the waveform's time span ($f = 1 / (t_{end} - t_{start})$), which is exact for PSS waveforms since they cover precisely one solved period. The built-in extracts the $k$-th harmonic peak phasor $V_k$, then computes:
@@ -143,7 +143,7 @@ where $R$ is the resistive component of the impedance. This built-in is not PSS-
 A `thd` built-in computes total harmonic distortion from a periodic voltage waveform:
 
 ```
-thd(VoltageWaveform, Int harmonics) → Scalar
+thd(VoltageWaveform, Scalar harmonics) → Scalar
 ```
 
 The fundamental frequency is inferred from the waveform's time span, same as `harmonic_power`. The `harmonics` argument controls how many harmonics above the fundamental to include. The result is the voltage-domain THD:
@@ -188,25 +188,28 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
     }
     measurement OutputPower : W {
       VoltageWaveform vout = voltage(pss, OUT)
-      return harmonic_power(vout, env.LoadImpedance)
+      Impedance loadImp = env.LoadImpedance
+      return harmonic_power(vout, loadImp)
     }
-    measurement OutputPowerHarmonic(Int k) : W {
+    measurement OutputPowerHarmonic(Scalar k) : W {
       VoltageWaveform vout = voltage(pss, OUT)
-      return harmonic_power(vout, env.LoadImpedance, k)
+      Impedance loadImp = env.LoadImpedance
+      return harmonic_power(vout, loadImp, k)
     }
-    measurement SupplyPower(Current dcCurrent) : W {
+    measurement SupplyPower(Scalar dcCurrent) : W {
       return harness.VDD * abs(dcCurrent)
     }
-    measurement DrainEfficiency(Power dcPower) : Scalar {
+    measurement DrainEfficiency(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
       return pout / dcPower
     }
   }
 }
 ```
 
-`SupplyPower` receives the mean supply current from the caller (typically a binding that extracts it from the PSS waveform via `mean(current(pss, supplyDC.P))`). The supply voltage `harness.VDD` resolves to the declared VDC supply voltage in the harness context. `DrainEfficiency` takes a precomputed `Power dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits.
+`SupplyPower` receives the mean supply current from the caller (typically a binding that extracts it from the PSS waveform via `mean(current(pss, supplyDC.P))`). The supply voltage `harness.VDD` resolves to the declared VDC supply voltage in the harness context. `DrainEfficiency` takes a precomputed scalar `dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits.
 
 ### 3.2 AbstractInputOutputPSS
 
@@ -220,35 +223,41 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
   measurements {
     measurement InputPower : W {
       VoltageWaveform vin = voltage(pss, IN)
-      return harmonic_power(vin, env.SourceImpedance)
+      Impedance sourceImp = env.SourceImpedance
+      return harmonic_power(vin, sourceImp)
     }
-    measurement InputPowerHarmonic(Int k) : W {
+    measurement InputPowerHarmonic(Scalar k) : W {
       VoltageWaveform vin = voltage(pss, IN)
-      return harmonic_power(vin, env.SourceImpedance, k)
+      Impedance sourceImp = env.SourceImpedance
+      return harmonic_power(vin, sourceImp, k)
     }
     measurement Gain : dB {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      Power pin = harmonic_power(vin, env.SourceImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Impedance sourceImp = env.SourceImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
       return 10 * log10(pout / pin)
     }
-    measurement THD(Int harmonics) : Scalar {
+    measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       return thd(vout, harmonics)
     }
-    measurement PAE(Power dcPower) : Scalar {
+    measurement PAE(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      Power pin = harmonic_power(vin, env.SourceImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Impedance sourceImp = env.SourceImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
       return (pout - pin) / dcPower
     }
   }
 }
 ```
 
-`DrainEfficiency` is inherited from `AbstractOutputPSS`. `PAE` takes `Power dcPower`; the binding passes the result of `SupplyPower`.
+`DrainEfficiency` is inherited from `AbstractOutputPSS`. `PAE` takes scalar `dcPower`; the binding passes the result of `SupplyPower`.
 
 ### 3.3 Concrete Benches
 
@@ -313,7 +322,7 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputCommonModeDC = new VDC(V=env.InputCommonModeRange) {
+    VDC inputBiasDC = new VDC(V=env.InputCommonModeRange) {
       .P--vcm_in
       .N--gnd
     }
@@ -524,8 +533,8 @@ Four built-in functions are added to the function registry:
 
 - `duration(VoltageWaveform | CurrentWaveform) → Time` — time span of a waveform. For PSS, this is the solved period.
 - `mean(VoltageWaveform | CurrentWaveform) → Voltage | Current` — arithmetic mean of a waveform's sample values (the DC component). Returns a scalar in the waveform's native unit.
-- `harmonic_power(VoltageWaveform, Impedance [, Int]) → Power (W)` — real power at a specific harmonic from a periodic voltage waveform across a known impedance. Fundamental frequency inferred from waveform time span.
-- `thd(VoltageWaveform, Int) → Scalar` — total harmonic distortion (voltage-domain) of a periodic waveform. Fundamental frequency inferred from waveform time span.
+- `harmonic_power(VoltageWaveform, Impedance [, Scalar]) → power-valued scalar (W)` — real power at a specific harmonic from a periodic voltage waveform across a known impedance. Fundamental frequency inferred from waveform time span.
+- `thd(VoltageWaveform, Scalar) → Scalar` — total harmonic distortion (voltage-domain) of a periodic waveform. Fundamental frequency inferred from waveform time span.
 
 ---
 
@@ -544,7 +553,9 @@ Four built-in functions are added to the function registry:
 | `harmonic_power` second argument is not an `Impedance` | `harmonic_power second argument must be an Impedance` |
 | `mean` argument is not a `VoltageWaveform` or `CurrentWaveform` | `mean argument must be a VoltageWaveform or CurrentWaveform` |
 | `thd` first argument is not a `VoltageWaveform` | `thd first argument must be a VoltageWaveform` |
-| `thd` second argument is not an `Int` | `thd second argument must be an Int` |
+| `thd` second argument is not an integer-valued scalar | `thd second argument must be an integer scalar` |
+
+Declaration typing note: measurement signatures and local declarations currently accept scalar physical types such as `Voltage`, `Current`, and `Impedance`, plus `Scalar`; there is no `Power` declaration keyword, so power-carrying locals/parameters should use `Scalar` and keep `: W` on the measurement return type.
 
 ### 7.2 Runtime Errors
 

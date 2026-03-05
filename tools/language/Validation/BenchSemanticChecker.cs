@@ -1877,7 +1877,7 @@ public static class BenchSemanticChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        "thd second argument must be an Int.",
+                        "thd second argument must be an integer scalar.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
