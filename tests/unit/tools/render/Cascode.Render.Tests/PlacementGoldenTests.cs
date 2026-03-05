@@ -52,6 +52,49 @@ public class PlacementGoldenTests
         );
     }
 
+    [Fact]
+    public void Placement_LnaStress_CascodeIsVerticallyStacked()
+    {
+        var repoRoot = GetRepoRoot();
+        var fullCascodePath = Path.Combine(
+            repoRoot,
+            "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas"
+        );
+
+        using var reader = File.OpenText(fullCascodePath);
+        var readResult = CascodeReader.TryRead(reader, fullCascodePath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+        var graph = CircuitGraph.Build(elCircuit);
+        var detectMethod = typeof(CoarseGridPlacer).GetMethod(
+            "DetectCascodeVerticalPairs",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static
+        );
+        Assert.NotNull(detectMethod);
+        var pairs =
+            (IReadOnlyCollection<(string UpperDeviceId, string LowerDeviceId)>)
+                detectMethod!.Invoke(null, [graph])!;
+        Assert.Contains(
+            pairs,
+            p =>
+                (p.UpperDeviceId == "M2" && p.LowerDeviceId == "M1")
+                || (p.UpperDeviceId == "M1" && p.LowerDeviceId == "M2")
+        );
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M1", out var m1));
+        Assert.True(placement.DevicePlacements.TryGetValue("M2", out var m2));
+
+        Assert.Equal(m2.Column, m1.Column);
+        Assert.True(
+            m2.Row < m1.Row,
+            $"Expected M2 above M1 but got M2.Row={m2.Row}, M1.Row={m1.Row}"
+        );
+    }
+
     private static Dictionary<string, (int Row, int Column, bool MirrorX)> LoadGoldenPlacements(
         string path
     )

@@ -43,21 +43,8 @@ public static class CoarseGridPlacer
 {
     private const double MaxSolveTimeSeconds = 2.0;
     private const int StraightLaneWeight = 3;
-    private const int HorizontalRowAnchorWeight = 25;
-    private const int VerticalRowAnchorWeight = 2;
     private const int RailTerminalWeight = 2;
-
-    /// <summary>
-    /// Objective multiplier for <see cref="RenderConstraintStrength.Soft"/> placement penalties.
-    /// Keeps soft constraints strong relative to wire-length minimization.
-    /// </summary>
-    private const int SoftConstraintWeight = 40;
-
-    /// <summary>
-    /// Objective multiplier for <see cref="RenderConstraintStrength.Hint"/> placement penalties.
-    /// Hints influence placement but remain weaker than soft constraints.
-    /// </summary>
-    private const int HintConstraintWeight = 8;
+    private const int CascodeStackWeight = 500;
 
     /// <summary>
     /// Places devices on a coarse grid based on topology analysis.
@@ -102,6 +89,11 @@ public static class CoarseGridPlacer
 
         // Detect symmetric passive pairs (e.g., CMFB resistors)
         var symmetricPassivePairs = TopologyAnalyzer.DetectSymmetricPassivePairs(graph, topology);
+        var cascodePairs = DetectCascodeVerticalPairs(graph);
+        var cascodeDeviceIds = new HashSet<string>(
+            cascodePairs.SelectMany(pair => new[] { pair.UpperDeviceId, pair.LowerDeviceId }),
+            StringComparer.Ordinal
+        );
 
         var deviceIds = topology.DeviceRows.Keys.ToList();
         var symmetricGroups = topology.SymmetricGroups;
@@ -145,17 +137,16 @@ public static class CoarseGridPlacer
 
         // Create column variables for all devices
         var deviceColumn = new Dictionary<string, IntVar>();
+        var deviceTransforms = new Dictionary<string, IntVar>();
         foreach (var deviceId in deviceIds)
         {
             deviceColumn[deviceId] = model.NewIntVar(0, estimatedColumns - 1, $"col_{deviceId}");
+            deviceTransforms[deviceId] = model.NewIntVar(0, 15, $"xfm_{deviceId}");
         }
 
         // Create row variables
         // Vertical-path devices get offset rows; horizontal passives are optimized
         var deviceRow = new Dictionary<string, IntVar>();
-        var rowAnchorTargets = new Dictionary<string, (int TargetRow, int Weight)>(
-            StringComparer.Ordinal
-        );
         foreach (var deviceId in deviceIds)
         {
             var topoRow = topology.DeviceRows.GetValueOrDefault(deviceId, 0);
@@ -164,12 +155,15 @@ public static class CoarseGridPlacer
             {
                 // Horizontal passive rows are SAT variables - can be any row
                 deviceRow[deviceId] = model.NewIntVar(0, totalRows - 1, $"row_{deviceId}");
-                rowAnchorTargets[deviceId] = (offsetRow, HorizontalRowAnchorWeight);
             }
             else if (railConnectedVerticalPassiveIds.Contains(deviceId))
             {
                 deviceRow[deviceId] = model.NewIntVar(0, totalRows - 1, $"row_{deviceId}");
-                rowAnchorTargets[deviceId] = (offsetRow, VerticalRowAnchorWeight);
+            }
+            else if (cascodeDeviceIds.Contains(deviceId))
+            {
+                // Cascode devices need movable rows so vertical stack constraints can be satisfied.
+                deviceRow[deviceId] = model.NewIntVar(0, totalRows - 1, $"row_{deviceId}");
             }
             else
             {
@@ -227,7 +221,6 @@ public static class CoarseGridPlacer
             symmetryAxis
         );
 
-        var renderConstraintObjectives = new List<LinearExpr>();
         var hasHardPlacementConstraints = AddRenderPlacementConstraints(
             model,
             deviceRow,
@@ -235,8 +228,7 @@ public static class CoarseGridPlacer
             totalRows,
             estimatedColumns,
             constraints,
-            hardConstraintEntities,
-            renderConstraintObjectives
+            hardConstraintEntities
         );
 
         // Add constraints for column placement based on device type
@@ -263,42 +255,36 @@ public static class CoarseGridPlacer
             );
         }
 
-        var objectives = new List<LinearExpr>();
+        var wireLengthObjectives = new List<LinearExpr>();
         AddTerminalAwareWireLengthObjective(
             model,
             deviceColumn,
             deviceRow,
+            deviceTransforms,
             graph,
-            horizontalPassiveIds,
             estimatedColumns,
             totalRows,
-            objectives
+            wireLengthObjectives
         );
-        AddPortStraightnessObjectives(
+        AddCascodeVerticalStackObjectives(
+            model,
+            deviceColumn,
+            deviceRow,
+            cascodePairs,
+            wireLengthObjectives
+        );
+        AddRailTerminalProximityObjectives(
             model,
             deviceRow,
+            deviceTransforms,
             graph,
-            horizontalPassiveIds,
-            portYVariables,
-            canvasHeight,
-            objectives
+            totalRows * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin,
+            wireLengthObjectives
         );
-        AddRowAnchorObjectives(model, deviceRow, rowAnchorTargets, objectives);
-        AddRailProximityObjectives(
-            model,
-            deviceRow,
-            railConnectedVerticalPassiveIds,
-            graph,
-            horizontalPassiveIds,
-            canvasHeight,
-            objectives
-        );
-        objectives.AddRange(renderConstraintObjectives);
-        AddCompactnessObjective(model, deviceColumn, objectives);
 
-        if (objectives.Count > 0)
+        if (wireLengthObjectives.Count > 0)
         {
-            model.Minimize(LinearExpr.Sum(objectives));
+            model.Minimize(LinearExpr.Sum(wireLengthObjectives));
         }
 
         var solver = new CpSolver();
@@ -323,7 +309,8 @@ public static class CoarseGridPlacer
                 topology,
                 estimatedColumns,
                 symmetryAxis,
-                horizontalPassiveIds
+                horizontalPassiveIds,
+                cascodePairs
             );
         }
 
@@ -336,6 +323,7 @@ public static class CoarseGridPlacer
             graph,
             horizontalPassiveIds
         );
+        ApplyCascodeStackAdjustments(placements, cascodePairs);
         var portYHints = ExtractPortYHints(solver, portYVariables, graph, deviceRow);
         var actualColumnCount = placements.Count > 0 ? placements.Values.Max(c => c.Column) + 1 : 1;
         var actualRowCount = placements.Count > 0 ? placements.Values.Max(c => c.Row) + 1 : 1;
@@ -352,7 +340,7 @@ public static class CoarseGridPlacer
     }
 
     /// <summary>
-    /// Applies render-placement constraints from the given PlacementConstraintSet to the CP-SAT model, adding hard fixes or penalty terms as appropriate and recording any hard-constrained device IDs.
+    /// Applies hard render-placement constraints from the given PlacementConstraintSet to the CP-SAT model.
     /// </summary>
     /// <param name="model">The CP-SAT model to modify.</param>
     /// <param name="deviceRow">Map from device ID to row IntVar used by the model.</param>
@@ -361,7 +349,6 @@ public static class CoarseGridPlacer
     /// <param name="totalColumns">Number of columns in the placement grid (used to clamp and bound penalties).</param>
     /// <param name="constraints">Optional placement constraints containing device render coordinates and strengths; if null or empty no constraints are applied.</param>
     /// <param name="hardConstraintEntities">List to which device IDs fixed by hard constraints will be appended.</param>
-    /// <param name="objectives">List of objective terms to which soft and hint penalty expressions will be appended.</param>
     /// <returns>`true` if at least one hard render-placement constraint was applied, `false` otherwise.</returns>
     private static bool AddRenderPlacementConstraints(
         CpModel model,
@@ -370,8 +357,7 @@ public static class CoarseGridPlacer
         int totalRows,
         int totalColumns,
         PlacementConstraintSet? constraints,
-        List<string> hardConstraintEntities,
-        List<LinearExpr> objectives
+        List<string> hardConstraintEntities
     )
     {
         if (constraints is null || constraints.DevicePlacements.Count == 0)
@@ -407,24 +393,10 @@ public static class CoarseGridPlacer
                     break;
 
                 case RenderConstraintStrength.Soft:
-                {
-                    var rowPenalty = model.NewIntVar(0, totalRows, $"rsoft_{entry.DeviceId}");
-                    var colPenalty = model.NewIntVar(0, totalColumns, $"csoft_{entry.DeviceId}");
-                    model.AddAbsEquality(rowPenalty, rowVar - targetRow);
-                    model.AddAbsEquality(colPenalty, colVar - targetCol);
-                    objectives.Add((rowPenalty + colPenalty) * SoftConstraintWeight);
                     break;
-                }
 
                 case RenderConstraintStrength.Hint:
-                {
-                    var rowPenalty = model.NewIntVar(0, totalRows, $"rhint_{entry.DeviceId}");
-                    var colPenalty = model.NewIntVar(0, totalColumns, $"chint_{entry.DeviceId}");
-                    model.AddAbsEquality(rowPenalty, rowVar - targetRow);
-                    model.AddAbsEquality(colPenalty, colVar - targetCol);
-                    objectives.Add((rowPenalty + colPenalty) * HintConstraintWeight);
                     break;
-                }
             }
         }
 
@@ -868,15 +840,17 @@ public static class CoarseGridPlacer
         CpModel model,
         Dictionary<string, IntVar> deviceColumn,
         Dictionary<string, IntVar> deviceRow,
+        IReadOnlyDictionary<string, IntVar> deviceTransforms,
         CircuitGraph graph,
-        IReadOnlySet<string> horizontalPassiveIds,
         int columnCount,
         int rowCount,
         List<LinearExpr> objectives
     )
     {
-        var maxColDiffPixels = columnCount * DeviceGeometry.CellWidth;
-        var maxRowDiffCells = rowCount;
+        var maxPinDeltaPixels = (int)
+            Math.Ceiling(Math.Max(DeviceGeometry.MosfetHeight, DeviceGeometry.PassiveWidth));
+        var maxColDiffPixels = columnCount * DeviceGeometry.CellWidth + 2 * maxPinDeltaPixels;
+        var maxRowDiffPixels = rowCount * DeviceGeometry.CellHeight + 2 * maxPinDeltaPixels;
 
         foreach (var (netName, connections) in graph.NetConnections)
         {
@@ -904,29 +878,52 @@ public static class CoarseGridPlacer
                         continue;
                     }
 
-                    var offset1 = GetTerminalOffsetInCells(
+                    if (
+                        !deviceTransforms.TryGetValue(conn1.DeviceId, out var transform1)
+                        || !deviceTransforms.TryGetValue(conn2.DeviceId, out var transform2)
+                    )
+                    {
+                        continue;
+                    }
+
+                    var options1 = GetTerminalOffsetOptionsInPixels(
                         device1.DeviceType,
-                        conn1.Terminal,
-                        conn1.DeviceId,
-                        horizontalPassiveIds
+                        conn1.Terminal
                     );
-                    var offset2 = GetTerminalOffsetInCells(
+                    var options2 = GetTerminalOffsetOptionsInPixels(
                         device2.DeviceType,
-                        conn2.Terminal,
-                        conn2.DeviceId,
-                        horizontalPassiveIds
+                        conn2.Terminal
+                    );
+                    var xOptions1 = options1.Select(o => o.DeltaX).ToArray();
+                    var yOptions1 = options1.Select(o => o.DeltaY).ToArray();
+                    var xOptions2 = options2.Select(o => o.DeltaX).ToArray();
+                    var yOptions2 = options2.Select(o => o.DeltaY).ToArray();
+
+                    var xOffset1 = model.NewIntVar(
+                        xOptions1.Min(),
+                        xOptions1.Max(),
+                        $"xoff_{ToVarToken(conn1.DeviceId)}_{ToVarToken(conn1.Terminal)}_{ToVarToken(netName)}_{i}_{j}"
+                    );
+                    var yOffset1 = model.NewIntVar(
+                        yOptions1.Min(),
+                        yOptions1.Max(),
+                        $"yoff_{ToVarToken(conn1.DeviceId)}_{ToVarToken(conn1.Terminal)}_{ToVarToken(netName)}_{i}_{j}"
+                    );
+                    var xOffset2 = model.NewIntVar(
+                        xOptions2.Min(),
+                        xOptions2.Max(),
+                        $"xoff_{ToVarToken(conn2.DeviceId)}_{ToVarToken(conn2.Terminal)}_{ToVarToken(netName)}_{i}_{j}"
+                    );
+                    var yOffset2 = model.NewIntVar(
+                        yOptions2.Min(),
+                        yOptions2.Max(),
+                        $"yoff_{ToVarToken(conn2.DeviceId)}_{ToVarToken(conn2.Terminal)}_{ToVarToken(netName)}_{i}_{j}"
                     );
 
-                    var colOffsetPixels = (int)
-                        Math.Round(
-                            (offset1.DeltaCol - offset2.DeltaCol) * DeviceGeometry.CellWidth,
-                            MidpointRounding.AwayFromZero
-                        );
-                    var rowOffsetCells = (int)
-                        Math.Round(
-                            offset1.DeltaRow - offset2.DeltaRow,
-                            MidpointRounding.AwayFromZero
-                        );
+                    model.AddElement(transform1, xOptions1, xOffset1);
+                    model.AddElement(transform1, yOptions1, yOffset1);
+                    model.AddElement(transform2, xOptions2, xOffset2);
+                    model.AddElement(transform2, yOptions2, yOffset2);
 
                     var colDiffPixels = model.NewIntVar(
                         0,
@@ -937,28 +934,258 @@ public static class CoarseGridPlacer
                         colDiffPixels,
                         deviceColumn[conn1.DeviceId] * DeviceGeometry.CellWidth
                             - deviceColumn[conn2.DeviceId] * DeviceGeometry.CellWidth
-                            + colOffsetPixels
+                            + xOffset1
+                            - xOffset2
                     );
 
-                    var rowDiffCells = model.NewIntVar(
+                    var rowDiffPixels = model.NewIntVar(
                         0,
-                        maxRowDiffCells,
+                        maxRowDiffPixels,
                         $"rowdiff_{netName}_{i}_{j}"
                     );
                     model.AddAbsEquality(
-                        rowDiffCells,
-                        deviceRow[conn1.DeviceId] - deviceRow[conn2.DeviceId] + rowOffsetCells
+                        rowDiffPixels,
+                        deviceRow[conn1.DeviceId] * DeviceGeometry.CellHeight
+                            - deviceRow[conn2.DeviceId] * DeviceGeometry.CellHeight
+                            + yOffset1
+                            - yOffset2
                     );
 
-                    objectives.Add(colDiffPixels + rowDiffCells * DeviceGeometry.CellHeight);
+                    objectives.Add(colDiffPixels + rowDiffPixels);
                 }
             }
         }
     }
 
+    private static void AddCascodeVerticalStackObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> deviceColumn,
+        IReadOnlyDictionary<string, IntVar> deviceRow,
+        IReadOnlyCollection<(string UpperDeviceId, string LowerDeviceId)> cascodePairs,
+        List<LinearExpr> objectives
+    )
+    {
+        foreach (var (upperDeviceId, lowerDeviceId) in cascodePairs)
+        {
+            if (
+                !deviceColumn.TryGetValue(upperDeviceId, out var upperCol)
+                || !deviceColumn.TryGetValue(lowerDeviceId, out var lowerCol)
+                || !deviceRow.TryGetValue(upperDeviceId, out var upperRow)
+                || !deviceRow.TryGetValue(lowerDeviceId, out var lowerRow)
+            )
+            {
+                continue;
+            }
+
+            var colDiff = model.NewIntVar(
+                0,
+                200,
+                $"cascode_col_diff_{ToVarToken(upperDeviceId)}_{ToVarToken(lowerDeviceId)}"
+            );
+            model.AddAbsEquality(colDiff, upperCol - lowerCol);
+            objectives.Add(colDiff * CascodeStackWeight);
+
+            var stackGap = model.NewIntVar(
+                0,
+                200,
+                $"cascode_row_gap_{ToVarToken(upperDeviceId)}_{ToVarToken(lowerDeviceId)}"
+            );
+            model.AddAbsEquality(stackGap, lowerRow - upperRow - 1);
+            objectives.Add(stackGap * CascodeStackWeight);
+        }
+    }
+
+    private static IReadOnlyCollection<(
+        string UpperDeviceId,
+        string LowerDeviceId
+    )> DetectCascodeVerticalPairs(CircuitGraph graph)
+    {
+        var pairs = new HashSet<(string UpperDeviceId, string LowerDeviceId)>();
+
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName) || graph.IsPort(netName))
+            {
+                continue;
+            }
+
+            var terminalRefs = connections
+                .Where(c =>
+                    graph.Devices.TryGetValue(c.DeviceId, out var d)
+                    && IsMosType(d.DeviceType.ToLowerInvariant())
+                    && (IsDrainTerminal(c.Terminal) || IsSourceTerminal(c.Terminal))
+                )
+                .ToList();
+            if (terminalRefs.Count != 2)
+            {
+                continue;
+            }
+
+            var c1 = terminalRefs[0];
+            var c2 = terminalRefs[1];
+            if (
+                !graph.Devices.TryGetValue(c1.DeviceId, out var d1)
+                || !graph.Devices.TryGetValue(c2.DeviceId, out var d2)
+            )
+            {
+                continue;
+            }
+
+            var t1 = d1.DeviceType.ToLowerInvariant();
+            var t2 = d2.DeviceType.ToLowerInvariant();
+            var bothNfet = IsNfetLike(t1) && IsNfetLike(t2);
+            var bothPfet = IsPfetLike(t1) && IsPfetLike(t2);
+            if (!bothNfet && !bothPfet)
+            {
+                continue;
+            }
+
+            var aIsDrain = IsDrainTerminal(c1.Terminal);
+            var aIsSource = IsSourceTerminal(c1.Terminal);
+            var bIsDrain = IsDrainTerminal(c2.Terminal);
+            var bIsSource = IsSourceTerminal(c2.Terminal);
+            var isCascodeLink = (aIsDrain && bIsSource) || (aIsSource && bIsDrain);
+            if (!isCascodeLink)
+            {
+                continue;
+            }
+
+            if (bothNfet)
+            {
+                if (aIsSource)
+                {
+                    pairs.Add((c1.DeviceId, c2.DeviceId));
+                }
+                else
+                {
+                    pairs.Add((c2.DeviceId, c1.DeviceId));
+                }
+            }
+            else
+            {
+                if (aIsDrain)
+                {
+                    pairs.Add((c1.DeviceId, c2.DeviceId));
+                }
+                else
+                {
+                    pairs.Add((c2.DeviceId, c1.DeviceId));
+                }
+            }
+        }
+
+        return pairs;
+    }
+
+    private static bool IsMosType(string normalizedType) =>
+        IsNfetLike(normalizedType) || IsPfetLike(normalizedType);
+
+    private static bool IsNfetLike(string normalizedType) =>
+        normalizedType.Contains("nfet", StringComparison.OrdinalIgnoreCase)
+        || normalizedType.Equals("nmos", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPfetLike(string normalizedType) =>
+        normalizedType.Contains("pfet", StringComparison.OrdinalIgnoreCase)
+        || normalizedType.Equals("pmos", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsDrainTerminal(string terminal) =>
+        terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+        || terminal.Contains("DRAIN", StringComparison.OrdinalIgnoreCase)
+        || terminal.StartsWith("D", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSourceTerminal(string terminal) =>
+        terminal.Equals("S", StringComparison.OrdinalIgnoreCase)
+        || terminal.Contains("SOURCE", StringComparison.OrdinalIgnoreCase)
+        || terminal.StartsWith("S", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
-    /// Gets terminal offsets in cell units using the shared geometry model.
+    /// Enumerates terminal offsets in pixels for all supported transforms.
+    /// Transform index layout: rotation (0,90,180,270) x mirrorX (0,1) x mirrorY (0,1).
     /// </summary>
+    private static IReadOnlyList<(int DeltaX, int DeltaY)> GetTerminalOffsetOptionsInPixels(
+        string deviceType,
+        string terminal
+    )
+    {
+        var (baseX, baseY) = GetBaseTerminalOffset(deviceType, terminal);
+        var options = new List<(int DeltaX, int DeltaY)>(16);
+        foreach (var rotation in new[] { 0, 90, 180, 270 })
+        {
+            for (var mirrorX = 0; mirrorX <= 1; mirrorX++)
+            {
+                for (var mirrorY = 0; mirrorY <= 1; mirrorY++)
+                {
+                    var x = baseX;
+                    var y = baseY;
+                    if (mirrorX == 1)
+                    {
+                        x = -x;
+                    }
+
+                    if (mirrorY == 1)
+                    {
+                        y = -y;
+                    }
+
+                    var transformed = rotation switch
+                    {
+                        0 => (x, y),
+                        90 => (y, -x),
+                        180 => (-x, -y),
+                        270 => (-y, x),
+                        _ => (x, y),
+                    };
+                    options.Add(transformed);
+                }
+            }
+        }
+
+        return options;
+    }
+
+    private static (int DeltaX, int DeltaY) GetBaseTerminalOffset(
+        string deviceType,
+        string terminal
+    )
+    {
+        var type = deviceType.ToLowerInvariant();
+        var pin = terminal.ToUpperInvariant();
+
+        if (IsNfetLike(type))
+        {
+            return pin switch
+            {
+                "G" => (-(int)Math.Round(DeviceGeometry.MosfetWidth / 2.0), 0),
+                "D" => (0, -(int)Math.Round(DeviceGeometry.MosfetHeight / 2.0)),
+                "S" => (0, (int)Math.Round(DeviceGeometry.MosfetHeight / 2.0)),
+                _ => (0, 0),
+            };
+        }
+
+        if (IsPfetLike(type))
+        {
+            return pin switch
+            {
+                "G" => (-(int)Math.Round(DeviceGeometry.MosfetWidth / 2.0), 0),
+                "D" => (0, (int)Math.Round(DeviceGeometry.MosfetHeight / 2.0)),
+                "S" => (0, -(int)Math.Round(DeviceGeometry.MosfetHeight / 2.0)),
+                _ => (0, 0),
+            };
+        }
+
+        if (type is "resistor" or "capacitor")
+        {
+            return pin switch
+            {
+                "P" => (0, -(int)Math.Round(DeviceGeometry.PassiveWidth / 2.0)),
+                "N" => (0, (int)Math.Round(DeviceGeometry.PassiveWidth / 2.0)),
+                _ => (0, 0),
+            };
+        }
+
+        return (0, 0);
+    }
+
     private static (double DeltaCol, double DeltaRow) GetTerminalOffsetInCells(
         string deviceType,
         string terminal,
@@ -966,21 +1193,11 @@ public static class CoarseGridPlacer
         IReadOnlySet<string> horizontalPassiveIds
     )
     {
-        var isHorizontalPassive = horizontalPassiveIds.Contains(deviceId);
-        var isLeftOfAxis = !IsRightNamedDevice(deviceId);
-        return DeviceGeometry.GetTerminalOffset(
-            deviceType,
-            terminal,
-            mirrorX: false,
-            isHorizontalPassive,
-            isLeftOfAxis
+        var (deltaX, deltaY) = GetBaseTerminalOffset(deviceType, terminal);
+        return (
+            deltaX / (double)DeviceGeometry.CellWidth,
+            deltaY / (double)DeviceGeometry.CellHeight
         );
-    }
-
-    private static bool IsRightNamedDevice(string deviceId)
-    {
-        return deviceId.EndsWith("R", StringComparison.OrdinalIgnoreCase)
-            || deviceId.Contains("_R", StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<string> GetSignalPorts(CircuitGraph graph)
@@ -1328,6 +1545,76 @@ public static class CoarseGridPlacer
         return graph.IsSupplyOrGround(pNet) || graph.IsSupplyOrGround(nNet);
     }
 
+    private static void AddRailTerminalProximityObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> deviceRow,
+        IReadOnlyDictionary<string, IntVar> deviceTransforms,
+        CircuitGraph graph,
+        int canvasHeight,
+        List<LinearExpr> objectives
+    )
+    {
+        var baseTerminalY = DeviceGeometry.RailMargin + DeviceGeometry.CellHeight / 2;
+
+        foreach (var (deviceId, rowVar) in deviceRow)
+        {
+            if (!graph.Devices.TryGetValue(deviceId, out var device))
+            {
+                continue;
+            }
+
+            if (!deviceTransforms.TryGetValue(deviceId, out var transformVar))
+            {
+                continue;
+            }
+
+            foreach (var (terminal, netName) in device.Bindings)
+            {
+                var isSupply = graph.Supplies.Contains(netName);
+                var isGround = graph.Grounds.Contains(netName);
+                if (!isSupply && !isGround)
+                {
+                    continue;
+                }
+
+                if (IsBodyOrShieldTerminal(terminal))
+                {
+                    continue;
+                }
+
+                var yOptions = GetTerminalOffsetOptionsInPixels(device.DeviceType, terminal)
+                    .Select(o => o.DeltaY)
+                    .ToArray();
+                var terminalYOffset = model.NewIntVar(
+                    yOptions.Min(),
+                    yOptions.Max(),
+                    $"ryoff_{ToVarToken(deviceId)}_{ToVarToken(terminal)}"
+                );
+                model.AddElement(transformVar, yOptions, terminalYOffset);
+
+                var terminalYExpr =
+                    rowVar * DeviceGeometry.CellHeight + baseTerminalY + terminalYOffset;
+                var railY = isSupply
+                    ? DeviceGeometry.RailMargin / 2
+                    : canvasHeight - DeviceGeometry.RailMargin / 2;
+
+                var railDiff = model.NewIntVar(
+                    0,
+                    canvasHeight,
+                    $"raildiff_{ToVarToken(deviceId)}_{ToVarToken(terminal)}"
+                );
+                model.AddAbsEquality(railDiff, terminalYExpr - railY);
+                objectives.Add(railDiff * RailTerminalWeight);
+            }
+        }
+    }
+
+    private static bool IsBodyOrShieldTerminal(string terminal)
+    {
+        var t = terminal.Trim().ToUpperInvariant();
+        return t is "B" or "BULK" or "BODY" or "SH" or "SHIELD";
+    }
+
     private static string ToVarToken(string value)
     {
         var chars = value.Select(c => char.IsLetterOrDigit(c) ? c : '_').ToArray();
@@ -1356,7 +1643,8 @@ public static class CoarseGridPlacer
         TopologyResult topology,
         int columnCount,
         int symmetryAxis,
-        IReadOnlySet<string> horizontalPassiveIds
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyCollection<(string UpperDeviceId, string LowerDeviceId)> cascodePairs
     )
     {
         var placements = new Dictionary<string, GridCell>();
@@ -1382,6 +1670,7 @@ public static class CoarseGridPlacer
                 placements[devices[i]] = new GridCell(row, col, mirrorX);
             }
         }
+        ApplyCascodeStackAdjustments(placements, cascodePairs);
 
         return new CoarseGridResult
         {
@@ -1391,6 +1680,30 @@ public static class CoarseGridPlacer
             SymmetryAxis = symmetryAxis,
             HorizontalPassiveIds = horizontalPassiveIds,
         };
+    }
+
+    private static void ApplyCascodeStackAdjustments(
+        IDictionary<string, GridCell> placements,
+        IReadOnlyCollection<(string UpperDeviceId, string LowerDeviceId)> cascodePairs
+    )
+    {
+        foreach (var (upperDeviceId, lowerDeviceId) in cascodePairs)
+        {
+            if (
+                !placements.TryGetValue(upperDeviceId, out var upper)
+                || !placements.TryGetValue(lowerDeviceId, out var lower)
+            )
+            {
+                continue;
+            }
+
+            var stackedCol = upper.Column;
+            var upperRow = Math.Min(upper.Row, lower.Row);
+            var lowerRow = upperRow + 1;
+
+            placements[upperDeviceId] = new GridCell(upperRow, stackedCol, upper.MirrorX);
+            placements[lowerDeviceId] = new GridCell(lowerRow, stackedCol, lower.MirrorX);
+        }
     }
 
     /// <summary>

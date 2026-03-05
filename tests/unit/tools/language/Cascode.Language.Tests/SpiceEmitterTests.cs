@@ -374,9 +374,8 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Equal(CascodeLevel.EL, circuit.Level);
 
         // Ports
-        Assert.Equal(3, circuit.Ports.Count);
-        Assert.Contains(circuit.Ports, p => p.Name == "IN.P");
-        Assert.Contains(circuit.Ports, p => p.Name == "IN.N");
+        Assert.Equal(2, circuit.Ports.Count);
+        Assert.Contains(circuit.Ports, p => p.Name == "IN");
         Assert.Contains(circuit.Ports, p => p.Name == "OUT");
 
         // Supplies and grounds
@@ -389,7 +388,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
 
         // Bench definitions
         Assert.Single(doc.BenchDefinitions);
-        Assert.Equal("DiffToSELowpass", doc.BenchDefinitions[0].Name);
+        Assert.Equal("SEToSELowpass", doc.BenchDefinitions[0].Name);
 
         // Bench binding
         Assert.Single(circuit.BenchBindings);
