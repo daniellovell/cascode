@@ -53,19 +53,17 @@ internal static class DevicePlacementHelper
         }
         else if (DeviceTypeHelper.IsPassive(deviceType))
         {
-            var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
-
-            if (isHorizontalPassive)
+            var (pOffsetX2, pOffsetY2) = CoarseGridPlacer.GetTerminalEdgeOffset2(
+                deviceType,
+                "P",
+                cell
+            );
+            if (pOffsetX2 != 0)
             {
-                var p = DeviceGeometry.GetHorizontalPassivePlacement(
-                    cell.Row,
-                    cell.Column,
-                    placement.ColumnCount,
-                    isLeftOfAxis
-                );
-                x = p.X;
-                y = p.Y;
+                var baseX = DeviceGeometry.GetCellCenterX(cell.Column);
+                var baseY = DeviceGeometry.GetCellCenterY(cell.Row);
+                x = baseX - DeviceGeometry.PassiveWidth / 2.0;
+                y = baseY - DeviceGeometry.PassiveHeight / 2.0;
                 orientation = DeviceOrientation.Horizontal;
             }
             else

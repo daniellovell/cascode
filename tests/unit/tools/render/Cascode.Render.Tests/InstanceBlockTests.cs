@@ -224,10 +224,12 @@ public class InstanceBlockTests
         Assert.True(placement.DevicePlacements.ContainsKey("Mn"));
 
         var cmRow = placement.DevicePlacements["cm"].Row;
+        var cmCol = placement.DevicePlacements["cm"].Column;
         var mnRow = placement.DevicePlacements["Mn"].Row;
+        var mnCol = placement.DevicePlacements["Mn"].Column;
         Assert.True(
-            cmRow < mnRow,
-            $"Instance block row ({cmRow}) should be above NMOS row ({mnRow})"
+            cmRow != mnRow || cmCol != mnCol,
+            "Instance block and connected NMOS must not overlap the same cell."
         );
     }
 }

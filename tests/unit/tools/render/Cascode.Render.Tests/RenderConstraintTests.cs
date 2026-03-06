@@ -119,6 +119,207 @@ public sealed class RenderConstraintTests
         Assert.Equal(0, c1.Column);
     }
 
+    [Fact]
+    public void Analyze_InductorUsesSamePassiveOrientationRulesAsResistorAndCapacitor()
+    {
+        var circuit = new Circuit
+        {
+            Name = "lc_orientation",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "L1",
+                        DeviceType = "inductor",
+                        Primitive = "InductorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "IN", ["N"] = "OUT" },
+                    },
+                    new()
+                    {
+                        Id = "C1",
+                        DeviceType = "capacitor",
+                        Primitive = "CapacitorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "OUT", ["N"] = "GND" },
+                    },
+                },
+            },
+        };
+
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        Assert.True(topology.PassiveOrientations.TryGetValue("L1", out var l1Orientation));
+        Assert.Equal(PassiveOrientation.Horizontal, l1Orientation);
+        Assert.True(topology.PassiveOrientations.TryGetValue("C1", out var c1Orientation));
+        Assert.Equal(PassiveOrientation.Vertical, c1Orientation);
+    }
+
+    [Fact]
+    public void Place_NoInterveningTreatsMosAsThreeByThreeFootprint()
+    {
+        var circuit = new Circuit
+        {
+            Name = "no_intervening_mos_footprint",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "RCAS_TOP",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "VDD", ["N"] = "vcas" },
+                    },
+                    new()
+                    {
+                        Id = "RCAS_BOT",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "vcas", ["N"] = "GND" },
+                    },
+                    new()
+                    {
+                        Id = "M2",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nd",
+                            ["G"] = "vbias",
+                            ["S"] = "GND",
+                        },
+                    },
+                },
+            },
+        };
+
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var constraints = new PlacementConstraintSet
+        {
+            DevicePlacements =
+            [
+                new DevicePlacementConstraint("RCAS_TOP", 7, 4, RenderConstraintStrength.Hard),
+                new DevicePlacementConstraint("RCAS_BOT", 7, 24, RenderConstraintStrength.Hard),
+                new DevicePlacementConstraint("M2", 12, 14, RenderConstraintStrength.Hard),
+            ],
+            AllowConstraintRelaxation = false,
+        };
+
+        Assert.Throws<RenderConstraintUnsatException>(() =>
+            CoarseGridPlacer.Place(topology, graph, constraints)
+        );
+    }
+
+    [Fact]
+    public void Place_PostPlacementCompaction_RemovesEmptyRowsAndColumns()
+    {
+        var circuit = TestCircuits.TwoDevices();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        // (2,4) -> cell (0,0), (11,14) -> cell (2,2)
+        // Hard constraints intentionally create an empty row and column between devices.
+        var constraints = new PlacementConstraintSet
+        {
+            DevicePlacements =
+            [
+                new DevicePlacementConstraint("M1", 2, 4, RenderConstraintStrength.Hard),
+                new DevicePlacementConstraint("M2", 11, 14, RenderConstraintStrength.Hard),
+            ],
+            AllowConstraintRelaxation = false,
+        };
+
+        var placement = CoarseGridPlacer.Place(topology, graph, constraints);
+
+        Assert.Equal(2, placement.RowCount);
+        Assert.Equal(2, placement.ColumnCount);
+        Assert.True(placement.DevicePlacements.TryGetValue("M1", out var m1));
+        Assert.True(placement.DevicePlacements.TryGetValue("M2", out var m2));
+        Assert.Equal((0, 0), (m1.Row, m1.Column));
+        Assert.Equal((1, 1), (m2.Row, m2.Column));
+    }
+
+    [Fact]
+    public void Place_RailConnectedPassives_FaceConnectedRail()
+    {
+        var circuit = new Circuit
+        {
+            Name = "rail_connected_passives_vertical",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "R_LOAD",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "VDD", ["N"] = "nint" },
+                    },
+                    new()
+                    {
+                        Id = "C_SHUNT",
+                        DeviceType = "capacitor",
+                        Primitive = "CapacitorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "nint", ["N"] = "GND" },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nint", Domain = "signal" },
+                },
+            },
+        };
+
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var terminalsByNet = MazeRouter.GetTerminalsByNet(placement, graph);
+
+        var allTerminals = terminalsByNet.SelectMany(kv => kv.Value).ToList();
+        var rP = allTerminals.Single(t => t.DeviceId == "R_LOAD" && t.Terminal == "P");
+        var rN = allTerminals.Single(t => t.DeviceId == "R_LOAD" && t.Terminal == "N");
+        var cP = allTerminals.Single(t => t.DeviceId == "C_SHUNT" && t.Terminal == "P");
+        var cN = allTerminals.Single(t => t.DeviceId == "C_SHUNT" && t.Terminal == "N");
+
+        Assert.Equal(rP.X, rN.X);
+        Assert.NotEqual(rP.Y, rN.Y);
+        Assert.True(rP.Y < rN.Y, "Expected VDD-connected terminal R_LOAD.P to face north.");
+        Assert.Equal(cP.X, cN.X);
+        Assert.NotEqual(cP.Y, cN.Y);
+        Assert.True(cN.Y > cP.Y, "Expected GND-connected terminal C_SHUNT.N to face south.");
+    }
+
     private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
     {
         if (segment.From.X == segment.To.X)

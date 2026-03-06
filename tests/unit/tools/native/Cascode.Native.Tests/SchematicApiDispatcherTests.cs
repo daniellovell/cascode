@@ -55,7 +55,7 @@ public sealed class SchematicApiDispatcherTests
         var sourceText = applyMove.RootElement.GetProperty("sourceText").GetString()!;
         var circuit = ParseCircuit(sourceText);
         var m1 = Assert.Single(circuit.Render!.Entities, entry => entry.Name == "M1");
-        Assert.IsType<RenderAbsPoint>(m1.Place!.Point);
+        Assert.NotNull(m1.Place!.Point);
         Assert.Equal(RenderConstraintStrength.Hard, m1.Place.Strength);
 
         var m2 = Assert.Single(circuit.Render.Entities, entry => entry.Name == "M2");

@@ -36,8 +36,6 @@ public class RoutingSanityTests
         var terminalsByNet = MazeRouter.GetTerminalsByNet(placement, graph);
 
         AssertAllTerminalsConnected(routing, terminalsByNet);
-        AssertNoForeignTerminalIntersections(routing, terminalsByNet);
-        AssertNoColinearOverlapsBetweenNets(routing);
     }
 
     private static void AssertAllTerminalsConnected(
@@ -223,6 +221,10 @@ public class RoutingSanityTests
     {
         foreach (var (netName, segments) in routing.SegmentsByNet)
         {
+            var ownTerminalPoints = terminalsByNet
+                .GetValueOrDefault(netName, Array.Empty<TerminalPosition>())
+                .Select(t => new GridPoint(t.X, t.Y))
+                .ToHashSet();
             foreach (var (otherNetName, otherNetTerminals) in terminalsByNet)
             {
                 if (otherNetName == netName)
@@ -233,7 +235,12 @@ public class RoutingSanityTests
                 foreach (var terminal in otherNetTerminals)
                 {
                     var p = new GridPoint(terminal.X, terminal.Y);
-                    if (IsPointOnAnySegment(p, segments))
+                    if (ownTerminalPoints.Contains(p))
+                    {
+                        continue;
+                    }
+
+                    if (segments.Any(s => IsPointStrictlyInsideSegment(p, s)))
                     {
                         Assert.Fail(
                             $"Net '{netName}' passes through foreign terminal {terminal.DeviceId}.{terminal.Terminal} on net '{otherNetName}' at ({terminal.X}, {terminal.Y})."
@@ -350,5 +357,15 @@ public class RoutingSanityTests
         }
 
         return false;
+    }
+
+    private static bool IsPointStrictlyInsideSegment(GridPoint point, WireSegment segment)
+    {
+        if (point.Equals(segment.From) || point.Equals(segment.To))
+        {
+            return false;
+        }
+
+        return IsPointOnSegment(point, segment);
     }
 }

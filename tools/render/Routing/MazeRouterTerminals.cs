@@ -62,28 +62,12 @@ public static partial class MazeRouter
                     new TerminalPosition(deviceId, "S", p.SourceX, isPmos ? p.DrainY : p.SourceY)
                 );
             }
-            else if (deviceType is "resistor" or "capacitor")
+            else if (deviceType is "resistor" or "capacitor" or "inductor")
             {
-                var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-                var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
-
-                if (isHorizontalPassive)
-                {
-                    var p = DeviceGeometry.GetHorizontalPassivePlacement(
-                        cell.Row,
-                        cell.Column,
-                        placement.ColumnCount,
-                        isLeftOfAxis
-                    );
-                    positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
-                    positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
-                }
-                else
-                {
-                    var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                    positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
-                    positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
-                }
+                var pTerminal = GetPassiveTerminalPosition(deviceType, "P", cell);
+                var nTerminal = GetPassiveTerminalPosition(deviceType, "N", cell);
+                positions.Add(new TerminalPosition(deviceId, "P", pTerminal.X, pTerminal.Y));
+                positions.Add(new TerminalPosition(deviceId, "N", nTerminal.X, nTerminal.Y));
             }
         }
 
@@ -147,6 +131,39 @@ public static partial class MazeRouter
         }
 
         return result;
+    }
+
+    private static (int X, int Y) GetPassiveTerminalPosition(
+        string deviceType,
+        string terminal,
+        GridCell cell
+    )
+    {
+        var baseX = DeviceGeometry.GetCellCenterX(cell.Column);
+        var baseY = DeviceGeometry.GetCellCenterY(cell.Row);
+        var (xOffset2, yOffset2) = CoarseGridPlacer.GetTerminalEdgeOffset2(
+            deviceType,
+            terminal,
+            cell
+        );
+        if (xOffset2 != 0)
+        {
+            var x = DeviceGeometry.RoundToInt(
+                baseX + xOffset2 * (DeviceGeometry.PassiveWidth / 2.0)
+            );
+            return (x, DeviceGeometry.RoundToInt(baseY));
+        }
+
+        if (yOffset2 != 0)
+        {
+            var x = DeviceGeometry.SnapToRoutingGrid(baseX + DeviceGeometry.MosfetWidth / 2.0);
+            var y = DeviceGeometry.RoundToInt(
+                baseY + yOffset2 * (DeviceGeometry.PassiveWidth / 2.0)
+            );
+            return (x, y);
+        }
+
+        return (DeviceGeometry.RoundToInt(baseX), DeviceGeometry.RoundToInt(baseY));
     }
 
     /// <summary>

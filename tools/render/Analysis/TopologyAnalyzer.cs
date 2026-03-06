@@ -104,7 +104,7 @@ public static class TopologyAnalyzer
     private sealed record ChainEdge(string FromDevice, string ToDevice, string ViaNet);
 
     /// <summary>
-    /// Classifies passive elements (resistors, capacitors) as vertical or horizontal.
+    /// Classifies passive elements (resistors, capacitors, inductors) as vertical or horizontal.
     /// - Vertical: Part of VDD-to-GND current path (one terminal on rail)
     /// - Horizontal: Feedback/sensing connection between internal nodes
     /// </summary>
@@ -115,7 +115,7 @@ public static class TopologyAnalyzer
         foreach (var (deviceId, device) in graph.Devices)
         {
             var deviceType = device.DeviceType.ToLowerInvariant();
-            if (deviceType is not ("resistor" or "capacitor"))
+            if (deviceType is not ("resistor" or "capacitor" or "inductor"))
             {
                 continue;
             }
@@ -248,7 +248,7 @@ public static class TopologyAnalyzer
                         downwardTerminals.Add(conn.DeviceId);
                     }
                 }
-                else if (deviceType is "resistor" or "capacitor")
+                else if (deviceType is "resistor" or "capacitor" or "inductor")
                 {
                     // Only include vertical passives in the chain graph
                     if (
@@ -437,7 +437,7 @@ public static class TopologyAnalyzer
                     devices.Add(deviceId);
                 }
             }
-            else if (deviceType is "resistor" or "capacitor")
+            else if (deviceType is "resistor" or "capacitor" or "inductor")
             {
                 var pNet = graph.GetNetForTerminal(deviceId, "P");
                 var nNet = graph.GetNetForTerminal(deviceId, "N");

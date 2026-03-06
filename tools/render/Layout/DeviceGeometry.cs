@@ -262,7 +262,7 @@ public static class DeviceGeometry
             terminals["D"] = (p.DrainX, isPmos ? p.SourceY : p.DrainY);
             terminals["S"] = (p.SourceX, isPmos ? p.DrainY : p.SourceY);
         }
-        else if (type is "resistor" or "capacitor")
+        else if (type is "resistor" or "capacitor" or "inductor")
         {
             if (isHorizontalPassive)
             {
@@ -337,7 +337,7 @@ public static class DeviceGeometry
                 return (0, sourceRowOffset);
             }
         }
-        else if (type is "resistor" or "capacitor")
+        else if (type is "resistor" or "capacitor" or "inductor")
         {
             terminal = terminal.ToUpperInvariant();
 

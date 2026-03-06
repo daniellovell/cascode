@@ -379,7 +379,7 @@ public static partial class MazeRouter
             }
 
             var point = ToGridPoint(terminals[i]);
-            var distance = ManhattanDistance(point, target);
+            var distance = ProximityDistanceWithAxisPenalty(point, target);
             if (distance < bestDistance)
             {
                 bestDistance = distance;
@@ -413,6 +413,22 @@ public static partial class MazeRouter
     private static int ManhattanDistance(GridPoint a, GridPoint b)
     {
         return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+    }
+
+    private static int ProximityDistanceWithAxisPenalty(GridPoint a, GridPoint b)
+    {
+        var distance = ManhattanDistance(a, b);
+        if (a.X != b.X)
+        {
+            distance += 1;
+        }
+
+        if (a.Y != b.Y)
+        {
+            distance += 1;
+        }
+
+        return distance;
     }
 
     /// <summary>

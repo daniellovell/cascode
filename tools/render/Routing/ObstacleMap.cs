@@ -60,8 +60,23 @@ public static class ObstacleMap
             );
         }
 
-        if (deviceType is "resistor" or "capacitor")
+        if (deviceType is "resistor" or "capacitor" or "inductor")
         {
+            var (pOffsetX2, _) = CoarseGridPlacer.GetTerminalEdgeOffset2(deviceType, "P", cell);
+            if (pOffsetX2 != 0)
+            {
+                var baseX = DeviceGeometry.GetCellCenterX(cell.Column);
+                var baseY = DeviceGeometry.GetCellCenterY(cell.Row);
+                var x = baseX - DeviceGeometry.PassiveWidth / 2.0;
+                var y = baseY - DeviceGeometry.PassiveHeight / 2.0;
+                return new Obstacle(
+                    MinX: (int)Math.Floor(x) + Margin,
+                    MinY: (int)Math.Floor(y) + Margin,
+                    MaxX: (int)Math.Ceiling(x + DeviceGeometry.PassiveWidth) - Margin,
+                    MaxY: (int)Math.Ceiling(y + DeviceGeometry.PassiveHeight) - Margin
+                );
+            }
+
             var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
             return new Obstacle(
                 MinX: (int)p.X + Margin,
