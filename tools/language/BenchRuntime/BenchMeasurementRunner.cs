@@ -525,9 +525,21 @@ public sealed class BenchMeasurementRunner
             return local;
         }
 
-        if (_measurementCache.ContainsKey(path) || HasMeasurementOverload(path, argCount: 0))
+        if (_measurementCache.ContainsKey(path))
         {
             return EvaluateMeasurement(path);
+        }
+
+        if (HasMeasurementOverload(path, argCount: 0))
+        {
+            return EvaluateMeasurement(path);
+        }
+
+        if (HasMeasurementOverload(path))
+        {
+            throw new InvalidOperationException(
+                $"Measurement '{path}' requires arguments (e.g. {path}(...))."
+            );
         }
 
         if (_terminals.TryGetValue(path, out var terminal))
@@ -678,6 +690,11 @@ public sealed class BenchMeasurementRunner
     {
         return _measurementsByName.TryGetValue(name, out var overloads)
             && overloads.ContainsKey(argCount);
+    }
+
+    private bool HasMeasurementOverload(string name)
+    {
+        return _measurementsByName.ContainsKey(name);
     }
 
     private MeasurementDefinition ResolveMeasurement(string name, int argCount)

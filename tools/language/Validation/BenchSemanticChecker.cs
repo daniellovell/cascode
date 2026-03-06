@@ -145,6 +145,23 @@ public static class BenchSemanticChecker
         List<Diagnostic> diagnostics
     )
     {
+        var scope = new TypeScope(globalFunctions, bench.Functions);
+        foreach (var param in bench.Parameters)
+        {
+            scope.Values[param.Name] = MeasurementType.FromBenchValueType(param.Type);
+        }
+        foreach (var terminal in bench.Terminals)
+        {
+            if (terminal.Type is not null)
+            {
+                scope.Values[terminal.Name] = MeasurementType.Terminal(terminal.Type);
+            }
+        }
+        foreach (var analysis in bench.Analyses)
+        {
+            scope.Values[analysis.Name] = MeasurementType.FromBenchValueType(analysis.Type);
+        }
+
         var measurementNames = bench
             .Measurements.Select(m => MeasurementSignature.Create(m.Name, m.Parameters.Count))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -171,7 +188,17 @@ public static class BenchSemanticChecker
         >(StringComparer.OrdinalIgnoreCase);
         foreach (var fn in functionsByName.Values)
         {
-            functionDeps[fn.Name] = CollectDirectDeps(fn.Body, measurementNames, functionNames);
+            var functionScope = scope.Clone();
+            foreach (var p in fn.Parameters)
+            {
+                functionScope.Values[p.Name] = MeasurementType.FromBenchValueType(p.Type);
+            }
+            functionDeps[fn.Name] = CollectDirectDeps(
+                fn.Body,
+                measurementNames,
+                functionNames,
+                functionScope
+            );
         }
 
         var measurementDeps = new Dictionary<string, HashSet<string>>(
@@ -179,7 +206,17 @@ public static class BenchSemanticChecker
         );
         foreach (var m in bench.Measurements)
         {
-            var direct = CollectDirectDeps(m.Body, measurementNames, functionNames);
+            var measurementScope = scope.Clone();
+            foreach (var p in m.Parameters)
+            {
+                measurementScope.Values[p.Name] = MeasurementType.FromBenchValueType(p.Type);
+            }
+            var direct = CollectDirectDeps(
+                m.Body,
+                measurementNames,
+                functionNames,
+                measurementScope
+            );
 
             var deps = new HashSet<string>(direct.Measurements, StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<string>(direct.Functions);
@@ -527,15 +564,17 @@ public static class BenchSemanticChecker
     private static (HashSet<string> Measurements, HashSet<string> Functions) CollectDirectDeps(
         IReadOnlyList<BenchStatement> body,
         IReadOnlySet<string> measurementNames,
-        IReadOnlySet<string> functionNames
+        IReadOnlySet<string> functionNames,
+        TypeScope scope
     )
     {
         var ms = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var fs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var bodyScope = scope.Clone();
 
         foreach (var stmt in body)
         {
-            CollectDeps(stmt, measurementNames, functionNames, ms, fs);
+            CollectDeps(stmt, measurementNames, functionNames, ms, fs, bodyScope);
         }
 
         return (ms, fs);
@@ -546,7 +585,8 @@ public static class BenchSemanticChecker
         IReadOnlySet<string> measurementNames,
         IReadOnlySet<string> functionNames,
         HashSet<string> calledMeasurements,
-        HashSet<string> calledFunctions
+        HashSet<string> calledFunctions,
+        TypeScope scope
     )
     {
         switch (stmt)
@@ -557,8 +597,10 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
+                scope.Values[v.Name] = MeasurementType.FromBenchValueType(v.Type);
                 break;
             case BenchReturn r:
                 CollectDeps(
@@ -566,7 +608,8 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
             case BenchIf i:
@@ -575,8 +618,10 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
+                var thenScope = scope.Clone();
                 foreach (var s in i.ThenBody)
                 {
                     CollectDeps(
@@ -584,11 +629,13 @@ public static class BenchSemanticChecker
                         measurementNames,
                         functionNames,
                         calledMeasurements,
-                        calledFunctions
+                        calledFunctions,
+                        thenScope
                     );
                 }
                 if (i.ElseBody is not null)
                 {
+                    var elseScope = scope.Clone();
                     foreach (var s in i.ElseBody)
                     {
                         CollectDeps(
@@ -596,7 +643,8 @@ public static class BenchSemanticChecker
                             measurementNames,
                             functionNames,
                             calledMeasurements,
-                            calledFunctions
+                            calledFunctions,
+                            elseScope
                         );
                     }
                 }
@@ -609,7 +657,8 @@ public static class BenchSemanticChecker
         IReadOnlySet<string> measurementNames,
         IReadOnlySet<string> functionNames,
         HashSet<string> calledMeasurements,
-        HashSet<string> calledFunctions
+        HashSet<string> calledFunctions,
+        TypeScope scope
     )
     {
         switch (expr)
@@ -620,14 +669,16 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     c.Right,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
         }
@@ -638,7 +689,8 @@ public static class BenchSemanticChecker
         IReadOnlySet<string> measurementNames,
         IReadOnlySet<string> functionNames,
         HashSet<string> calledMeasurements,
-        HashSet<string> calledFunctions
+        HashSet<string> calledFunctions,
+        TypeScope scope
     )
     {
         switch (expr)
@@ -670,13 +722,17 @@ public static class BenchSemanticChecker
                         measurementNames,
                         functionNames,
                         calledMeasurements,
-                        calledFunctions
+                        calledFunctions,
+                        scope
                     );
                 }
                 break;
             case MeasurementPath p:
                 var zeroArgMeasurementKey = MeasurementSignature.ZeroArg(p.Path);
-                if (measurementNames.Contains(zeroArgMeasurementKey))
+                if (
+                    !scope.TryResolvePath(p.Path, out _)
+                    && measurementNames.Contains(zeroArgMeasurementKey)
+                )
                 {
                     calledMeasurements.Add(zeroArgMeasurementKey);
                 }
@@ -687,7 +743,8 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 foreach (var a in m.Args)
                 {
@@ -696,7 +753,8 @@ public static class BenchSemanticChecker
                         measurementNames,
                         functionNames,
                         calledMeasurements,
-                        calledFunctions
+                        calledFunctions,
+                        scope
                     );
                 }
                 break;
@@ -706,14 +764,16 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     b.Right,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
             case MeasurementUnary u:
@@ -722,7 +782,8 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
             case MeasurementConditional c:
@@ -731,21 +792,24 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     c.ThenExpr,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     c.ElseExpr,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
         }
@@ -1477,33 +1541,63 @@ public static class BenchSemanticChecker
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
-        var positionalArgs = call.Args.Where(a => a.Name is null).ToList();
-        var namedArgs = new Dictionary<string, MeasurementExpr>(StringComparer.Ordinal);
-        foreach (var arg in call.Args.Where(a => a.Name is not null))
+        var parameterIndices = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < measurement.Parameters.Count; i++)
         {
-            var name = arg.Name!;
-            if (namedArgs.ContainsKey(name))
+            parameterIndices[measurement.Parameters[i].Name] = i;
+        }
+
+        var boundArgs = new MeasurementExpr?[measurement.Parameters.Count];
+        var sawNamedArgument = false;
+        var nextPositionalParameterIndex = 0;
+
+        foreach (var arg in call.Args)
+        {
+            if (arg.Name is null)
+            {
+                if (sawNamedArgument)
+                {
+                    return false;
+                }
+                if (nextPositionalParameterIndex >= measurement.Parameters.Count)
+                {
+                    return false;
+                }
+                if (boundArgs[nextPositionalParameterIndex] is not null)
+                {
+                    return false;
+                }
+
+                boundArgs[nextPositionalParameterIndex] = arg.Value;
+                nextPositionalParameterIndex++;
+                continue;
+            }
+
+            sawNamedArgument = true;
+            if (!parameterIndices.TryGetValue(arg.Name, out var parameterIndex))
+            {
+                return false;
+            }
+            if (boundArgs[parameterIndex] is not null)
             {
                 return false;
             }
 
-            namedArgs[name] = arg.Value;
+            boundArgs[parameterIndex] = arg.Value;
+            while (
+                nextPositionalParameterIndex < boundArgs.Length
+                && boundArgs[nextPositionalParameterIndex] is not null
+            )
+            {
+                nextPositionalParameterIndex++;
+            }
         }
 
         for (var i = 0; i < measurement.Parameters.Count; i++)
         {
             var parameter = measurement.Parameters[i];
-            MeasurementExpr valueExpr;
-            if (namedArgs.TryGetValue(parameter.Name, out var namedValue))
-            {
-                valueExpr = namedValue;
-                namedArgs.Remove(parameter.Name);
-            }
-            else if (i < positionalArgs.Count)
-            {
-                valueExpr = positionalArgs[i].Value;
-            }
-            else
+            var valueExpr = boundArgs[i];
+            if (valueExpr is null)
             {
                 return false;
             }
@@ -1516,12 +1610,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (positionalArgs.Count > measurement.Parameters.Count)
-        {
-            return false;
-        }
-
-        return namedArgs.Count == 0;
+        return true;
     }
 
     private static void ValidateBuiltinCalls(
