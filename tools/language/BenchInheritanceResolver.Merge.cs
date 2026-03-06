@@ -101,13 +101,13 @@ public static partial class BenchInheritanceResolver
             var merged = baseBench.Measurements.Select(CloneMeasurement).ToList();
             var indexBySignature = merged
                 .Select(
-                    (measurement, index) => (Key: GetMeasurementSignatureKey(measurement), index)
+                    (measurement, index) => (Key: MeasurementSignature.Create(measurement), index)
                 )
                 .ToDictionary(m => m.Key, m => m.index, StringComparer.Ordinal);
 
             foreach (var measurement in child.Measurements)
             {
-                var signatureKey = GetMeasurementSignatureKey(measurement);
+                var signatureKey = MeasurementSignature.Create(measurement);
                 if (measurement.IsOverride)
                 {
                     if (!indexBySignature.TryGetValue(signatureKey, out var index))

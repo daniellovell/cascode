@@ -513,9 +513,21 @@ public sealed class BenchMeasurementRunner
             return local;
         }
 
-        if (_measurementCache.ContainsKey(path) || HasMeasurementOverload(path, argCount: 0))
+        if (_measurementCache.ContainsKey(path))
         {
             return EvaluateMeasurement(path);
+        }
+
+        if (HasMeasurementOverload(path, argCount: 0))
+        {
+            return EvaluateMeasurement(path);
+        }
+
+        if (HasMeasurementOverload(path))
+        {
+            throw new InvalidOperationException(
+                $"Measurement '{path}' requires arguments (e.g. {path}(...))."
+            );
         }
 
         if (_terminals.TryGetValue(path, out var terminal))
@@ -611,6 +623,11 @@ public sealed class BenchMeasurementRunner
                 return EvaluateMeasurementInvocation(measurement, args: null);
             }
 
+            if (call.Args.Count == 0)
+            {
+                return EvaluateMeasurementInvocation(measurement, args: null);
+            }
+
             var args = BindFunctionCallArguments(
                 call,
                 locals,
@@ -661,6 +678,11 @@ public sealed class BenchMeasurementRunner
     {
         return _measurementsByName.TryGetValue(name, out var overloads)
             && overloads.ContainsKey(argCount);
+    }
+
+    private bool HasMeasurementOverload(string name)
+    {
+        return _measurementsByName.ContainsKey(name);
     }
 
     private MeasurementDefinition ResolveMeasurement(string name, int argCount)

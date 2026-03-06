@@ -29,14 +29,14 @@ circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
     NMOS M_N = new NMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.P
-      .G--IN.P
+      .G--IN.N
       .S--tnode
     }
 
     NMOS M_P = new NMOSLevel1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.N
-      .G--IN.N
+      .G--IN.P
       .S--tnode
     }
 

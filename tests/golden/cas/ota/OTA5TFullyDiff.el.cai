@@ -44,13 +44,13 @@ circuit OTA5TFullyDiff implements FullyDiffOpAmp {
     NMOS dp.M_N = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.P
-      .G--IN.P
+      .G--IN.N
       .S--tnode
     }
     NMOS dp.M_P = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.N
-      .G--IN.N
+      .G--IN.P
       .S--tnode
     }
     NMOS dp.M_TAIL = new NMOS_Level1(size(W=4u, L=180n, M=1)) {
