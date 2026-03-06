@@ -453,19 +453,7 @@ public sealed class BenchMeasurementRunner
                 return _benchMeasurementRefResolver(r);
 
             case MeasurementUnary u:
-                if (u.Op != "-")
-                {
-                    throw new InvalidOperationException($"Unsupported unary operator '{u.Op}'.");
-                }
-                var unaryOperand = EvaluateExpr(u.Operand, locals);
-                return unaryOperand switch
-                {
-                    BenchNumber n => new BenchNumber(n.Kind, -n.Value),
-                    BenchComplexNumber c => new BenchComplexNumber(c.Kind, -c.Value),
-                    _ => throw new InvalidOperationException(
-                        $"Expected number for 'unary', got {unaryOperand.GetType().Name}."
-                    ),
-                };
+                return ApplyUnary(u.Op, EvaluateExpr(u.Operand, locals));
 
             case MeasurementBinary b:
             {
@@ -2823,6 +2811,61 @@ public sealed class BenchMeasurementRunner
         throw new InvalidOperationException($"Unsupported binary operator '{op}'.");
     }
 
+    private static BenchValue ApplyUnary(string op, BenchValue operand)
+    {
+        if (op != "-")
+        {
+            throw new InvalidOperationException($"Unsupported unary operator '{op}'.");
+        }
+
+        return operand switch
+        {
+            BenchNumber n => new BenchNumber(n.Kind, -n.Value),
+            BenchComplexNumber c => new BenchComplexNumber(c.Kind, -c.Value),
+            BenchGainSpectrum g => new BenchGainSpectrum(
+                g.FrequenciesHz,
+                NegateSamples(g.Values),
+                g.ValueKind
+            ),
+            BenchScalarSpectrum s => new BenchScalarSpectrum(
+                s.FrequenciesHz,
+                NegateSamples(s.Values)
+            ),
+            BenchTimeSpectrum t => new BenchTimeSpectrum(t.FrequenciesHz, NegateSamples(t.ValuesS)),
+            BenchPhaseSpectrum p => new BenchPhaseSpectrum(
+                p.FrequenciesHz,
+                NegateSamples(p.Degrees)
+            ),
+            BenchNoiseSpectrum n => new BenchNoiseSpectrum(
+                n.FrequenciesHz,
+                NegateSamples(n.ValuesVPerRtHz)
+            ),
+            BenchImpedanceSpectrum z => new BenchImpedanceSpectrum(
+                z.FrequenciesHz,
+                NegateSamples(z.ValuesOhm)
+            ),
+            BenchVoltageSpectrum v => new BenchVoltageSpectrum(
+                v.FrequenciesHz,
+                NegateSamples(v.Values)
+            ),
+            BenchCurrentSpectrum i => new BenchCurrentSpectrum(
+                i.FrequenciesHz,
+                NegateSamples(i.Values)
+            ),
+            BenchComplexVoltageSpectrum cv => new BenchComplexVoltageSpectrum(
+                cv.FrequenciesHz,
+                NegateSamples(cv.Values)
+            ),
+            BenchComplexCurrentSpectrum ci => new BenchComplexCurrentSpectrum(
+                ci.FrequenciesHz,
+                NegateSamples(ci.Values)
+            ),
+            _ => throw new InvalidOperationException(
+                $"Expected number or spectrum for 'unary', got {operand.GetType().Name}."
+            ),
+        };
+    }
+
     private static BenchValue ApplyBinaryAny(string op, BenchValue left, BenchValue right)
     {
         if (left is BenchNumber ln && right is BenchNumber rn)
@@ -2880,6 +2923,28 @@ public sealed class BenchMeasurementRunner
 
     private static BenchComplexNumber ToComplex(BenchNumber n) =>
         new(n.Kind, new Complex(n.Value, 0.0));
+
+    private static double[] NegateSamples(double[] values)
+    {
+        var result = new double[values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            result[i] = -values[i];
+        }
+
+        return result;
+    }
+
+    private static Complex[] NegateSamples(Complex[] values)
+    {
+        var result = new Complex[values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            result[i] = -values[i];
+        }
+
+        return result;
+    }
 
     private static BenchComplexNumber ApplyBinary(
         string op,

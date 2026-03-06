@@ -25,44 +25,76 @@ abstract bench AbstractTwoPortSParam {
   }
 
   measurements {
-    measurement ForwardGain(Frequency f) : dB {
+    measurement S21(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).ValueAt(f)
     }
 
-    measurement ForwardGain(Frequency from, Frequency to) : dB {
+    measurement S21(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).From(from).To(to)
     }
 
-    measurement InputReturnLoss(Frequency f) : dB {
+    measurement ForwardGain(Frequency f) : dB {
+      return S21(f)
+    }
+
+    measurement ForwardGain(Frequency from, Frequency to) : dB {
+      return S21(from, to)
+    }
+
+    measurement S11(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(1).ValueAt(f)
+      return db20(S.S(1, 1).Mag()).ValueAt(f)
+    }
+
+    measurement S11(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).From(from).To(to)
+    }
+
+    measurement InputReturnLoss(Frequency f) : dB {
+      return -S11(f)
     }
 
     measurement InputReturnLoss(Frequency from, Frequency to) : dB {
+      return -S11(from, to)
+    }
+
+    measurement S22(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(1).From(from).To(to)
+      return db20(S.S(2, 2).Mag()).ValueAt(f)
+    }
+
+    measurement S22(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 2).Mag()).From(from).To(to)
     }
 
     measurement OutputReturnLoss(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(2).ValueAt(f)
+      return -S22(f)
     }
 
     measurement OutputReturnLoss(Frequency from, Frequency to) : dB {
+      return -S22(from, to)
+    }
+
+    measurement S12(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(2).From(from).To(to)
+      return db20(S.S(1, 2).Mag()).ValueAt(f)
+    }
+
+    measurement S12(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 2).Mag()).From(from).To(to)
     }
 
     measurement ReverseIsolation(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.Isolation(1, 2).ValueAt(f)
+      return -S12(f)
     }
 
     measurement ReverseIsolation(Frequency from, Frequency to) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.Isolation(1, 2).From(from).To(to)
+      return -S12(from, to)
     }
 
     measurement InputVSWR(Frequency f) : Scalar {

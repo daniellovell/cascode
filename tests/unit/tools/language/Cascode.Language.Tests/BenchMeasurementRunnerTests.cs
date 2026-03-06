@@ -1783,6 +1783,93 @@ bench SParamBench {{
     }
 
     [Fact]
+    public void UnaryMinus_AppliesToGainSpectrumRange()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnarySpectrumBench {{
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=2, start=1GHz, stop=2GHz)
+  }}
+
+  measurements {{
+    measurement NegatedS11BandMax : dB {{
+      SParameterMatrix S = sparam(sp)
+      GainSpectrum negS11 = -db20(S.S(1, 1).Mag()).From(1GHz).To(2GHz)
+      return negS11.Max()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "UnarySpectrumBench");
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
+            {
+                [new BenchPortPair(1, 1)] = new[]
+                {
+                    new System.Numerics.Complex(0.1, 0.0),
+                    new System.Numerics.Complex(0.2, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 2e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "NegatedS11BandMax" });
+        Assert.Equal(20.0, values["NegatedS11BandMax"].Value, precision: 9);
+    }
+
+    [Fact]
     public void SParameterMatrix_NF_PassesThroughNoiseFigure()
     {
         var cascode =
