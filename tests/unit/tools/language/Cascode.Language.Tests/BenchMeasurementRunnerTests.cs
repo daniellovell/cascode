@@ -262,6 +262,143 @@ bench TestBench {{
     }
 
     [Fact]
+    public void RunAll_ResolvesMeasurementOverloadsByArity()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench OverloadBench {{
+  measurements {{
+    measurement ForwardGain(Frequency f) : dB {{
+      return 1dB
+    }}
+
+    measurement ForwardGain(Frequency from, Frequency to) : dB {{
+      return 2dB
+    }}
+
+    measurement SpotGain : dB {{
+      return ForwardGain(1GHz)
+    }}
+
+    measurement BandGain : dB {{
+      return ForwardGain(1GHz, 2GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "OverloadBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunAll();
+        Assert.Equal(1.0, values["SpotGain"].Value);
+        Assert.Equal(2.0, values["BandGain"].Value);
+    }
+
+    [Fact]
+    public void RunMetricWithNamedArgs_ResolvesParameterizedMeasurementOverloadByArity()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench OverloadBench {{
+  measurements {{
+    measurement ForwardGain(Frequency f) : dB {{
+      return 1dB
+    }}
+
+    measurement ForwardGain(Frequency from, Frequency to) : dB {{
+      return 2dB
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "OverloadBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var spot = runner.RunMetricWithNamedArgs(
+            "ForwardGain",
+            new Dictionary<string, BenchValue>(StringComparer.Ordinal)
+            {
+                ["f"] = new BenchNumber(BenchNumericKind.FrequencyHz, 1e9),
+            }
+        );
+        var band = runner.RunMetricWithNamedArgs(
+            "ForwardGain",
+            new Dictionary<string, BenchValue>(StringComparer.Ordinal)
+            {
+                ["from"] = new BenchNumber(BenchNumericKind.FrequencyHz, 1e9),
+                ["to"] = new BenchNumber(BenchNumericKind.FrequencyHz, 2e9),
+            }
+        );
+
+        Assert.Equal(1.0, spot.Value);
+        Assert.Equal(2.0, band.Value);
+    }
+
+    [Fact]
+    public void Parse_DuplicateMeasurementNameAndArity_ReportsCas2002()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench DuplicateArity {{
+  measurements {{
+    measurement ForwardGain(Frequency f) : dB {{
+      return 1dB
+    }}
+
+    measurement ForwardGain(Frequency x) : dB {{
+      return 2dB
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == "CAS2002");
+    }
+
+    [Fact]
     public void RunAll_MeasurementCallWithArgs_Throws()
     {
         var cascode =
@@ -1361,7 +1498,7 @@ bench SpectrumRangeAsDb {{
   }}
 
   measurements {{
-    measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {{
+    measurement ForwardGain(Frequency from, Frequency to) : dB {{
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).From(from).To(to)
     }}

@@ -223,7 +223,7 @@ to that measurement. Numeric constraints on spectrums and waveforms are evaluate
 every sample in the selected band must satisfy the bound:
 
 ```cascode
-measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+measurement ForwardGain(Frequency from, Frequency to) : dB {
   SParameterMatrix S = sparam(sp)
   return db20(S.S(2, 1).Mag()).From(from).To(to)
 }
@@ -232,7 +232,7 @@ measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
 ```cascode
 constraints {
   numeric {
-    c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=100kHz, to=10MHz) >= 10dB
+    c_forward_gain = sparam_bench::ForwardGain(from=100kHz, to=10MHz) >= 10dB
   }
 }
 ```

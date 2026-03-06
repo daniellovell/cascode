@@ -140,9 +140,9 @@ circuit LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130 implements SingleEnd
 
   constraints {
     numeric {
-      c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=2.3GHz, to=2.5GHz) >= 20dB
-      c_input_return_loss_spectrum = sparam_bench::InputReturnLossSpectrum(from=2.3GHz, to=2.5GHz) >= 15dB
-      c_noise_figure_spectrum = sparam_bench::NoiseFigureSpectrum(from=2.3GHz, to=2.5GHz) <= 2dB
+      c_forward_gain = sparam_bench::ForwardGain(from=2.3GHz, to=2.5GHz) >= 20dB
+      c_input_return_loss = sparam_bench::InputReturnLoss(from=2.3GHz, to=2.5GHz) >= 15dB
+      c_noise_figure = sparam_bench::NoiseFigure(from=2.3GHz, to=2.5GHz) <= 2dB
       c_vdd_pwr = vdd_pwr::QuiescentPower <= 8mW
     }
   }

@@ -68,10 +68,12 @@ public static class BenchSemanticChecker
         }
 
         // Seed measurement types from declaration units for cross-measurement references.
+        // Key by name+arity to allow overloads, and keep zero-arg names addressable by bare path.
         var measurementTypes = new Dictionary<string, MeasurementType>(StringComparer.Ordinal);
         foreach (var m in bench.Measurements)
         {
-            if (!measurementTypes.TryAdd(m.Name, MeasurementType.FromUnit(m.Unit)))
+            var signatureKey = GetMeasurementSignatureKey(m.Name, m.Parameters.Count);
+            if (!measurementTypes.TryAdd(signatureKey, MeasurementType.FromUnit(m.Unit)))
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -82,6 +84,11 @@ public static class BenchSemanticChecker
                         1
                     )
                 );
+            }
+
+            if (m.Parameters.Count == 0)
+            {
+                measurementTypes[m.Name] = MeasurementType.FromUnit(m.Unit);
             }
         }
 
@@ -105,7 +112,7 @@ public static class BenchSemanticChecker
                 bench,
                 m.Body,
                 measurementScope,
-                expectedReturn: measurementTypes[m.Name],
+                expectedReturn: MeasurementType.FromUnit(m.Unit),
                 measurementTypes,
                 benchesByName,
                 diagnostics
@@ -137,7 +144,7 @@ public static class BenchSemanticChecker
     )
     {
         var measurementNames = bench
-            .Measurements.Select(m => m.Name)
+            .Measurements.Select(m => GetMeasurementSignatureKey(m.Name, m.Parameters.Count))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var functionNames = globalFunctions
             .Values.Concat(bench.Functions)
@@ -198,7 +205,7 @@ public static class BenchSemanticChecker
                 }
             }
 
-            measurementDeps[m.Name] = deps;
+            measurementDeps[GetMeasurementSignatureKey(m.Name, m.Parameters.Count)] = deps;
         }
 
         // Standard DFS cycle detection on the measurement-only graph.
@@ -208,12 +215,22 @@ public static class BenchSemanticChecker
 
         foreach (var m in bench.Measurements)
         {
-            if (visited.Contains(m.Name))
+            var measurementKey = GetMeasurementSignatureKey(m.Name, m.Parameters.Count);
+            if (visited.Contains(measurementKey))
             {
                 continue;
             }
 
-            if (TryFindCycle(m.Name, measurementDeps, visited, visiting, path, out var cycle))
+            if (
+                TryFindCycle(
+                    measurementKey,
+                    measurementDeps,
+                    visited,
+                    visiting,
+                    path,
+                    out var cycle
+                )
+            )
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -625,9 +642,10 @@ public static class BenchSemanticChecker
         switch (expr)
         {
             case MeasurementCall c:
-                if (measurementNames.Contains(c.Name))
+                var measurementKey = GetMeasurementSignatureKey(c.Name, c.Args.Count);
+                if (measurementNames.Contains(measurementKey))
                 {
-                    calledMeasurements.Add(c.Name);
+                    calledMeasurements.Add(measurementKey);
                 }
                 else if (functionNames.Contains(c.Name))
                 {
@@ -1396,7 +1414,12 @@ public static class BenchSemanticChecker
         }
 
         // Allow measurement calls (e.g. LowpassBandwidth() or IntegratedInputNoise(from=..., to=...)).
-        if (measurementTypes.TryGetValue(call.Name, out var mt))
+        if (
+            measurementTypes.TryGetValue(
+                GetMeasurementSignatureKey(call.Name, call.Args.Count),
+                out var mt
+            )
+        )
         {
             return mt;
         }
@@ -1409,6 +1432,11 @@ public static class BenchSemanticChecker
 
         // Unknown calls treated as scalar.
         return MeasurementType.Scalar();
+    }
+
+    private static string GetMeasurementSignatureKey(string name, int arity)
+    {
+        return $"{name}#{arity}";
     }
 
     private static void ValidateBuiltinCalls(

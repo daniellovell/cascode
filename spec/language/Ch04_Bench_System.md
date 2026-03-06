@@ -485,6 +485,26 @@ measurement BandpassBandwidth : Hz {
 If a measurement declares parameters, it must be invoked with matching arguments by name or by
 position.
 
+Measurements may be overloaded by arity within the same bench. Two measurements with the same
+name are valid only when they declare different parameter counts. Resolution is by name and argument
+count at the call site.
+
+```cascode
+measurements {
+  measurement ForwardGain(Frequency f) : dB {
+    SParameterMatrix S = sparam(sp)
+    return db20(S.S(2, 1).Mag()).ValueAt(f)
+  }
+
+  measurement ForwardGain(Frequency from, Frequency to) : dB {
+    SParameterMatrix S = sparam(sp)
+    return db20(S.S(2, 1).Mag()).From(from).To(to)
+  }
+}
+```
+
+Declaring multiple measurements with the same name and the same parameter count is a semantic error.
+
 ---
 
 ## 4.6 Measurement Value Types

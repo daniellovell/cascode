@@ -36,19 +36,19 @@ circuit CSeries_Sky130 {
       c_input_return_loss_50_min = sparam_bench::InputReturnLoss(f=1MHz) >= 6.98dB
       c_input_return_loss_50_max = sparam_bench::InputReturnLoss(f=1MHz) <= 6.99dB
       c_input_return_loss_high = sparam_bench::InputReturnLoss(f=10MHz) >= 26dB
-      c_input_return_loss_spectrum = sparam_bench::InputReturnLossSpectrum(from=1MHz, to=100MHz) >= 6.98dB
+      c_input_return_loss = sparam_bench::InputReturnLoss(from=1MHz, to=100MHz) >= 6.98dB
       c_forward_gain_min = sparam_bench::ForwardGain(f=1MHz) >= -0.97dB
       c_forward_gain_max = sparam_bench::ForwardGain(f=1MHz) <= -0.96dB
-      c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=1MHz, to=100MHz) >= -0.97dB
+      c_forward_gain = sparam_bench::ForwardGain(from=1MHz, to=100MHz) >= -0.97dB
       // The network is reciprocal.
       c_output_return_loss_low = sparam_bench::OutputReturnLoss(f=100kHz) <= 0.2dB
       c_output_return_loss_50_min = sparam_bench::OutputReturnLoss(f=1MHz) >= 6.98dB
       c_output_return_loss_50_max = sparam_bench::OutputReturnLoss(f=1MHz) <= 6.99dB
       c_output_return_loss_high = sparam_bench::OutputReturnLoss(f=10MHz) >= 26dB
-      c_output_return_loss_spectrum = sparam_bench::OutputReturnLossSpectrum(from=1MHz, to=100MHz) >= 6.98dB
+      c_output_return_loss = sparam_bench::OutputReturnLoss(from=1MHz, to=100MHz) >= 6.98dB
       c_reverse_isolation_min = sparam_bench::ReverseIsolation(f=1MHz) >= 0.96dB
       c_reverse_isolation_max = sparam_bench::ReverseIsolation(f=1MHz) <= 0.97dB
-      c_reverse_isolation_spectrum = sparam_bench::ReverseIsolationSpectrum(from=1MHz, to=100MHz) <= 0.97dB
+      c_reverse_isolation = sparam_bench::ReverseIsolation(from=1MHz, to=100MHz) <= 0.97dB
       c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) == 0dB
       c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) == 0dB
       c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) == 0Ohm

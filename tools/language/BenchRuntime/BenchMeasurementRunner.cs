@@ -10,7 +10,10 @@ public sealed class BenchMeasurementRunner
 {
     private readonly BenchDefinition _bench;
     private readonly IReadOnlyDictionary<string, FunctionDefinition> _functions;
-    private readonly IReadOnlyDictionary<string, MeasurementDefinition> _measurements;
+    private readonly IReadOnlyDictionary<
+        string,
+        IReadOnlyDictionary<int, MeasurementDefinition>
+    > _measurementsByName;
     private readonly IReadOnlyDictionary<string, AnalysisContext> _analyses;
     private readonly IReadOnlyDictionary<string, BenchTerminalRef> _terminals;
     private readonly IReadOnlyDictionary<string, BenchValue> _env;
@@ -80,8 +83,23 @@ public sealed class BenchMeasurementRunner
     {
         _bench = bench;
         _functions = functions;
-        _measurements = bench.Measurements.ToDictionary(
-            m => m.Name,
+        var measurementsByName = new Dictionary<string, Dictionary<int, MeasurementDefinition>>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        foreach (var measurement in bench.Measurements)
+        {
+            if (!measurementsByName.TryGetValue(measurement.Name, out var overloads))
+            {
+                overloads = new Dictionary<int, MeasurementDefinition>();
+                measurementsByName[measurement.Name] = overloads;
+            }
+
+            overloads[measurement.Parameters.Count] = measurement;
+        }
+
+        _measurementsByName = measurementsByName.ToDictionary(
+            kvp => kvp.Key,
+            kvp => (IReadOnlyDictionary<int, MeasurementDefinition>)kvp.Value,
             StringComparer.OrdinalIgnoreCase
         );
         _analyses = analyses;
@@ -155,10 +173,7 @@ public sealed class BenchMeasurementRunner
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         )
         {
-            if (!_measurements.TryGetValue(name, out var m))
-            {
-                throw new InvalidOperationException($"Unknown measurement '{name}'.");
-            }
+            var m = ResolveMeasurement(name, argCount: 0);
 
             var v = EvaluateMeasurement(m.Name);
             if (v is BenchError err)
@@ -185,7 +200,7 @@ public sealed class BenchMeasurementRunner
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         )
         {
-            if (!_measurements.ContainsKey(name))
+            if (!HasMeasurementOverload(name, argCount: 0))
             {
                 throw new InvalidOperationException($"Unknown measurement '{name}'.");
             }
@@ -204,10 +219,7 @@ public sealed class BenchMeasurementRunner
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(args);
 
-        if (!_measurements.TryGetValue(name, out var m))
-        {
-            throw new InvalidOperationException($"Unknown measurement '{name}'.");
-        }
+        var m = ResolveMeasurement(name, args.Count);
         if (m.Parameters.Count == 0)
         {
             throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
@@ -230,10 +242,7 @@ public sealed class BenchMeasurementRunner
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(args);
 
-        if (!_measurements.TryGetValue(name, out var m))
-        {
-            throw new InvalidOperationException($"Unknown measurement '{name}'.");
-        }
+        var m = ResolveMeasurement(name, args.Count);
         if (m.Parameters.Count == 0)
         {
             throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
@@ -261,10 +270,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvaluateMeasurement(string name)
     {
-        if (!_measurements.TryGetValue(name, out var measurement))
-        {
-            throw new InvalidOperationException($"Unknown measurement '{name}'.");
-        }
+        var measurement = ResolveMeasurement(name, argCount: 0);
 
         if (measurement.Parameters.Count != 0)
         {
@@ -519,7 +525,7 @@ public sealed class BenchMeasurementRunner
             return local;
         }
 
-        if (_measurementCache.ContainsKey(path) || _measurements.ContainsKey(path))
+        if (_measurementCache.ContainsKey(path) || HasMeasurementOverload(path, argCount: 0))
         {
             return EvaluateMeasurement(path);
         }
@@ -599,8 +605,13 @@ public sealed class BenchMeasurementRunner
         }
 
         // Allow measurements to reference other measurements by name with explicit call syntax.
-        if (_measurements.TryGetValue(call.Name, out var measurement))
+        if (_measurementsByName.TryGetValue(call.Name, out var measurementOverloads))
         {
+            var measurement = ResolveMeasurementForCall(
+                call.Name,
+                call.Args.Count,
+                measurementOverloads
+            );
             if (measurement.Parameters.Count == 0)
             {
                 if (call.Args.Count != 0)
@@ -635,6 +646,50 @@ public sealed class BenchMeasurementRunner
             "function"
         );
         return ExecuteStatements(fn.Body, fnArgs);
+    }
+
+    private static MeasurementDefinition ResolveMeasurementForCall(
+        string name,
+        int argCount,
+        IReadOnlyDictionary<int, MeasurementDefinition> overloads
+    )
+    {
+        if (overloads.TryGetValue(argCount, out var exact))
+        {
+            return exact;
+        }
+
+        if (overloads.Count == 1)
+        {
+            return overloads.Values.Single();
+        }
+
+        throw new InvalidOperationException(
+            $"Measurement '{name}' does not define an overload with {argCount} argument(s)."
+        );
+    }
+
+    private bool HasMeasurementOverload(string name, int argCount)
+    {
+        return _measurementsByName.TryGetValue(name, out var overloads)
+            && overloads.ContainsKey(argCount);
+    }
+
+    private MeasurementDefinition ResolveMeasurement(string name, int argCount)
+    {
+        if (!_measurementsByName.TryGetValue(name, out var overloads))
+        {
+            throw new InvalidOperationException($"Unknown measurement '{name}'.");
+        }
+
+        if (overloads.TryGetValue(argCount, out var measurement))
+        {
+            return measurement;
+        }
+
+        throw new InvalidOperationException(
+            $"Measurement '{name}' does not define an overload with {argCount} argument(s)."
+        );
     }
 
     private bool TryEvaluateFromTo(

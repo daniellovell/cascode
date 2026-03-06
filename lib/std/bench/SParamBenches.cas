@@ -30,7 +30,7 @@ abstract bench AbstractTwoPortSParam {
       return db20(S.S(2, 1).Mag()).ValueAt(f)
     }
 
-    measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+    measurement ForwardGain(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).From(from).To(to)
     }
@@ -40,7 +40,7 @@ abstract bench AbstractTwoPortSParam {
       return S.ReturnLoss(1).ValueAt(f)
     }
 
-    measurement InputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+    measurement InputReturnLoss(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(1).From(from).To(to)
     }
@@ -50,7 +50,7 @@ abstract bench AbstractTwoPortSParam {
       return S.ReturnLoss(2).ValueAt(f)
     }
 
-    measurement OutputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+    measurement OutputReturnLoss(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(2).From(from).To(to)
     }
@@ -60,7 +60,7 @@ abstract bench AbstractTwoPortSParam {
       return S.Isolation(1, 2).ValueAt(f)
     }
 
-    measurement ReverseIsolationSpectrum(Frequency from, Frequency to) : dB {
+    measurement ReverseIsolation(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.Isolation(1, 2).From(from).To(to)
     }
@@ -70,7 +70,7 @@ abstract bench AbstractTwoPortSParam {
       return S.VSWR(1).ValueAt(f)
     }
 
-    measurement InputVSWRSpectrum(Frequency from, Frequency to) : Scalar {
+    measurement InputVSWR(Frequency from, Frequency to) : Scalar {
       SParameterMatrix S = sparam(sp)
       return S.VSWR(1).From(from).To(to)
     }
@@ -152,7 +152,7 @@ bench TwoPortSParamNoise extends AbstractTwoPortSParam {
       return S.NF().ValueAt(f)
     }
 
-    measurement NoiseFigureSpectrum(Frequency from, Frequency to) : dB {
+    measurement NoiseFigure(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NF().From(from).To(to)
     }
