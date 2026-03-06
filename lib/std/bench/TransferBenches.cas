@@ -97,7 +97,7 @@ abstract bench AbstractTransfer {
   }
 
   measurements {
-    measurement GainSpectrum(Frequency from, Frequency to) : dB {
+    measurement Gain(Frequency from, Frequency to) : dB {
       return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
     }
 
