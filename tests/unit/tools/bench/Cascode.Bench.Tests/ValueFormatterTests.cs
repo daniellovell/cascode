@@ -11,6 +11,8 @@ public sealed class ValueFormatterTests
     [InlineData(1_000_000.0, "Hz", "1 MHz")]
     [InlineData(1_000_000_000.0, "Hz", "1 GHz")]
     [InlineData(1_000_000_000_000.0, "Hz", "1 THz")]
+    [InlineData(999.96, "Hz", "1 kHz")]
+    [InlineData(0.99996, "A", "1 A")]
     [InlineData(1e-3, "A", "1 mA")]
     [InlineData(1e-6, "A", "1 uA")]
     [InlineData(1e-9, "A", "1 nA")]
