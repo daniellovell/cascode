@@ -1,0 +1,39 @@
+VERSION 4.0
+
+include lib.std
+
+circuit LNASynthesisRequest implements SingleEndedAmp {
+  level HL
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  slot
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=2.3GHz, to=2.5GHz) >= 10dB
+      c_input_return_loss_spectrum = sparam_bench::InputReturnLossSpectrum(from=2.3GHz, to=2.5GHz) >= 15dB
+      c_noise_figure_spectrum = sparam_bench::NoiseFigureSpectrum(from=2.3GHz, to=2.5GHz) <= 3dB
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 8mW
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+
+  synth {
+    seed = 42
+    objective = minimize_power
+  }
+}
