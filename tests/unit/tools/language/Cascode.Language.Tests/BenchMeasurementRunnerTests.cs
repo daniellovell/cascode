@@ -314,6 +314,62 @@ bench OverloadBench {{
     }
 
     [Fact]
+    public void RunAll_SingleOverloadFallback_ParameterizedMeasurementCalledWithoutArgs_Throws()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench OverloadBench {{
+  measurements {{
+    measurement ForwardGain(Frequency f) : dB {{
+      return 1dB
+    }}
+
+    measurement BadCall : dB {{
+      return ForwardGain()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "OverloadBench");
+        var overloads = bench
+            .Measurements.Where(m => m.Name == "ForwardGain")
+            .ToDictionary(m => m.Parameters.Count, m => m, comparer: EqualityComparer<int>.Default);
+        var resolveMethod = typeof(BenchMeasurementRunner).GetMethod(
+            "ResolveMeasurementForCall",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        Assert.NotNull(resolveMethod);
+        var resolved = (MeasurementDefinition?)
+            resolveMethod!.Invoke(null, new object[] { "ForwardGain", 0, overloads });
+        Assert.Same(overloads[1], resolved);
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Equal("Measurement 'ForwardGain' requires arguments.", ex.Message);
+    }
+
+    [Fact]
     public void RunMetricWithNamedArgs_ResolvesParameterizedMeasurementOverloadByArity()
     {
         var cascode =

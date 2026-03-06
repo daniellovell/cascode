@@ -687,5 +687,62 @@ circuit TestCircuit {{
         Assert.Equal("IN", conn.To);
     }
 
+    [Fact]
+    public void TryRead_InvalidMeasurementNamedArgument_DoesNotInferDeclaredMeasurementType()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ArgumentValidationBench {{
+  measurements {{
+    measurement GainAt(Frequency f) : dB {{
+      return 1dB
+    }}
+  }}
+
+  function GainSpectrumFromCall() : GainSpectrum {{
+    return GainAt(freq=1GHz)
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Code == "CAS2004"
+                && d.Message.Contains("expected 'GainSpectrum'", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void TryRead_BareZeroArgMeasurementReferences_ParticipateInCycleDetection()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BarePathCycleBench {{
+  measurements {{
+    measurement A : Hz {{
+      return B
+    }}
+
+    measurement B : Hz {{
+      return A
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == "CAS2007");
+    }
+
     #endregion
 }

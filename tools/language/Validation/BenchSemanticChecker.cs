@@ -7,6 +7,11 @@ namespace Cascode.Language.Validation;
 
 public static class BenchSemanticChecker
 {
+    private sealed record MeasurementSignatureInfo(
+        MeasurementDefinition Definition,
+        MeasurementType ReturnType
+    );
+
     public static void Check(CascodeDocument document, List<Diagnostic> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -67,13 +72,15 @@ public static class BenchSemanticChecker
             }
         }
 
-        // Seed measurement types from declaration units for cross-measurement references.
-        // Key by name+arity to allow overloads, and keep zero-arg names addressable by bare path.
-        var measurementTypes = new Dictionary<string, MeasurementType>(StringComparer.Ordinal);
+        // Seed measurement metadata by canonical signature key (name#arity).
+        var measurementTypes = new Dictionary<string, MeasurementSignatureInfo>(
+            StringComparer.Ordinal
+        );
         foreach (var m in bench.Measurements)
         {
-            var signatureKey = GetMeasurementSignatureKey(m.Name, m.Parameters.Count);
-            if (!measurementTypes.TryAdd(signatureKey, MeasurementType.FromUnit(m.Unit)))
+            var signatureKey = MeasurementSignature.Create(m.Name, m.Parameters.Count);
+            var measurementInfo = new MeasurementSignatureInfo(m, MeasurementType.FromUnit(m.Unit));
+            if (!measurementTypes.TryAdd(signatureKey, measurementInfo))
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -84,11 +91,6 @@ public static class BenchSemanticChecker
                         1
                     )
                 );
-            }
-
-            if (m.Parameters.Count == 0)
-            {
-                measurementTypes[m.Name] = MeasurementType.FromUnit(m.Unit);
             }
         }
 
@@ -144,7 +146,7 @@ public static class BenchSemanticChecker
     )
     {
         var measurementNames = bench
-            .Measurements.Select(m => GetMeasurementSignatureKey(m.Name, m.Parameters.Count))
+            .Measurements.Select(m => MeasurementSignature.Create(m.Name, m.Parameters.Count))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var functionNames = globalFunctions
             .Values.Concat(bench.Functions)
@@ -205,7 +207,7 @@ public static class BenchSemanticChecker
                 }
             }
 
-            measurementDeps[GetMeasurementSignatureKey(m.Name, m.Parameters.Count)] = deps;
+            measurementDeps[MeasurementSignature.Create(m.Name, m.Parameters.Count)] = deps;
         }
 
         // Standard DFS cycle detection on the measurement-only graph.
@@ -215,7 +217,7 @@ public static class BenchSemanticChecker
 
         foreach (var m in bench.Measurements)
         {
-            var measurementKey = GetMeasurementSignatureKey(m.Name, m.Parameters.Count);
+            var measurementKey = MeasurementSignature.Create(m.Name, m.Parameters.Count);
             if (visited.Contains(measurementKey))
             {
                 continue;
@@ -248,7 +250,7 @@ public static class BenchSemanticChecker
     private static void ValidatePortDeclarations(
         BenchDefinition bench,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -330,7 +332,7 @@ public static class BenchSemanticChecker
     private static bool IsRealValuedPortImpedance(
         string impedanceText,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
@@ -642,7 +644,7 @@ public static class BenchSemanticChecker
         switch (expr)
         {
             case MeasurementCall c:
-                var measurementKey = GetMeasurementSignatureKey(c.Name, c.Args.Count);
+                var measurementKey = MeasurementSignature.Create(c.Name, c.Args.Count);
                 if (measurementNames.Contains(measurementKey))
                 {
                     calledMeasurements.Add(measurementKey);
@@ -651,15 +653,32 @@ public static class BenchSemanticChecker
                 {
                     calledFunctions.Add(c.Name);
                 }
-                foreach (var a in c.Args)
+                for (var i = 0; i < c.Args.Count; i++)
                 {
+                    var argExpr = c.Args[i].Value;
+                    if (
+                        c.Name.Equals("op_param", StringComparison.OrdinalIgnoreCase)
+                        && i == 2
+                        && argExpr is MeasurementPath
+                    )
+                    {
+                        continue;
+                    }
+
                     CollectDeps(
-                        a.Value,
+                        argExpr,
                         measurementNames,
                         functionNames,
                         calledMeasurements,
                         calledFunctions
                     );
+                }
+                break;
+            case MeasurementPath p:
+                var zeroArgMeasurementKey = MeasurementSignature.ZeroArg(p.Path);
+                if (measurementNames.Contains(zeroArgMeasurementKey))
+                {
+                    calledMeasurements.Add(zeroArgMeasurementKey);
                 }
                 break;
             case MeasurementMethodCall m:
@@ -736,7 +755,7 @@ public static class BenchSemanticChecker
         BenchDefinition bench,
         FunctionDefinition fn,
         TypeScope benchScope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -763,7 +782,7 @@ public static class BenchSemanticChecker
         IReadOnlyList<BenchStatement> statements,
         TypeScope scope,
         MeasurementType expectedReturn,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -853,7 +872,7 @@ public static class BenchSemanticChecker
     private static void InferBoolType(
         BoolExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -885,7 +904,7 @@ public static class BenchSemanticChecker
     private static MeasurementType InferExprType(
         MeasurementExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
@@ -903,10 +922,10 @@ public static class BenchSemanticChecker
                 if (
                     expr is MeasurementScopedAccess s
                     && s.Ref.Scope == MeasurementScope.Constraints
-                    && measurementTypes.TryGetValue(s.Ref.Name, out var inferred)
+                    && TryGetZeroArgMeasurementInfo(s.Ref.Name, measurementTypes, out var inferred)
                 )
                 {
-                    return inferred;
+                    return inferred!.ReturnType;
                 }
                 if (
                     expr is MeasurementScopedAccess hs
@@ -927,9 +946,9 @@ public static class BenchSemanticChecker
                 {
                     return t;
                 }
-                if (measurementTypes.TryGetValue(p.Path, out var mt))
+                if (TryGetZeroArgMeasurementInfo(p.Path, measurementTypes, out var mt))
                 {
-                    return mt;
+                    return mt!.ReturnType;
                 }
                 return MeasurementType.Scalar();
 
@@ -972,7 +991,7 @@ public static class BenchSemanticChecker
     private static MeasurementType InferMethodCallType(
         MeasurementMethodCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
@@ -1324,7 +1343,7 @@ public static class BenchSemanticChecker
     private static MeasurementType InferCallType(
         MeasurementCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
@@ -1416,12 +1435,19 @@ public static class BenchSemanticChecker
         // Allow measurement calls (e.g. LowpassBandwidth() or IntegratedInputNoise(from=..., to=...)).
         if (
             measurementTypes.TryGetValue(
-                GetMeasurementSignatureKey(call.Name, call.Args.Count),
-                out var mt
+                MeasurementSignature.Create(call.Name, call.Args.Count),
+                out var measurementInfo
+            )
+            && TryValidateMeasurementCallArguments(
+                call,
+                measurementInfo.Definition,
+                scope,
+                measurementTypes,
+                benchesByName
             )
         )
         {
-            return mt;
+            return measurementInfo.ReturnType;
         }
 
         // User-defined function
@@ -1434,16 +1460,75 @@ public static class BenchSemanticChecker
         return MeasurementType.Scalar();
     }
 
-    private static string GetMeasurementSignatureKey(string name, int arity)
+    private static bool TryGetZeroArgMeasurementInfo(
+        string name,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        out MeasurementSignatureInfo? info
+    )
     {
-        return $"{name}#{arity}";
+        return measurementTypes.TryGetValue(MeasurementSignature.ZeroArg(name), out info);
+    }
+
+    private static bool TryValidateMeasurementCallArguments(
+        MeasurementCall call,
+        MeasurementDefinition measurement,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName
+    )
+    {
+        var positionalArgs = call.Args.Where(a => a.Name is null).ToList();
+        var namedArgs = new Dictionary<string, MeasurementExpr>(StringComparer.Ordinal);
+        foreach (var arg in call.Args.Where(a => a.Name is not null))
+        {
+            var name = arg.Name!;
+            if (namedArgs.ContainsKey(name))
+            {
+                return false;
+            }
+
+            namedArgs[name] = arg.Value;
+        }
+
+        for (var i = 0; i < measurement.Parameters.Count; i++)
+        {
+            var parameter = measurement.Parameters[i];
+            MeasurementExpr valueExpr;
+            if (namedArgs.TryGetValue(parameter.Name, out var namedValue))
+            {
+                valueExpr = namedValue;
+                namedArgs.Remove(parameter.Name);
+            }
+            else if (i < positionalArgs.Count)
+            {
+                valueExpr = positionalArgs[i].Value;
+            }
+            else
+            {
+                return false;
+            }
+
+            var expectedType = MeasurementType.FromBenchValueType(parameter.Type);
+            var actualType = InferExprType(valueExpr, scope, measurementTypes, benchesByName);
+            if (!MeasurementType.CanAssign(expectedType, actualType))
+            {
+                return false;
+            }
+        }
+
+        if (positionalArgs.Count > measurement.Parameters.Count)
+        {
+            return false;
+        }
+
+        return namedArgs.Count == 0;
     }
 
     private static void ValidateBuiltinCalls(
         BenchDefinition bench,
         MeasurementExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1554,7 +1639,7 @@ public static class BenchSemanticChecker
         BenchDefinition bench,
         BoolExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1595,7 +1680,7 @@ public static class BenchSemanticChecker
     private static void ValidateBuiltinCall(
         MeasurementCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1679,7 +1764,7 @@ public static class BenchSemanticChecker
         BenchDefinition bench,
         MeasurementMethodCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1854,7 +1939,7 @@ public static class BenchSemanticChecker
         string methodName,
         MeasurementExpr arg,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1916,7 +2001,7 @@ public static class BenchSemanticChecker
     private static void ValidateAnalysisParams(
         AnalysisDeclaration analysis,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )

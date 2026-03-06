@@ -623,6 +623,11 @@ public sealed class BenchMeasurementRunner
                 return EvaluateMeasurementInvocation(measurement, args: null);
             }
 
+            if (call.Args.Count == 0)
+            {
+                return EvaluateMeasurementInvocation(measurement, args: null);
+            }
+
             var args = BindFunctionCallArguments(
                 call,
                 locals,
