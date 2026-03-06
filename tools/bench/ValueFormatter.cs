@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Cascode.Bench;
 
@@ -15,35 +16,39 @@ public static class ValueFormatter
     /// <returns>A formatted string with the value scaled to an appropriate prefix and the unit appended.</returns>
     public static string FormatValue(double value, string unit)
     {
-        // Format value with appropriate unit prefix
-        if (Math.Abs(value) >= 1e9)
+        if (!double.IsFinite(value))
         {
-            return $"{value / 1e9:G3}G {unit}";
+            return FormatWithUnit(value.ToString(CultureInfo.InvariantCulture), unit);
         }
-        if (Math.Abs(value) >= 1e6)
+
+        if (value == 0)
         {
-            return $"{value / 1e6:G3}M {unit}";
+            return FormatWithUnit("0", unit);
         }
-        if (Math.Abs(value) >= 1e3)
+
+        var abs = Math.Abs(value);
+        var (divisor, prefix) = abs switch
         {
-            return $"{value / 1e3:G3}k {unit}";
-        }
-        if (Math.Abs(value) >= 1.0)
-        {
-            return $"{value:G3} {unit}";
-        }
-        if (Math.Abs(value) >= 1e-3)
-        {
-            return $"{value * 1e3:G3}m {unit}";
-        }
-        if (Math.Abs(value) >= 1e-6)
-        {
-            return $"{value * 1e6:G3}u {unit}";
-        }
-        if (Math.Abs(value) >= 1e-9)
-        {
-            return $"{value * 1e9:G3}n {unit}";
-        }
-        return $"{value:G3} {unit}";
+            >= 1e12 => (1e12, "T"),
+            >= 1e9 => (1e9, "G"),
+            >= 1e6 => (1e6, "M"),
+            >= 1e3 => (1e3, "k"),
+            >= 1 => (1.0, ""),
+            >= 1e-3 => (1e-3, "m"),
+            >= 1e-6 => (1e-6, "u"),
+            >= 1e-9 => (1e-9, "n"),
+            >= 1e-12 => (1e-12, "p"),
+            _ => (1e-15, "f"),
+        };
+
+        var scaled = (value / divisor).ToString("G4", CultureInfo.InvariantCulture);
+        var prefixedUnit = $"{prefix}{unit}".Trim();
+        return prefixedUnit.Length == 0 ? scaled : $"{scaled} {prefixedUnit}";
+    }
+
+    private static string FormatWithUnit(string numericText, string unit)
+    {
+        var trimmedUnit = unit.Trim();
+        return trimmedUnit.Length == 0 ? numericText : $"{numericText} {trimmedUnit}";
     }
 }
