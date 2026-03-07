@@ -228,9 +228,9 @@ For bundle types with more than two leaves, benches should reference the desired
 
 ### 4.2.6 Port harness primitives (S-parameter benches)
 
-S-parameter reference planes are modeled as harness primitive instances in `fill {}` (or in bench
-binding `bind {}` composition), not as a terminal role. A port instance declares a positive
-integer index `N`, a reference impedance `Z`, and a DC bias source value `V`:
+S-parameter reference planes are modeled as harness primitive instances in bench `fill {}`, not as
+a terminal role. A port instance declares a positive integer index `N`, a reference impedance `Z`,
+and a DC bias source value `V`:
 
 ```cascode
 Port p1 = new Port(N=1, Z=50Ohm, V=0V) {
@@ -305,8 +305,9 @@ Notes:
 - An impedance value may be a numeric impedance, a numeric capacitance/inductance, or a parallel
   composite expressed with `||` (for example, `1GOhm || 15pF`).
 - `Port` declares an S-parameter reference plane with a unique sequential index `N` starting at 1,
-  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered automatically
-  by `SPAnalysis` at runtime.
+  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered by
+  `SPAnalysis` at runtime, and current semantic validation requires at least one `Port` in bench
+  `fill {}` when `SPAnalysis` is declared.
 
 ### 4.3.3 Example: Differential AC Stimulus with Source/Load Impedances
 
@@ -406,11 +407,10 @@ NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 
 `SPAnalysis` requests a multiport S-parameter sweep over frequency. It accepts the same
 frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) plus an optional
-`noise` flag (`0` or `1`) and operates on all `Port` instances declared in the bench. There is no
-explicit parameter linking the analysis to specific ports; the runtime discovers all port instances
-and configures the simulation accordingly. When `noise=1`, the simulator computes correlated noise
-parameters together with the S-parameter sweep, and `S.NF()` becomes available to read noise
-figure in dB.
+`noise` flag (`0` or `1`) and operates on `Port` instances declared in bench `fill {}`. There is no
+explicit parameter linking the analysis to specific ports; the runtime discovers ports and configures
+the simulation accordingly. When `noise=1`, the simulator computes correlated noise parameters
+together with the S-parameter sweep, and `S.NF()` becomes available to read noise figure in dB.
 
 ```cascode
 analysis {
@@ -626,6 +626,10 @@ response at port *i* due to excitation at port *j*.
 | Method | Result | Notes |
 |---|---|---|
 | `S.S(i, j)` | `TransferFunction` | Raw S-parameter element Sij |
+| `S.S11()` | `GainSpectrum` | Magnitude in dB for the input reflection term, `db20(|S11|)` (2-port only) |
+| `S.S21()` | `GainSpectrum` | Magnitude in dB for the forward gain term, `db20(|S21|)` (2-port only) |
+| `S.S12()` | `GainSpectrum` | Magnitude in dB for the reverse gain term, `db20(|S12|)` (2-port only) |
+| `S.S22()` | `GainSpectrum` | Magnitude in dB for the output reflection term, `db20(|S22|)` (2-port only) |
 
 Derived metric methods:
 
@@ -641,9 +645,16 @@ Derived metric methods:
 | `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
 | `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
 | `S.NF()` | `GainSpectrum` | Noise figure in dB; requires `SPAnalysis(noise=1)` |
+| `S.NFmin()` | `GainSpectrum` | Minimum noise figure in dB; requires `SPAnalysis(noise=1)` |
+| `S.Rn()` | `ImpedanceSpectrum` | Noise resistance in Ω; requires `SPAnalysis(noise=1)` |
 
-The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
-called on an `SParameterMatrix` from a bench with more than two ports.
+The 2-port-only methods (`S11`, `S21`, `S12`, `S22`, `StabilityK`, `MuFactor`, `MSG`, `MAG`, `NF`,
+`NFmin`, `Rn`) produce a semantic error when called on an `SParameterMatrix` from a bench with more
+than two ports.
+
+Mixed-mode S-parameters can be derived in bench measurements from single-ended matrix elements.
+The standard library bench `TwoPortMixedModeSParam` demonstrates this using four single-ended ports
+to compute `Sdd`, `Sdc`, `Scd`, and `Scc` terms.
 
 Example usage:
 
