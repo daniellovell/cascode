@@ -92,11 +92,6 @@ public static class BenchSemanticChecker
                     )
                 );
             }
-
-            if (m.Parameters.Count == 0)
-            {
-                measurementTypes[m.Name] = measurementInfo;
-            }
         }
 
         ValidatePortDeclarations(bench, scope, measurementTypes, benchesByName, diagnostics);

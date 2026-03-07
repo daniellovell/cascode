@@ -149,11 +149,6 @@ public static partial class BenchInheritanceResolver
             return merged;
         }
 
-        private static string GetMeasurementSignatureKey(MeasurementDefinition measurement)
-        {
-            return $"{measurement.Name}#{measurement.Parameters.Count}";
-        }
-
         private static List<FunctionDefinition> MergeFunctions(
             BenchDefinition baseBench,
             BenchDefinition child

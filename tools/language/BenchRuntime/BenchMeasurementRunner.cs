@@ -2835,6 +2835,11 @@ public sealed class BenchMeasurementRunner
 
     private static BenchValue ApplyUnary(string op, BenchValue operand)
     {
+        if (operand is BenchError)
+        {
+            return operand;
+        }
+
         if (op != "-")
         {
             throw new InvalidOperationException($"Unsupported unary operator '{op}'.");
