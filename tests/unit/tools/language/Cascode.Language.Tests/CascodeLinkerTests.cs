@@ -19,8 +19,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
 
@@ -105,8 +105,8 @@ public sealed class CascodeLinkerTests
         var basePath = Path.Combine(tmp, "base.cas");
         File.WriteAllText(
             basePath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             abstract bench AbstractBase {
               abstract stim IN
@@ -124,8 +124,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(tmp, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include base
 
@@ -173,8 +173,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.hl.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
 
@@ -248,8 +248,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std.Diff
             include lib.std.amp.FullyDifferentialOpAmp
@@ -324,8 +324,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -369,8 +369,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
