@@ -12,16 +12,16 @@ namespace Cascode.Cli.Services;
 /// </summary>
 internal sealed class NgspiceInstaller : ISimulatorInstaller
 {
-    private const string PinnedVersion = NgspiceInstallLayout.Version;
-    private const string SourceArchiveName = "ngspice-" + PinnedVersion + ".tar.gz";
-    private const string WindowsArchiveName = "ngspice-" + PinnedVersion + "_64.7z";
-    private const string SourceArchiveUrl =
+    private static readonly string PinnedVersion = NgspiceInstallLayout.Version;
+    private static readonly string SourceArchiveName = "ngspice-" + PinnedVersion + ".tar.gz";
+    private static readonly string WindowsArchiveName = "ngspice-" + PinnedVersion + "_64.7z";
+    private static readonly string SourceArchiveUrl =
         "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
         + PinnedVersion
         + "/ngspice-"
         + PinnedVersion
         + ".tar.gz/download";
-    private const string WindowsArchiveUrl =
+    private static readonly string WindowsArchiveUrl =
         "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
         + PinnedVersion
         + "/ngspice-"

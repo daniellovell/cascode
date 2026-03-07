@@ -39,7 +39,7 @@ internal sealed class InstallCommandModule : ICommandModule
         registry.Register(
             new DelegateCliCommand(
                 "install ngspice",
-                "Install ngspice 45.2 under CASCODE_HOME",
+                $"Install ngspice {NgspiceInstallLayout.Version} under CASCODE_HOME",
                 InstallNgspice
             )
         );
@@ -51,7 +51,9 @@ internal sealed class InstallCommandModule : ICommandModule
         output.WriteLine("Usage: install <tool> [--from-source] [--force] [--json]");
         output.WriteLine("");
         output.WriteLine("Tools:");
-        output.WriteLine("  ngspice    Install ngspice 45.2 to CASCODE_HOME.");
+        output.WriteLine(
+            $"  ngspice    Install ngspice {NgspiceInstallLayout.Version} to CASCODE_HOME."
+        );
         return CommandResult.Success;
     }
 

@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Reflection;
 
 namespace Cascode.Cli.Services;
 
@@ -7,7 +9,7 @@ namespace Cascode.Cli.Services;
 /// </summary>
 internal static class NgspiceInstallLayout
 {
-    public const string Version = "45.2";
+    public static string Version { get; } = ReadVersion();
 
     /// <summary>
     /// Returns the target bin directory under CASCODE_HOME for a RID.
@@ -24,5 +26,23 @@ internal static class NgspiceInstallLayout
     {
         var executable = OperatingSystem.IsWindows() ? "ngspice.exe" : "ngspice";
         return Path.Combine(GetBinDirectory(cascodeHome, rid), executable);
+    }
+
+    private static string ReadVersion()
+    {
+        foreach (
+            var metadata in typeof(NgspiceInstallLayout).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        )
+        {
+            if (
+                string.Equals(metadata.Key, "NgspiceVersion", StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(metadata.Value)
+            )
+            {
+                return metadata.Value;
+            }
+        }
+
+        throw new InvalidOperationException("Missing required assembly metadata: NgspiceVersion.");
     }
 }

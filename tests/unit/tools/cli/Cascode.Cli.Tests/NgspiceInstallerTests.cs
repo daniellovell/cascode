@@ -37,7 +37,7 @@ public sealed class NgspiceInstallerTests : IDisposable
             Encoding.UTF8.GetBytes("release-archive");
         runtime.DownloadBytesByUrl["https://example.invalid/checksums.txt"] =
             Encoding.UTF8.GetBytes(
-                $"{Sha256Hex("release-archive")}  cascode-ngspice-45.2-linux-x64.tar.gz\n"
+                $"{Sha256Hex("release-archive")}  {ReleaseArchiveName("linux-x64")}\n"
             );
 
         var releaseClient = new FakeGitHubReleaseClient
@@ -49,11 +49,11 @@ public sealed class NgspiceInstallerTests : IDisposable
                     new[]
                     {
                         new GitHubReleaseAsset(
-                            "cascode-ngspice-45.2-linux-x64.tar.gz",
+                            ReleaseArchiveName("linux-x64"),
                             "https://example.invalid/ngspice.tar.gz"
                         ),
                         new GitHubReleaseAsset(
-                            "cascode-ngspice-45.2-sha256.txt",
+                            ReleaseChecksumName(),
                             "https://example.invalid/checksums.txt"
                         ),
                     }
@@ -150,7 +150,7 @@ public sealed class NgspiceInstallerTests : IDisposable
                     new[]
                     {
                         new GitHubReleaseAsset(
-                            "cascode-ngspice-45.2-sha256.txt",
+                            ReleaseChecksumName(),
                             "https://example.invalid/checksums.txt"
                         ),
                     }
@@ -179,7 +179,7 @@ public sealed class NgspiceInstallerTests : IDisposable
                     new[]
                     {
                         new GitHubReleaseAsset(
-                            "cascode-ngspice-45.2-linux-x64.tar.gz",
+                            ReleaseArchiveName("linux-x64"),
                             "https://example.invalid/ngspice.tar.gz"
                         ),
                     }
@@ -203,7 +203,9 @@ public sealed class NgspiceInstallerTests : IDisposable
             Encoding.UTF8.GetBytes("actual-release-archive");
         runtime.DownloadBytesByUrl["https://example.invalid/checksums.txt"] =
             Encoding.UTF8.GetBytes(
-                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  cascode-ngspice-45.2-linux-x64.tar.gz\n"
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  "
+                    + ReleaseArchiveName("linux-x64")
+                    + "\n"
             );
 
         var releaseClient = new FakeGitHubReleaseClient
@@ -215,11 +217,11 @@ public sealed class NgspiceInstallerTests : IDisposable
                     new[]
                     {
                         new GitHubReleaseAsset(
-                            "cascode-ngspice-45.2-linux-x64.tar.gz",
+                            ReleaseArchiveName("linux-x64"),
                             "https://example.invalid/ngspice.tar.gz"
                         ),
                         new GitHubReleaseAsset(
-                            "cascode-ngspice-45.2-sha256.txt",
+                            ReleaseChecksumName(),
                             "https://example.invalid/checksums.txt"
                         ),
                     }
@@ -377,8 +379,8 @@ public sealed class NgspiceInstallerTests : IDisposable
         var assets = Path.Combine(baseDir, "Assets");
         Directory.CreateDirectory(assets);
         File.WriteAllText(
-            Path.Combine(assets, "ngspice-45.2.sha256"),
-            $"{sourceHash}  ngspice-45.2.tar.gz\n{windowsHash}  ngspice-45.2_64.7z\n"
+            Path.Combine(assets, SourceManifestName()),
+            $"{sourceHash}  {SourceArchiveName()}\n{windowsHash}  {WindowsArchiveName()}\n"
         );
     }
 
@@ -424,7 +426,7 @@ public sealed class NgspiceInstallerTests : IDisposable
 
         public string? ConfigurePrefix { get; private set; }
         public IReadOnlyList<string> SourceExtractDirectoryNames { get; set; } =
-            new[] { "ngspice-45.2" };
+            new[] { SourceExtractDirectoryName() };
 
         public string? CurrentRid() => Rid;
 
@@ -456,10 +458,7 @@ public sealed class NgspiceInstallerTests : IDisposable
                 var binDir = Path.Combine(ConfigurePrefix, "bin");
                 Directory.CreateDirectory(binDir);
                 var ngspicePath = Path.Combine(binDir, "ngspice");
-                File.WriteAllText(
-                    ngspicePath,
-                    "#!/bin/sh\necho '** ngspice-45.2 : Circuit level simulation program'\n"
-                );
+                File.WriteAllText(ngspicePath, "#!/bin/sh\necho '" + VersionBanner() + "'\n");
                 if (!OperatingSystem.IsWindows())
                 {
                     File.SetUnixFileMode(
@@ -525,7 +524,7 @@ public sealed class NgspiceInstallerTests : IDisposable
 
         private static void WriteReleaseArchiveContents(string destination, string executableName)
         {
-            var bin = Path.Combine(destination, "cascode-ngspice-45.2", "bin");
+            var bin = Path.Combine(destination, ReleaseArchiveDirectoryName(), "bin");
             Directory.CreateDirectory(bin);
             var binaryPath = Path.Combine(bin, executableName);
             if (executableName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
@@ -534,10 +533,7 @@ public sealed class NgspiceInstallerTests : IDisposable
                 return;
             }
 
-            File.WriteAllText(
-                binaryPath,
-                "#!/bin/sh\necho '** ngspice-45.2 : Circuit level simulation program'\n"
-            );
+            File.WriteAllText(binaryPath, "#!/bin/sh\necho '" + VersionBanner() + "'\n");
             if (!OperatingSystem.IsWindows())
             {
                 File.SetUnixFileMode(
@@ -558,4 +554,29 @@ public sealed class NgspiceInstallerTests : IDisposable
             );
         }
     }
+
+    private static string ReleaseArchiveName(string rid)
+    {
+        var extension = rid.StartsWith("win-", StringComparison.OrdinalIgnoreCase)
+            ? "zip"
+            : "tar.gz";
+        return $"cascode-ngspice-{NgspiceInstallLayout.Version}-{rid}.{extension}";
+    }
+
+    private static string ReleaseChecksumName() =>
+        $"cascode-ngspice-{NgspiceInstallLayout.Version}-sha256.txt";
+
+    private static string SourceManifestName() => $"ngspice-{NgspiceInstallLayout.Version}.sha256";
+
+    private static string SourceArchiveName() => $"ngspice-{NgspiceInstallLayout.Version}.tar.gz";
+
+    private static string WindowsArchiveName() => $"ngspice-{NgspiceInstallLayout.Version}_64.7z";
+
+    private static string SourceExtractDirectoryName() => $"ngspice-{NgspiceInstallLayout.Version}";
+
+    private static string ReleaseArchiveDirectoryName() =>
+        $"cascode-ngspice-{NgspiceInstallLayout.Version}";
+
+    private static string VersionBanner() =>
+        $"** ngspice-{NgspiceInstallLayout.Version} : Circuit level simulation program";
 }

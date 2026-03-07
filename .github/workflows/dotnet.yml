@@ -13,8 +13,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  NGSPICE_VERSION: '45.2'
 jobs:
   native_node_path_filter:
     name: determine native/node changes
