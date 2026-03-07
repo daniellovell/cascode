@@ -266,6 +266,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
               }
 
               fill {
+                Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
+                  .N--OUT.N
+                  .P--OUT.P
+                }
+
                 Resistor R_P = new ResistorIdeal(size(R=1k)) {
                   .P--IN.P
                   .N--OUT.P
