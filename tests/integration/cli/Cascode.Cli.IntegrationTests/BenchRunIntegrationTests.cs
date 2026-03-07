@@ -237,7 +237,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_CSeries_SParamConstraintsPass()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/CSeries.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/filters/CSeries.cas");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -279,7 +279,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_RSeries_SParamConstraintsPass()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RSeries.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/filters/RSeries.cas");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),

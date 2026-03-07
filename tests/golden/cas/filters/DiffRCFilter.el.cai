@@ -14,30 +14,25 @@ primitive Resistor ResistorIdeal(size primSize) {
   }
 }
 
-
-circuit DiffRCFilter implements DifferentialFilter {
+circuit RCFilter implements DifferentialPassiveFilter {
   level EL
-  supply VDD
   ground GND
-  input IN_P : analog
-  input IN_N : analog
-  output OUT.P : analog
+  input IN.N : analog
+  input IN.P : analog
   output OUT.N : analog
+  output OUT.P : analog
   fill {
-    Resistor R_P = new ResistorIdeal(size(R=10k)) {
-      .P--IN_P
-      .N--OUT.P
+    Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
+      .N--OUT.N
+      .P--OUT.P
     }
     Resistor R_N = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.N
       .P--IN_N
-      .N--OUT.N
     }
-    Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
-      .P--OUT.P
-      .N--OUT.N
+    Resistor R_P = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.P
+      .P--IN_P
     }
-  }
-  harness {
-    supply VDD = 1.8V
   }
 }
