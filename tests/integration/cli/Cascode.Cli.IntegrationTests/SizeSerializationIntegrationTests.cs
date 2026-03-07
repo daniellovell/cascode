@@ -25,16 +25,43 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     [Fact]
     public async Task Emit_FromCascodeWriterRoundTrip_PreservesSizePacks()
     {
-        var sourcePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
-        );
+        var sourceText =
+            $@"VERSION {CascodeVersion.Current}
 
-        CascodeDocument doc;
-        using (var reader = File.OpenText(sourcePath))
-        {
-            doc = CascodeReader.Read(reader, sourcePath);
-        }
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit WriterRoundTrip(size InputPair = size(W=2u, L=180n, M=1), size Tail = size(W=4u, L=180n, M=1)) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {{
+    net tail_node : analog
+    NMOS M1 = new NMOS_Level1(InputPair) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--tail_node
+    }}
+    NMOS M2 = new NMOS_Level1(Tail) {{
+      .B--GND
+      .D--tail_node
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}";
+
+        var doc = CascodeReader.Parse(sourceText, "writer-roundtrip-source.cas");
 
         var roundTripPath = Path.Combine(_outputDir, "writer-roundtrip.cas");
         await using (var writer = File.CreateText(roundTripPath))
@@ -54,7 +81,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
         );
 
         CliIntegrationTestHelper.AssertSuccess(emit, "emit failed after CascodeWriter round-trip");
-        Assert.Contains("OTA5T_Hierarchical.sp", emit.Stdout);
+        Assert.Contains("WriterRoundTrip.sp", emit.Stdout);
     }
 
     [Fact]

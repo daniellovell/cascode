@@ -7,7 +7,7 @@ include lib.std.bench
 interface DifferentialPassiveFilter {
   ground GND
   input IN : Diff
-  output OUT : analog
+  output OUT : Diff
 
   benches {
     bind DiffToDiffTransfer as transfer_bench {

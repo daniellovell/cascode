@@ -99,6 +99,15 @@ An `interface` is a contract that circuits can implement. Interfaces typically d
 - optional connector mappings (`connectors { ... }`)
 - optional bench bindings (`benches { ... }`)
 
+An implementing circuit must satisfy the interface's declared terminal contract for every terminal
+named by the interface. Matching is structural: terminal name, direction, leaf shape, and leaf
+types must agree for the interface-defined terminals, while the circuit may still declare
+additional terminals beyond the interface.
+
+Tooling enforces this contract on complete documents. In practice, `cascode link`, `cascode emit`,
+and `cascode erc` reject a document whose `implements` relationship cannot be resolved or whose
+declared circuit terminals do not match the referenced interface.
+
 Connector mappings define how two interface views relate structurally. They are expressed using the
 same pin-reference and wire syntax as fill blocks:
 

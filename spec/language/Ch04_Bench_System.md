@@ -702,6 +702,11 @@ interface SingleEndedOpAmp {
 }
 ```
 
+Bindings declared on an interface are part of that interface's contract, not just inherited
+boilerplate. A complete document is ill-formed if an interface binding refers to a terminal shape
+that the interface itself does not declare, or if an implementing circuit cannot satisfy the bound
+terminal mappings after inheritance and extension are applied.
+
 Within a circuit, bindings can be added with `bind` or extended with `extend`:
 
 ```cascode

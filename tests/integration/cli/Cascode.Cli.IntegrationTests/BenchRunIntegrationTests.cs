@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -231,6 +232,84 @@ public sealed class BenchRunIntegrationTests : IDisposable
             resultsPath
         );
         CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_DifferentialPassiveFilter_SourceFlow_RunsInheritedTransferBench()
+    {
+        var cascodePath = Path.Combine(_outputDir, "DiffPassiveRc.cas");
+        await File.WriteAllTextAsync(
+            cascodePath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit DiffPassiveRc implements DifferentialPassiveFilter {
+              level EL
+
+              input IN : Diff
+              output OUT : Diff
+              ground GND
+
+              env {
+                InputCommonModeRange = 0V
+                SourceImpedance = 0Ohm
+                LoadImpedance = 1GOhm
+              }
+
+              constraints {
+                numeric {
+                  c_gain = transfer_bench::PassbandGain >= -0.1dB
+                }
+              }
+
+              fill {
+                Resistor R_P = new ResistorIdeal(size(R=1k)) {
+                  .P--IN.P
+                  .N--OUT.P
+                }
+
+                Resistor R_N = new ResistorIdeal(size(R=1k)) {
+                  .P--IN.N
+                  .N--OUT.N
+                }
+              }
+            }
+            """
+        );
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "transfer_bench",
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var resultsPath = Directory
+            .GetFiles(
+                _outputDir,
+                "DiffPassiveRc*transfer_bench*_results.json",
+                SearchOption.TopDirectoryOnly
+            )
+            .SingleOrDefault();
+        Assert.False(string.IsNullOrWhiteSpace(resultsPath), "results.json not found");
+
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath!),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        Assert.Equal("DiffPassiveRc", results!.Circuit);
+        Assert.Equal("transfer_bench", results.Bench);
+        Assert.True(results.Measurements.ContainsKey("PassbandGain"));
+        Assert.True(results.Measurements["PassbandGain"].Value.HasValue);
     }
 
     [Fact]

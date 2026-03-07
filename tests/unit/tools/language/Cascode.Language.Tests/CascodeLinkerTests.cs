@@ -93,6 +93,40 @@ public sealed class CascodeLinkerTests
     }
 
     [Fact]
+    public void LinkFile_SelfContainedOutput_RetainsImplementedTraitDefinitions()
+    {
+        var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-trait-contract");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit TraitRetention implements SingleEndedOpAmp {
+              level EL
+              supply VDD
+              ground GND
+              input IN : Diff
+              output OUT : analog
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(entryPath, outDir, repoRoot);
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+        Assert.Empty(linked.Includes);
+        Assert.Contains(linked.Traits, trait => trait.Name == "SingleEndedOpAmp");
+        Assert.Contains(linked.BundleTypes, bundle => bundle.Name == "Diff");
+    }
+
+    [Fact]
     public void LinkFile_ResolvesBenchBaseAcrossIncludedFiles()
     {
         var tmp = Path.Combine(

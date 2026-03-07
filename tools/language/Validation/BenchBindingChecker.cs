@@ -21,13 +21,58 @@ public static class BenchBindingChecker
             StringComparer.OrdinalIgnoreCase
         );
 
+        foreach (var interfaceDef in document.Traits)
+        {
+            var interfaceTerminals = TerminalContractModel.ForInterface(interfaceDef);
+            foreach (var binding in interfaceDef.BenchBindings)
+            {
+                if (!benchesByName.TryGetValue(binding.BenchName, out var bench))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS3001: Bench binding '{binding.BindingName}' references unknown bench '{binding.BenchName}' in interface '{interfaceDef.Name}'.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                    continue;
+                }
+
+                if (bench.IsAbstract)
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS2022: Abstract bench '{bench.Name}' cannot appear in bind statements.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                    continue;
+                }
+
+                CheckBinding(
+                    "interface",
+                    interfaceDef.Name,
+                    binding,
+                    bench,
+                    interfaceTerminals,
+                    bundlesByName,
+                    diagnostics
+                );
+            }
+        }
+
         foreach (var circuit in document.Circuits)
         {
             var resolved = ResolveBenchBindingsForCircuit(circuit, interfacesByName, diagnostics);
 
             CheckConstraintBenchReferences(circuit, resolved, benchesByName, diagnostics);
 
-            var dutTerminals = BuildDutTerminalMap(circuit, bundlesByName);
+            var dutTerminals = TerminalContractModel.ForCircuit(circuit);
 
             foreach (var binding in resolved.Values)
             {
@@ -59,7 +104,15 @@ public static class BenchBindingChecker
                     continue;
                 }
 
-                CheckBinding(circuit, binding, bench, dutTerminals, bundlesByName, diagnostics);
+                CheckBinding(
+                    "circuit",
+                    circuit.Name,
+                    binding,
+                    bench,
+                    dutTerminals,
+                    bundlesByName,
+                    diagnostics
+                );
             }
         }
     }
@@ -145,60 +198,12 @@ public static class BenchBindingChecker
         }
     }
 
-    private static Dictionary<
-        string,
-        (string Type, IReadOnlyList<(string Path, string LeafType)> Leaves)
-    > BuildDutTerminalMap(Circuit circuit, IReadOnlyDictionary<string, BundleType> bundlesByName)
-    {
-        // Circuits are bundle-desugared before semantic checks run, so bundle ports like
-        // "IN : Diff" appear as scalar leaf ports "IN.P", "IN.N". For bench bindings, we
-        // still want to allow mapping at the bundle root ("dut.IN"), so we group leaf ports
-        // by their root prefix.
-        var map = new Dictionary<string, (string, IReadOnlyList<(string, string)>)>(
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        foreach (
-            var group in circuit.Ports.GroupBy(
-                p => GetRootName(p.Name),
-                StringComparer.OrdinalIgnoreCase
-            )
-        )
-        {
-            var leaves = group
-                .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(p => (Path: p.Name, LeafType: p.Type))
-                .ToList();
-
-            // If a root has a single leaf (no dot), preserve its scalar type.
-            // If it has multiple leaves, the root is effectively a bundle.
-            var rootType =
-                leaves.Count == 1 && !leaves[0].Path.Contains('.') ? leaves[0].LeafType : group.Key;
-
-            map[group.Key] = (rootType, leaves);
-        }
-
-        foreach (var s in circuit.Supplies)
-        {
-            map[s] = ("supply", new List<(string, string)> { (s, "supply") });
-        }
-
-        foreach (var g in circuit.Grounds)
-        {
-            map[g] = ("ground", new List<(string, string)> { (g, "ground") });
-        }
-
-        return map;
-    }
-
     private static void CheckBinding(
-        Circuit circuit,
+        string ownerKind,
+        string ownerName,
         BenchBinding binding,
         BenchDefinition bench,
-        IReadOnlyDictionary<
-            string,
-            (string Type, IReadOnlyList<(string Path, string LeafType)> Leaves)
-        > dutTerminals,
+        IReadOnlyDictionary<string, TerminalContract> dutTerminals,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         List<Diagnostic> diagnostics
     )
@@ -208,7 +213,7 @@ public static class BenchBindingChecker
             StringComparer.OrdinalIgnoreCase
         );
 
-        CheckBindingMeasurementExports(circuit, binding, bench, diagnostics);
+        CheckBindingMeasurementExports(ownerKind, ownerName, binding, bench, diagnostics);
 
         var mappings = binding.Statements.OfType<BenchTerminalMapping>().ToList();
         var mappedBench = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -229,12 +234,12 @@ public static class BenchBindingChecker
                 continue;
             }
 
-            var dutRoot = GetRootName(m.DutPinRef);
+            var dutRoot = TerminalContractModel.GetRootName(m.DutPinRef);
             if (!dutTerminals.TryGetValue(dutRoot, out var dutInfo))
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3004: Binding '{binding.BindingName}' maps to unknown dut terminal '{m.DutPinRef}' in circuit '{circuit.Name}'.",
+                        $"CAS3004: Binding '{binding.BindingName}' maps to unknown dut terminal '{m.DutPinRef}' in {ownerKind} '{ownerName}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -261,13 +266,13 @@ public static class BenchBindingChecker
 
             var benchLeaves = ExpandLeaves(benchTerminal.Name, benchTerminal.Type, bundlesByName)
                 .ToList();
-            var dutLeaves = SelectLeaves(dutInfo.Leaves, m.DutPinRef);
+            var dutLeaves = TerminalContractModel.SelectLeaves(dutInfo.Leaves, m.DutPinRef);
 
             if (benchLeaves.Count != dutLeaves.Count)
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3005: Binding '{binding.BindingName}' terminal mapping 'bench.{benchTerminal.Name}--dut.{m.DutPinRef}' has incompatible shapes ({benchLeaves.Count} vs {dutLeaves.Count}).",
+                        $"CAS3005: Binding '{binding.BindingName}' terminal mapping 'bench.{benchTerminal.Name}--dut.{m.DutPinRef}' has incompatible shapes ({benchLeaves.Count} vs {dutLeaves.Count}) in {ownerKind} '{ownerName}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -289,7 +294,7 @@ public static class BenchBindingChecker
                 {
                     diagnostics.Add(
                         new Diagnostic(
-                            $"CAS3006: Binding '{binding.BindingName}' terminal mapping has incompatible leaf types: '{benchLeaves[i].Path}:{benchLeaves[i].LeafType}' vs '{dutLeaves[i].Path}:{dutLeaves[i].LeafType}'.",
+                            $"CAS3006: Binding '{binding.BindingName}' terminal mapping has incompatible leaf types: '{benchLeaves[i].Path}:{benchLeaves[i].LeafType}' vs '{dutLeaves[i].Path}:{dutLeaves[i].LeafType}' in {ownerKind} '{ownerName}'.",
                             DiagnosticSeverity.Error,
                             "<bench>",
                             1,
@@ -320,7 +325,8 @@ public static class BenchBindingChecker
     }
 
     private static void CheckBindingMeasurementExports(
-        Circuit circuit,
+        string ownerKind,
+        string ownerName,
         BenchBinding binding,
         BenchDefinition bench,
         List<Diagnostic> diagnostics
@@ -341,7 +347,7 @@ public static class BenchBindingChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3020: Binding '{binding.BindingName}' defines duplicate exported measurement '{export.Name}' in circuit '{circuit.Name}'.",
+                        $"CAS3020: Binding '{binding.BindingName}' defines duplicate exported measurement '{export.Name}' in {ownerKind} '{ownerName}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -397,7 +403,7 @@ public static class BenchBindingChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3024: Binding '{binding.BindingName}' exported measurement '{export.Name}' forwards to unknown measurement '{export.Target.MeasurementName}' on bench '{bench.Name}' in circuit '{circuit.Name}'.",
+                        $"CAS3024: Binding '{binding.BindingName}' exported measurement '{export.Name}' forwards to unknown measurement '{export.Target.MeasurementName}' on bench '{bench.Name}' in {ownerKind} '{ownerName}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -438,33 +444,7 @@ public static class BenchBindingChecker
         }
     }
 
-    private static string GetRootName(string pinRef)
-    {
-        var dot = pinRef.IndexOf('.', StringComparison.Ordinal);
-        return dot < 0 ? pinRef : pinRef[..dot];
-    }
-
-    private static IReadOnlyList<(string Path, string LeafType)> SelectLeaves(
-        IReadOnlyList<(string Path, string LeafType)> leaves,
-        string pinRef
-    )
-    {
-        // If the mapping targets a leaf (e.g. "IN.P"), constrain to that leaf.
-        // Otherwise, use the full set under the root.
-        if (!pinRef.Contains('.', StringComparison.Ordinal))
-        {
-            return leaves;
-        }
-
-        return leaves
-            .Where(l =>
-                l.Path.Equals(pinRef, StringComparison.OrdinalIgnoreCase)
-                || l.Path.StartsWith(pinRef + ".", StringComparison.OrdinalIgnoreCase)
-            )
-            .ToList();
-    }
-
-    private static IEnumerable<(string Path, string LeafType)> ExpandLeaves(
+    private static IEnumerable<TerminalLeaf> ExpandLeaves(
         string basePath,
         string typeName,
         IReadOnlyDictionary<string, BundleType> bundlesByName
@@ -472,7 +452,7 @@ public static class BenchBindingChecker
     {
         if (!bundlesByName.TryGetValue(typeName, out var bundle))
         {
-            yield return (basePath, typeName);
+            yield return new TerminalLeaf(basePath, string.Empty, typeName);
             yield break;
         }
 
@@ -481,7 +461,10 @@ public static class BenchBindingChecker
             var fieldPath = $"{basePath}.{field.Key}";
             foreach (var leaf in ExpandLeaves(fieldPath, field.Value, bundlesByName))
             {
-                yield return leaf;
+                var relativePath = string.IsNullOrEmpty(leaf.RelativePath)
+                    ? field.Key
+                    : $"{field.Key}.{leaf.RelativePath}";
+                yield return new TerminalLeaf(leaf.Path, relativePath, leaf.LeafType);
             }
         }
     }
