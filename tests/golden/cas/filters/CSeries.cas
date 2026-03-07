@@ -25,20 +25,36 @@ circuit CSeries implements SingleEndedPassiveFilter {
   constraints {
     numeric {
       // The capacitor impedance is 50Ohm at 1MHz.
+      c_s11_low = sparam_bench::S11(f=100kHz) >= -0.2dB
+      c_s11_min = sparam_bench::S11(f=1MHz) >= -6.99dB
+      c_s11_max = sparam_bench::S11(f=1MHz) <= -6.98dB
+      c_s11_high = sparam_bench::S11(f=10MHz) <= -26dB
+      c_s11 = sparam_bench::S11(from=1MHz, to=100MHz) <= -6.98dB
       c_input_return_loss_low = sparam_bench::InputReturnLoss(f=100kHz) <= 0.2dB
-      c_input_return_loss_50_min = sparam_bench::InputReturnLoss(f=1MHz) >= 6.98dB
-      c_input_return_loss_50_max = sparam_bench::InputReturnLoss(f=1MHz) <= 6.99dB
+      c_input_return_loss_min = sparam_bench::InputReturnLoss(f=1MHz) >= 6.98dB
+      c_input_return_loss_max = sparam_bench::InputReturnLoss(f=1MHz) <= 6.99dB
       c_input_return_loss_high = sparam_bench::InputReturnLoss(f=10MHz) >= 26dB
       c_input_return_loss = sparam_bench::InputReturnLoss(from=1MHz, to=100MHz) >= 6.98dB
+      c_s21_min = sparam_bench::S21(f=1MHz) >= -0.97dB
+      c_s21_max = sparam_bench::S21(f=1MHz) <= -0.96dB
+      c_s21 = sparam_bench::S21(from=1MHz, to=100MHz) >= -0.97dB
       c_forward_gain_min = sparam_bench::ForwardGain(f=1MHz) >= -0.97dB
       c_forward_gain_max = sparam_bench::ForwardGain(f=1MHz) <= -0.96dB
       c_forward_gain = sparam_bench::ForwardGain(from=1MHz, to=100MHz) >= -0.97dB
       // The network is reciprocal.
+      c_s22_low = sparam_bench::S22(f=100kHz) >= -0.2dB
+      c_s22_min = sparam_bench::S22(f=1MHz) >= -6.99dB
+      c_s22_max = sparam_bench::S22(f=1MHz) <= -6.98dB
+      c_s22_high = sparam_bench::S22(f=10MHz) <= -26dB
+      c_s22 = sparam_bench::S22(from=1MHz, to=100MHz) <= -6.98dB
       c_output_return_loss_low = sparam_bench::OutputReturnLoss(f=100kHz) <= 0.2dB
-      c_output_return_loss_50_min = sparam_bench::OutputReturnLoss(f=1MHz) >= 6.98dB
-      c_output_return_loss_50_max = sparam_bench::OutputReturnLoss(f=1MHz) <= 6.99dB
+      c_output_return_loss_min = sparam_bench::OutputReturnLoss(f=1MHz) >= 6.98dB
+      c_output_return_loss_max = sparam_bench::OutputReturnLoss(f=1MHz) <= 6.99dB
       c_output_return_loss_high = sparam_bench::OutputReturnLoss(f=10MHz) >= 26dB
       c_output_return_loss = sparam_bench::OutputReturnLoss(from=1MHz, to=100MHz) >= 6.98dB
+      c_s12_min = sparam_bench::S12(f=1MHz) >= -0.97dB
+      c_s12_max = sparam_bench::S12(f=1MHz) <= -0.96dB
+      c_s12 = sparam_bench::S12(from=1MHz, to=100MHz) >= -0.97dB
       c_reverse_isolation_min = sparam_bench::ReverseIsolation(f=1MHz) >= 0.96dB
       c_reverse_isolation_max = sparam_bench::ReverseIsolation(f=1MHz) <= 0.97dB
       c_reverse_isolation = sparam_bench::ReverseIsolation(from=1MHz, to=100MHz) <= 0.97dB
