@@ -204,6 +204,22 @@ public sealed class StressFolderIntegrationTests : IDisposable
     public async Task CapFeedbackFDSky130_AllConstraintsPass() =>
         await RunConstraintCheckForCas("CapFeedbackFD_Sky130.cas", "CapFeedbackFD_Sky130");
 
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_Sky130"
+        );
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130"
+        );
+
     private async Task RunConstraintCheckForCas(string casFileName, string circuitName)
     {
         var cascodePath = Path.Combine(_repoRoot, "tests", "golden", "cas", "stress", casFileName);

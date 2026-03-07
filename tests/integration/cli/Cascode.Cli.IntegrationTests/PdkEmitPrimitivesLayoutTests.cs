@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -60,6 +61,26 @@ public sealed class PdkEmitPrimitivesLayoutTests
         var capacitorsText = await File.ReadAllTextAsync(capacitorsPath);
         var diodesText = await File.ReadAllTextAsync(diodesPath);
 
+        Assert.StartsWith(
+            $"VERSION {CascodeVersion.Current}",
+            devicesText,
+            StringComparison.Ordinal
+        );
+        Assert.StartsWith(
+            $"VERSION {CascodeVersion.Current}",
+            resistorsText,
+            StringComparison.Ordinal
+        );
+        Assert.StartsWith(
+            $"VERSION {CascodeVersion.Current}",
+            capacitorsText,
+            StringComparison.Ordinal
+        );
+        Assert.StartsWith(
+            $"VERSION {CascodeVersion.Current}",
+            diodesText,
+            StringComparison.Ordinal
+        );
         Assert.Contains("library lib.pdk.sky130.devices", devicesText, StringComparison.Ordinal);
         Assert.Contains(
             "library lib.pdk.sky130.resistors",

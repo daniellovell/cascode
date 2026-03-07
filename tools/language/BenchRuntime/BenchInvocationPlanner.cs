@@ -13,6 +13,15 @@ public sealed record BenchInvocationPlan(
 
 public static class BenchInvocationPlanner
 {
+    /// <summary>
+    /// Collects the bench invocations required to satisfy a circuit's numeric constraints.
+    /// </summary>
+    /// <remarks>
+    /// Planner resolution intentionally shares <see cref="BenchBindingResolver"/> with the
+    /// validator and extension folder so all three stages agree on inheritance, circuit
+    /// overrides, and extension-applied bindings. This avoids a class of bugs where
+    /// validation and runtime would otherwise reason about different effective bindings.
+    /// </remarks>
     public static IReadOnlyList<BenchInvocationPlan> CollectInvocations(
         CascodeDocument document,
         Circuit circuit
@@ -22,30 +31,11 @@ public static class BenchInvocationPlanner
             t => t.Name,
             StringComparer.OrdinalIgnoreCase
         );
-        var map = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
-        if (circuit.Traits is { Count: > 0 })
-        {
-            foreach (var iface in circuit.Traits)
-            {
-                if (!interfacesByName.TryGetValue(iface, out var interfaceDef))
-                {
-                    continue;
-                }
-
-                foreach (var binding in interfaceDef.BenchBindings)
-                {
-                    map.TryAdd(binding.BindingName, binding);
-                }
-            }
-        }
-
-        foreach (var binding in circuit.BenchBindings)
-        {
-            map[binding.BindingName] = binding;
-        }
-
-        var bindings = map
-            .Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase)
+        // Use the shared resolved view rather than rebuilding inheritance rules here.
+        var resolution = BenchBindingResolver.ResolveForCircuit(circuit, interfacesByName);
+        var bindings = resolution
+            .Bindings.Values.Select(binding => binding.Binding)
+            .OrderBy(binding => binding.BindingName, StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (bindings.Count == 0)
         {

@@ -107,4 +107,63 @@ public sealed class BenchInvocationPlannerTests
         Assert.Equal("node", arg.Name);
         Assert.Equal("net::OUT", arg.Value);
     }
+
+    [Fact]
+    public void CollectInvocations_UsesInheritedInterfaceBenchBindings()
+    {
+        var document = new CascodeDocument
+        {
+            BenchDefinitions =
+            [
+                new BenchDefinition
+                {
+                    Name = "TransferBench",
+                    Measurements = [new MeasurementDefinition { Name = "Gain", Unit = "dB" }],
+                },
+            ],
+            Traits =
+            [
+                new TraitDefinition
+                {
+                    Name = "AmpInterface",
+                    BenchBindings =
+                    [
+                        new BenchBinding
+                        {
+                            BenchName = "TransferBench",
+                            BindingName = "transfer_bench",
+                        },
+                    ],
+                },
+            ],
+        };
+        var circuit = new Circuit
+        {
+            Name = "Amp",
+            Traits = ["AmpInterface"],
+            Constraints = new ConstraintsBlock
+            {
+                Numeric =
+                [
+                    new NumericConstraint
+                    {
+                        Id = "c_gain",
+                        BenchBase = "transfer_bench",
+                        Bench = "transfer_bench",
+                        Metric = "Gain",
+                        MetricArgs = new List<MetricCallArg>(),
+                        Op = ">=",
+                        Value = "20",
+                        Unit = "dB",
+                    },
+                ],
+            },
+        };
+
+        var plans = BenchInvocationPlanner.CollectInvocations(document, circuit);
+
+        var plan = Assert.Single(plans);
+        Assert.Equal("transfer_bench", plan.Binding.BindingName);
+        Assert.Equal("TransferBench", plan.Binding.BenchName);
+    }
 }

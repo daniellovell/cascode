@@ -3,7 +3,7 @@ VERSION 4.1
 include lib.std
 
 
-circuit RSeries_Sky130 {
+circuit RSeriesQ implements SingleEndedPassiveFilter {
   level EL
 
   input IN : analog
@@ -22,19 +22,16 @@ circuit RSeries_Sky130 {
     }
   }
 
-  benches {
-    bind TwoPortSParamNoise as sparam_bench {
-      bench.P1--dut.IN
-      bench.P2--dut.OUT
-    }
-  }
-
   constraints {
     numeric {
+      c_s11 = sparam_bench::S11(f=1MHz) == -6.02059991328dB
       c_input_return_loss = sparam_bench::InputReturnLoss(f=1MHz) == 6.02059991328dB
+      c_s21 = sparam_bench::S21(f=1MHz) == -6.02059991328dB
       c_forward_gain = sparam_bench::ForwardGain(f=1MHz) == -6.02059991328dB
       // The network is reciprocal.
+      c_s22 = sparam_bench::S22(f=1MHz) == -6.02059991328dB
       c_output_return_loss = sparam_bench::OutputReturnLoss(f=1MHz) == 6.02059991328dB
+      c_s12 = sparam_bench::S12(f=1MHz) == -6.02059991328dB
       c_reverse_isolation = sparam_bench::ReverseIsolation(f=1MHz) == 6.02059991328dB
       c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) == 100Ohm
     }

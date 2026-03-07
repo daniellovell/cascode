@@ -1,6 +1,6 @@
 {
   "name": "@cascode/cascode-js",
-  "version": "0.7.0",
+  "version": "0.7.2",
   "description": "Synchronous Node binding for libcascode",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -28,10 +28,10 @@
   },
   "gypfile": false,
   "optionalDependencies": {
-    "@cascode/cascode-js-darwin-arm64": "0.7.0",
-    "@cascode/cascode-js-darwin-x64": "0.7.0",
-    "@cascode/cascode-js-linux-x64": "0.7.0",
-    "@cascode/cascode-js-win32-x64": "0.7.0"
+    "@cascode/cascode-js-darwin-arm64": "0.7.2",
+    "@cascode/cascode-js-darwin-x64": "0.7.2",
+    "@cascode/cascode-js-linux-x64": "0.7.2",
+    "@cascode/cascode-js-win32-x64": "0.7.2"
   },
   "scripts": {
     "build": "node-gyp rebuild",

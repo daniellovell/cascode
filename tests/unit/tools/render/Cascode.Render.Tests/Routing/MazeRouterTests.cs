@@ -11,7 +11,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_AllNetsFullyConnected(string cascodePath)
     {
         // Arrange
@@ -378,7 +378,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_NoOverlappingSegmentsWithinNet(string cascodePath)
     {
         // Arrange
@@ -634,7 +634,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_PortTerminalPositionsConnectedToWires(string cascodePath)
     {
         // Arrange
@@ -969,7 +969,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_NoUselessWireStubs(string cascodePath)
     {
         // This test verifies that every wire segment endpoint either:
@@ -1087,7 +1087,7 @@ public class MazeRouterTests
     /// but the input side (left) needs a connector to be added.
     /// </summary>
     [Theory]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_ParallelPathsWithOneSidedVerticalCoverage_ConnectorAddedToBothSides(
         string cascodePath
     )
@@ -1215,8 +1215,8 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai", "IN_P", "OUT.P")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai", "IN_N", "OUT.N")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.N", "OUT.N")]
     public void Route_FeedthroughPortsRemainAligned(
         string cascodePath,
         string leftPort,

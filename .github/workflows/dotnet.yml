@@ -9,7 +9,40 @@ on:
     paths-ignore:
       - 'build/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NGSPICE_VERSION: '45.2'
 jobs:
+  native_node_path_filter:
+    name: determine native/node changes
+    runs-on: ubuntu-latest
+    outputs:
+      run_native_node: ${{ steps.filter.outputs.native_node }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect native/node-relevant paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            native_node:
+              - '.github/workflows/dotnet.yml'
+              - 'Directory.Build.props'
+              - 'Cascode.sln'
+              - 'tools/native/**'
+              - 'tools/language/**'
+              - 'tools/render/**'
+              - 'tools/workspace/**'
+              - 'tools/bench/**'
+              - 'editors/node/**'
+              - 'lib/std/**'
+              - '**/packages.lock.json'
+
   build_test:
     strategy:
       fail-fast: false
@@ -160,6 +193,8 @@ jobs:
 
   native_node_test:
     name: native node test (${{ matrix.rid }})
+    needs: native_node_path_filter
+    if: github.event_name != 'pull_request' || needs.native_node_path_filter.outputs.run_native_node == 'true'
     strategy:
       fail-fast: false
       matrix:
