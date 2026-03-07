@@ -110,7 +110,7 @@ Like other analyses, arguments may use expressions over `constraints` and `env`.
 `SPAnalysis` consumes `Port` primitive instances from the compiled bench harness used for emission.
 There is no additional analysis argument for selecting ports.
 
-Current semantic validation requires at least one `Port` instance in the bench `fill {}` block.
+Current semantic validation requires at least one `Port` instance in the compiled bench harness, whether it comes from bench `fill {}` or binding-scoped wiring.
 For each discovered port, the runtime reads `N`, `Z`, and `V`, validates numbering, and configures
 the simulator.
 

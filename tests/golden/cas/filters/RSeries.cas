@@ -31,7 +31,7 @@ circuit RSeriesQ implements SingleEndedPassiveFilter {
       // The network is reciprocal.
       c_s22 = sparam_bench::S22(f=1MHz) == -6.02059991328dB
       c_output_return_loss = sparam_bench::OutputReturnLoss(f=1MHz) == 6.02059991328dB
-      c_s21 = sparam_bench::S21(f=1MHz) == -6.02059991328dB
+      c_s12 = sparam_bench::S12(f=1MHz) == -6.02059991328dB
       c_reverse_isolation = sparam_bench::ReverseIsolation(f=1MHz) == 6.02059991328dB
       c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) == 100Ohm
     }
