@@ -280,6 +280,17 @@ public static class SpiceEmitter
 
         var validationResult = new ValidationResult();
 
+        var semanticValidation = CompleteDocumentSemanticValidator.Validate(doc);
+        validationResult.Merge(semanticValidation);
+        if (!validationResult.IsValid)
+        {
+            return new ValidatedEmitResult
+            {
+                Validation = validationResult,
+                Emit = new SpiceEmitResult(),
+            };
+        }
+
         // Validate hierarchy first (circuit references, parameters, ports, cycles)
         var hierarchyValidation = HierarchyValidator.Validate(doc);
         validationResult.Merge(hierarchyValidation);
