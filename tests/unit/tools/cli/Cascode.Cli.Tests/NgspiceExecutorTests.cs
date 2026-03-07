@@ -33,11 +33,12 @@ public sealed class NgspiceExecutorTests
             {
                 result = NgspiceExecutor.Run(spiceFilePath);
             }
-            catch (Exception ex) when (ex is Win32Exception || ex is FileNotFoundException)
+            catch (Exception ex)
+                when (ex is Win32Exception
+                    || ex is FileNotFoundException
+                    || ex is NgspiceNotFoundException
+                )
             {
-                // ngspice not available - skip test but verify we got here without argument parsing errors
-                // If argument parsing had failed, we would have gotten an exception during Process.Start()
-                // with a different error message (e.g., about malformed arguments)
                 return;
             }
 

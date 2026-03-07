@@ -196,13 +196,29 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task CSAmpResistiveSky130_AllConstraintsPass() =>
-        await RunConstraintCheckForCas("CSAmp_Resistive_Sky130.cas", "CSAmp_Resistive_Sky130");
+    public async Task CSAmpActiveLoadSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CSAmp_ActiveLoad_Sky130.cas", "CSAmp_ActiveLoad_Sky130");
 
     [Fact]
     [Trait("Category", "Simulation")]
     public async Task CapFeedbackFDSky130_AllConstraintsPass() =>
         await RunConstraintCheckForCas("CapFeedbackFD_Sky130.cas", "CapFeedbackFD_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_Sky130"
+        );
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130"
+        );
 
     private async Task RunConstraintCheckForCas(string casFileName, string circuitName)
     {

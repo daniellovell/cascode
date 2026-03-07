@@ -45,8 +45,8 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         var entryPath = Path.Combine(_workDir, "input.hl.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
 
@@ -129,8 +129,8 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         var entryPath = Path.Combine(_workDir, "emit-relink.el.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -206,8 +206,8 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         var entryPath = Path.Combine(_workDir, "deprecated-option.el.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             circuit Minimal {
               level EL
@@ -259,8 +259,8 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         var entryPath = Path.Combine(_workDir, "strict.el.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 

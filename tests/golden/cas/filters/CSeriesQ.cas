@@ -1,0 +1,50 @@
+VERSION 4.1
+
+include lib.std
+
+
+circuit CSeriesQ implements SingleEndedPassiveFilter {
+  level EL
+
+  input IN : analog
+  output OUT : analog
+  ground GND
+
+  env {
+    InputCommonModeRange = 0V
+    OutputCommonModeRange = 0V
+  }
+
+  fill {
+    Capacitor C1 = new CapacitorQ(size(C=3.18309886184n, Q=1, freq=1M)) {
+      .P--IN
+      .N--OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      // The capacitor impedance is 50Ohm at 1MHz, but the ESR is 50Ohm as well.
+      c_s11_min = sparam_bench::S11(f=1MHz) >= -6.99dB
+      c_s11_max = sparam_bench::S11(f=1MHz) <= -6.98dB
+      c_input_return_loss_min = sparam_bench::InputReturnLoss(f=1MHz) >= 6.98dB
+      c_input_return_loss_max = sparam_bench::InputReturnLoss(f=1MHz) <= 6.99dB
+      c_s21_min = sparam_bench::S21(f=1MHz) >= -3.98dB
+      c_s21_max = sparam_bench::S21(f=1MHz) <= -3.97dB
+      c_forward_gain_min = sparam_bench::ForwardGain(f=1MHz) >= -3.98dB
+      c_forward_gain_max = sparam_bench::ForwardGain(f=1MHz) <= -3.97dB
+      // The network is reciprocal.
+      c_s22_min = sparam_bench::S22(f=1MHz) >= -6.99dB
+      c_s22_max = sparam_bench::S22(f=1MHz) <= -6.98dB
+      c_output_return_loss_min = sparam_bench::OutputReturnLoss(f=1MHz) >= 6.98dB
+      c_output_return_loss_max = sparam_bench::OutputReturnLoss(f=1MHz) <= 6.99dB
+      c_s12_min = sparam_bench::S12(f=1MHz) >= -3.98dB
+      c_s12_max = sparam_bench::S12(f=1MHz) <= -3.97dB
+      c_reverse_isolation_min = sparam_bench::ReverseIsolation(f=1MHz) >= 3.97dB
+      c_reverse_isolation_max = sparam_bench::ReverseIsolation(f=1MHz) <= 3.98dB
+      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) >= 3dB
+      c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) >= 0dB
+      c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) == 50Ohm
+    }
+  }
+}

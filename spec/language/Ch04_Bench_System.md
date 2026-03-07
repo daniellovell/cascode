@@ -203,7 +203,7 @@ This differential interpretation applies consistently to:
 
 - `transfer(ac, stim, resp)` (both the stimulus and response terminals)
 - `voltage(analysis, terminal)` for AC spectra and transient waveforms
-- `NoiseAnalysis(..., output=terminal)` and `noise(noise_analysis, terminal)`
+- `NoiseAnalysis(..., output=terminal)` and `noise(noise, terminal)`
 
 Example (differential response):
 
@@ -228,9 +228,9 @@ For bundle types with more than two leaves, benches should reference the desired
 
 ### 4.2.6 Port harness primitives (S-parameter benches)
 
-S-parameter reference planes are modeled as harness primitive instances in `fill {}` (or in bench
-binding `bind {}` composition), not as a terminal role. A port instance declares a positive
-integer index `N`, a reference impedance `Z`, and a DC bias source value `V`:
+S-parameter reference planes are modeled as harness primitive instances in bench `fill {}`, not as
+a terminal role. A port instance declares a positive integer index `N`, a reference impedance `Z`,
+and a DC bias source value `V`:
 
 ```cascode
 Port p1 = new Port(N=1, Z=50Ohm, V=0V) {
@@ -305,8 +305,9 @@ Notes:
 - An impedance value may be a numeric impedance, a numeric capacitance/inductance, or a parallel
   composite expressed with `||` (for example, `1GOhm || 15pF`).
 - `Port` declares an S-parameter reference plane with a unique sequential index `N` starting at 1,
-  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered automatically
-  by `SPAnalysis` at runtime.
+  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered by
+  `SPAnalysis` at runtime, and current semantic validation requires at least one `Port` in bench
+  `fill {}` when `SPAnalysis` is declared.
 
 ### 4.3.3 Example: Differential AC Stimulus with Source/Load Impedances
 
@@ -406,11 +407,10 @@ NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 
 `SPAnalysis` requests a multiport S-parameter sweep over frequency. It accepts the same
 frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) plus an optional
-`noise` flag (`0` or `1`) and operates on all `Port` instances declared in the bench. There is no
-explicit parameter linking the analysis to specific ports; the runtime discovers all port instances
-and configures the simulation accordingly. When `noise=1`, the simulator computes correlated noise
-parameters together with the S-parameter sweep, and `S.NF()` becomes available to read noise
-figure in dB.
+`noise` flag (`0` or `1`) and operates on `Port` instances declared in bench `fill {}`. There is no
+explicit parameter linking the analysis to specific ports; the runtime discovers ports and configures
+the simulation accordingly. When `noise=1`, the simulator computes correlated noise parameters
+together with the S-parameter sweep, and `S.NF()` becomes available to read noise figure in dB.
 
 ```cascode
 analysis {
@@ -485,6 +485,26 @@ measurement BandpassBandwidth : Hz {
 If a measurement declares parameters, it must be invoked with matching arguments by name or by
 position.
 
+Measurements may be overloaded by arity within the same bench. Two measurements with the same
+name are valid only when they declare different parameter counts. Resolution is by name and argument
+count at the call site.
+
+```cascode
+measurements {
+  measurement ForwardGain(Frequency f) : dB {
+    SParameterMatrix S = sparam(sp)
+    return db20(S.S(2, 1).Mag()).ValueAt(f)
+  }
+
+  measurement ForwardGain(Frequency from, Frequency to) : dB {
+    SParameterMatrix S = sparam(sp)
+    return db20(S.S(2, 1).Mag()).From(from).To(to)
+  }
+}
+```
+
+Declaring multiple measurements with the same name and the same parameter count is a semantic error.
+
 ---
 
 ## 4.6 Measurement Value Types
@@ -520,12 +540,12 @@ Common structured result types produced by measurement primitives:
 | `TransferFunction` | `transfer(ac, stim, resp)` | Complex frequency response |
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
-| `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
+| `NoiseSpectrum` | `noise(noise, terminal)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
 | `ComplexVoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
-| `SParameterMatrix` | `sparam(sp_analysis)` | Frequency-indexed matrix of complex S-parameters |
+| `SParameterMatrix` | `sparam(analysis)` | Frequency-indexed matrix of complex S-parameters |
 
 ---
 
@@ -541,18 +561,21 @@ commonly used primitives in the standard library.
 | `transfer(ac, stim, resp)` | `TransferFunction` | Computes the complex transfer `V(resp)/V(stim)` over an AC sweep |
 | `voltage(analysis, terminal)` | `ComplexVoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
-| `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
-| `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
-| `sparam(sp_analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
+| `noise(noise, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
+| `input_referred_noise(noise, ac, stim, resp)` | `NoiseSpectrum` | Divides output noise density by the gain |
+| `sparam(analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
-| `quiescent_power(PWR, RET)` | `W` | Computes DC rail power from the applied supply source |
+| `quiescent_power(pwr, ret)` | `W` | Computes DC rail power from the applied supply source |
 | `period(f)` | `Time` | Returns `1/f` |
 | `abs(x)` | scalar type | Absolute value (numeric) |
 | `sqrt(x)` | scalar type | Square root (numeric) |
 
 `current(...)` requires a harness element pin reference such as `harness.VDD.P`. The bench runtime
 maps `harness.<SupplyName>.P` / `.N` to the injected supply source that applies the rail.
+
+Built-in function arguments support positional and named forms. Runtime validation rejects missing
+required arguments, excess positional arguments, and unexpected named arguments.
 
 ### 4.7.2 Methods on Structured Values
 
@@ -567,7 +590,7 @@ Spectrum methods:
 
 - `S.ValueAt(f)` → interpolated real-valued or complex-valued scalar at frequency `f`
 - `S.From(f)` / `S.To(f)` → truncated spectrum with frequency range `>= f` or `<= f` (same spectrum type)
-- `S.Range(f1, f2)` → equivalent to `S.From(f1).To(f2)` (same spectrum type)
+- `S.Range(from, to)` → equivalent to `S.From(from).To(to)` (same spectrum type)
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
@@ -575,7 +598,7 @@ Waveform methods:
 
 - `W.ValueAt(t)` → interpolated scalar at time `t`
 - `W.From(t)` / `W.To(t)` → truncated waveform with time range `>= t` or `<= t` (same waveform type)
-- `W.Range(t1, t2)` → equivalent to `W.From(t1).To(t2)` (same waveform type)
+- `W.Range(from, to)` → equivalent to `W.From(from).To(to)` (same waveform type)
 
 For complex AC spectra (`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`), `ValueAt(f)` returns a complex point
 interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
@@ -585,6 +608,8 @@ spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sample
 (`voltage(ac, OUT).ValueAt(f).Mag()`). These two forms are equivalent for magnitude interpolation.
 `From`, `To`, and `Range` are chainable with each other and with `ValueAt`, for example
 `voltage(ac, OUT).Range(100Hz, 1MHz).ValueAt(500kHz)`.
+Method arguments can be passed positionally or by name (including mixed usage), and named
+arguments are validated against each method's declared parameter names.
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).
@@ -601,6 +626,10 @@ response at port *i* due to excitation at port *j*.
 | Method | Result | Notes |
 |---|---|---|
 | `S.S(i, j)` | `TransferFunction` | Raw S-parameter element Sij |
+| `S.S11()` | `GainSpectrum` | Magnitude in dB for the input reflection term, `db20(|S11|)` (2-port only) |
+| `S.S21()` | `GainSpectrum` | Magnitude in dB for the forward gain term, `db20(|S21|)` (2-port only) |
+| `S.S12()` | `GainSpectrum` | Magnitude in dB for the reverse gain term, `db20(|S12|)` (2-port only) |
+| `S.S22()` | `GainSpectrum` | Magnitude in dB for the output reflection term, `db20(|S22|)` (2-port only) |
 
 Derived metric methods:
 
@@ -616,9 +645,16 @@ Derived metric methods:
 | `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
 | `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
 | `S.NF()` | `GainSpectrum` | Noise figure in dB; requires `SPAnalysis(noise=1)` |
+| `S.NFmin()` | `GainSpectrum` | Minimum noise figure in dB; requires `SPAnalysis(noise=1)` |
+| `S.Rn()` | `ImpedanceSpectrum` | Noise resistance in Ω; requires `SPAnalysis(noise=1)` |
 
-The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
-called on an `SParameterMatrix` from a bench with more than two ports.
+The 2-port-only methods (`S11`, `S21`, `S12`, `S22`, `StabilityK`, `MuFactor`, `MSG`, `MAG`, `NF`,
+`NFmin`, `Rn`) produce a semantic error when called on an `SParameterMatrix` from a bench with more
+than two ports.
+
+Mixed-mode S-parameters can be derived in bench measurements from single-ended matrix elements.
+The standard library bench `TwoPortMixedModeSParam` demonstrates this using four single-ended ports
+to compute `Sdd`, `Sdc`, `Scd`, and `Scc` terms.
 
 Example usage:
 
@@ -676,6 +712,16 @@ interface SingleEndedOpAmp {
   }
 }
 ```
+
+Bindings declared on an interface are part of that interface's contract, not just inherited
+boilerplate. A complete document is ill-formed if an interface binding refers to a terminal shape
+that the interface itself does not declare, or if it maps to a terminal shape whose leaf types are
+incompatible with the interface's declaration; [Chapter 2 terminal-contract rules](Ch02_Core_Concepts.md#24-interfaces-connectors-and-attach) define the exact terminal-contract
+compatibility semantics. When a circuit uses `implements`, the interface terminal set is a minimum
+contract: the circuit must provide every terminal declared by the interface, but it MAY expose
+additional public terminals beyond that set. After inheritance and extension are applied, every
+terminal mapping named by the binding must still satisfy both shape and leaf-type compatibility, so
+same-shape mappings with incompatible leaf types are still rejected.
 
 Within a circuit, bindings can be added with `bind` or extended with `extend`:
 

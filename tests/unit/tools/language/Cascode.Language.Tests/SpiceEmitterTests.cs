@@ -69,8 +69,8 @@ public class SpiceEmitterTests
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
-  device ""level1_nmos""
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
   params {{
     W = primSize.W
     L = primSize.L
@@ -86,7 +86,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
   output OUT : analog
   fill {{
     size Tail = size(W=Input.W*2, L=Input.L, M=1)
-    NMOS M1 = new Level1_NMOS(Tail) {{
+    NMOS M1 = new NMOS_Level1(Tail) {{
       .B--GND
       .D--OUT
       .G--IN
@@ -121,9 +121,9 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
             [
                 new PrimitiveDefinition
                 {
-                    Name = "Level1_NMOS",
+                    Name = "NMOS_Level1",
                     Kind = "nmos",
-                    Device = "level1_nmos",
+                    Device = "nmos_level1",
                     SizeParameter = "primSize",
                     Params = new Dictionary<string, string>
                     {
@@ -189,7 +189,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 SizeName = "Sense",
                                 Bindings = new Dictionary<string, string>
                                 {
@@ -306,7 +306,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -334,9 +334,9 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
             [
                 new PrimitiveDefinition
                 {
-                    Name = "Level1_NMOS",
+                    Name = "NMOS_Level1",
                     Kind = "nmos",
-                    Device = "level1_nmos",
+                    Device = "nmos_level1",
                     SizeParameter = "primSize",
                     Params = new Dictionary<string, string>
                     {
@@ -353,7 +353,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         var output = writer.ToString();
 
         // Verify MOSFET line has DGBS ordering: MM1 <D> <G> <S> <B> <model>
-        Assert.Contains("MM1 OUT IN GND GND level1_nmos L=180n W=1u m=1", output);
+        Assert.Contains("MM1 OUT IN GND GND nmos_level1 L=180n W=1u m=1", output);
     }
 
     [Fact]

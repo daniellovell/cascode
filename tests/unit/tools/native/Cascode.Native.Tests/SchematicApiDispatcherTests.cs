@@ -493,8 +493,8 @@ public sealed class SchematicApiDispatcherTests
 
         return $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
-  device ""level1_nmos""
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
   params {{
     W = primSize.W
     L = primSize.L
@@ -510,13 +510,13 @@ circuit Amp {{
   fill {{
     net n1 : analog
     size Unit = size(W=1u, L=180n, M=1)
-    NMOS M1 = new Level1_NMOS(Unit) {{
+    NMOS M1 = new NMOS_Level1(Unit) {{
       .D--OUT
       .G--IN
       .S--n1
       .B--GND
     }}
-    NMOS M2 = new Level1_NMOS(Unit) {{
+    NMOS M2 = new NMOS_Level1(Unit) {{
       .D--OUT
       .G--n1
       .S--GND
@@ -547,7 +547,7 @@ circuit Amp {{
 
         var m2Device = includeM2Device
             ? @"
-    NMOS M2 = new Level1_NMOS(Unit) {
+    NMOS M2 = new NMOS_Level1(Unit) {
       .D--OUT
       .G--n1
       .S--GND
@@ -563,8 +563,8 @@ circuit Amp {{
 
         return $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
-  device ""level1_nmos""
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
   params {{
     W = primSize.W
     L = primSize.L
@@ -580,7 +580,7 @@ circuit Amp {{
   fill {{
     net n1 : analog
     size Unit = size(W=1u, L=180n, M=1)
-    NMOS {m1DeviceId} = new Level1_NMOS(Unit) {{
+    NMOS {m1DeviceId} = new NMOS_Level1(Unit) {{
       .D--OUT
       .G--IN
       .S--n1

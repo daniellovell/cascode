@@ -1,7 +1,7 @@
-VERSION 4.0
+VERSION 4.1
 
 // Diff bundle is included from lib.std
-// Ideal_Resistor and Ideal_Capacitor come from lib.std.prim
+// ResistorIdeal and CapacitorIdeal come from lib.std.prim
 // DiffToSETransfer coems from lib.std.bench
 
 include lib.std // Should recursively include all 
@@ -22,12 +22,12 @@ circuit RcLowpass {
   }
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=1k)) {
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {
       .P--IN
       .N--OUT
     }
 
-    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+    Capacitor C1 = new CapacitorIdeal(size(C=1p)) {
       .P--OUT
       .N--GND
     }

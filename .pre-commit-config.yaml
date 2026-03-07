@@ -3,6 +3,7 @@ repos:
     rev: v18.1.8
     hooks:
       - id: clang-format
+        types_or: [c, c++]
   - repo: local
     hooks:
       - id: dotnet-tool-restore

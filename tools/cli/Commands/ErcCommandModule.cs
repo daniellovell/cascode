@@ -65,16 +65,10 @@ internal sealed class ErcCommandModule : ICommandModule
             return earlyResult.Value;
         }
 
-        // Run ERC on all EL and ML circuits (topology-based checks work on both)
         var circuits = doc!
             .Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
             .ToList();
-        var combinedResult = new ValidationResult();
-        foreach (var circuit in circuits)
-        {
-            var circuitResult = ElectricalRuleChecker.Check(circuit, doc, requirePdk);
-            combinedResult.Merge(circuitResult);
-        }
+        var combinedResult = ElectricalRuleChecker.Check(doc, requirePdk);
 
         var exitCode = combinedResult.HasErrors ? 1 : 0;
 

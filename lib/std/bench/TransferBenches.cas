@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 4.1
 
 library lib.std.bench
 
@@ -47,7 +47,13 @@ function calc_phase_margin(ACAnalysis ac, stim IN, resp OUT) : Phase {
 
   Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
   Phase phi = P.ValueAt(fg)
-  return 180deg + phi
+  return normalize_phase_near_zero(180deg + phi)
+}
+
+function normalize_phase_near_zero(Phase phase) : Phase {
+  if phase > 180deg { return normalize_phase_near_zero(phase - 360deg) }
+  if phase < -180deg { return normalize_phase_near_zero(phase + 360deg) }
+  return phase
 }
 
 function calc_lowpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Frequency gbwConstraint) : Frequency {
@@ -91,7 +97,7 @@ abstract bench AbstractTransfer {
   }
 
   measurements {
-    measurement GainSpectrum(Frequency from, Frequency to) : dB {
+    measurement Gain(Frequency from, Frequency to) : dB {
       return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
     }
 
@@ -145,8 +151,8 @@ bench DiffToSETransfer extends AbstractTransfer {
       .N--vcm
     }
 
-    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
-    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceP = new Impedor(Z=get_source_impedance(0Ohm).DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=get_source_impedance(0Ohm).DiffToShunt()) { }
 
     acP.P--sourceP.P
     sourceP.N--IN.P
@@ -154,7 +160,7 @@ bench DiffToSETransfer extends AbstractTransfer {
     acN.P--sourceN.P
     sourceN.N--IN.N
 
-    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm)) {
       .P--OUT
       .N--gnd
     }
@@ -185,8 +191,8 @@ bench DiffToDiffTransfer extends AbstractTransfer {
       .N--vcm
     }
 
-    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
-    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceP = new Impedor(Z=get_source_impedance(0Ohm).DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=get_source_impedance(0Ohm).DiffToShunt()) { }
 
     acP.P--sourceP.P
     sourceP.N--IN.P
@@ -194,11 +200,11 @@ bench DiffToDiffTransfer extends AbstractTransfer {
     acN.P--sourceN.P
     sourceN.N--IN.N
 
-    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+    Impedor loadP = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT.P
       .N--gnd
     }
-    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+    Impedor loadN = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT.N
       .N--gnd
     }
@@ -226,12 +232,12 @@ bench SEToSETransfer extends AbstractTransfer {
       .N--vcm
     }
 
-    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
+    Impedor sourceZ = new Impedor(Z=get_source_impedance(0Ohm)) { }
 
     ac.P--sourceZ.P
     sourceZ.N--IN
 
-    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm)) {
       .P--OUT
       .N--gnd
     }
@@ -283,16 +289,16 @@ bench DiffCMRejection extends AbstractCMRejection {
       .N--vcm
     }
 
-    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
+    Impedor sourceZ = new Impedor(Z=get_source_impedance(0Ohm)) { }
 
     cmAC.P--sourceZ.P
     sourceZ.N--CM
 
-    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+    Impedor loadP = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT.P
       .N--gnd
     }
-    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+    Impedor loadN = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT.N
       .N--gnd
     }
@@ -321,11 +327,11 @@ bench DiffToSECMRejection extends AbstractCMRejection {
 
     VAC cmAC = new VAC(A=1V, phase=0deg) { .N--vcm }
 
-    Impedor srcZ = new Impedor(Z=env.SourceImpedance) { }
+    Impedor srcZ = new Impedor(Z=get_source_impedance(0Ohm)) { }
     cmAC.P--srcZ.P
     srcZ.N--CM
 
-    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm)) {
       .P--OUT
       .N--gnd
     }

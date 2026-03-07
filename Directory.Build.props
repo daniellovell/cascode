@@ -6,7 +6,7 @@
       Default version for local/dev builds.
       Release CI overrides this from the git tag (see .github/workflows/release.yml).
     -->
-    <CascodeVersion>0.7.0</CascodeVersion>
+    <CascodeVersion>0.7.2</CascodeVersion>
     <Version>$(CascodeVersion)</Version>
     <PackageVersion>$(CascodeVersion)</PackageVersion>
   </PropertyGroup>

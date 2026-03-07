@@ -1,18 +1,18 @@
-VERSION 4.0
+VERSION 4.1
 
 bundle Diff {
   P : analog
   N : analog
 }
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"
   params {
     C = primSize.C
@@ -65,12 +65,12 @@ circuit RcLowpass {
   ground GND
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=1k)) {
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {
       .P--IN.P
       .N--OUT
     }
 
-    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+    Capacitor C1 = new CapacitorIdeal(size(C=1p)) {
       .P--OUT
       .N--GND
     }
@@ -88,7 +88,7 @@ circuit RcLowpass {
   constraints {
     numeric {
       // 1k || 1p -> fc ~ 159 MHz
-      c_fc = lp::LowpassBandwidth >= 50MHz
+      c_fc = lp::LowpassBandwidth >= 150MHz
       c_gain = lp::PassbandGain >= 0dB
     }
   }
