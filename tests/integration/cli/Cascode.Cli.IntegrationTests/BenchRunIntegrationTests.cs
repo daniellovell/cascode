@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -52,16 +53,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath);
 
         var resultsPath = Path.Combine(_outputDir, "RcLowpass_lp_results.json");
         var tracePath = Path.Combine(_outputDir, "RcLowpass_lp_trace.jsonl");
@@ -69,25 +61,14 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
 
-        var results = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath),
-            s_jsonOptions
-        );
-        Assert.NotNull(results);
-        Assert.Equal("RcLowpass", results!.Circuit);
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("RcLowpass", results.Circuit);
         Assert.Equal("lp", results.Bench);
         Assert.True(results.Measurements.ContainsKey("LowpassBandwidth"));
         Assert.True(results.Measurements["LowpassBandwidth"].Value.HasValue);
         Assert.False(double.IsNaN(results.Measurements["LowpassBandwidth"].Value!.Value));
 
-        var verify = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(10),
-            _cascodeHome,
-            "verify",
-            cascodePath,
-            resultsPath
-        );
-        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+        await VerifyAsync(cascodePath, resultsPath);
     }
 
     [Fact]
@@ -99,16 +80,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cai"
         );
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath);
 
         Assert.True(File.Exists(Path.Combine(_outputDir, "RcLowpassA_lp_results.json")));
         Assert.True(File.Exists(Path.Combine(_outputDir, "RcLowpassB_lp_results.json")));
@@ -123,18 +95,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cai"
         );
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "--circuit",
-            "RcLowpassB",
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath, "--circuit", "RcLowpassB");
 
         Assert.False(File.Exists(Path.Combine(_outputDir, "RcLowpassA_lp_results.json")));
         Assert.True(File.Exists(Path.Combine(_outputDir, "RcLowpassB_lp_results.json")));
@@ -146,16 +107,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/TranInternalCurrent.cas");
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath);
 
         var tbPath = Path.Combine(_outputDir, "TranInternalCurrent_tran.sp");
         Assert.True(File.Exists(tbPath), "tran testbench not found");
@@ -167,12 +119,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var resultsPath = Path.Combine(_outputDir, "TranInternalCurrent_tran_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
-        var results = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath),
-            s_jsonOptions
-        );
-        Assert.NotNull(results);
-        Assert.Equal("TranInternalCurrent", results!.Circuit);
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("TranInternalCurrent", results.Circuit);
         Assert.Equal("tran", results.Bench);
         Assert.True(results.Measurements.ContainsKey("InternalNodePeak"));
         Assert.True(results.Measurements.ContainsKey("SupplyCurrentPeak"));
@@ -190,16 +138,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/DcInternalNode.cas");
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath);
 
         var tbPath = Path.Combine(_outputDir, "DcInternalNode_dc.sp");
         Assert.True(File.Exists(tbPath), "dc testbench not found");
@@ -212,26 +151,15 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var resultsPath = Path.Combine(_outputDir, "DcInternalNode_dc_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
-        var results = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath),
-            s_jsonOptions
-        );
-        Assert.NotNull(results);
-        Assert.Equal("DcInternalNode", results!.Circuit);
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("DcInternalNode", results.Circuit);
         Assert.Equal("dc", results.Bench);
         Assert.True(results.Measurements.ContainsKey("MidVoltage"));
         Assert.True(string.IsNullOrEmpty(results.Measurements["MidVoltage"].Error));
         Assert.True(results.Measurements["MidVoltage"].Value.HasValue);
         Assert.False(double.IsNaN(results.Measurements["MidVoltage"].Value!.Value));
 
-        var verify = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(10),
-            _cascodeHome,
-            "verify",
-            cascodePath,
-            resultsPath
-        );
-        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+        await VerifyAsync(cascodePath, resultsPath);
     }
 
     [Fact]
@@ -285,17 +213,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
             """
         );
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "transfer_bench",
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath, "transfer_bench");
 
         var resultsPath = Directory
             .GetFiles(
@@ -306,15 +224,16 @@ public sealed class BenchRunIntegrationTests : IDisposable
             .SingleOrDefault();
         Assert.False(string.IsNullOrWhiteSpace(resultsPath), "results.json not found");
 
-        var results = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath!),
-            s_jsonOptions
-        );
-        Assert.NotNull(results);
-        Assert.Equal("DiffPassiveRc", results!.Circuit);
+        var results = await ReadBenchResultsAsync(resultsPath!);
+        Assert.Equal("DiffPassiveRc", results.Circuit);
         Assert.Equal("transfer_bench", results.Bench);
         Assert.True(results.Measurements.ContainsKey("PassbandGain"));
         Assert.True(results.Measurements["PassbandGain"].Value.HasValue);
+
+        var combinedResultsPath = Path.Combine(_outputDir, "DiffPassiveRc_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
     }
 
     [Fact]
@@ -323,40 +242,20 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/filters/CSeries.cas");
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath);
 
         var resultsPath = Path.Combine(_outputDir, "CSeries_sparam_bench_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
-        var results = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath),
-            s_jsonOptions
-        );
-        Assert.NotNull(results);
-        Assert.Equal("CSeries", results!.Circuit);
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("CSeries", results.Circuit);
         Assert.Equal("sparam_bench", results.Bench);
         Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
 
         var combinedResultsPath = Path.Combine(_outputDir, "CSeries_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
 
-        var verify = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(10),
-            _cascodeHome,
-            "verify",
-            cascodePath,
-            combinedResultsPath
-        );
-        CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+        await VerifyAsync(cascodePath, combinedResultsPath);
     }
 
     [Fact]
@@ -365,38 +264,56 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/filters/RSeries.cas");
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            "bench",
-            "run",
-            cascodePath,
-            "-o",
-            _outputDir
-        );
-        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+        await RunBenchAsync(cascodePath);
 
         var resultsPath = Path.Combine(_outputDir, "RSeriesQ_sparam_bench_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
-        var results = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath),
-            s_jsonOptions
-        );
-        Assert.NotNull(results);
-        Assert.Equal("RSeriesQ", results!.Circuit);
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("RSeriesQ", results.Circuit);
         Assert.Equal("sparam_bench", results.Bench);
         Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
 
         var combinedResultsPath = Path.Combine(_outputDir, "RSeriesQ_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
 
+        await VerifyAsync(cascodePath, combinedResultsPath);
+    }
+
+    private async Task RunBenchAsync(string cascodePath, params string[] additionalArgs)
+    {
+        var args = new List<string> { "bench", "run", cascodePath };
+        args.AddRange(additionalArgs);
+        args.Add("-o");
+        args.Add(_outputDir);
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            [.. args]
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+    }
+
+    private async Task<BenchResult> ReadBenchResultsAsync(string resultsPath)
+    {
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+        var results = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(results);
+        return results!;
+    }
+
+    private async Task VerifyAsync(string cascodePath, string resultsPath)
+    {
         var verify = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
             _cascodeHome,
             "verify",
             cascodePath,
-            combinedResultsPath
+            resultsPath
         );
         CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
     }
