@@ -101,12 +101,12 @@ An `interface` is a contract that circuits can implement. Interfaces typically d
 
 An implementing circuit must satisfy the interface's declared terminal contract for every terminal named by the interface. Matching is structural: terminal name, terminal declaration kind (`input`, `output`, `io`, `supply`, or `ground`), leaf shape, and leaf types must agree for the interface-defined terminals. An interface terminal's declaration kind must equal the implementing circuit terminal's declaration kind, while the circuit may still declare additional terminals beyond the interface.
 
-Tooling enforces this contract on complete documents. In practice, `cascode link` writes the
-referenced interface, the surviving `implements` relationship, and the declared circuit terminals
-into the generated `.cai` so later `cascode emit` and `cascode erc` can resolve that `implements`
-relationship and validate terminal compatibility at emit/erc time. Those commands reject a
-document whose `implements` relationship cannot be resolved or whose declared circuit terminals do
-not match the referenced interface.
+Tooling enforces this contract on complete documents during `cascode link`, not only in later
+downstream commands. `cascode link` validates and rejects documents whose `implements`
+relationship cannot be resolved or whose declared circuit terminals do not match the referenced
+interface. When linking succeeds, it writes the referenced interface, the surviving `implements`
+relationship, and the declared circuit terminals into the generated `.cai` so downstream commands
+such as `cascode emit` and `cascode erc` can revalidate against the preserved contract.
 
 Connector mappings define how two interface views relate structurally. They are expressed using the
 same pin-reference and wire syntax as fill blocks:
