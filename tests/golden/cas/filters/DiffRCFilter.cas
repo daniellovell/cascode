@@ -1,6 +1,6 @@
-// Linked golden for complete-document contract enforcement.
-// Exercise this file with `cascode emit` and `cascode erc` regressions to verify
-// that linked `.cai` artifacts retain `implements`, the referenced interface, and declared terminals.
+// Source fixture for regenerating the linked `DiffRCFilter.el.cai` golden.
+// Exercise this file with source-flow and `cascode link` regressions when checking
+// that linked output preserves `implements`, interface metadata, and the terminal contract.
 
 VERSION 4.1
 
@@ -11,10 +11,8 @@ bundle Diff {
 
 interface DifferentialPassiveFilter {
   ground GND
-  input IN.N : analog
-  input IN.P : analog
-  output OUT.N : analog
-  output OUT.P : analog
+  input IN : Diff
+  output OUT : Diff
 }
 
 primitive Capacitor CapacitorIdeal(size primSize) {
@@ -34,10 +32,8 @@ primitive Resistor ResistorIdeal(size primSize) {
 circuit DiffRCFilter implements DifferentialPassiveFilter {
   level EL
   ground GND
-  input IN.N : analog
-  input IN.P : analog
-  output OUT.N : analog
-  output OUT.P : analog
+  input IN : Diff
+  output OUT : Diff
   fill {
     Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
       .N--OUT.N
