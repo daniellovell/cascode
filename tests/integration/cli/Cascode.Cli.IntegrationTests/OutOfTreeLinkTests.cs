@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -38,8 +39,8 @@ public sealed class OutOfTreeLinkTests : IDisposable
         var entryPath = Path.Combine(_workDir, "stdlib-test.hl.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
 
@@ -104,8 +105,8 @@ public sealed class OutOfTreeLinkTests : IDisposable
         var entryPath = Path.Combine(_workDir, "pdk-test.el.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -175,8 +176,8 @@ public sealed class OutOfTreeLinkTests : IDisposable
         var entryPath = Path.Combine(_workDir, "setdir-pdk-test.el.cas");
         await File.WriteAllTextAsync(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
