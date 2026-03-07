@@ -27,9 +27,9 @@ public sealed class ComplianceReportRendererTests
                     Id = "c_pass",
                     Metric = "Gain",
                     Operator = ">=",
-                    Expected = 1,
+                    Expected = 1_000,
                     Unit = "Hz",
-                    Actual = 2,
+                    Actual = 1_200,
                     ActualUnit = "Hz",
                     Passed = true,
                 },
@@ -54,12 +54,33 @@ public sealed class ComplianceReportRendererTests
             {
                 "Compliance: 1/2 (50% PASS)",
                 "PASS:",
-                "  c_pass: Gain >= 1 Hz (actual 2 Hz)",
+                "  c_pass: Gain >= 1 kHz (actual 1.2 kHz)",
                 "FAIL:",
                 "  c_fail: Gain >= 10 Hz (actual missing)",
             },
             lines
         );
+    }
+
+    [Fact]
+    public void FormatConstraintPlain_UsesValueFormatterSemantics()
+    {
+        var result = new ConstraintResult
+        {
+            Id = "c_slew",
+            Metric = "SlewRate",
+            Node = "OUT",
+            Operator = ">=",
+            Expected = 1e-6,
+            Unit = "A",
+            Actual = 2.5e-6,
+            ActualUnit = "A",
+            Passed = true,
+        };
+
+        var formatted = ComplianceReportRenderer.FormatConstraintPlain(result);
+
+        Assert.Equal("  c_slew: SlewRate@OUT >= 1 uA (actual 2.5 uA)", formatted);
     }
 
     [Fact]

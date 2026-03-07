@@ -1,6 +1,6 @@
 using System;
-using System.Globalization;
 using System.Linq;
+using Cascode.Bench;
 using Cascode.Language;
 using Spectre.Console;
 
@@ -48,12 +48,13 @@ internal static class ComplianceReportRenderer
         var where = string.IsNullOrWhiteSpace(result.Node)
             ? result.Metric
             : $"{result.Metric}@{result.Node}";
-        var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
+        var expected =
+            $"{result.Operator} {ValueFormatter.FormatValue(result.Expected, result.Unit)}";
         var actual = result.Actual is null
             ? result.FailureReason == ConstraintResult.BenchError
                 ? "error"
                 : "missing"
-            : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
+            : ValueFormatter.FormatValue(result.Actual.Value, result.ActualUnit ?? result.Unit);
         return $"  {result.Id}: {where} {expected} (actual {actual})";
     }
 
@@ -80,12 +81,12 @@ internal static class ComplianceReportRenderer
         {
             var status = r.Passed ? "[green]PASS[/]" : "[red]FAIL[/]";
             var where = string.IsNullOrWhiteSpace(r.Node) ? r.Metric : $"{r.Metric}@{r.Node}";
-            var expected = $"{r.Operator} {FormatNumber(r.Expected)} {r.Unit}".TrimEnd();
+            var expected = $"{r.Operator} {ValueFormatter.FormatValue(r.Expected, r.Unit)}";
             var actual = r.Actual is null
                 ? r.FailureReason == ConstraintResult.BenchError
                     ? "error"
                     : "missing"
-                : $"{FormatNumber(r.Actual.Value)} {r.ActualUnit ?? r.Unit}".TrimEnd();
+                : ValueFormatter.FormatValue(r.Actual.Value, r.ActualUnit ?? r.Unit);
 
             table.AddRow(
                 status,
@@ -122,10 +123,5 @@ internal static class ComplianceReportRenderer
                 console.MarkupLine($"  [grey]{Markup.Escape(c.Id)}[/] {Markup.Escape(c.Metric)}");
             }
         }
-    }
-
-    private static string FormatNumber(double value)
-    {
-        return value.ToString("G6", CultureInfo.InvariantCulture);
     }
 }
