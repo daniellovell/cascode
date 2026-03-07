@@ -136,4 +136,50 @@ public sealed class InterfaceContractEnforcementTests
                 diagnostic.Message.Contains("BrokenDifferentialFilter", StringComparison.Ordinal)
         );
     }
+
+    [Fact]
+    public void LinkFile_ReportsInheritedInterfaceBenchBindingViolationOnce()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("iface-binding-single-diagnostic");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            interface BrokenDifferentialFilter {
+              ground GND
+              input IN : Diff
+              output OUT : analog
+
+              benches {
+                bind DiffToDiffTransfer as transfer_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+            }
+
+            circuit ImplementingFilter implements BrokenDifferentialFilter {
+              level EL
+              ground GND
+              input IN : Diff
+              output OUT : analog
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(entryPath, outDir, repoRoot);
+
+        Assert.False(result.Success);
+
+        var cas3005 = result.Diagnostics.Where(d => d.Code == "CAS3005").ToList();
+        var diagnostic = Assert.Single(cas3005);
+        Assert.Contains("BrokenDifferentialFilter", diagnostic.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("ImplementingFilter", diagnostic.Message, StringComparison.Ordinal);
+    }
 }

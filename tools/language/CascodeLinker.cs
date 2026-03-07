@@ -633,21 +633,7 @@ public static class CascodeLinker
                 required.Benches.Add(b.BaseBench);
             }
 
-            foreach (var parameter in b.Parameters)
-            {
-                if (parameter.Default is not null)
-                {
-                    CollectFunctionReferencesFromExpr(parameter.Default, required);
-                }
-            }
-
-            foreach (var analysis in b.Analyses)
-            {
-                foreach (var value in analysis.Parameters.Values)
-                {
-                    CollectFunctionReferencesFromExpr(value, required);
-                }
-            }
+            CollectBenchFunctionRequirements(b, required);
 
             foreach (var term in b.Terminals)
             {
@@ -657,45 +643,9 @@ public static class CascodeLinker
                 }
             }
 
-            var benchMeasurementNames = b
-                .Measurements.Select(m => m.Name)
-                .ToHashSet(StringComparer.Ordinal);
-            var benchFunctionNames = b
-                .Functions.Select(fn => fn.Name)
-                .ToHashSet(StringComparer.Ordinal);
-            var benchLocalNames = new HashSet<string>(
-                benchMeasurementNames,
-                StringComparer.Ordinal
-            );
-            benchLocalNames.UnionWith(benchFunctionNames);
-
-            foreach (var fn in b.Functions)
-            {
-                CollectFunctionReferencesFromStatements(fn.Body, required, benchLocalNames);
-            }
-
-            foreach (var measurement in b.Measurements)
-            {
-                // Bench-local functions and sibling measurements stay inside the bench scope, so
-                // exclude them from global function requirements.
-                CollectFunctionReferencesFromStatements(
-                    measurement.Body,
-                    required,
-                    benchLocalNames
-                );
-            }
-
             // Fill blocks in benches may instantiate harness primitives; don't treat those as circuit deps.
             if (b.Fill is not null)
             {
-                foreach (var inst in b.Fill.Instances)
-                {
-                    foreach (var param in inst.Params.Values)
-                    {
-                        CollectFunctionReferencesFromParamValue(param, required, benchLocalNames);
-                    }
-                }
-
                 foreach (var inst in b.Fill.Instances)
                 {
                     if (!IsHarnessPrimitive(inst.Type))
@@ -715,6 +665,67 @@ public static class CascodeLinker
         {
             CollectFunctionReferencesFromStatements(fn.Body, required);
         }
+    }
+
+    private static void CollectBenchFunctionRequirements(
+        BenchDefinition bench,
+        RequiredSymbols required
+    )
+    {
+        foreach (var parameter in bench.Parameters)
+        {
+            if (parameter.Default is not null)
+            {
+                CollectFunctionReferencesFromExpr(parameter.Default, required);
+            }
+        }
+
+        foreach (var analysis in bench.Analyses)
+        {
+            foreach (var value in analysis.Parameters.Values)
+            {
+                CollectFunctionReferencesFromExpr(value, required);
+            }
+        }
+
+        var benchLocalNames = CollectBenchLocalNames(bench);
+        foreach (var fn in bench.Functions)
+        {
+            CollectFunctionReferencesFromStatements(fn.Body, required, benchLocalNames);
+        }
+
+        foreach (var measurement in bench.Measurements)
+        {
+            // Bench-local functions and sibling measurements stay inside the bench scope, so
+            // exclude them from global function requirements.
+            CollectFunctionReferencesFromStatements(measurement.Body, required, benchLocalNames);
+        }
+
+        if (bench.Fill is null)
+        {
+            return;
+        }
+
+        foreach (var inst in bench.Fill.Instances)
+        {
+            foreach (var param in inst.Params.Values)
+            {
+                CollectFunctionReferencesFromParamValue(param, required, benchLocalNames);
+            }
+        }
+    }
+
+    private static HashSet<string> CollectBenchLocalNames(BenchDefinition bench)
+    {
+        var benchMeasurementNames = bench
+            .Measurements.Select(m => m.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var benchFunctionNames = bench
+            .Functions.Select(fn => fn.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var benchLocalNames = new HashSet<string>(benchMeasurementNames, StringComparer.Ordinal);
+        benchLocalNames.UnionWith(benchFunctionNames);
+        return benchLocalNames;
     }
 
     private static void CollectFunctionReferencesFromParamValue(
@@ -1314,6 +1325,7 @@ public static class CascodeLinker
             benchSources,
             seed
         );
+        RestrictFunctionRequirementsToConstraintReachability(entryDoc, seed);
 
         var queue = new Queue<(SymbolKind Kind, string Name)>();
         EnqueueRequired(seed, queue);
@@ -1422,6 +1434,46 @@ public static class CascodeLinker
             {
                 required.Benches.Add(invocation.Binding.BenchName);
             }
+        }
+    }
+
+    private static void RestrictFunctionRequirementsToConstraintReachability(
+        CascodeDocument entryDoc,
+        RequiredSymbols required
+    )
+    {
+        var reachableBenches = required.Benches.ToHashSet(StringComparer.Ordinal);
+        required.Functions.Clear();
+
+        foreach (var circuit in entryDoc.Circuits)
+        {
+            if (circuit.Fill is null)
+            {
+                continue;
+            }
+
+            foreach (var inst in circuit.Fill.Instances)
+            {
+                foreach (var param in inst.Params.Values)
+                {
+                    CollectFunctionReferencesFromParamValue(param, required);
+                }
+            }
+        }
+
+        foreach (var bench in entryDoc.BenchDefinitions)
+        {
+            if (!reachableBenches.Contains(bench.Name))
+            {
+                continue;
+            }
+
+            CollectBenchFunctionRequirements(bench, required);
+        }
+
+        foreach (var function in entryDoc.Functions)
+        {
+            CollectFunctionReferencesFromStatements(function.Body, required);
         }
     }
 
