@@ -38,6 +38,11 @@
         "resolved": "13.7.1",
         "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
       },
+      "Antlr4.Runtime.Standard": {
+        "type": "Transitive",
+        "resolved": "4.13.1",
+        "contentHash": "Da5+i4kFHUseJRZGcBG5fmZGpA/Ns180ibrQMxgZzjpQOnENVvSL5gi5HZ8Ncz8/AR2WsKbOg2lMBzjz0HUQcA=="
+      },
       "Microsoft.Data.Sqlite.Core": {
         "type": "Transitive",
         "resolved": "10.0.1",
@@ -75,6 +80,17 @@
         "contentHash": "RQIliDp47mQxGYNcBB6W+ezHbegkImrSZVTuWjQCSTTl3pQ37Q3rALkkkdTAMEmcIz71PEOCqNZMp7lXCnVqEQ==",
         "dependencies": {
           "SQLitePCLRaw.core": "3.0.2"
+        }
+      },
+      "cascode.bench": {
+        "type": "Project"
+      },
+      "cascode.language": {
+        "type": "Project",
+        "dependencies": {
+          "Antlr4.Runtime.Standard": "[4.13.1, )",
+          "Cascode.Bench": "[0.7.1, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       }
     }
