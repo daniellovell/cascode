@@ -58,6 +58,7 @@ public static class CoarseGridPlacer
     private const int InPortWeight = 0;
     private const int OutPortWeight = 0;
     private const int SymmetryWeight = 8;
+    private const int SharedSignalCmosAxisPenaltyWeight = 4;
     private const int AxisMismatchPenaltyWeight = 1;
     private const int UTurnPenaltyWeight = 128;
 
@@ -139,6 +140,7 @@ public static class CoarseGridPlacer
             objectives,
             symmetryAxis
         );
+        AddSharedSignalCmosAxisObjectives(model, graph, rows, cols, objectives);
         model.Minimize(LinearExpr.Sum(objectives));
 
         var solver = new CpSolver();
@@ -1377,6 +1379,92 @@ public static class CoarseGridPlacer
                 model.AddAbsEquality(rowDiff, rows[left] - rows[right]);
                 objectives.Add(axisDiff * SymmetryWeight);
                 objectives.Add(rowDiff * SymmetryWeight);
+            }
+        }
+    }
+
+    private static void AddSharedSignalCmosAxisObjectives(
+        CpModel model,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols,
+        List<LinearExpr> objectives
+    )
+    {
+        foreach (var (deviceA, deviceB, netName) in EnumerateSharedSignalCmosPairs(graph))
+        {
+            if (
+                !rows.TryGetValue(deviceA, out var rowA)
+                || !rows.TryGetValue(deviceB, out var rowB)
+                || !cols.TryGetValue(deviceA, out var colA)
+                || !cols.TryGetValue(deviceB, out var colB)
+            )
+            {
+                continue;
+            }
+
+            var token = $"{ToVarToken(netName)}_{ToVarToken(deviceA)}_{ToVarToken(deviceB)}";
+            var sameRow = model.NewBoolVar($"cmos_axis_same_row_{token}");
+            model.Add(rowA == rowB).OnlyEnforceIf(sameRow);
+            model.Add(rowA != rowB).OnlyEnforceIf(sameRow.Not());
+
+            var sameCol = model.NewBoolVar($"cmos_axis_same_col_{token}");
+            model.Add(colA == colB).OnlyEnforceIf(sameCol);
+            model.Add(colA != colB).OnlyEnforceIf(sameCol.Not());
+
+            // Penalize only when both row and column differ.
+            var misaligned = model.NewBoolVar($"cmos_axis_misaligned_{token}");
+            model.AddBoolAnd([sameRow.Not(), sameCol.Not()]).OnlyEnforceIf(misaligned);
+            model.AddBoolOr([sameRow, sameCol, misaligned]);
+            objectives.Add(misaligned * SharedSignalCmosAxisPenaltyWeight);
+        }
+    }
+
+    private static IEnumerable<(
+        string DeviceA,
+        string DeviceB,
+        string NetName
+    )> EnumerateSharedSignalCmosPairs(CircuitGraph graph)
+    {
+        var yielded = new HashSet<(string DeviceA, string DeviceB)>();
+        foreach (var (netName, refs) in graph.NetConnections)
+        {
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+            {
+                continue;
+            }
+
+            var cmosIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var terminalRef in refs)
+            {
+                if (IsBodyOrShieldTerminal(terminalRef.Terminal))
+                {
+                    continue;
+                }
+
+                if (!graph.Devices.TryGetValue(terminalRef.DeviceId, out var device))
+                {
+                    continue;
+                }
+
+                var type = device.DeviceType.ToLowerInvariant();
+                if (type is "nmos" or "nfet" or "pmos" or "pfet")
+                {
+                    cmosIds.Add(terminalRef.DeviceId);
+                }
+            }
+
+            var sorted = cmosIds.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                for (var j = i + 1; j < sorted.Count; j++)
+                {
+                    var key = (sorted[i], sorted[j]);
+                    if (yielded.Add(key))
+                    {
+                        yield return (sorted[i], sorted[j], netName);
+                    }
+                }
             }
         }
     }

@@ -320,6 +320,45 @@ public sealed class RenderConstraintTests
         Assert.True(cN.Y > cP.Y, "Expected GND-connected terminal C_SHUNT.N to face south.");
     }
 
+    [Theory]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    [InlineData("tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_Sky130.el.cai")]
+    public void Place_SharedSignalCmosPairs_AreAxisAligned(string cascodePath)
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        var alignedPairs = 0;
+        foreach (var (deviceA, deviceB, netName) in GetSharedSignalCmosPairs(graph))
+        {
+            Assert.True(
+                placement.DevicePlacements.TryGetValue(deviceA, out var cellA),
+                $"Missing placement for device '{deviceA}'."
+            );
+            Assert.True(
+                placement.DevicePlacements.TryGetValue(deviceB, out var cellB),
+                $"Missing placement for device '{deviceB}'."
+            );
+
+            Assert.True(
+                cellA.Row == cellB.Row || cellA.Column == cellB.Column,
+                $"Expected CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to be aligned on row or column."
+            );
+            alignedPairs++;
+        }
+
+        Assert.True(alignedPairs > 0, "Expected at least one shared-signal CMOS pair.");
+    }
+
     private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
     {
         if (segment.From.X == segment.To.X)
@@ -347,5 +386,71 @@ public sealed class RenderConstraintTests
         }
 
         return false;
+    }
+
+    private static IEnumerable<(
+        string DeviceA,
+        string DeviceB,
+        string NetName
+    )> GetSharedSignalCmosPairs(CircuitGraph graph)
+    {
+        var yielded = new HashSet<(string DeviceA, string DeviceB)>();
+        foreach (var (netName, refs) in graph.NetConnections)
+        {
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+            {
+                continue;
+            }
+
+            var cmosIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var terminalRef in refs)
+            {
+                if (IsBodyOrShieldTerminal(terminalRef.Terminal))
+                {
+                    continue;
+                }
+
+                if (!graph.Devices.TryGetValue(terminalRef.DeviceId, out var device))
+                {
+                    continue;
+                }
+
+                var type = device.DeviceType.ToLowerInvariant();
+                if (type is "nmos" or "nfet" or "pmos" or "pfet")
+                {
+                    cmosIds.Add(terminalRef.DeviceId);
+                }
+            }
+
+            var sorted = cmosIds.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            for (var i = 0; i < sorted.Count; i++)
+            {
+                for (var j = i + 1; j < sorted.Count; j++)
+                {
+                    var key = (sorted[i], sorted[j]);
+                    if (yielded.Add(key))
+                    {
+                        yield return (sorted[i], sorted[j], netName);
+                    }
+                }
+            }
+        }
+    }
+
+    private static bool IsBodyOrShieldTerminal(string terminal)
+    {
+        var t = terminal.Trim().ToUpperInvariant();
+        return t is "B" or "BULK" or "BODY" or "SH" or "SHIELD";
+    }
+
+    private static string GetRepoRoot()
+    {
+        var dir = Directory.GetCurrentDirectory();
+        while (dir != null && !File.Exists(Path.Combine(dir, "Cascode.sln")))
+        {
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        return dir ?? throw new InvalidOperationException("Could not find repo root");
     }
 }
