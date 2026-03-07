@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
+using Cascode.TestSupport;
 
 namespace Cascode.Cli.IntegrationTests;
 
@@ -32,9 +32,7 @@ public sealed class PdkScanStreamingTests
 
         using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
-        var firstProgressTcs = new TaskCompletionSource<string>(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
+        var firstProgressSignal = new AsyncSignal<string>();
         var allStdout = new List<string>();
 
         process.OutputDataReceived += (_, e) =>
@@ -57,7 +55,7 @@ public sealed class PdkScanStreamingTests
                 || e.Data.Contains("Inspecting libInit", StringComparison.OrdinalIgnoreCase)
             )
             {
-                firstProgressTcs.TrySetResult(e.Data);
+                firstProgressSignal.TrySet(e.Data);
             }
         };
 
@@ -75,12 +73,15 @@ public sealed class PdkScanStreamingTests
         process.BeginErrorReadLine();
 
         // Assert: a progress line must appear quickly, proving streaming behavior
-        using var streamingTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var completed = await Task.WhenAny(
-            firstProgressTcs.Task,
-            Task.Delay(Timeout.Infinite, streamingTimeout.Token)
-        );
-        if (completed != firstProgressTcs.Task)
+        try
+        {
+            await AsyncTest.WaitAsync(
+                firstProgressSignal.Task,
+                TimeSpan.FromSeconds(5),
+                "Timed out waiting for streaming progress."
+            );
+        }
+        catch (TimeoutException)
         {
             Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
             await process.WaitForExitAsync();
