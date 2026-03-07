@@ -2887,6 +2887,15 @@ public sealed class BenchMeasurementRunner
                 ci.FrequenciesHz,
                 NegateSamples(ci.Values)
             ),
+            BenchTransferFunction tf => new BenchTransferFunction(
+                tf.FrequenciesHz,
+                NegateSamples(tf.Values)
+            ),
+            BenchWaveform w => new BenchWaveform(
+                w.TimePointsS,
+                NegateSamples(w.Values),
+                w.ValueKind
+            ),
             _ => throw new InvalidOperationException(
                 $"Expected number or spectrum for 'unary', got {operand.GetType().Name}."
             ),

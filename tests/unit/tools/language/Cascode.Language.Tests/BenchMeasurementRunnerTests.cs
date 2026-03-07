@@ -3410,6 +3410,144 @@ bench WaveformRangeBench {{
     }
 
     [Fact]
+    public void UnaryMinus_TransferFunction_NegatesTransferSamples()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnaryTransferBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=1, start=1Hz, stop=1Hz)
+  }}
+
+  measurements {{
+    measurement NegatedPhaseAt1Hz : deg {{
+      return (-transfer(ac, IN, OUT)).Phase().ValueAt(1Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "UnaryTransferBench");
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["IN"] = new[] { new System.Numerics.Complex(1.0, 0.0) },
+                ["OUT"] = new[] { new System.Numerics.Complex(1.0, 0.0) },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 1,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "NegatedPhaseAt1Hz" });
+        var phase = values["NegatedPhaseAt1Hz"].Value;
+        Assert.True(Math.Abs(Math.Abs(phase) - 180.0) < 1e-9);
+    }
+
+    [Fact]
+    public void UnaryMinus_Waveform_NegatesSamples()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnaryWaveformBench {{
+  resp OUT : analog
+
+  analysis {{
+    TranAnalysis tran = new TranAnalysis(step=1ns, start=0ns, stop=2ns)
+  }}
+
+  measurements {{
+    measurement NegatedAt1ns : V {{
+      return (-voltage(tran, OUT)).ValueAt(1ns)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "UnaryWaveformBench");
+        var tran = new TranDataset(
+            TimePoints: new[] { 0.0, 1e-9, 2e-9 },
+            NodeVoltages: new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new[] { 0.0, 2.0, 4.0 },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["tran"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "tran",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 2e-9,
+                    Tran: tran
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "NegatedAt1ns" });
+        Assert.Equal(-2.0, values["NegatedAt1ns"].Value, precision: 9);
+    }
+
+    [Fact]
     public void Range_TypeInference_AllowsTypedChainingForSpectrumAndWaveform()
     {
         var cascode =
