@@ -3,7 +3,7 @@ VERSION 4.1
 include lib.std
 
 
-circuit CSeries_Sky130 {
+circuit CSeries implements SingleEndedPassiveFilter {
   level EL
 
   input IN : analog
@@ -19,13 +19,6 @@ circuit CSeries_Sky130 {
     Capacitor C1 = new CapacitorIdeal(size(C=3.18309886184n)) {
       .P--IN
       .N--OUT
-    }
-  }
-
-  benches {
-    bind TwoPortSParamNoise as sparam_bench {
-      bench.P1--dut.IN
-      bench.P2--dut.OUT
     }
   }
 
