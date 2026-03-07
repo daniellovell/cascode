@@ -17,6 +17,26 @@ public sealed record CascodeLinkResult(
 
 public static class CascodeLinker
 {
+    private static readonly HashSet<string> BuiltinMeasurementFunctions = new(
+        new[]
+        {
+            "transfer",
+            "voltage",
+            "current",
+            "sparam",
+            "db20",
+            "db10",
+            "noise",
+            "input_referred_noise",
+            "quiescent_power",
+            "abs",
+            "sqrt",
+            "period",
+            "op_param",
+        },
+        StringComparer.Ordinal
+    );
+
     public static CascodeLinkResult LinkFile(
         string entryPath,
         string outputDir,
@@ -833,19 +853,7 @@ public static class CascodeLinker
     }
 
     private static bool IsBuiltinMeasurementFunction(string name) =>
-        name.Equals("transfer", StringComparison.Ordinal)
-        || name.Equals("voltage", StringComparison.Ordinal)
-        || name.Equals("current", StringComparison.Ordinal)
-        || name.Equals("sparam", StringComparison.Ordinal)
-        || name.Equals("db20", StringComparison.Ordinal)
-        || name.Equals("db10", StringComparison.Ordinal)
-        || name.Equals("noise", StringComparison.Ordinal)
-        || name.Equals("input_referred_noise", StringComparison.Ordinal)
-        || name.Equals("quiescent_power", StringComparison.Ordinal)
-        || name.Equals("abs", StringComparison.Ordinal)
-        || name.Equals("sqrt", StringComparison.Ordinal)
-        || name.Equals("period", StringComparison.Ordinal)
-        || name.Equals("op_param", StringComparison.Ordinal);
+        BuiltinMeasurementFunctions.Contains(name);
 
     private static void AddBundleIfNeeded(string typeName, RequiredSymbols required)
     {
