@@ -702,6 +702,16 @@ interface SingleEndedOpAmp {
 }
 ```
 
+Bindings declared on an interface are part of that interface's contract, not just inherited
+boilerplate. A complete document is ill-formed if an interface binding refers to a terminal shape
+that the interface itself does not declare, or if it maps to a terminal shape whose leaf types are
+incompatible with the interface's declaration; [Chapter 2 terminal-contract rules](Ch02_Core_Concepts.md#24-interfaces-connectors-and-attach) define the exact terminal-contract
+compatibility semantics. When a circuit uses `implements`, the interface terminal set is a minimum
+contract: the circuit must provide every terminal declared by the interface, but it MAY expose
+additional public terminals beyond that set. After inheritance and extension are applied, every
+terminal mapping named by the binding must still satisfy both shape and leaf-type compatibility, so
+same-shape mappings with incompatible leaf types are still rejected.
+
 Within a circuit, bindings can be added with `bind` or extended with `extend`:
 
 ```cascode

@@ -13,7 +13,7 @@ public class RoutingSanityTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeCascodePath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();

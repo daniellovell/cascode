@@ -3,7 +3,7 @@ VERSION 4.1
 include lib.std
 
 
-circuit RSeries_Sky130 {
+circuit RSeriesQ implements SingleEndedPassiveFilter {
   level EL
 
   input IN : analog
@@ -19,13 +19,6 @@ circuit RSeries_Sky130 {
     Resistor R1 = new ResistorIdeal(size(R=100)) {
       .P--IN
       .N--OUT
-    }
-  }
-
-  benches {
-    bind TwoPortSParamNoise as sparam_bench {
-      bench.P1--dut.IN
-      bench.P2--dut.OUT
     }
   }
 

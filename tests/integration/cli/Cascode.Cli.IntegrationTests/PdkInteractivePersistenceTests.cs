@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Cli.IntegrationTests;
@@ -52,7 +53,6 @@ public sealed class PdkInteractivePersistenceTests
             );
 
             await session1.SendLineAsync($"pdk set-dir {workspaceRel}");
-            await Task.Delay(100);
             await session1.WaitForOutputAsync(
                 output =>
                     output.Contains("PDK workspace set to", StringComparison.OrdinalIgnoreCase),
@@ -71,15 +71,14 @@ public sealed class PdkInteractivePersistenceTests
             );
 
             await session1.SendLineAsync("pdk scan");
-            await Task.Delay(100);
             // Wait for the pdk.db file to appear (log level may suppress Info messages)
             var dbPath = GetExpectedDbPath(cascodeHome.Path, workspaceAbs);
-            var scanDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(90);
-            while (DateTime.UtcNow < scanDeadline && !File.Exists(dbPath))
-            {
-                await Task.Delay(100);
-            }
-            Assert.True(File.Exists(dbPath), $"Timeout waiting for pdk.db at '{dbPath}'.");
+            await AsyncTest.EventuallyAsync(
+                () => File.Exists(dbPath),
+                TimeSpan.FromSeconds(90),
+                TimeSpan.FromMilliseconds(100),
+                $"Timeout waiting for pdk.db at '{dbPath}'."
+            );
 
             // Wait for scan to complete - look for the "PDK database updated" message
             await session1.WaitForOutputAsync(
@@ -90,7 +89,6 @@ public sealed class PdkInteractivePersistenceTests
 
             // Ensure devices are available (force list to guarantee a summary message)
             await session1.SendLineAsync("pdk devices --list --limit 1");
-            await Task.Delay(100);
             var session1Output = await session1.WaitForOutputAsync(
                 output =>
                     output.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
@@ -111,7 +109,6 @@ public sealed class PdkInteractivePersistenceTests
             );
 
             await session1.SendLineAsync("exit");
-            await Task.Delay(100);
             await session1.WaitForExitAsync(TimeSpan.FromSeconds(10));
             session1.MarkSuccess();
         }
@@ -157,7 +154,6 @@ public sealed class PdkInteractivePersistenceTests
 
             // Devices should load from existing pdk.db without running scan again
             await session2.SendLineAsync("pdk devices --list --limit 1");
-            await Task.Delay(100);
             // Fail fast if DB is missing (indicates persisted workspace not applied)
             try
             {
@@ -200,7 +196,6 @@ public sealed class PdkInteractivePersistenceTests
             );
 
             await session2.SendLineAsync("exit");
-            await Task.Delay(100);
             await session2.WaitForExitAsync(TimeSpan.FromSeconds(10));
             session2.MarkSuccess();
         }
