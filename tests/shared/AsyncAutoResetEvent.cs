@@ -1,9 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Cascode.Cli.IntegrationTests.Infrastructure;
+namespace Cascode.TestSupport;
 
 internal sealed class AsyncAutoResetEvent
 {
@@ -70,7 +69,6 @@ internal sealed class AsyncAutoResetEvent
                 return;
             }
 
-            // canceled or already-completed waiter; loop to release the next queued waiter
             toRelease = null;
         }
     }
