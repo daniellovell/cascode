@@ -250,7 +250,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         );
         CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
 
-        var resultsPath = Path.Combine(_outputDir, "CSeries_Sky130_sparam_bench_results.json");
+        var resultsPath = Path.Combine(_outputDir, "CSeries_sparam_bench_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
         var results = JsonSerializer.Deserialize<BenchResult>(
@@ -258,11 +258,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
             s_jsonOptions
         );
         Assert.NotNull(results);
-        Assert.Equal("CSeries_Sky130", results!.Circuit);
+        Assert.Equal("CSeries", results!.Circuit);
         Assert.Equal("sparam_bench", results.Bench);
         Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
 
-        var combinedResultsPath = Path.Combine(_outputDir, "CSeries_Sky130_results.json");
+        var combinedResultsPath = Path.Combine(_outputDir, "CSeries_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(
@@ -292,7 +292,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         );
         CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
 
-        var resultsPath = Path.Combine(_outputDir, "RSeries_Sky130_sparam_bench_results.json");
+        var resultsPath = Path.Combine(_outputDir, "RSeriesQ_sparam_bench_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
         var results = JsonSerializer.Deserialize<BenchResult>(
@@ -300,11 +300,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
             s_jsonOptions
         );
         Assert.NotNull(results);
-        Assert.Equal("RSeries_Sky130", results!.Circuit);
+        Assert.Equal("RSeriesQ", results!.Circuit);
         Assert.Equal("sparam_bench", results.Bench);
         Assert.True(results.Measurements.Count > 0, "expected at least one measurement");
 
-        var combinedResultsPath = Path.Combine(_outputDir, "RSeries_Sky130_results.json");
+        var combinedResultsPath = Path.Combine(_outputDir, "RSeriesQ_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
 
         var verify = await CliIntegrationTestHelper.RunCliAsync(

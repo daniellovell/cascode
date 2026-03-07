@@ -1215,8 +1215,8 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai", "IN_P", "OUT.P")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai", "IN_N", "OUT.N")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai", "IN.N", "OUT.N")]
     public void Route_FeedthroughPortsRemainAligned(
         string cascodePath,
         string leftPort,

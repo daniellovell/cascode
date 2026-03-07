@@ -11,7 +11,7 @@ emitted testbench.
 ## Quick references
 
 - Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
-- Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas), [`PassiveFilter.cas`](../../lib/std/filter/PassiveFilter.cas)
+- Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas), [`SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas), [`DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
 
@@ -306,7 +306,8 @@ Reference interfaces:
 - [`lib/std/amp/SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas) (Diff in, analog out)
 - [`lib/std/amp/FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas) (Diff in, Diff out)
 - [`lib/std/amp/SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas) (analog in, analog out)
-- [`lib/std/filter/PassiveFilter.cas`](../../lib/std/filter/PassiveFilter.cas) (analog in, analog out)
+- [`lib/std/filters/SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas)
+- [`lib/std/filters/DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 
 ## Workflow: authoring and debugging benches
 

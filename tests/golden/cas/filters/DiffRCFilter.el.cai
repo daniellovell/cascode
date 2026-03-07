@@ -28,11 +28,11 @@ circuit RCFilter implements DifferentialPassiveFilter {
     }
     Resistor R_N = new ResistorIdeal(size(R=10k)) {
       .N--OUT.N
-      .P--IN_N
+      .P--IN.N
     }
     Resistor R_P = new ResistorIdeal(size(R=10k)) {
       .N--OUT.P
-      .P--IN_P
+      .P--IN.P
     }
   }
 }
