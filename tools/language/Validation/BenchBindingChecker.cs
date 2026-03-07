@@ -1,11 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cascode.Language;
 
 namespace Cascode.Language.Validation;
 
 public static class BenchBindingChecker
 {
+    /// <summary>
+    /// Validates bench bindings against their declared bench terminals and DUT/interface
+    /// terminal contracts.
+    /// </summary>
+    /// <remarks>
+    /// Validation intentionally happens in two phases:
+    /// - Interface bindings are checked against the interface contract once.
+    /// - Circuit validation uses the resolved binding view for constraint lookup and local
+    ///   overrides, but skips unchanged inherited bindings so diagnostics are not reported
+    ///   twice for the same interface-authored mistake.
+    ///
+    /// If a circuit <c>extend</c>s an inherited binding, only the extension-added
+    /// statements are revalidated in circuit context. That preserves the "validate
+    /// interface bindings once" rule while still checking new circuit-local behavior.
+    /// </remarks>
     public static void Check(CascodeDocument document, List<Diagnostic> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -21,6 +37,8 @@ public static class BenchBindingChecker
             StringComparer.OrdinalIgnoreCase
         );
 
+        // Interface bindings are part of the interface contract and are validated exactly
+        // once against the interface terminals here.
         foreach (var interfaceDef in document.Traits)
         {
             var interfaceTerminals = TerminalContractModel.ForInterface(interfaceDef);
@@ -66,49 +84,45 @@ public static class BenchBindingChecker
             }
         }
 
+        // Circuits resolve inherited + local bindings for constraint lookup, but only
+        // bindings with circuit-local authorship or circuit-local extensions get checked in
+        // circuit context. Unchanged inherited bindings were already checked above.
         foreach (var circuit in document.Circuits)
         {
-            var resolved = ResolveBenchBindingsForCircuit(circuit, interfacesByName, diagnostics);
+            var resolution = BenchBindingResolver.ResolveForCircuit(circuit, interfacesByName);
+            foreach (var bindingName in resolution.DuplicateInheritedBindingNames)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3002: Duplicate inherited bench binding name '{bindingName}' on circuit '{circuit.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
 
-            CheckConstraintBenchReferences(circuit, resolved, benchesByName, diagnostics);
+            CheckConstraintBenchReferences(
+                circuit,
+                resolution.Bindings,
+                benchesByName,
+                diagnostics
+            );
 
             var dutTerminals = TerminalContractModel.ForCircuit(circuit);
 
-            foreach (var binding in resolved.Values)
+            foreach (
+                var resolvedBinding in resolution.Bindings.Values.OrderBy(
+                    binding => binding.Binding.BindingName,
+                    StringComparer.OrdinalIgnoreCase
+                )
+            )
             {
-                if (!benchesByName.TryGetValue(binding.BenchName, out var bench))
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"CAS3001: Bench binding '{binding.BindingName}' references unknown bench '{binding.BenchName}' in circuit '{circuit.Name}'.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                    continue;
-                }
-
-                if (bench.IsAbstract)
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"CAS2022: Abstract bench '{bench.Name}' cannot appear in bind statements.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                    continue;
-                }
-
-                CheckBinding(
-                    "circuit",
-                    circuit.Name,
-                    binding,
-                    bench,
+                CheckCircuitBinding(
+                    circuit,
+                    resolvedBinding,
+                    benchesByName,
                     dutTerminals,
                     bundlesByName,
                     diagnostics
@@ -117,53 +131,9 @@ public static class BenchBindingChecker
         }
     }
 
-    private static Dictionary<string, BenchBinding> ResolveBenchBindingsForCircuit(
-        Circuit circuit,
-        IReadOnlyDictionary<string, TraitDefinition> interfacesByName,
-        List<Diagnostic> diagnostics
-    )
-    {
-        var resolved = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
-
-        if (circuit.Traits is { Count: > 0 })
-        {
-            foreach (var interfaceName in circuit.Traits)
-            {
-                if (!interfacesByName.TryGetValue(interfaceName, out var interfaceDef))
-                {
-                    continue;
-                }
-
-                foreach (var binding in interfaceDef.BenchBindings)
-                {
-                    if (!resolved.TryAdd(binding.BindingName, binding))
-                    {
-                        diagnostics.Add(
-                            new Diagnostic(
-                                $"CAS3002: Duplicate inherited bench binding name '{binding.BindingName}' on circuit '{circuit.Name}'.",
-                                DiagnosticSeverity.Error,
-                                "<bench>",
-                                1,
-                                1
-                            )
-                        );
-                    }
-                }
-            }
-        }
-
-        foreach (var binding in circuit.BenchBindings)
-        {
-            // Circuit bindings override inherited bindings by binding name.
-            resolved[binding.BindingName] = binding;
-        }
-
-        return resolved;
-    }
-
     private static void CheckConstraintBenchReferences(
         Circuit circuit,
-        IReadOnlyDictionary<string, BenchBinding> resolvedBindings,
+        IReadOnlyDictionary<string, ResolvedBenchBinding> resolvedBindings,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -198,6 +168,85 @@ public static class BenchBindingChecker
         }
     }
 
+    private static void CheckCircuitBinding(
+        Circuit circuit,
+        ResolvedBenchBinding resolvedBinding,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        IReadOnlyDictionary<string, TerminalContract> dutTerminals,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        // The resolved layer tells us whether this binding needs circuit-context
+        // validation at all. Purely inherited bindings were already validated in the
+        // interface pass, so we skip them here to avoid duplicate diagnostics.
+        if (!resolvedBinding.Resolution.RequiresCircuitValidation)
+        {
+            return;
+        }
+
+        var binding = resolvedBinding.Binding;
+        if (resolvedBinding.Resolution.Origin.Kind == BenchBindingOriginKind.Circuit)
+        {
+            if (!benchesByName.TryGetValue(binding.BenchName, out var bench))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3001: Bench binding '{binding.BindingName}' references unknown bench '{binding.BenchName}' in circuit '{circuit.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            if (bench.IsAbstract)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2022: Abstract bench '{bench.Name}' cannot appear in bind statements.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            CheckBinding(
+                "circuit",
+                circuit.Name,
+                binding,
+                bench,
+                dutTerminals,
+                bundlesByName,
+                diagnostics
+            );
+            return;
+        }
+
+        if (
+            !benchesByName.TryGetValue(binding.BenchName, out var inheritedBench)
+            || inheritedBench.IsAbstract
+        )
+        {
+            return;
+        }
+
+        CheckInheritedBindingExtensions(
+            circuit.Name,
+            binding,
+            inheritedBench,
+            dutTerminals,
+            bundlesByName,
+            resolvedBinding.Resolution.ExtensionStatementCount,
+            diagnostics
+        );
+    }
+
     private static void CheckBinding(
         string ownerKind,
         string ownerName,
@@ -208,23 +257,94 @@ public static class BenchBindingChecker
         List<Diagnostic> diagnostics
     )
     {
+        var mappings = binding.Statements.OfType<BenchTerminalMapping>().ToList();
+        CheckBindingMeasurementExports(
+            ownerKind,
+            ownerName,
+            binding,
+            bench,
+            binding.Statements.OfType<BenchBindingMeasurementExport>().ToList(),
+            diagnostics
+        );
+        CheckBindingMappings(
+            ownerKind,
+            ownerName,
+            binding,
+            bench,
+            dutTerminals,
+            bundlesByName,
+            mappings,
+            requireAllBenchTerminalsMapped: true,
+            diagnostics
+        );
+    }
+
+    private static void CheckInheritedBindingExtensions(
+        string circuitName,
+        BenchBinding binding,
+        BenchDefinition bench,
+        IReadOnlyDictionary<string, TerminalContract> dutTerminals,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        int extensionStatementCount,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var extensionStatements = GetExtensionStatements(binding, extensionStatementCount);
+        if (extensionStatements.Count == 0)
+        {
+            return;
+        }
+
+        // The base inherited body was already validated in interface context. Only check
+        // statements appended by circuit-local `extend` blocks here; in particular, do not
+        // re-run required-terminal coverage checks because the inherited base body already
+        // owns those obligations.
+        CheckBindingMeasurementExports(
+            "circuit",
+            circuitName,
+            binding,
+            bench,
+            extensionStatements.OfType<BenchBindingMeasurementExport>().ToList(),
+            diagnostics
+        );
+        CheckBindingMappings(
+            "circuit",
+            circuitName,
+            binding,
+            bench,
+            dutTerminals,
+            bundlesByName,
+            extensionStatements.OfType<BenchTerminalMapping>().ToList(),
+            requireAllBenchTerminalsMapped: false,
+            diagnostics
+        );
+    }
+
+    private static void CheckBindingMappings(
+        string ownerKind,
+        string ownerName,
+        BenchBinding binding,
+        BenchDefinition bench,
+        IReadOnlyDictionary<string, TerminalContract> dutTerminals,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyList<BenchTerminalMapping> mappings,
+        bool requireAllBenchTerminalsMapped,
+        List<Diagnostic> diagnostics
+    )
+    {
         var benchTerminals = bench.Terminals.ToDictionary(
-            t => t.Name,
+            terminal => terminal.Name,
             StringComparer.OrdinalIgnoreCase
         );
-
-        CheckBindingMeasurementExports(ownerKind, ownerName, binding, bench, diagnostics);
-
-        var mappings = binding.Statements.OfType<BenchTerminalMapping>().ToList();
         var mappedBench = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var m in mappings)
+        foreach (var mapping in mappings)
         {
-            if (!benchTerminals.TryGetValue(m.BenchTerminal, out var benchTerminal))
+            if (!benchTerminals.TryGetValue(mapping.BenchTerminal, out var benchTerminal))
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3003: Binding '{binding.BindingName}' maps unknown bench terminal '{m.BenchTerminal}' (bench '{bench.Name}').",
+                        $"CAS3003: Binding '{binding.BindingName}' maps unknown bench terminal '{mapping.BenchTerminal}' (bench '{bench.Name}').",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -234,12 +354,12 @@ public static class BenchBindingChecker
                 continue;
             }
 
-            var dutRoot = TerminalContractModel.GetRootName(m.DutPinRef);
+            var dutRoot = TerminalContractModel.GetRootName(mapping.DutPinRef);
             if (!dutTerminals.TryGetValue(dutRoot, out var dutInfo))
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3004: Binding '{binding.BindingName}' maps to unknown dut terminal '{m.DutPinRef}' in {ownerKind} '{ownerName}'.",
+                        $"CAS3004: Binding '{binding.BindingName}' maps to unknown dut terminal '{mapping.DutPinRef}' in {ownerKind} '{ownerName}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -249,7 +369,6 @@ public static class BenchBindingChecker
                 continue;
             }
 
-            // Expand mapping for bundles.
             if (benchTerminal.Type is null)
             {
                 diagnostics.Add(
@@ -266,13 +385,13 @@ public static class BenchBindingChecker
 
             var benchLeaves = ExpandLeaves(benchTerminal.Name, benchTerminal.Type, bundlesByName)
                 .ToList();
-            var dutLeaves = TerminalContractModel.SelectLeaves(dutInfo.Leaves, m.DutPinRef);
+            var dutLeaves = TerminalContractModel.SelectLeaves(dutInfo.Leaves, mapping.DutPinRef);
 
             if (benchLeaves.Count != dutLeaves.Count)
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3005: Binding '{binding.BindingName}' terminal mapping 'bench.{benchTerminal.Name}--dut.{m.DutPinRef}' has incompatible shapes ({benchLeaves.Count} vs {dutLeaves.Count}) in {ownerKind} '{ownerName}'.",
+                        $"CAS3005: Binding '{binding.BindingName}' terminal mapping 'bench.{benchTerminal.Name}--dut.{mapping.DutPinRef}' has incompatible shapes ({benchLeaves.Count} vs {dutLeaves.Count}) in {ownerKind} '{ownerName}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -307,13 +426,18 @@ public static class BenchBindingChecker
             mappedBench.Add(benchTerminal.Name);
         }
 
-        foreach (var t in bench.Terminals)
+        if (!requireAllBenchTerminalsMapped)
         {
-            if (!mappedBench.Contains(t.Name))
+            return;
+        }
+
+        foreach (var terminal in bench.Terminals)
+        {
+            if (!mappedBench.Contains(terminal.Name))
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3007: Binding '{binding.BindingName}' does not map required bench terminal '{t.Name}' (bench '{bench.Name}').",
+                        $"CAS3007: Binding '{binding.BindingName}' does not map required bench terminal '{terminal.Name}' (bench '{bench.Name}').",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -329,11 +453,12 @@ public static class BenchBindingChecker
         string ownerName,
         BenchBinding binding,
         BenchDefinition bench,
+        IReadOnlyList<BenchBindingMeasurementExport> exportsToValidate,
         List<Diagnostic> diagnostics
     )
     {
         var exports = binding.Statements.OfType<BenchBindingMeasurementExport>().ToList();
-        if (exports.Count == 0)
+        if (exports.Count == 0 || exportsToValidate.Count == 0)
         {
             return;
         }
@@ -343,17 +468,28 @@ public static class BenchBindingChecker
         );
         foreach (var export in exports)
         {
+            var shouldValidate = exportsToValidate.Any(candidate =>
+                ReferenceEquals(candidate, export)
+            );
             if (!byName.TryAdd(export.Name, export))
             {
-                diagnostics.Add(
-                    new Diagnostic(
-                        $"CAS3020: Binding '{binding.BindingName}' defines duplicate exported measurement '{export.Name}' in {ownerKind} '{ownerName}'.",
-                        DiagnosticSeverity.Error,
-                        "<bench>",
-                        1,
-                        1
-                    )
-                );
+                if (shouldValidate)
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS3020: Binding '{binding.BindingName}' defines duplicate exported measurement '{export.Name}' in {ownerKind} '{ownerName}'.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+
+            if (!shouldValidate)
+            {
+                continue;
             }
 
             if (export.Parameters.Count != 0)
@@ -442,6 +578,20 @@ public static class BenchBindingChecker
                 );
             }
         }
+    }
+
+    private static IReadOnlyList<BenchBindingStatement> GetExtensionStatements(
+        BenchBinding binding,
+        int extensionStatementCount
+    )
+    {
+        if (extensionStatementCount <= 0)
+        {
+            return Array.Empty<BenchBindingStatement>();
+        }
+
+        var startIndex = Math.Max(0, binding.Statements.Count - extensionStatementCount);
+        return binding.Statements.Skip(startIndex).ToList();
     }
 
     private static IEnumerable<TerminalLeaf> ExpandLeaves(
