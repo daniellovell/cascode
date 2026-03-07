@@ -320,45 +320,26 @@ public static class CascodeLinker
             return new CascodeLinkResult(false, null, null, diagnostics);
         }
 
-        CascodeDocument linked;
-        if (options.BenchMode == LinkBenchMode.None)
+        var validatedMerged = BuildValidatedMergedDocument(
+            includedDocs,
+            diagnostics,
+            logger,
+            out var mergedDocument
+        );
+        if (!validatedMerged)
         {
-            linked = BuildIncludePrunedDocument(
-                entryRead.Document,
-                includedDocs,
-                workspaceRoot,
-                diagnostics
-            );
+            return new CascodeLinkResult(false, null, null, diagnostics);
         }
-        else
-        {
-            var merged = MergeDocuments(
-                includedDocs.Select(d => d.Document).ToList(),
-                diagnostics,
-                logger
-            );
-            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-            {
-                return new CascodeLinkResult(false, null, null, diagnostics);
-            }
 
-            // Now that the document is self-contained (no includes), run bundle expansion and bench validation.
-            // This is the earliest point where bundle types and bench/interface bindings are resolvable.
-            linked = BundleDesugarer.Desugar(merged);
-            linked = BenchInheritanceResolver.Resolve(linked, diagnostics);
-            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-            {
-                return new CascodeLinkResult(false, null, null, diagnostics);
-            }
-
-            linked = BenchBindingExtender.Apply(linked, diagnostics);
-            BenchSemanticChecker.Check(linked, diagnostics);
-            BenchBindingChecker.Check(linked, diagnostics);
-            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-            {
-                return new CascodeLinkResult(false, null, null, diagnostics);
-            }
-        }
+        CascodeDocument linked =
+            options.BenchMode == LinkBenchMode.None
+                ? BuildIncludePrunedDocument(
+                    entryRead.Document,
+                    includedDocs,
+                    workspaceRoot,
+                    diagnostics
+                )
+                : mergedDocument;
 
         Directory.CreateDirectory(outputDir);
 
@@ -679,20 +660,28 @@ public static class CascodeLinker
             var benchMeasurementNames = b
                 .Measurements.Select(m => m.Name)
                 .ToHashSet(StringComparer.Ordinal);
+            var benchFunctionNames = b
+                .Functions.Select(fn => fn.Name)
+                .ToHashSet(StringComparer.Ordinal);
+            var benchLocalNames = new HashSet<string>(
+                benchMeasurementNames,
+                StringComparer.Ordinal
+            );
+            benchLocalNames.UnionWith(benchFunctionNames);
 
             foreach (var fn in b.Functions)
             {
-                CollectFunctionReferencesFromStatements(fn.Body, required);
+                CollectFunctionReferencesFromStatements(fn.Body, required, benchLocalNames);
             }
 
             foreach (var measurement in b.Measurements)
             {
-                // A measurement body may call sibling measurements. Those are bench-local symbols
-                // (not global functions), so exclude their names from global function requirements.
+                // Bench-local functions and sibling measurements stay inside the bench scope, so
+                // exclude them from global function requirements.
                 CollectFunctionReferencesFromStatements(
                     measurement.Body,
                     required,
-                    benchMeasurementNames
+                    benchLocalNames
                 );
             }
 
@@ -703,7 +692,7 @@ public static class CascodeLinker
                 {
                     foreach (var param in inst.Params.Values)
                     {
-                        CollectFunctionReferencesFromParamValue(param, required);
+                        CollectFunctionReferencesFromParamValue(param, required, benchLocalNames);
                     }
                 }
 
@@ -730,7 +719,8 @@ public static class CascodeLinker
 
     private static void CollectFunctionReferencesFromParamValue(
         ParamValue paramValue,
-        RequiredSymbols required
+        RequiredSymbols required,
+        ISet<string>? excludedNames = null
     )
     {
         if (
@@ -746,7 +736,7 @@ public static class CascodeLinker
             return;
         }
 
-        CollectFunctionReferencesFromExpr(parsed, required);
+        CollectFunctionReferencesFromExpr(parsed, required, excludedNames);
     }
 
     private static void CollectFunctionReferencesFromStatements(
@@ -1239,6 +1229,36 @@ public static class CascodeLinker
         public HashSet<string> Functions { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Primitives { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Circuits { get; } = new(StringComparer.Ordinal);
+    }
+
+    private static bool BuildValidatedMergedDocument(
+        IReadOnlyList<LinkedDocument> includedDocs,
+        List<Diagnostic> diagnostics,
+        ILogger? logger,
+        out CascodeDocument mergedDocument
+    )
+    {
+        mergedDocument = MergeDocuments(
+            includedDocs.Select(d => d.Document).ToList(),
+            diagnostics,
+            logger
+        );
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return false;
+        }
+
+        mergedDocument = BundleDesugarer.Desugar(mergedDocument);
+        mergedDocument = BenchInheritanceResolver.Resolve(mergedDocument, diagnostics);
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return false;
+        }
+
+        mergedDocument = BenchBindingExtender.Apply(mergedDocument, diagnostics);
+        BenchSemanticChecker.Check(mergedDocument, diagnostics);
+        CompleteDocumentSemanticValidator.Check(mergedDocument, diagnostics);
+        return !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
     }
 
     private static CascodeDocument BuildIncludePrunedDocument(

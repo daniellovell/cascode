@@ -95,6 +95,24 @@ public static partial class CascodeWriter
         // Ports
         foreach (var port in interfaceDef.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
+            if (
+                port.Direction == PortDirection.Io
+                && port.Type.Equals("supply", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                writer.WriteLine($"  supply {port.Name}");
+                continue;
+            }
+
+            if (
+                port.Direction == PortDirection.Io
+                && port.Type.Equals("ground", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                writer.WriteLine($"  ground {port.Name}");
+                continue;
+            }
+
             writer.WriteLine($"  {port.Direction.ToCascodeString()} {port.Name} : {port.Type}");
         }
 
