@@ -8,16 +8,25 @@ using System.Text.RegularExpressions;
 namespace Cascode.Cli.Services;
 
 /// <summary>
-/// Installs and validates ngspice 45.2 under CASCODE_HOME.
+/// Installs and validates the pinned ngspice release under CASCODE_HOME.
 /// </summary>
 internal sealed class NgspiceInstaller : ISimulatorInstaller
 {
-    private const string SourceArchiveName = "ngspice-45.2.tar.gz";
-    private const string WindowsArchiveName = "ngspice-45.2_64.7z";
+    private const string PinnedVersion = NgspiceInstallLayout.Version;
+    private const string SourceArchiveName = "ngspice-" + PinnedVersion + ".tar.gz";
+    private const string WindowsArchiveName = "ngspice-" + PinnedVersion + "_64.7z";
     private const string SourceArchiveUrl =
-        "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2.tar.gz/download";
+        "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
+        + PinnedVersion
+        + "/ngspice-"
+        + PinnedVersion
+        + ".tar.gz/download";
     private const string WindowsArchiveUrl =
-        "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/ngspice-45.2_64.7z/download";
+        "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
+        + PinnedVersion
+        + "/ngspice-"
+        + PinnedVersion
+        + "_64.7z/download";
 
     private static readonly Regex ReleaseVersionPattern = new(
         @"^\d+\.\d+\.\d+(?:-[0-9A-Za-z\.-]+)?$",
@@ -49,7 +58,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     public string Name => "ngspice";
 
     /// <summary>
-    /// Installs ngspice 45.2 for the current RID under CASCODE_HOME.
+    /// Installs the pinned ngspice release for the current RID under CASCODE_HOME.
     /// </summary>
     public SimulatorInstallResult Install(SimulatorInstallOptions options)
     {
@@ -637,7 +646,11 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     /// </summary>
     private IReadOnlyDictionary<string, string>? LoadBundledSourceChecksums()
     {
-        var manifestPath = Path.Combine(_runtime.BaseDirectory, "Assets", "ngspice-45.2.sha256");
+        var manifestPath = Path.Combine(
+            _runtime.BaseDirectory,
+            "Assets",
+            "ngspice-" + PinnedVersion + ".sha256"
+        );
         if (!File.Exists(manifestPath))
             return null;
 
