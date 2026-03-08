@@ -23,6 +23,9 @@ internal static class ComplianceReportRenderer
 
         var passedConstraints = compliance.Results.Where(r => r.Passed).ToArray();
         var failedConstraints = compliance.Results.Where(r => !r.Passed).ToArray();
+        var hasUncheckedConstraints = compliance.UncheckedByBench.Values.Any(list =>
+            list.Count > 0
+        );
 
         if (passedConstraints.Length > 0)
         {
@@ -41,6 +44,18 @@ internal static class ComplianceReportRenderer
                 writeLine(FormatConstraintPlain(failure));
             }
         }
+
+        if (hasUncheckedConstraints)
+        {
+            writeLine("UNCHECKED:");
+            foreach (var (_, uncheckedConstraints) in compliance.UncheckedByBench)
+            {
+                foreach (var uncheckedConstraint in uncheckedConstraints)
+                {
+                    writeLine(FormatConstraintPlain(uncheckedConstraint));
+                }
+            }
+        }
     }
 
     public static string FormatConstraintPlain(ConstraintResult result)
@@ -56,6 +71,11 @@ internal static class ComplianceReportRenderer
                 : "missing"
             : ValueFormatter.FormatValue(result.Actual.Value, result.ActualUnit ?? result.Unit);
         return $"  {result.Id}: {where} {expected} (actual {actual})";
+    }
+
+    public static string FormatConstraintPlain(UncheckedConstraint constraint)
+    {
+        return $"  {constraint.Id}: {constraint.Metric} (unchecked)";
     }
 
     public static void RenderComplianceTable(ComplianceReport compliance, IAnsiConsole console)
