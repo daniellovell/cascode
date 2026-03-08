@@ -16,8 +16,18 @@ from source:
 dotnet run --project tools/cli/Cascode.Cli.csproj -- --help
 ```
 
-Bench execution typically uses `ngspice` by default; ensure it is available on your PATH if you plan
-to run benches locally.
+Bench execution uses `ngspice` by default. Install the pinned simulator build from the matching
+Cascode release tag with:
+
+```sh
+cascode install ngspice
+```
+
+If you need to compile/install from source instead, run:
+
+```sh
+cascode install ngspice --from-source
+```
 
 ## Run a complete example (RC lowpass)
 

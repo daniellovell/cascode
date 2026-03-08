@@ -7,6 +7,7 @@
       Release CI overrides this from the git tag (see .github/workflows/release.yml).
     -->
     <CascodeVersion>0.7.2</CascodeVersion>
+    <NgspiceVersion>45.2</NgspiceVersion>
     <Version>$(CascodeVersion)</Version>
     <PackageVersion>$(CascodeVersion)</PackageVersion>
   </PropertyGroup>

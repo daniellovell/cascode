@@ -74,6 +74,60 @@ public sealed class NgspiceVersionGateIntegrationTests : IDisposable
         );
     }
 
+    [Fact]
+    public async Task BenchRun_WithoutNgspice_ReportsInstallSuggestion()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            env =>
+            {
+                var dotnetDir = Path.GetDirectoryName(Environment.ProcessPath ?? string.Empty);
+                env["PATH"] = string.IsNullOrWhiteSpace(dotnetDir)
+                    ? _stubDir
+                    : _stubDir + Path.PathSeparator + dotnetDir;
+            },
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+
+        Assert.NotEqual(0, result.ExitCode);
+        var combined = result.Stdout + "\n" + result.Stderr;
+        Assert.Contains("cascode install ngspice", combined, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Verify_AutoRunWithoutNgspice_ReportsInstallSuggestion()
+    {
+        var source = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
+        var isolated = Path.Combine(_outputDir, "verify", "RcLowpass.el.cai");
+        Directory.CreateDirectory(Path.GetDirectoryName(isolated)!);
+        File.Copy(source, isolated, overwrite: true);
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            env =>
+            {
+                var dotnetDir = Path.GetDirectoryName(Environment.ProcessPath ?? string.Empty);
+                env["PATH"] = string.IsNullOrWhiteSpace(dotnetDir)
+                    ? _stubDir
+                    : _stubDir + Path.PathSeparator + dotnetDir;
+            },
+            "verify",
+            isolated
+        );
+
+        Assert.NotEqual(0, result.ExitCode);
+        var combined = result.Stdout + "\n" + result.Stderr;
+        Assert.Contains("cascode install ngspice", combined, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void CreateNgspiceStub(int fakeMajor)
     {
         var versionLine = $"** ngspice-{fakeMajor} : Circuit level simulation program";
