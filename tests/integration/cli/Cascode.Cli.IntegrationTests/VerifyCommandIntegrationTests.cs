@@ -31,7 +31,7 @@ public sealed class VerifyCommandIntegrationTests
         Assert.NotEqual(0, verify.ExitCode);
         Assert.Contains("Result: 1/5 constraints satisfied", verify.Stdout);
         Assert.Contains("c_gbw", verify.Stdout);
-        Assert.Contains("FAIL (not measured)", verify.Stdout);
+        Assert.Contains("actual missing", verify.Stdout);
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class VerifyCommandIntegrationTests
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task Verify_WithOnlyCascodeAndMissingResults_AutoRunsBenchPipeline()
+    public async Task Verify_WithOnlyCascodeAndMissingResults_AutoRunsBenchPipeline_WithoutDuplicateComplianceOutput()
     {
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
         using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
@@ -161,6 +161,121 @@ public sealed class VerifyCommandIntegrationTests
             CliIntegrationTestHelper.AssertSuccess(verify, "verify should auto-run bench pipeline");
             Assert.Contains("Circuit: RcLowpass", verify.Stdout);
             Assert.Contains("Result: 2/2 constraints satisfied", verify.Stdout);
+            Assert.Equal(1, CountOccurrences(verify.Stdout, "Compliance:"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Verify_WithMultiCircuitResultsDirectory_VerifiesAllCircuits()
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            "verify-multi-circuit"
+        );
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"verify-multi-circuit-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var sourceCas = Path.Combine(
+                repoRoot,
+                "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cai"
+            );
+            var cascodePath = Path.Combine(tempRoot, "RcLowpassMultiCircuit.el.cai");
+            File.Copy(sourceCas, cascodePath, overwrite: true);
+
+            var run = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(60),
+                cascodeHome,
+                "bench",
+                "run",
+                cascodePath,
+                "-o",
+                tempRoot
+            );
+            CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+            var verify = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(60),
+                cascodeHome,
+                "verify",
+                cascodePath,
+                tempRoot
+            );
+            CliIntegrationTestHelper.AssertSuccess(verify, "verify should pass for both circuits");
+
+            Assert.Contains("Circuits: 2", verify.Stdout);
+            Assert.Contains("RcLowpassA: PASS", verify.Stdout);
+            Assert.Contains("RcLowpassB: PASS", verify.Stdout);
+            Assert.Contains("Global Result: 2/2 circuits compliant", verify.Stdout);
+            Assert.Contains("=== RcLowpassA ===", verify.Stdout);
+            Assert.Contains("=== RcLowpassB ===", verify.Stdout);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Verify_WithOnlyCascodeOnMultiCircuitSource_AutoDiscoversCanonicalResultsForAllCircuits()
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            "verify-multi-circuit-default"
+        );
+
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"verify-multi-circuit-default-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var sourceCas = Path.Combine(
+                repoRoot,
+                "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cai"
+            );
+            var cascodePath = Path.Combine(tempRoot, "RcLowpassMultiCircuit.el.cai");
+            File.Copy(sourceCas, cascodePath, overwrite: true);
+
+            var run = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(60),
+                cascodeHome,
+                "bench",
+                "run",
+                cascodePath
+            );
+            CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+            var verify = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(60),
+                cascodeHome,
+                "verify",
+                cascodePath
+            );
+            CliIntegrationTestHelper.AssertSuccess(
+                verify,
+                "verify should discover canonical results for all circuits"
+            );
+
+            Assert.Contains("Circuits: 2", verify.Stdout);
+            Assert.Contains("RcLowpassA: PASS", verify.Stdout);
+            Assert.Contains("RcLowpassB: PASS", verify.Stdout);
         }
         finally
         {
@@ -270,5 +385,24 @@ public sealed class VerifyCommandIntegrationTests
         File.SetLastWriteTimeUtc(resultsPath, DateTime.UtcNow.AddMinutes(1));
 
         return new VerifyFixture(tempRoot, repoRoot, cascodePath, resultsPath, resultsDir);
+    }
+
+    private static int CountOccurrences(string text, string needle)
+    {
+        var count = 0;
+        var offset = 0;
+        while (offset < text.Length)
+        {
+            var found = text.IndexOf(needle, offset, StringComparison.Ordinal);
+            if (found < 0)
+            {
+                break;
+            }
+
+            count++;
+            offset = found + needle.Length;
+        }
+
+        return count;
     }
 }
