@@ -33,6 +33,59 @@ public sealed class BenchRunRendererTests
         Assert.Contains(output.Lines, line => line.Contains("TAIL", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Render_PlainSingle_ShowsSharedComplianceSummary()
+    {
+        var summary = new BenchRunService.MultiCircuitBenchRunSummary(
+            BenchBackendType.Ngspice,
+            ".",
+            new[]
+            {
+                new BenchRunService.CircuitBenchRunSummary(
+                    "RcLowpass",
+                    new[]
+                    {
+                        new BenchRunService.BenchRunBenchSummary(
+                            Name: "lp",
+                            Succeeded: true,
+                            ExitCode: 0,
+                            Error: null,
+                            Stderr: null,
+                            TestbenchPath: null,
+                            TracePath: null,
+                            ResultsPath: null
+                        ),
+                    },
+                    new ComplianceReport
+                    {
+                        Results =
+                        [
+                            new ConstraintResult
+                            {
+                                Id = "c_bw",
+                                Metric = "LowpassBandwidth",
+                                Operator = ">=",
+                                Expected = 1_000,
+                                Unit = "Hz",
+                                Actual = 1_200,
+                                ActualUnit = "Hz",
+                                Passed = true,
+                            },
+                        ],
+                    }
+                ),
+            },
+            null,
+            new ComplianceReport()
+        );
+        var output = new CaptureCliOutput();
+
+        BenchRunRenderer.Render(summary, verbose: false, output);
+
+        Assert.Contains("Compliance: 1/1 (100% PASS)", output.Lines);
+        Assert.Contains("  c_bw: LowpassBandwidth >= 1 kHz (actual 1.2 kHz)", output.Lines);
+    }
+
     private sealed class CaptureCliOutput : ICliOutput
     {
         public CliOutputMode Mode => CliOutputMode.Plain;

@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using Cascode.Bench;
 using Cascode.Cli.Output;
 using Cascode.Language;
 
@@ -26,11 +24,7 @@ internal sealed partial class VerifyCommandModule
 
     private sealed record VerifyInput(VerifyInputKind Kind, string Path);
 
-    private sealed record VerifyRunContext(
-        string CascodePath,
-        Circuit Circuit,
-        IReadOnlyList<Circuit> ElCircuits
-    );
+    private sealed record VerifyRunContext(string CascodePath, IReadOnlyList<Circuit> ElCircuits);
 
     private static string? ResolveBenchOutputDirectoryHint(ParsedVerifyArgs parsed)
     {
@@ -85,7 +79,7 @@ internal sealed partial class VerifyCommandModule
             return false;
         }
 
-        context = new VerifyRunContext(cascodePath, elCircuits[0], elCircuits);
+        context = new VerifyRunContext(cascodePath, elCircuits);
         return true;
     }
 
@@ -119,20 +113,33 @@ internal sealed partial class VerifyCommandModule
         return true;
     }
 
-    private static bool NeedsBenchRun(string cascodePath, VerifyInput input, out string reason)
+    private static bool NeedsBenchRun(
+        string cascodePath,
+        IReadOnlyList<VerifyInput> inputs,
+        out string reason
+    )
     {
-        if (!File.Exists(input.Path))
+        if (inputs.Count == 0)
         {
-            reason = $"{InputKindLabel(input.Kind)} file '{input.Path}' does not exist";
+            reason = "no verification artifacts were resolved";
             return true;
         }
 
-        if (File.GetLastWriteTimeUtc(cascodePath) > File.GetLastWriteTimeUtc(input.Path))
+        foreach (var input in inputs)
         {
-            reason = $"{InputKindLabel(input.Kind)} file is older than the Cascode source";
-            return true;
-        }
+            if (!File.Exists(input.Path))
+            {
+                reason = $"{InputKindLabel(input.Kind)} file '{input.Path}' does not exist";
+                return true;
+            }
 
+            if (File.GetLastWriteTimeUtc(cascodePath) > File.GetLastWriteTimeUtc(input.Path))
+            {
+                reason =
+                    $"{InputKindLabel(input.Kind)} file '{input.Path}' is older than the Cascode source";
+                return true;
+            }
+        }
         reason = string.Empty;
         return false;
     }
@@ -140,12 +147,11 @@ internal sealed partial class VerifyCommandModule
     private static string InputKindLabel(VerifyInputKind kind) =>
         kind == VerifyInputKind.Trace ? "Trace" : "Results";
 
-    private static bool TryResolveVerifyInput(
+    private static bool TryResolveVerifyInputs(
         ParsedVerifyArgs parsed,
         VerifyRunContext runContext,
-        JsonSerializerOptions jsonOptions,
         string? preferredDirectory,
-        out VerifyInput input,
+        out IReadOnlyList<VerifyInput> inputs,
         out string resolutionNote
     )
     {
@@ -153,8 +159,8 @@ internal sealed partial class VerifyCommandModule
             TryResolveExplicitInput(
                 parsed.ResultsPath,
                 parsed.TracePath,
-                jsonOptions,
-                out input,
+                runContext.ElCircuits,
+                out inputs,
                 out resolutionNote
             )
         )
@@ -166,10 +172,11 @@ internal sealed partial class VerifyCommandModule
         {
             var preferredFull = Path.GetFullPath(preferredDirectory);
             if (
-                TryResolveFromDirectory(
+                TryResolveCanonicalFromRootDirectory(
                     preferredFull,
-                    jsonOptions,
-                    out input,
+                    runContext.ElCircuits,
+                    explicitDirectory: true,
+                    out inputs,
                     out var preferredResolution
                 )
             )
@@ -179,22 +186,22 @@ internal sealed partial class VerifyCommandModule
             }
         }
 
-        return TryResolveDefaultInput(runContext, jsonOptions, out input, out resolutionNote);
+        return TryResolveDefaultInput(runContext, out inputs, out resolutionNote);
     }
 
     private static bool TryResolveExplicitInput(
         string? resultsPath,
         string? tracePath,
-        JsonSerializerOptions jsonOptions,
-        out VerifyInput input,
+        IReadOnlyList<Circuit> circuits,
+        out IReadOnlyList<VerifyInput> inputs,
         out string resolutionNote
     )
     {
-        input = null!;
+        inputs = Array.Empty<VerifyInput>();
         resolutionNote = string.Empty;
         if (!string.IsNullOrWhiteSpace(tracePath))
         {
-            input = new VerifyInput(VerifyInputKind.Trace, Path.GetFullPath(tracePath));
+            inputs = new[] { new VerifyInput(VerifyInputKind.Trace, Path.GetFullPath(tracePath)) };
             return true;
         }
 
@@ -206,146 +213,141 @@ internal sealed partial class VerifyCommandModule
         var full = Path.GetFullPath(resultsPath);
         if (Directory.Exists(full) || LooksLikeDirectory(full))
         {
-            return TryResolveFromDirectory(full, jsonOptions, out input, out resolutionNote);
+            return TryResolveCanonicalFromRootDirectory(
+                full,
+                circuits,
+                explicitDirectory: true,
+                out inputs,
+                out resolutionNote
+            );
         }
 
-        input = new VerifyInput(VerifyInputKind.Results, full);
+        inputs = new[] { new VerifyInput(VerifyInputKind.Results, full) };
         return true;
     }
 
     private static bool TryResolveDefaultInput(
         VerifyRunContext runContext,
-        JsonSerializerOptions jsonOptions,
-        out VerifyInput input,
+        out IReadOnlyList<VerifyInput> inputs,
         out string resolutionNote
     )
     {
-        input = null!;
-        resolutionNote = string.Empty;
-
         var sourceDir =
             Path.GetDirectoryName(Path.GetFullPath(runContext.CascodePath))
             ?? Directory.GetCurrentDirectory();
-        var candidateResults = new List<string>();
-        foreach (var circuitName in runContext.ElCircuits.Select(c => c.Name).Distinct())
-        {
-            var circuitDir = Path.Combine(sourceDir, "build", "bench", circuitName);
-            var combined = Path.Combine(circuitDir, $"{circuitName}_results.json");
-            if (File.Exists(combined))
-            {
-                candidateResults.Add(combined);
-            }
+        var benchRoot = Path.Combine(sourceDir, "build", "bench");
+        return TryResolveCanonicalFromRootDirectory(
+            benchRoot,
+            runContext.ElCircuits,
+            explicitDirectory: false,
+            out inputs,
+            out resolutionNote
+        );
+    }
 
-            if (
-                TryResolveFromDirectory(
-                    circuitDir,
-                    jsonOptions,
-                    out var dirInput,
-                    out _,
-                    includeMissingDirectoryErrors: false
-                )
-            )
-            {
-                candidateResults.Add(dirInput.Path);
-            }
+    private static bool TryResolveCanonicalFromRootDirectory(
+        string rootDirectory,
+        IReadOnlyList<Circuit> circuits,
+        bool explicitDirectory,
+        out IReadOnlyList<VerifyInput> inputs,
+        out string resolutionNote
+    )
+    {
+        inputs = Array.Empty<VerifyInput>();
+        resolutionNote = string.Empty;
+        if (!Directory.Exists(rootDirectory))
+        {
+            resolutionNote = explicitDirectory
+                ? $"Results directory '{rootDirectory}' does not exist."
+                : $"No verification artifacts found under '{rootDirectory}'.";
+            return false;
         }
 
-        var multiDir = Path.Combine(sourceDir, "build", "bench", "multi");
-        var multiCombined = Path.Combine(multiDir, "results.json");
-        if (File.Exists(multiCombined))
+        var resolved = new List<(string CircuitName, string Path)>();
+        var missingCircuits = new List<string>();
+        var ambiguousCircuits = new List<string>();
+        foreach (
+            var circuitName in circuits
+                .Select(c => c.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+        )
         {
-            candidateResults.Add(multiCombined);
+            var candidates = ResolveCanonicalCandidates(rootDirectory, circuitName);
+            if (candidates.Count == 0)
+            {
+                missingCircuits.Add(circuitName);
+                continue;
+            }
+
+            if (candidates.Count > 1)
+            {
+                ambiguousCircuits.Add($"{circuitName} ({string.Join(", ", candidates)})");
+                continue;
+            }
+
+            resolved.Add((circuitName, candidates[0]));
+        }
+
+        if (ambiguousCircuits.Count > 0)
+        {
+            resolutionNote =
+                $"Multiple canonical results files were found for one or more circuits under '{rootDirectory}': {string.Join("; ", ambiguousCircuits)}. Provide an explicit results file path.";
+            return false;
+        }
+
+        if (missingCircuits.Count > 0)
+        {
+            resolutionNote =
+                $"Missing canonical results files for circuit(s): {string.Join(", ", missingCircuits)} under '{rootDirectory}'. Expected '<circuit>_results.json'.";
+            return false;
+        }
+
+        inputs = resolved
+            .OrderBy(x => x.CircuitName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new VerifyInput(VerifyInputKind.Results, x.Path))
+            .ToArray();
+        resolutionNote =
+            $"Discovered {inputs.Count} canonical results artifact(s) in '{rootDirectory}'.";
+        return true;
+    }
+
+    private static IReadOnlyList<string> ResolveCanonicalCandidates(
+        string rootDirectory,
+        string circuitName
+    )
+    {
+        var candidates = new List<string>(3);
+        AddCandidate(candidates, Path.Combine(rootDirectory, $"{circuitName}_results.json"));
+        AddCandidate(
+            candidates,
+            Path.Combine(rootDirectory, "multi", $"{circuitName}_results.json")
+        );
+        AddCandidate(
+            candidates,
+            Path.Combine(rootDirectory, circuitName, $"{circuitName}_results.json")
+        );
+        return candidates;
+    }
+
+    private static void AddCandidate(List<string> candidates, string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (!File.Exists(full))
+        {
+            return;
         }
 
         if (
-            TryResolveFromDirectory(
-                multiDir,
-                jsonOptions,
-                out var multiInput,
-                out _,
-                includeMissingDirectoryErrors: false
+            candidates.Any(existing =>
+                string.Equals(existing, full, StringComparison.OrdinalIgnoreCase)
             )
         )
         {
-            candidateResults.Add(multiInput.Path);
+            return;
         }
 
-        if (candidateResults.Count == 0)
-        {
-            resolutionNote =
-                $"No verification artifacts found under '{Path.Combine(sourceDir, "build", "bench")}'.";
-            return false;
-        }
-
-        var selected = candidateResults
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(path => File.GetLastWriteTimeUtc(path))
-            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .First();
-        input = new VerifyInput(VerifyInputKind.Results, selected);
-        resolutionNote = $"Discovered results file '{selected}'.";
-        return true;
-    }
-
-    private static bool TryResolveFromDirectory(
-        string directoryPath,
-        JsonSerializerOptions jsonOptions,
-        out VerifyInput input,
-        out string resolutionNote,
-        bool includeMissingDirectoryErrors = true
-    )
-    {
-        input = null!;
-        resolutionNote = string.Empty;
-        if (!Directory.Exists(directoryPath))
-        {
-            if (includeMissingDirectoryErrors)
-            {
-                resolutionNote = $"Results directory '{directoryPath}' does not exist.";
-            }
-            return false;
-        }
-
-        var resultFiles = Directory
-            .GetFiles(directoryPath, "*_results.json", SearchOption.TopDirectoryOnly)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        if (resultFiles.Length == 0)
-        {
-            resolutionNote =
-                $"No '*_results.json' files were found in results directory '{directoryPath}'.";
-            return false;
-        }
-
-        var selected = resultFiles
-            .Select(path => new
-            {
-                Path = path,
-                Bench = TryReadBenchName(path, jsonOptions),
-                NameLength = Path.GetFileName(path).Length,
-            })
-            .OrderByDescending(x =>
-                string.Equals(x.Bench, "all", StringComparison.OrdinalIgnoreCase)
-            )
-            .ThenBy(x => x.NameLength)
-            .ThenBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
-            .First();
-
-        input = new VerifyInput(VerifyInputKind.Results, selected.Path);
-        resolutionNote = $"Discovered results file '{selected.Path}'.";
-        return true;
-    }
-
-    private static string? TryReadBenchName(string path, JsonSerializerOptions jsonOptions)
-    {
-        try
-        {
-            var text = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<BenchResult>(text, jsonOptions)?.Bench;
-        }
-        catch
-        {
-            return null;
-        }
+        candidates.Add(full);
     }
 }
