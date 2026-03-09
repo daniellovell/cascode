@@ -33,6 +33,10 @@ public static class CascodeLinker
             "sqrt",
             "period",
             "op_param",
+            "duration",
+            "mean",
+            "harmonic_power",
+            "thd",
         },
         StringComparer.Ordinal
     );

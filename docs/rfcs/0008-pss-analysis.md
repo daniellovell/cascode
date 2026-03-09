@@ -238,7 +238,7 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
       Impedance sourceImp = env.SourceImpedance
       Scalar pout = harmonic_power(vout, loadImp)
       Scalar pin = harmonic_power(vin, sourceImp)
-      return 10 * log10(pout / pin)
+      return db10(pout / pin)
     }
     measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
