@@ -89,7 +89,7 @@ circuit LowNoiseFrontEnd implements SingleEndedOpAmp {
       CascodeRef=size(W=4u, L=8u, M=1),
       RTail=size(R=220k),
       RCascode=size(R=47k),
-      Rsupply=size(R=800),
+      Rsupply=size(R=1800),
       Csupply=size(C=10u),
       RTailFilter=size(R=50k),
       CTailFilter=size(C=10u),
@@ -103,10 +103,10 @@ circuit LowNoiseFrontEnd implements SingleEndedOpAmp {
     }
 
     PmosCascodedMirrorFrontEnd core = new PmosCascodedMirrorFrontEnd(
-      InputSlice=size(W=100u, L=10u, M=24),
+      InputSlice=size(W=100u, L=10u, M=12),
       Cascode=size(W=10u, L=10u, M=6),
       Tail=size(W=8u, L=10u, M=4),
-      Mirror=size(W=8u, L=12u, M=4)) {
+      Mirror=size(W=8u, L=20u, M=4)) {
       .VDD--VDD
       .GND--GND
       .IN--IN
@@ -119,12 +119,12 @@ circuit LowNoiseFrontEnd implements SingleEndedOpAmp {
 
   constraints {
     numeric {
-      c_gain = transfer_bench::PassbandGain at net::OUT >= 70dB
-      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 2MHz
-      c_cmrr = cmrr_bench::CMRR at net::OUT >= 80dB
-      c_psrr = psrr_bench::PSRR at net::OUT >= 70dB
-      c_pwr = vdd_pwr::QuiescentPower <= 10mW
-      c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 400nVrms
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 72dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
+      c_cmrr = cmrr_bench::CMRR at net::OUT >= 75dB
+      c_psrr = psrr_bench::PSRR at net::OUT >= 72dB
+      c_pwr = vdd_pwr::QuiescentPower <= 1mW
+      c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 300nVrms
     }
   }
 
@@ -154,10 +154,10 @@ circuit OutputStage implements SingleEndedAmp {
     PmosBiasTree bias_tree = new PmosBiasTree(
       Ref=size(W=2u, L=8u, M=1),
       Rref=size(R=100k),
-      Rsupply=size(R=120),
+      Rsupply=size(R=68),
       Csupply=size(C=40u),
       Rfilter=size(R=100k),
-      Cfilter=size(C=40u)) {
+      Cfilter=size(C=50u)) {
       .VDD--VDD
       .GND--GND
       .VLOCAL--vlocal
@@ -178,12 +178,12 @@ circuit OutputStage implements SingleEndedAmp {
 
   constraints {
     numeric {
-      c_gain_min = transfer_bench::PassbandGain at net::OUT >= 5dB
-      c_gain_max = transfer_bench::PassbandGain at net::OUT <= 15dB
+      c_gain_min = transfer_bench::PassbandGain at net::OUT >= 15dB
+      c_gain_max = transfer_bench::PassbandGain at net::OUT <= 20dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
-      c_psrr = psrr_bench::PSRR at net::OUT >= 60dB
+      c_psrr = psrr_bench::PSRR at net::OUT >= 50dB
       c_pwr = vdd_pwr::QuiescentPower <= 8mW
-      c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 4.5Vpp
+      c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.4Vpp
     }
   }
 
@@ -362,61 +362,25 @@ circuit PmosCascodedMirrorFrontEnd(
     net sense : analog
     net sense_mid : analog
 
-    PMOS M_IN_OUT0 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--out_mid
-      .G--IN.P
-      .S--tail
-    }
+    PMOS M_IN_OUT0 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT1 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT2 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT3 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT4 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT5 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT6 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT7 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
+    PMOS M_IN_OUT8 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--out_mid, .G--IN.P, .S--tail }
 
-    PMOS M_IN_OUT1 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--out_mid
-      .G--IN.P
-      .S--tail
-    }
-
-    PMOS M_IN_OUT2 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--out_mid
-      .G--IN.P
-      .S--tail
-    }
-
-    PMOS M_IN_OUT3 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--out_mid
-      .G--IN.P
-      .S--tail
-    }
-
-    PMOS M_IN_SENSE0 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--sense_mid
-      .G--IN.N
-      .S--tail
-    }
-
-    PMOS M_IN_SENSE1 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--sense_mid
-      .G--IN.N
-      .S--tail
-    }
-
-    PMOS M_IN_SENSE2 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--sense_mid
-      .G--IN.N
-      .S--tail
-    }
-
-    PMOS M_IN_SENSE3 = new pfet_g5v0d10v5(InputSlice) {
-      .B--VLOCAL
-      .D--sense_mid
-      .G--IN.N
-      .S--tail
-    }
+    PMOS M_IN_SENSE0 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE1 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE2 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE3 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE4 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE5 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE6 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE7 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
+    PMOS M_IN_SENSE8 = new pfet_g5v0d10v5(InputSlice) { .B--VLOCAL, .D--sense_mid, .G--IN.N, .S--tail }
 
     PMOS M_TAIL = new pfet_g5v0d10v5(Tail) {
       .B--VLOCAL
