@@ -342,8 +342,7 @@ circuit PmosBiasTree(
 circuit PmosCascodedMirrorFrontEnd(
   size InputSlice,
   size Cascode,
-  size Tail
-  ,
+  size Tail,
   size Mirror
 ) {
   level EL
