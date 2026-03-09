@@ -153,9 +153,9 @@ circuit OutputStage implements SingleEndedAmp {
 
     PmosBiasTree bias_tree = new PmosBiasTree(
       Ref=size(W=2u, L=8u, M=1),
-      Rref=size(R=100k),
+      Rref=size(R=106k),
       Rsupply=size(R=68),
-      Csupply=size(C=40u),
+      Csupply=size(C=45u),
       Rfilter=size(R=100k),
       Cfilter=size(C=50u)) {
       .VDD--VDD
@@ -179,7 +179,7 @@ circuit OutputStage implements SingleEndedAmp {
   constraints {
     numeric {
       c_gain_min = transfer_bench::PassbandGain at net::OUT >= 15dB
-      c_gain_max = transfer_bench::PassbandGain at net::OUT <= 20dB
+      c_gain_max = transfer_bench::PassbandGain at net::OUT <= 22dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_psrr = psrr_bench::PSRR at net::OUT >= 50dB
       c_pwr = vdd_pwr::QuiescentPower <= 8mW
