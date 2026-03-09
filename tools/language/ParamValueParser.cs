@@ -24,6 +24,22 @@ public static partial class ParamValueParser
     }
 
     /// <summary>
+    /// Returns true when the value is a bare identifier reference that can be forwarded as-is.
+    /// </summary>
+    public static bool TryGetIdentifierReference(ParamValue? value, out string identifier)
+    {
+        identifier = string.Empty;
+
+        if (value?.Symbolic is not string symbolic || !IdentifierPattern().IsMatch(symbolic))
+        {
+            return false;
+        }
+
+        identifier = symbolic;
+        return true;
+    }
+
+    /// <summary>
     /// Regex pattern for numeric values with optional SI suffixes.
     /// Matches: optional leading minus, digits, optional decimal, optional SI suffix, optional unit letters.
     /// Examples: "10k", "-1.5M", "180n", "2u", "1.8" - all numeric.

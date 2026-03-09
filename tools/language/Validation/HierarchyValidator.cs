@@ -147,7 +147,7 @@ public static class HierarchyValidator
             }
 
             // Required parameter must be provided
-            if (!instance.Params.ContainsKey(param.Name))
+            if (!InstanceArgumentResolver.HasParameterAssignment(instance, param.Name))
             {
                 result.AddError(
                     "HIER-002",
@@ -177,13 +177,13 @@ public static class HierarchyValidator
                 continue;
             }
 
-            if (!instance.Sizes.ContainsKey(size.Name))
+            if (!InstanceArgumentResolver.HasSizeAssignment(instance, size.Name))
             {
                 result.AddError(
                     "HIER-007",
                     $"Instance '{instance.Id}' missing required size pack '{size.Name}'",
                     $"circuit {parentCircuitName}, instance {instance.Id} : {instance.Type}",
-                    $"Add '{size.Name}=size(k=v, ...)' to the instance constructor arguments"
+                    $"Add '{size.Name}=size(k=v, ...)' or '{size.Name}=OtherSize' to the instance constructor arguments"
                 );
             }
         }

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using Cascode.Language;
+using Cascode.Language.Validation;
 
 namespace Cascode.Language.Tests;
 
@@ -210,6 +211,204 @@ circuit Leaf(size InputPair) {{
         Assert.Contains("W=3u", spice); // override wins
         Assert.Contains("L=180n", spice);
         Assert.Contains("m=1", spice);
+    }
+
+    [Fact]
+    public void HierarchyAndEmitter_ResolveNamedSizePackReferencesAcrossInlineCircuits()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive PMOS PMOS_Level1(size primSize) {{
+  device ""pmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    size NCore = size(W=2u, L=180n, M=2)
+    size PCore = size(W=4u, L=180n, M=3)
+
+    Buffer buf = new Buffer(NmosSize=NCore, PmosSize=PCore) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize, size PmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize, PmosSize=PmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize, size PmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    PMOS MP = new PMOS_Level1(PmosSize) {{
+      .B--VDD
+      .D--OUT
+      .G--IN
+      .S--VDD
+    }}
+
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "named_size_refs.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.True(
+            validation.IsValid,
+            string.Join(", ", validation.GetErrors().Select(e => e.Message))
+        );
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        Assert.Contains("Mbuf__stage__MP", spice);
+        Assert.Contains("Mbuf__stage__MN", spice);
+        Assert.Contains("W=4u", spice);
+        Assert.Contains("W=2u", spice);
+        Assert.Contains("L=180n", spice);
+        Assert.Contains("m=3", spice);
+        Assert.Contains("m=2", spice);
+    }
+
+    [Fact]
+    public void EmitDesign_ResolveNamedScalarParameterReferencesAcrossHierarchy()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(real width = 2u, int mult = 3, bool enabled = true) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Wrapper stage = new Wrapper(width=width, mult=mult, enabled=enabled) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Wrapper(real width, int mult, bool enabled) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Configurable cfg = new Configurable(width=width, mult=mult, enabled=enabled) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Configurable(real width, int mult, bool enabled) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    net t : analog
+
+    NMOS M1 = new NMOS_Level1(size(W=width, L=180n, M=mult)) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--t
+    }}
+
+    NMOS M2 = new NMOS_Level1(size(W=1u, L=180n, M=1)) {{
+      .B--GND
+      .D--t
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "named_scalar_refs.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        Assert.Contains("Xstage__cfg", spice);
+        Assert.Contains("Configurable_enabled_true_mult_3_width_2u", spice);
     }
 
     [Fact]

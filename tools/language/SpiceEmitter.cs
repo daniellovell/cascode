@@ -525,8 +525,14 @@ public static class SpiceEmitter
         InstanceDeclaration? instance
     )
     {
-        var paramBindings = BuildParameterBindings(circuit, parentParams, instance);
-        var sizeBindings = BuildSizeBindings(circuit, parentSizes, instance);
+        var argumentBindings = InstanceArgumentResolver.Resolve(
+            circuit,
+            parentParams,
+            parentSizes,
+            instance
+        );
+        var paramBindings = argumentBindings.Parameters;
+        var sizeBindings = argumentBindings.Sizes;
         var context = new ExpressionContext(paramBindings, sizeBindings);
 
         var resolvedParams = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -557,86 +563,6 @@ public static class SpiceEmitter
             ResolvedParams = resolvedParams,
             ResolvedSizes = resolvedSizes,
         };
-    }
-
-    private static Dictionary<string, string> BuildParameterBindings(
-        Circuit circuit,
-        IReadOnlyDictionary<string, string> parentParamBindings,
-        InstanceDeclaration? instance
-    )
-    {
-        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var (name, value) in parentParamBindings)
-        {
-            bindings[name] = value;
-        }
-
-        foreach (var param in circuit.Parameters)
-        {
-            var expr = ParamValueToExpression(param.Default);
-            if (!string.IsNullOrWhiteSpace(expr))
-            {
-                bindings[param.Name] = expr;
-            }
-        }
-
-        if (instance is not null)
-        {
-            foreach (var (name, paramValue) in instance.Params)
-            {
-                var expr = ParamValueToExpression(paramValue);
-                if (!string.IsNullOrWhiteSpace(expr))
-                {
-                    bindings[name] = expr;
-                }
-            }
-        }
-
-        return bindings;
-    }
-
-    private static Dictionary<string, SizePack> BuildSizeBindings(
-        Circuit circuit,
-        IReadOnlyDictionary<string, SizePack> parentSizeBindings,
-        InstanceDeclaration? instance
-    )
-    {
-        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
-
-        foreach (var (name, pack) in parentSizeBindings)
-        {
-            bindings[name] = pack;
-        }
-
-        foreach (var size in circuit.Sizes)
-        {
-            if (size.Default is not null)
-            {
-                bindings[size.Name] = size.Default;
-            }
-        }
-
-        if (circuit.Fill?.Sizes is { Count: > 0 })
-        {
-            foreach (var size in circuit.Fill.Sizes)
-            {
-                if (size.Default is not null)
-                {
-                    bindings[size.Name] = size.Default;
-                }
-            }
-        }
-
-        if (instance is not null)
-        {
-            foreach (var (name, pack) in instance.Sizes)
-            {
-                bindings[name] = pack;
-            }
-        }
-
-        return bindings;
     }
 
     private static string ResolveParameterValue(
@@ -1143,8 +1069,14 @@ public static class SpiceEmitter
         var localSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
         var netSubstitutions = ComposeNetSubstitutions(parentNetSubstitutions, localSubstitutions);
 
-        var paramBindings = BuildParameterBindings(inlineCircuit, parentParamBindings, instance);
-        var sizeBindings = BuildSizeBindings(inlineCircuit, parentSizeBindings, instance);
+        var argumentBindings = InstanceArgumentResolver.Resolve(
+            inlineCircuit,
+            parentParamBindings,
+            parentSizeBindings,
+            instance
+        );
+        var paramBindings = argumentBindings.Parameters;
+        var sizeBindings = argumentBindings.Sizes;
 
         var expressionContext = new ExpressionContext(paramBindings, sizeBindings);
 
@@ -1512,16 +1444,6 @@ public static class SpiceEmitter
         );
 
         writer.WriteLine(sb.ToString().TrimEnd());
-    }
-
-    private static string? ParamValueToExpression(ParamValue? value)
-    {
-        if (value is null)
-        {
-            return null;
-        }
-
-        return value.Numeric ?? value.Symbolic ?? value.Literal;
     }
 
     private static void AppendParamAssignments(
