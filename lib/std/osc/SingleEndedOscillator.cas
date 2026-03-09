@@ -1,0 +1,24 @@
+library lib.std.osc
+include lib.std.bench
+
+// Interface: Single-ended oscillator.
+//
+// Provides ports and standard bench bindings for common steady-state and time-domain metrics.
+interface SingleEndedOscillator {
+  ground GND
+  output OUT : analog
+
+  benches {
+    bind SEOutputTran as tran_bench {
+      bench.OUT--dut.OUT
+    }
+
+    bind OnePortSParam as sparam_bench {
+      bench.P1--dut.OUT
+    }
+
+    bind SEOscPSS as pss_bench {
+      bench.OUT--dut.OUT
+    }
+  }
+}

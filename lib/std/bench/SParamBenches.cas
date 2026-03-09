@@ -2,6 +2,109 @@ VERSION 4.1
 
 library lib.std.bench
 
+abstract bench AbstractOnePortSParam {
+  resp P1 : analog
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement S11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).ValueAt(f)
+    }
+
+    measurement S11(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).From(from).To(to)
+    }
+
+    measurement ReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).ValueAt(f)
+    }
+
+    measurement ReturnLoss(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).From(from).To(to)
+    }
+  }
+}
+
+bench OnePortSParam extends AbstractOnePortSParam {
+  resp P1 : analog
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P1
+      .N--gnd
+    }
+  }
+}
+
+bench DiffOnePortSParam {
+  resp P1 : Diff
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=get_load_impedance(50Ohm).DiffToShunt(), V=env.OutputCommonModeRange) {
+      .P--P1.P
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm).DiffToShunt(), V=env.OutputCommonModeRange) {
+      .P--P1.N
+      .N--gnd
+    }
+  }
+
+  measurements {
+    measurement S11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 1) - S.S(1, 2) - S.S(2, 1) + S.S(2, 2)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement S11(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 1) - S.S(1, 2) - S.S(2, 1) + S.S(2, 2)) / 2).Mag()).From(from).To(to)
+    }
+
+    measurement ReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(1 / ((S.S(1, 1) - S.S(1, 2) - S.S(2, 1) + S.S(2, 2)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement ReturnLoss(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(1 / ((S.S(1, 1) - S.S(1, 2) - S.S(2, 1) + S.S(2, 2)) / 2).Mag()).From(from).To(to)
+    }
+  }
+}
+
 abstract bench AbstractTwoPortSParam {
   resp P1 : analog
   resp P2 : analog

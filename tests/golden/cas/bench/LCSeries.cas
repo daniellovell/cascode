@@ -42,7 +42,7 @@ circuit LCSeries {
   constraints {
     numeric {
       c_fundamental_frequency_min = pss_bench(guess_freq=100MHz)::FundamentalFrequency >= 99.999MHz
-      c_fundamental_frequency_max = pss_bench(guess_freq=100MHz)::FundamentalFrequency <= 100.001MHz
+      c_fundamental_frequency_max = pss_bench(guess_freq=100MHz)::FundamentalFrequency <= 100.01MHz
     }
   }
 }

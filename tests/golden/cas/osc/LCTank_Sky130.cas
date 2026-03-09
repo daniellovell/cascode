@@ -1,0 +1,83 @@
+VERSION 4.1
+
+include lib.std
+include lib.pdk.sky130.devices.nfet_01v8
+include lib.pdk.sky130.devices.pfet_01v8
+
+circuit LCTank_Sky130 implements DifferentialOscillator {
+  level EL
+
+  supply VDD
+  ground GND
+  output OUT : Diff
+
+  env {
+    OutputCommonModeRange = 0.9V
+    LoadImpedance = 1GOhm
+  }
+
+  fill {
+    net vosc : analog
+
+    size NCore = size(W=8u, L=180n, M=2)
+    size PCore = size(W=16u, L=180n, M=2)
+
+    // Give the LC core a lightly isolated local supply, so autonomous PSS is numerically stable.
+    Resistor R_VDD = new ResistorIdeal(size(R=1)) {
+      .P--VDD
+      .N--vosc
+    }
+
+    PMOS MP_P = new pfet_01v8(PCore) {
+      .B--vosc
+      .D--OUT.P
+      .G--OUT.N
+      .S--vosc
+    }
+
+    PMOS MP_N = new pfet_01v8(PCore) {
+      .B--vosc
+      .D--OUT.N
+      .G--OUT.P
+      .S--vosc
+    }
+
+    NMOS MN_P = new nfet_01v8(NCore) {
+      .B--GND
+      .D--OUT.P
+      .G--OUT.N
+      .S--GND
+    }
+
+    NMOS MN_N = new nfet_01v8(NCore) {
+      .B--GND
+      .D--OUT.N
+      .G--OUT.P
+      .S--GND
+    }
+
+    Inductor L_TANK = new InductorIdeal(size(L=6n)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+
+    Capacitor C_TANK = new CapacitorIdeal(size(C=500f)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+  }
+
+  constraints {
+    numeric {
+      c_fundamental_frequency_min =
+        pss_bench(guess_freq=2.4GHz)::FundamentalFrequency >= 2.2GHz
+      c_fundamental_frequency_max =
+        pss_bench(guess_freq=2.4GHz)::FundamentalFrequency <= 2.6GHz
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
