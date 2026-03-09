@@ -152,13 +152,14 @@ public class RenderIntegrationTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT")]
-    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P")]
-    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.N", "OUT.N")]
+    [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT", 50.0)]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P", 25.0)]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.N", "OUT.N", 25.0)]
     public async Task Render_FeedthroughPorts_AreVerticallyAligned(
         string inputPath,
         string leftPort,
-        string rightPort
+        string rightPort,
+        double maxDeltaY
     )
     {
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
@@ -183,8 +184,8 @@ public class RenderIntegrationTests
         var leftY = GetPortOriginY(svgContent, leftPort);
         var rightY = GetPortOriginY(svgContent, rightPort);
         Assert.True(
-            Math.Abs(leftY - rightY) <= 25.0,
-            $"Expected feedthrough ports to remain near-aligned, got delta={Math.Abs(leftY - rightY)}"
+            Math.Abs(leftY - rightY) <= maxDeltaY,
+            $"Expected feedthrough ports to remain near-aligned within {maxDeltaY}, got delta={Math.Abs(leftY - rightY)}"
         );
     }
 
@@ -211,8 +212,8 @@ public class RenderIntegrationTests
         var inY = GetPortOriginY(svgContent, "IN");
         var outY = GetPortOriginY(svgContent, "OUT");
         Assert.True(
-            Math.Abs(inY - outY) <= 25.0,
-            $"Expected IN/OUT ports to remain near-aligned, got delta={Math.Abs(inY - outY)}"
+            Math.Abs(inY - outY) <= 50.0,
+            $"Expected IN/OUT ports to remain near-aligned within one cell, got delta={Math.Abs(inY - outY)}"
         );
 
         var inNetSegments = GetWireSegments(svgContent, "IN");

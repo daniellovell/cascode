@@ -59,6 +59,7 @@ public static class CoarseGridPlacer
     private const int OutPortWeight = 0;
     private const int SymmetryWeight = 8;
     private const int SharedSignalCmosAxisPenaltyWeight = 4;
+    private const int SameFlavorDrainSourceMirrorMismatchPenaltyWeight = 12;
     private const int AxisMismatchPenaltyWeight = 1;
     private const int UTurnPenaltyWeight = 128;
 
@@ -139,6 +140,13 @@ public static class CoarseGridPlacer
             cols,
             objectives,
             symmetryAxis
+        );
+        AddSameFlavorDrainSourceMirrorObjectives(
+            model,
+            graph,
+            transforms,
+            objectives,
+            SameFlavorDrainSourceMirrorMismatchPenaltyWeight
         );
         AddSharedSignalCmosAxisObjectives(model, graph, rows, cols, objectives);
         model.Minimize(LinearExpr.Sum(objectives));
@@ -1420,6 +1428,57 @@ public static class CoarseGridPlacer
         }
     }
 
+    private static void AddSameFlavorDrainSourceMirrorObjectives(
+        CpModel model,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> transforms,
+        List<LinearExpr> objectives,
+        int weight
+    )
+    {
+        if (weight <= 0)
+        {
+            return;
+        }
+
+        var mirrorXByDevice = new Dictionary<string, BoolVar>(StringComparer.Ordinal);
+
+        BoolVar GetMirrorXBool(string deviceId)
+        {
+            if (mirrorXByDevice.TryGetValue(deviceId, out var cached))
+            {
+                return cached;
+            }
+
+            var token = ToVarToken(deviceId);
+            var mirrorXByTransform = new[] { 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1 };
+            var mirrorXInt = model.NewIntVar(0, 1, $"mirror_x_int_{token}");
+            model.AddElement(transforms[deviceId], mirrorXByTransform, mirrorXInt);
+
+            var mirrorX = model.NewBoolVar($"mirror_x_{token}");
+            model.Add(mirrorXInt == 1).OnlyEnforceIf(mirrorX);
+            model.Add(mirrorXInt == 0).OnlyEnforceIf(mirrorX.Not());
+            mirrorXByDevice[deviceId] = mirrorX;
+            return mirrorX;
+        }
+
+        foreach (var (deviceA, deviceB, netName) in EnumerateSameFlavorDrainSourcePairs(graph))
+        {
+            if (!transforms.ContainsKey(deviceA) || !transforms.ContainsKey(deviceB))
+            {
+                continue;
+            }
+
+            var mirrorXA = GetMirrorXBool(deviceA);
+            var mirrorXB = GetMirrorXBool(deviceB);
+            var token = $"{ToVarToken(netName)}_{ToVarToken(deviceA)}_{ToVarToken(deviceB)}";
+            var mismatch = model.NewBoolVar($"same_flavor_ds_mirror_mismatch_{token}");
+            model.Add(mirrorXA != mirrorXB).OnlyEnforceIf(mismatch);
+            model.Add(mirrorXA == mirrorXB).OnlyEnforceIf(mismatch.Not());
+            objectives.Add(mismatch * weight);
+        }
+    }
+
     private static IEnumerable<(
         string DeviceA,
         string DeviceB,
@@ -1465,6 +1524,59 @@ public static class CoarseGridPlacer
                         yield return (sorted[i], sorted[j], netName);
                     }
                 }
+            }
+        }
+    }
+
+    private static IEnumerable<(
+        string DeviceA,
+        string DeviceB,
+        string NetName
+    )> EnumerateSameFlavorDrainSourcePairs(CircuitGraph graph)
+    {
+        var yielded = new HashSet<(string DeviceA, string DeviceB)>();
+        foreach (var (netName, refs) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var drainSourceRefs = refs.Where(r => IsDrainOrSourceTerminal(r.Terminal)).ToList();
+            if (drainSourceRefs.Count != 2)
+            {
+                continue;
+            }
+
+            var first = drainSourceRefs[0];
+            var second = drainSourceRefs[1];
+            if (
+                first.DeviceId == second.DeviceId
+                || !IsDrainSourcePair(first.Terminal, second.Terminal)
+            )
+            {
+                continue;
+            }
+
+            var firstFlavor = GetMosFlavor(graph, first.DeviceId);
+            var secondFlavor = GetMosFlavor(graph, second.DeviceId);
+            if (
+                firstFlavor is null
+                || secondFlavor is null
+                || !string.Equals(firstFlavor, secondFlavor, StringComparison.Ordinal)
+            )
+            {
+                continue;
+            }
+
+            var deviceA =
+                string.CompareOrdinal(first.DeviceId, second.DeviceId) <= 0
+                    ? first.DeviceId
+                    : second.DeviceId;
+            var deviceB = deviceA == first.DeviceId ? second.DeviceId : first.DeviceId;
+            if (yielded.Add((deviceA, deviceB)))
+            {
+                yield return (deviceA, deviceB, netName);
             }
         }
     }
@@ -1696,5 +1808,33 @@ public static class CoarseGridPlacer
     {
         var t = terminal.Trim().ToUpperInvariant();
         return t is "B" or "BULK" or "BODY" or "SH" or "SHIELD";
+    }
+
+    private static bool IsDrainOrSourceTerminal(string terminal)
+    {
+        var t = terminal.Trim().ToUpperInvariant();
+        return t is "D" or "S";
+    }
+
+    private static bool IsDrainSourcePair(string firstTerminal, string secondTerminal)
+    {
+        var first = firstTerminal.Trim().ToUpperInvariant();
+        var second = secondTerminal.Trim().ToUpperInvariant();
+        return (first == "D" && second == "S") || (first == "S" && second == "D");
+    }
+
+    private static string? GetMosFlavor(CircuitGraph graph, string deviceId)
+    {
+        if (!graph.Devices.TryGetValue(deviceId, out var device))
+        {
+            return null;
+        }
+
+        return device.DeviceType.ToLowerInvariant() switch
+        {
+            "nmos" or "nfet" => "nmos",
+            "pmos" or "pfet" => "pmos",
+            _ => null,
+        };
     }
 }

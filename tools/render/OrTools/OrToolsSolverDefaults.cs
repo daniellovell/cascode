@@ -11,6 +11,10 @@ internal static class OrToolsSolverDefaults
             seed = parsed;
         }
 
-        return $"max_time_in_seconds:{maxTimeSeconds} random_seed:{seed} num_search_workers:1";
+        var wallTimeSeconds = Math.Max(maxTimeSeconds, maxTimeSeconds * 4);
+        return $"max_deterministic_time:{maxTimeSeconds} "
+            + $"max_time_in_seconds:{wallTimeSeconds} "
+            + $"random_seed:{seed} "
+            + "num_search_workers:1";
     }
 }

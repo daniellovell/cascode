@@ -320,11 +320,59 @@ public sealed class RenderConstraintTests
         Assert.True(cN.Y > cP.Y, "Expected GND-connected terminal C_SHUNT.N to face south.");
     }
 
+    [Fact]
+    public void Place_UniqueSameFlavorDrainSourceChain_PrefersSameMirrorX()
+    {
+        var circuit = TestCircuits.SameFlavorDrainSourceChainWithCompetingGateSides();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var constraints = new PlacementConstraintSet
+        {
+            DevicePlacements =
+            [
+                new DevicePlacementConstraint("M_TOP", 2, 4, RenderConstraintStrength.Hard),
+                new DevicePlacementConstraint("M_BOT", 2, 9, RenderConstraintStrength.Hard),
+            ],
+            AllowConstraintRelaxation = false,
+        };
+
+        var placement = CoarseGridPlacer.Place(topology, graph, constraints);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_TOP", out var top));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_BOT", out var bottom));
+        Assert.Equal(top.Column, bottom.Column);
+        Assert.Equal(top.MirrorX, bottom.MirrorX);
+    }
+
+    [Fact]
+    public void Place_DrainSourceNetWithThirdPropagation_DoesNotForceSameMirrorX()
+    {
+        var circuit = TestCircuits.DrainSourceNetWithThirdPropagation();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var constraints = new PlacementConstraintSet
+        {
+            DevicePlacements =
+            [
+                new DevicePlacementConstraint("M_TOP", 2, 4, RenderConstraintStrength.Hard),
+                new DevicePlacementConstraint("M_BOT", 2, 9, RenderConstraintStrength.Hard),
+                new DevicePlacementConstraint("M_AUX", 7, 9, RenderConstraintStrength.Hard),
+            ],
+            AllowConstraintRelaxation = false,
+        };
+
+        var placement = CoarseGridPlacer.Place(topology, graph, constraints);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_TOP", out var top));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_BOT", out var bottom));
+        Assert.NotEqual(top.MirrorX, bottom.MirrorX);
+    }
+
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
     [InlineData("tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_Sky130.el.cai")]
-    public void Place_SharedSignalCmosPairs_AreAxisAligned(string cascodePath)
+    public void Place_SharedSignalCmosPairs_RemainLocallyClustered(string cascodePath)
     {
         var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
@@ -349,9 +397,17 @@ public sealed class RenderConstraintTests
                 $"Missing placement for device '{deviceB}'."
             );
 
+            var rowDiff = Math.Abs(cellA.Row - cellB.Row);
+            var colDiff = Math.Abs(cellA.Column - cellB.Column);
+            var manhattanDistance = rowDiff + colDiff;
+
             Assert.True(
-                cellA.Row == cellB.Row || cellA.Column == cellB.Column,
-                $"Expected CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to be aligned on row or column."
+                rowDiff <= 1 || colDiff <= 1,
+                $"Expected CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to stay within one row or column band."
+            );
+            Assert.True(
+                manhattanDistance <= 3,
+                $"Expected CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to remain locally clustered, got Manhattan distance {manhattanDistance}."
             );
             alignedPairs++;
         }

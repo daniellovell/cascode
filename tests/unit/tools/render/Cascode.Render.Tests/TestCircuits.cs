@@ -468,4 +468,150 @@ internal static class TestCircuits
                 },
             },
         };
+
+    public static Circuit SameFlavorDrainSourceChainWithCompetingGateSides() =>
+        new()
+        {
+            Name = "same_flavor_ds_chain",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VG_LEFT",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "VG_RIGHT",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_BOT",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "cas",
+                            ["G"] = "VG_LEFT",
+                            ["S"] = "GND",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_TOP",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "VG_RIGHT",
+                            ["S"] = "cas",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "cas", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit DrainSourceNetWithThirdPropagation() =>
+        new()
+        {
+            Name = "drain_source_with_third_propagation",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VG_LEFT",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "VG_RIGHT",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VG_AUX",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_BOT",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "cas",
+                            ["G"] = "VG_LEFT",
+                            ["S"] = "GND",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_TOP",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "VG_RIGHT",
+                            ["S"] = "cas",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_AUX",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "cas",
+                            ["G"] = "VG_AUX",
+                            ["S"] = "GND",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "cas", Domain = "signal" },
+                },
+            },
+        };
 }

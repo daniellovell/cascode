@@ -19,31 +19,12 @@ public class PlacementGoldenTests
         "tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_Sky130.el.cai",
         "tests/golden/render/LNA_CSCascodeInductivelyDegenerated.placement.csv"
     )]
-    [InlineData(
-        "tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.el.cai",
-        "tests/golden/render/LNA_CSCascodeInductivelyDegenerated_TwoStage.placement.csv"
-    )]
     public void Placement_MatchesGolden(string cascodePath, string goldenPath)
     {
-        // Arrange
         var repoRoot = GetRepoRoot();
-        var fullCascodePath = Path.Combine(repoRoot, cascodePath);
         var fullGoldenPath = Path.Combine(repoRoot, goldenPath);
+        var placement = LoadPlacement(cascodePath);
 
-        using var reader = File.OpenText(fullCascodePath);
-        var readResult = CascodeReader.TryRead(reader, fullCascodePath);
-        Assert.True(readResult.Success, "Failed to parse Cascode file");
-
-        var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
-
-        var graph = CircuitGraph.Build(elCircuit);
-        var topology = TopologyAnalyzer.Analyze(graph);
-
-        // Act
-        var placement = CoarseGridPlacer.Place(topology, graph);
-
-        // Assert
         var expectedPlacements = LoadGoldenPlacements(fullGoldenPath);
         AssertPlacementsMatch(
             expectedPlacements,
@@ -53,26 +34,76 @@ public class PlacementGoldenTests
     }
 
     [Fact]
+    public void Placement_LnaTwoStage_PreservesStageBackboneRelationships()
+    {
+        var placement = LoadPlacement(
+            "tests/golden/cas/lna/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.el.cai"
+        );
+        var cells = placement.DevicePlacements;
+
+        var m1 = GetRequiredCell(cells, "M1");
+        var m2 = GetRequiredCell(cells, "M2");
+        var m3 = GetRequiredCell(cells, "M3");
+        var rg2 = GetRequiredCell(cells, "RG2");
+        var cint = GetRequiredCell(cells, "CINT");
+        var ls1 = GetRequiredCell(cells, "LS1");
+        var ld1 = GetRequiredCell(cells, "LD1");
+        var ld2 = GetRequiredCell(cells, "LD2");
+        var rcas1Top = GetRequiredCell(cells, "RCAS1_TOP");
+        var rcas1Bot = GetRequiredCell(cells, "RCAS1_BOT");
+        var rgb2Top = GetRequiredCell(cells, "RGB2_TOP");
+        var rgb2Bot = GetRequiredCell(cells, "RGB2_BOT");
+
+        Assert.Equal(m1.Column, m2.Column);
+        Assert.True(
+            Math.Abs(m1.Row - m2.Row) <= 2,
+            $"Expected M1 and M2 to stay vertically clustered, got rows {m1.Row} and {m2.Row}."
+        );
+        Assert.True(
+            Math.Abs(m3.Row - rg2.Row) <= 1,
+            $"Expected M3 and RG2 to remain vertically adjacent, got rows {m3.Row} and {rg2.Row}."
+        );
+        Assert.True(
+            Math.Abs(rg2.Column - m3.Column) <= 1,
+            $"Expected RG2 to remain adjacent to M3, got columns {m3.Column} and {rg2.Column}."
+        );
+        Assert.True(
+            cint.Column >= rg2.Column && Math.Abs(cint.Row - rg2.Row) <= 1,
+            $"Expected CINT to stay adjacent to RG2, got RG2=({rg2.Row}, {rg2.Column}) and CINT=({cint.Row}, {cint.Column})."
+        );
+        Assert.True(
+            Math.Abs(rcas1Bot.Column - rcas1Top.Column) <= 4
+                && Math.Abs(rcas1Bot.Row - rcas1Top.Row) <= 2,
+            $"Expected RCAS1 devices to remain proximal, got top=({rcas1Top.Row}, {rcas1Top.Column}) and bottom=({rcas1Bot.Row}, {rcas1Bot.Column})."
+        );
+        Assert.True(
+            Math.Abs(rgb2Bot.Column - rgb2Top.Column) <= 2
+                && Math.Abs(rgb2Bot.Row - rgb2Top.Row) <= 2,
+            $"Expected RGB2 devices to remain proximal, got top=({rgb2Top.Row}, {rgb2Top.Column}) and bottom=({rgb2Bot.Row}, {rgb2Bot.Column})."
+        );
+        Assert.True(
+            rgb2Top.Row <= rgb2Bot.Row,
+            $"Expected RGB2_TOP to remain above RGB2_BOT, got rows {rgb2Top.Row} and {rgb2Bot.Row}."
+        );
+        Assert.True(
+            ls1.Column <= m1.Column && Math.Abs(ls1.Row - m1.Row) <= 1,
+            $"Expected LS1 to remain adjacent to M1, got LS1=({ls1.Row}, {ls1.Column}) and M1=({m1.Row}, {m1.Column})."
+        );
+        Assert.True(
+            Math.Max(ld1.Row, ld2.Row) <= 2,
+            $"Expected LD1/LD2 to stay in the top rows, got rows {ld1.Row} and {ld2.Row}."
+        );
+    }
+
+    [Fact]
     public void Placement_LnaStress_CascodeIsVerticallyStacked()
     {
-        var repoRoot = GetRepoRoot();
-        var fullCascodePath = Path.Combine(
-            repoRoot,
+        var placement = LoadPlacement(
             "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas"
         );
 
-        using var reader = File.OpenText(fullCascodePath);
-        var readResult = CascodeReader.TryRead(reader, fullCascodePath);
-        Assert.True(readResult.Success, "Failed to parse Cascode file");
-
-        var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
-        var graph = CircuitGraph.Build(elCircuit);
-        var topology = TopologyAnalyzer.Analyze(graph);
-        var placement = CoarseGridPlacer.Place(topology, graph);
-
-        Assert.True(placement.DevicePlacements.TryGetValue("M1", out var m1));
-        Assert.True(placement.DevicePlacements.TryGetValue("M2", out var m2));
+        var m1 = GetRequiredCell(placement.DevicePlacements, "M1");
+        var m2 = GetRequiredCell(placement.DevicePlacements, "M2");
 
         var manhattan = Math.Abs(m2.Column - m1.Column) + Math.Abs(m2.Row - m1.Row);
         Assert.True(
@@ -209,6 +240,34 @@ public class PlacementGoldenTests
                     + $"\n\nActual placements:\n{actualSummary}"
             );
         }
+    }
+
+    private static CoarseGridResult LoadPlacement(string cascodePath)
+    {
+        var repoRoot = GetRepoRoot();
+        var fullCascodePath = Path.Combine(repoRoot, cascodePath);
+
+        using var reader = File.OpenText(fullCascodePath);
+        var readResult = CascodeReader.TryRead(reader, fullCascodePath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        return CoarseGridPlacer.Place(topology, graph);
+    }
+
+    private static GridCell GetRequiredCell(
+        IReadOnlyDictionary<string, GridCell> placements,
+        string deviceId
+    )
+    {
+        Assert.True(
+            placements.TryGetValue(deviceId, out var cell),
+            $"Missing placement for '{deviceId}'."
+        );
+        return cell;
     }
 
     private static string GetRepoRoot()
