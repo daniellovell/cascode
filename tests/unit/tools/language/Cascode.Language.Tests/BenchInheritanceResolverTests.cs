@@ -222,6 +222,57 @@ public sealed class BenchInheritanceResolverTests
         Assert.Contains(bench.Terminals, t => t.Name == "IN" && t.Type == "analog");
     }
 
+    [Fact]
+    public void TryParse_OverrideMeasurementByArity_ReplacesOnlyMatchingOverload()
+    {
+        var result = Parse(
+            """
+            abstract bench Base {
+              abstract stim IN
+
+              measurements {
+                measurement ForwardGain(Frequency f) : dB {
+                  return 1dB
+                }
+
+                measurement ForwardGain(Frequency from, Frequency to) : dB {
+                  return 2dB
+                }
+              }
+            }
+
+            bench Child extends Base {
+              stim IN : analog
+
+              override measurement ForwardGain(Frequency f) : dB {
+                return 3dB
+              }
+
+              fill { }
+            }
+            """
+        );
+
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Document);
+
+        var bench = Assert.Single(result.Document!.BenchDefinitions);
+        var overloads = bench
+            .Measurements.Where(m => m.Name == "ForwardGain")
+            .OrderBy(m => m.Parameters.Count)
+            .ToArray();
+
+        Assert.Collection(
+            overloads,
+            first => Assert.Single(first.Parameters),
+            second => Assert.Collection(second.Parameters, _ => { }, _ => { })
+        );
+        var spotReturn = Assert.IsType<BenchReturn>(Assert.Single(overloads[0].Body));
+        var bandReturn = Assert.IsType<BenchReturn>(Assert.Single(overloads[1].Body));
+        Assert.Equal("3dB", Assert.IsType<MeasurementQuantity>(spotReturn.Expr).Raw);
+        Assert.Equal("2dB", Assert.IsType<MeasurementQuantity>(bandReturn.Expr).Raw);
+    }
+
     [Theory]
     [MemberData(nameof(DiagnosticCases))]
     public void TryParse_InvalidBenchInheritance_ReportsExpectedDiagnostic(

@@ -99,15 +99,18 @@ public static partial class BenchInheritanceResolver
         )
         {
             var merged = baseBench.Measurements.Select(CloneMeasurement).ToList();
-            var indexByName = merged
-                .Select((measurement, index) => (measurement.Name, index))
-                .ToDictionary(m => m.Name, m => m.index, StringComparer.Ordinal);
+            var indexBySignature = merged
+                .Select(
+                    (measurement, index) => (Key: MeasurementSignature.Create(measurement), index)
+                )
+                .ToDictionary(m => m.Key, m => m.index, StringComparer.Ordinal);
 
             foreach (var measurement in child.Measurements)
             {
+                var signatureKey = MeasurementSignature.Create(measurement);
                 if (measurement.IsOverride)
                 {
-                    if (!indexByName.TryGetValue(measurement.Name, out var index))
+                    if (!indexBySignature.TryGetValue(signatureKey, out var index))
                     {
                         _diagnostics.Add(
                             new Diagnostic(
@@ -125,7 +128,7 @@ public static partial class BenchInheritanceResolver
                     continue;
                 }
 
-                if (indexByName.ContainsKey(measurement.Name))
+                if (indexBySignature.ContainsKey(signatureKey))
                 {
                     _diagnostics.Add(
                         new Diagnostic(
@@ -139,7 +142,7 @@ public static partial class BenchInheritanceResolver
                     continue;
                 }
 
-                indexByName[measurement.Name] = merged.Count;
+                indexBySignature[signatureKey] = merged.Count;
                 merged.Add(CloneMeasurement(measurement));
             }
 

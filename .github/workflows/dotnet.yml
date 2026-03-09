@@ -9,10 +9,38 @@ on:
     paths-ignore:
       - 'build/**'
 
-env:
-  NGSPICE_VERSION: '45.2'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  native_node_path_filter:
+    name: determine native/node changes
+    runs-on: ubuntu-latest
+    outputs:
+      run_native_node: ${{ steps.filter.outputs.native_node }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect native/node-relevant paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            native_node:
+              - '.github/workflows/dotnet.yml'
+              - 'Directory.Build.props'
+              - 'Cascode.sln'
+              - 'tools/native/**'
+              - 'tools/language/**'
+              - 'tools/render/**'
+              - 'tools/workspace/**'
+              - 'tools/bench/**'
+              - 'editors/node/**'
+              - 'lib/std/**'
+              - '**/packages.lock.json'
+
   build_test:
     strategy:
       fail-fast: false
@@ -20,6 +48,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         dotnet: ['10.0.103']
     runs-on: ${{ matrix.os }}
+    env:
+      CASCODE_HOME: ${{ github.workspace }}/.cascode-home-ci
+      DOTNET_TFM: net10.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,37 +63,6 @@ jobs:
           cache-dependency-path: |
             **/packages.lock.json
 
-      - name: Install ngspice build deps (Linux)
-        if: runner.os == 'Linux'
-        run: >
-          sudo apt-get update && sudo apt-get install -y
-          bison flex autoconf automake libtool
-          libreadline-dev libx11-dev libxaw7-dev
-
-      - name: Build & install ngspice (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          curl -L -o ngspice.tar.gz 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/${{ env.NGSPICE_VERSION }}/ngspice-${{ env.NGSPICE_VERSION }}.tar.gz/download'
-          tar xzf ngspice.tar.gz
-          cd ngspice-${{ env.NGSPICE_VERSION }}
-          sudo ./compile_linux.sh
-
-      - name: Install ngspice (macOS)
-        if: runner.os == 'macOS'
-        # brew does not support versioning and only keeps the latest version.
-        run: brew install ngspice
-
-      - name: Install ngspice (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          curl.exe -L -o ngspice.7z 'https://sourceforge.net/projects/ngspice/files/ng-spice-rework/${{ env.NGSPICE_VERSION }}/ngspice-${{ env.NGSPICE_VERSION }}_64.7z/download'
-          7z x ngspice.7z -oC:\ngspice
-          echo "C:\ngspice\Spice64\bin" >> $env:GITHUB_PATH
-
-      - name: Verify ngspice installation
-        run: ngspice --version
-
       - name: Restore (locked)
         run: dotnet restore Cascode.sln --locked-mode
 
@@ -71,6 +71,96 @@ jobs:
 
       - name: Build CLI (Release)
         run: dotnet build tools/cli/Cascode.Cli.csproj --configuration Release --nologo --no-restore
+
+      - name: Install ngspice build deps (Linux)
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          bison flex autoconf automake libtool make gcc curl tar
+
+      - name: Install ngspice build deps (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install bison flex autoconf automake libtool coreutils gnu-sed findutils gawk
+
+          {
+            echo "$(brew --prefix bison)/bin"
+            echo "$(brew --prefix flex)/bin"
+            echo "$(brew --prefix autoconf)/bin"
+            echo "$(brew --prefix automake)/bin"
+            echo "$(brew --prefix libtool)/bin"
+            echo "$(brew --prefix coreutils)/libexec/gnubin"
+            echo "$(brew --prefix gnu-sed)/libexec/gnubin"
+            echo "$(brew --prefix findutils)/libexec/gnubin"
+            echo "$(brew --prefix gawk)/libexec/gnubin"
+          } >> "$GITHUB_PATH"
+
+          gnu_shims="$RUNNER_TEMP/cascode-gnu-shims"
+          mkdir -p "$gnu_shims"
+          ln -sf "$(command -v aclocal)" "$gnu_shims/aclocal-1.16"
+          ln -sf "$(command -v automake)" "$gnu_shims/automake-1.16"
+          echo "$gnu_shims" >> "$GITHUB_PATH"
+
+      - name: Install ngspice via CLI (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_log="$(mktemp)"
+          set +e
+          ./tools/cli/bin/Release/${{ env.DOTNET_TFM }}/Cascode.Cli install ngspice --from-source --json >"$install_log" 2>&1
+          install_exit=$?
+          set -e
+
+          cat "$install_log"
+          if [ "$install_exit" -ne 0 ]; then
+            exit "$install_exit"
+          fi
+
+          install_path="$(
+            python3 - "$install_log" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          log_path = pathlib.Path(sys.argv[1])
+          line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+
+          try:
+              payload = json.loads(line)
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+              sys.exit(1)
+
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path:
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+              sys.exit(1)
+          PY
+          )"
+          echo "$(dirname "$install_path")" >> "$GITHUB_PATH"
+
+      - name: Install ngspice via CLI (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $jsonOutput = & ".\tools\cli\bin\Release\$env:DOTNET_TFM\Cascode.Cli.exe" install ngspice --from-source --json
+          Write-Host $jsonOutput
+          $result = $jsonOutput | ConvertFrom-Json
+          if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
+            $message = if ([string]::IsNullOrWhiteSpace($result.Message)) { "ngspice installation failed" } else { $result.Message }
+            throw $message
+          }
+
+          $binDir = Split-Path -Parent $result.InstallPath
+          $binDir | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Verify ngspice installation
+        run: ngspice --version
 
       - name: Build (Release)
         run: dotnet build Cascode.sln --configuration Release --nologo --no-restore
@@ -101,6 +191,8 @@ jobs:
 
   native_node_test:
     name: native node test (${{ matrix.rid }})
+    needs: native_node_path_filter
+    if: github.event_name != 'pull_request' || needs.native_node_path_filter.outputs.run_native_node == 'true'
     strategy:
       fail-fast: false
       matrix:

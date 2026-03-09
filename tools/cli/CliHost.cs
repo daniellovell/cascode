@@ -59,6 +59,7 @@ internal sealed class CliHost
         new Commands.ConvertCommandModule(_state, output).Register(_commands);
         new Commands.RenderCommandModule(_state, output).Register(_commands);
         new Commands.UpdateCommandModule(output).Register(_commands);
+        new Commands.InstallCommandModule(output).Register(_commands);
     }
 
     public int RunInteractive()

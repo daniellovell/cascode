@@ -1,0 +1,51 @@
+// Source fixture for regenerating the linked `DiffRCFilter.el.cai` golden.
+// Exercise this file with source-flow and `cascode link` regressions when checking
+// that linked output preserves `implements`, interface metadata, and the terminal contract.
+
+VERSION 4.1
+
+bundle Diff {
+  N : analog
+  P : analog
+}
+
+interface DifferentialPassiveFilter {
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+}
+
+primitive Capacitor CapacitorIdeal(size primSize) {
+  device "capacitor"
+  params {
+    C = primSize.C
+  }
+}
+
+primitive Resistor ResistorIdeal(size primSize) {
+  device "resistor"
+  params {
+    R = primSize.R
+  }
+}
+
+circuit DiffRCFilter implements DifferentialPassiveFilter {
+  level EL
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  fill {
+    Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
+      .N--OUT.N
+      .P--OUT.P
+    }
+    Resistor R_N = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.N
+      .P--IN.N
+    }
+    Resistor R_P = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.P
+      .P--IN.P
+    }
+  }
+}

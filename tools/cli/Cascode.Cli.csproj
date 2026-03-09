@@ -37,9 +37,17 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="NgspiceVersion" Value="$(NgspiceVersion)" />
+  </ItemGroup>
+
   <!-- Ensure README.md is included in the NuGet package for PackageReadmeFile -->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="" />
+    <Content
+      Include="Assets\ngspice-$(NgspiceVersion).sha256"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
 
   <!-- Bundle lib/std alongside the published output so the CLI can resolve includes -->

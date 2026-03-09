@@ -1,0 +1,28 @@
+library lib.std.filter
+include lib.std.bench
+
+// Interface: Differential passive filter.
+//
+// Provides ports and standard bench bindings for common small-signal, time-domain, and S-parameter metrics.
+interface DifferentialPassiveFilter {
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+
+  benches {
+    bind DiffToDiffTransfer as transfer_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind DiffToDiffTran as tran_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind TwoPortMixedModeSParam as sparam_bench {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
+  }
+}
