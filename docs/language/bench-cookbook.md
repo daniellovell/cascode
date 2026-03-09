@@ -10,7 +10,7 @@ emitted testbench.
 
 ## Quick references
 
-- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
+- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas), [`DCInputBenches.cas`](../../lib/std/bench/DCInputBenches.cas)
 - Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas), [`SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas), [`DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
@@ -184,6 +184,38 @@ bind QuiescentPower as vdd_pwr {
 
   The same pattern applies to `SEDCBias` and `DiffDCBias` bindings, which also omit input terminals
   from their bench definitions.
+
+## Recipe: DC input characterization (VIO, IIB, IIO, per-leg input current)
+
+Use the DC input characterization benches when you need unity-gain operating-point input metrics for
+amplifiers. The standard library provides [`DiffToSEInputDCCharacterization`](../../lib/std/bench/DCInputBenches.cas),
+[`DiffToDiffInputDCCharacterization`](../../lib/std/bench/DCInputBenches.cas), and
+[`ScalarTerminalDCCurrent`](../../lib/std/bench/DCInputBenches.cas).
+
+The differential benches use one `DCAnalysis` solve and export:
+
+- `InputReferredDCOffset = abs(V(INP) - V(INN))`
+- `InputCurrentP = abs(Ip)`
+- `InputCurrentN = abs(In)`
+- `InputBiasCurrent = abs((Ip + In) / 2)`
+- `InputOffsetCurrent = abs(Ip - In)`
+
+`Ip` and `In` are measured through 0 V sensing sources inserted in series with each DUT input. The
+measurement uses the sensing source `N` pin so positive current means current flowing into the DUT
+input terminal.
+
+`DiffToSEInputDCCharacterization` closes a fixed unity-gain loop by driving `INP` from
+`env.InputCommonModeRange`, feeding `OUT` back to `INN` through the same `source_impedance`, and
+weakly anchoring `OUT` to the input common-mode node so the load condition is explicit and stable.
+
+`DiffToDiffInputDCCharacterization` uses cross-coupled feedback (`OUTN -> INP`, `OUTP -> INN`) for
+negative feedback and anchors each output leg weakly to an explicit `output_cm` target. `output_cm`
+defaults to `env.OutputCommonModeRange`; if neither is provided, emission fails instead of silently
+falling back to 0 V.
+
+`ScalarTerminalDCCurrent` is the reusable single-input building block. `SingleEndedAmp` binds it as
+`input_current_bench` and adds a weak output anchor in the binding because the generic bench does
+not own output topology.
 
 ## Recipe: S-parameter benches (forward gain, return loss, stability)
 

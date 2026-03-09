@@ -28,6 +28,12 @@ interface SingleEndedAmp {
       Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { .P--vcm, .N--dut.IN }
     }
 
+    bind ScalarTerminalDCCurrent as input_current_bench {
+      bench.IN--dut.IN
+
+      Impedor outputAnchor = new Impedor(Z=1TOhm) { .P--dut.OUT, .N--vcm }
+    }
+
     bind SEToSETransfer as transfer_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT

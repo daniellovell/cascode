@@ -1,0 +1,183 @@
+VERSION 4.1
+
+library lib.std.bench
+
+bench ScalarTerminalDCCurrent(Impedance source_impedance = env.SourceImpedance) {
+  stim IN : analog
+
+  analysis {
+    DCAnalysis dc = new DCAnalysis()
+  }
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+    net drive : analog
+
+    GND g = new GND() { .GND--gnd }
+
+    VDC biasDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    Impedor sourceZ = new Impedor(Z=source_impedance) {
+      .P--vcm
+      .N--drive
+    }
+
+    VDC sense = new VDC(V=0V) {
+      .P--drive
+      .N--IN
+    }
+  }
+
+  measurements {
+    measurement TerminalCurrent : A {
+      return abs(current(dc, sense.N))
+    }
+  }
+}
+
+abstract bench AbstractDiffInputDCCharacterization(
+  Impedance source_impedance = env.SourceImpedance
+) {
+  stim INP : analog
+  stim INN : analog
+
+  analysis {
+    DCAnalysis dc = new DCAnalysis()
+  }
+
+  measurements {
+    measurement InputReferredDCOffset : V {
+      return abs(voltage(dc, INP) - voltage(dc, INN))
+    }
+
+    measurement InputCurrentP : A {
+      return abs(current(dc, senseP.N))
+    }
+
+    measurement InputCurrentN : A {
+      return abs(current(dc, senseN.N))
+    }
+
+    measurement InputBiasCurrent : A {
+      return abs((current(dc, senseP.N) + current(dc, senseN.N)) / 2)
+    }
+
+    measurement InputOffsetCurrent : A {
+      return abs(current(dc, senseP.N) - current(dc, senseN.N))
+    }
+  }
+}
+
+bench DiffToSEInputDCCharacterization extends AbstractDiffInputDCCharacterization {
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+    net driveP : analog
+    net driveN : analog
+
+    GND g = new GND() { .GND--gnd }
+
+    VDC inputCommonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    Impedor sourceP = new Impedor(Z=source_impedance) {
+      .P--vcm
+      .N--driveP
+    }
+
+    VDC senseP = new VDC(V=0V) {
+      .P--driveP
+      .N--INP
+    }
+
+    Impedor sourceN = new Impedor(Z=source_impedance) {
+      .P--OUT
+      .N--driveN
+    }
+
+    VDC senseN = new VDC(V=0V) {
+      .P--driveN
+      .N--INN
+    }
+
+    Impedor outputAnchor = new Impedor(Z=1TOhm) {
+      .P--OUT
+      .N--vcm
+    }
+  }
+}
+
+bench DiffToDiffInputDCCharacterization(
+  Voltage output_cm = env.OutputCommonModeRange
+) extends AbstractDiffInputDCCharacterization {
+  resp OUTP : analog
+  resp OUTN : analog
+
+  fill {
+    net vcm : analog
+    net outcm : analog
+    net gnd : ground
+    net driveP : analog
+    net driveN : analog
+
+    GND g = new GND() { .GND--gnd }
+
+    VDC inputCommonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    VDC outputCommonModeVDC = new VDC(V=output_cm) {
+      .P--outcm
+      .N--gnd
+    }
+
+    Impedor sourceP = new Impedor(Z=source_impedance) {
+      .P--vcm
+      .N--driveP
+    }
+
+    Impedor feedbackP = new Impedor(Z=source_impedance) {
+      .P--OUTN
+      .N--driveP
+    }
+
+    VDC senseP = new VDC(V=0V) {
+      .P--driveP
+      .N--INP
+    }
+
+    Impedor sourceN = new Impedor(Z=source_impedance) {
+      .P--vcm
+      .N--driveN
+    }
+
+    Impedor feedbackN = new Impedor(Z=source_impedance) {
+      .P--OUTP
+      .N--driveN
+    }
+
+    VDC senseN = new VDC(V=0V) {
+      .P--driveN
+      .N--INN
+    }
+
+    Impedor outputAnchorP = new Impedor(Z=1TOhm) {
+      .P--OUTP
+      .N--outcm
+    }
+
+    Impedor outputAnchorN = new Impedor(Z=1TOhm) {
+      .P--OUTN
+      .N--outcm
+    }
+  }
+}

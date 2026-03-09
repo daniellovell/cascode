@@ -496,7 +496,7 @@ public sealed class BenchMeasurementRunner
                 return h;
             }
 
-            if (TryResolveHarnessPin(r.Name, out var pin))
+            if (TryResolveElementPin(r.Name, out var pin))
             {
                 return pin;
             }
@@ -533,6 +533,11 @@ public sealed class BenchMeasurementRunner
         if (_terminals.TryGetValue(path, out var terminal))
         {
             return terminal;
+        }
+
+        if (TryResolveElementPin(path, out var pin))
+        {
+            return pin;
         }
 
         // Allow "IN.P" by resolving to the parent terminal.
@@ -1967,7 +1972,7 @@ public sealed class BenchMeasurementRunner
         if (pin is null)
         {
             throw new InvalidOperationException(
-                "current: second argument must be a harness element pin (e.g. harness.VDD.P)."
+                "current: second argument must be an element pin (e.g. sense.N or harness.VDD.P)."
             );
         }
 
@@ -2032,7 +2037,7 @@ public sealed class BenchMeasurementRunner
         return analysis.SParameters;
     }
 
-    private bool TryResolveHarnessPin(string raw, out BenchElementPinRef pin)
+    private bool TryResolveElementPin(string raw, out BenchElementPinRef pin)
     {
         pin = default!;
         var dot = raw.LastIndexOf('.');

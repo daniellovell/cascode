@@ -164,6 +164,79 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
+    public async Task BenchRun_InputDcCharacterization_ReportsNonTrivialUnityGainMetrics()
+    {
+        var cascodePath = Path.Combine(_outputDir, "PassiveInputDcFixture.cas");
+        await File.WriteAllTextAsync(
+            cascodePath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit PassiveInputDcFixture implements SingleEndedOpAmp {
+              level EL
+              supply VDD
+              ground GND
+              input IN : Diff
+              output OUT : analog
+
+              env {
+                InputCommonModeRange = 0.9V
+                SourceImpedance = 50Ohm
+              }
+
+              constraints {
+                numeric {
+                  c_vio = input_dc_bench::InputReferredDCOffset >= 100mV
+                  c_ip = input_dc_bench::InputCurrentP >= 1nA
+                  c_in = input_dc_bench::InputCurrentN >= 500pA
+                  c_iib = input_dc_bench::InputBiasCurrent >= 500pA
+                  c_iio = input_dc_bench::InputOffsetCurrent >= 500pA
+                }
+              }
+
+              harness {
+                supply VDD = 1.8V
+                ground GND = 0V
+              }
+
+              fill {
+                Resistor R_INP_GND = new ResistorIdeal(size(R=1G)) { .P--IN.P, .N--GND }
+                Resistor R_INN_GND = new ResistorIdeal(size(R=300M)) { .P--IN.N, .N--GND }
+                Resistor R_FWD = new ResistorIdeal(size(R=200M)) { .P--IN.P, .N--OUT }
+                Resistor R_OUT_GND = new ResistorIdeal(size(R=100M)) { .P--OUT, .N--GND }
+              }
+            }
+            """
+        );
+
+        await RunBenchAsync(cascodePath, "input_dc_bench");
+
+        var resultsPath = Path.Combine(
+            _outputDir,
+            "PassiveInputDcFixture_input_dc_bench_results.json"
+        );
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        var vio = AssertMeasurement(results, "InputReferredDCOffset");
+        var ip = AssertMeasurement(results, "InputCurrentP");
+        var inn = AssertMeasurement(results, "InputCurrentN");
+        var iib = AssertMeasurement(results, "InputBiasCurrent");
+        var iio = AssertMeasurement(results, "InputOffsetCurrent");
+
+        Assert.True(vio > 0.5, $"expected nontrivial offset, got {vio}");
+        Assert.True(ip > 3e-9, $"expected input P current above 3 nA, got {ip}");
+        Assert.True(inn > 0.8e-9, $"expected input N current above 0.8 nA, got {inn}");
+        Assert.True(iib > 2e-9, $"expected bias current above 2 nA, got {iib}");
+        Assert.True(iio > 2e-9, $"expected offset current above 2 nA, got {iio}");
+        Assert.Equal((ip + inn) / 2, iib, precision: 12);
+        Assert.Equal(Math.Abs(ip - inn), iio, precision: 12);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
     public async Task BenchRun_DifferentialPassiveFilter_SourceFlow_RunsInheritedTransferBench()
     {
         var cascodePath = Path.Combine(_outputDir, "DiffPassiveRc.cas");
@@ -316,5 +389,15 @@ public sealed class BenchRunIntegrationTests : IDisposable
             resultsPath
         );
         CliIntegrationTestHelper.AssertSuccess(verify, "verify failed");
+    }
+
+    private static double AssertMeasurement(BenchResult results, string name)
+    {
+        Assert.True(results.Measurements.ContainsKey(name), $"measurement '{name}' missing");
+        var measurement = results.Measurements[name];
+        Assert.True(string.IsNullOrEmpty(measurement.Error), measurement.Error);
+        Assert.True(measurement.Value.HasValue, $"measurement '{name}' has no value");
+        Assert.False(double.IsNaN(measurement.Value!.Value), $"measurement '{name}' is NaN");
+        return measurement.Value.Value;
     }
 }
