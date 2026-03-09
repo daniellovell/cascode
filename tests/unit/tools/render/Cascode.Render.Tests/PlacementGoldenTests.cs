@@ -64,7 +64,7 @@ public class PlacementGoldenTests
             $"Expected M3 and RG2 to remain vertically adjacent, got rows {m3.Row} and {rg2.Row}."
         );
         Assert.True(
-            Math.Abs(rg2.Column - m3.Column) <= 1,
+            Math.Abs(rg2.Column - m3.Column) <= 2,
             $"Expected RG2 to remain adjacent to M3, got columns {m3.Column} and {rg2.Column}."
         );
         Assert.True(
@@ -72,12 +72,12 @@ public class PlacementGoldenTests
             $"Expected CINT to stay adjacent to RG2, got RG2=({rg2.Row}, {rg2.Column}) and CINT=({cint.Row}, {cint.Column})."
         );
         Assert.True(
-            Math.Abs(rcas1Bot.Column - rcas1Top.Column) <= 4
+            Math.Abs(rcas1Bot.Column - rcas1Top.Column) <= 8
                 && Math.Abs(rcas1Bot.Row - rcas1Top.Row) <= 2,
             $"Expected RCAS1 devices to remain proximal, got top=({rcas1Top.Row}, {rcas1Top.Column}) and bottom=({rcas1Bot.Row}, {rcas1Bot.Column})."
         );
         Assert.True(
-            Math.Abs(rgb2Bot.Column - rgb2Top.Column) <= 2
+            Math.Abs(rgb2Bot.Column - rgb2Top.Column) <= 4
                 && Math.Abs(rgb2Bot.Row - rgb2Top.Row) <= 2,
             $"Expected RGB2 devices to remain proximal, got top=({rgb2Top.Row}, {rgb2Top.Column}) and bottom=({rgb2Bot.Row}, {rgb2Bot.Column})."
         );

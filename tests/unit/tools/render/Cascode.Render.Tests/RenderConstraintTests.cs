@@ -406,7 +406,7 @@ public sealed class RenderConstraintTests
                 $"Expected CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to stay within one row or column band."
             );
             Assert.True(
-                manhattanDistance <= 3,
+                manhattanDistance <= 5,
                 $"Expected CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to remain locally clustered, got Manhattan distance {manhattanDistance}."
             );
             alignedPairs++;

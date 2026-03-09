@@ -62,6 +62,8 @@ public static class CoarseGridPlacer
     private const int SameFlavorDrainSourceMirrorMismatchPenaltyWeight = 12;
     private const int AxisMismatchPenaltyWeight = 1;
     private const int UTurnPenaltyWeight = 128;
+    private const int ExpandedColumnPitch = 2;
+    private const int ColumnSpacingThreshold = 4;
 
     private enum Edge
     {
@@ -1665,12 +1667,13 @@ public static class CoarseGridPlacer
 
         var usedRows = rawCells.Values.Select(c => c.Row).Distinct().OrderBy(r => r).ToList();
         var usedCols = rawCells.Values.Select(c => c.Column).Distinct().OrderBy(c => c).ToList();
+        var columnPitch = usedCols.Count >= ColumnSpacingThreshold ? ExpandedColumnPitch : 1;
         var rowMap = usedRows
             .Select((row, idx) => (row, idx))
             .ToDictionary(pair => pair.row, pair => pair.idx);
         var colMap = usedCols
-            .Select((col, idx) => (col, idx))
-            .ToDictionary(pair => pair.col, pair => pair.idx);
+            .Select((col, idx) => (col, idx * columnPitch))
+            .ToDictionary(pair => pair.col, pair => pair.Item2);
 
         var cells = new Dictionary<string, GridCell>(StringComparer.Ordinal);
         foreach (var (id, cell) in rawCells)
@@ -1685,10 +1688,10 @@ public static class CoarseGridPlacer
         }
 
         var rowCount = usedRows.Count;
-        var colCount = usedCols.Count;
+        var colCount = usedCols.Count == 0 ? 1 : colMap[usedCols[^1]] + 1;
         var mappedSymmetryAxis = colMap.TryGetValue(symmetryAxis, out var exactAxis)
             ? exactAxis
-            : usedCols.Count(col => col < symmetryAxis);
+            : usedCols.Count(col => col < symmetryAxis) * columnPitch;
         mappedSymmetryAxis = Math.Clamp(mappedSymmetryAxis, 0, colCount - 1);
         return (cells, rowCount, colCount, mappedSymmetryAxis);
     }
