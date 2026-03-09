@@ -1,0 +1,483 @@
+VERSION 4.1
+
+// TLC2272A stress pin using the datasheet metrics Cascode can express today:
+// gain, GBW, phase margin, CMRR, PSRR, quiescent power, spot/input-referred noise,
+// integrated low-frequency input noise, and output swing.
+// Spot noise is enforced in the dedicated integration test because numeric constraints
+// do not yet accept noise-density thresholds such as nV/rtHz.
+// Slew rate, offset, bias current, settling time, and VICR are intentionally omitted
+// because the current standard benches do not support them.
+
+include lib.std
+include lib.pdk.sky130
+
+circuit TLC2272A_Sky130 implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+
+  env {
+    InputCommonModeRange = 2.5V
+    SourceImpedance = 0Ohm
+    LoadImpedance = 10kOhm
+  }
+
+  fill {
+    net stage1_out : analog
+
+    LowNoiseFrontEnd stage1 = new LowNoiseFrontEnd() {
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--stage1_out
+    }
+
+    OutputStage stage2 = new OutputStage() {
+      .VDD--VDD
+      .GND--GND
+      .IN--stage1_out
+      .OUT--OUT
+    }
+
+    CompensationNetwork comp = new CompensationNetwork(Cc=size(C=600f)) {
+      .STAGE1--stage1_out
+      .OUT--OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 83.5dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 2MHz
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
+      c_cmrr = cmrr_bench::CMRR at net::OUT >= 70dB
+      c_psrr = psrr_bench::PSRR at net::OUT >= 80dB
+      c_pwr = vdd_pwr::QuiescentPower <= 15mW
+      c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 300nVrms
+      c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 4.5Vpp
+    }
+  }
+
+  harness {
+    supply VDD = 5V
+    ground GND = 0V
+  }
+}
+
+circuit LowNoiseFrontEnd implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+
+  env {
+    InputCommonModeRange = 2.5V
+    SourceImpedance = 0Ohm
+    LoadImpedance = (1GOhm || 0.5pF)
+  }
+
+  fill {
+    net vlocal : supply
+    net vtail : analog
+    net vcasp : analog
+
+    FrontEndBiasTree bias_tree = new FrontEndBiasTree(
+      TailRef=size(W=2u, L=8u, M=1),
+      CascodeRef=size(W=4u, L=8u, M=1),
+      RTail=size(R=220k),
+      RCascode=size(R=47k),
+      Rsupply=size(R=800),
+      Csupply=size(C=10u),
+      RTailFilter=size(R=50k),
+      CTailFilter=size(C=10u),
+      RCascodeFilter=size(R=20k),
+      CCascodeFilter=size(C=10u)) {
+      .VDD--VDD
+      .GND--GND
+      .VLOCAL--vlocal
+      .VTAIL--vtail
+      .VCASP--vcasp
+    }
+
+    PmosCascodedMirrorFrontEnd core = new PmosCascodedMirrorFrontEnd(
+      InputSlice=size(W=100u, L=10u, M=24),
+      Cascode=size(W=10u, L=10u, M=6),
+      Tail=size(W=8u, L=10u, M=4),
+      Mirror=size(W=8u, L=12u, M=4)) {
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+      .VLOCAL--vlocal
+      .VCASP--vcasp
+      .TAIL--vtail
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 70dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 2MHz
+      c_cmrr = cmrr_bench::CMRR at net::OUT >= 80dB
+      c_psrr = psrr_bench::PSRR at net::OUT >= 70dB
+      c_pwr = vdd_pwr::QuiescentPower <= 10mW
+      c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 400nVrms
+    }
+  }
+
+  harness {
+    supply VDD = 5V
+    ground GND = 0V
+  }
+}
+
+circuit OutputStage implements SingleEndedAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  env {
+    InputCommonModeRange = 1.5V
+    SourceImpedance = 0Ohm
+    LoadImpedance = 10kOhm
+  }
+
+  fill {
+    net vlocal : supply
+    net vbp : analog
+
+    PmosBiasTree bias_tree = new PmosBiasTree(
+      Ref=size(W=2u, L=8u, M=1),
+      Rref=size(R=100k),
+      Rsupply=size(R=120),
+      Csupply=size(C=40u),
+      Rfilter=size(R=100k),
+      Cfilter=size(C=40u)) {
+      .VDD--VDD
+      .GND--GND
+      .VLOCAL--vlocal
+      .VBP--vbp
+    }
+
+    NmosLowGainStage core = new NmosLowGainStage(
+      Drive=size(W=12u, L=1u, M=4),
+      Load=size(W=12u, L=2u, M=4)) {
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+      .VLOCAL--vlocal
+      .VBP--vbp
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gain_min = transfer_bench::PassbandGain at net::OUT >= 5dB
+      c_gain_max = transfer_bench::PassbandGain at net::OUT <= 15dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
+      c_psrr = psrr_bench::PSRR at net::OUT >= 60dB
+      c_pwr = vdd_pwr::QuiescentPower <= 8mW
+      c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 4.5Vpp
+    }
+  }
+
+  harness {
+    supply VDD = 5V
+    ground GND = 0V
+  }
+}
+
+circuit CompensationNetwork(size Cc) {
+  level EL
+  inline
+  input STAGE1 : analog
+  input OUT : analog
+
+  fill {
+    Capacitor CC = new CapacitorIdeal(Cc) {
+      .P--STAGE1
+      .N--OUT
+    }
+  }
+}
+
+circuit FrontEndBiasTree(
+  size TailRef,
+  size CascodeRef,
+  size RTail,
+  size RCascode,
+  size Rsupply,
+  size Csupply,
+  size RTailFilter,
+  size CTailFilter,
+  size RCascodeFilter,
+  size CCascodeFilter
+) {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output VLOCAL : supply
+  output VTAIL : analog
+  output VCASP : analog
+
+  fill {
+    net vtail_ref : analog
+    net vcasp_ref : analog
+
+    Resistor R_SUPPLY = new ResistorIdeal(Rsupply) {
+      .P--VDD
+      .N--VLOCAL
+    }
+
+    Capacitor C_SUPPLY = new CapacitorIdeal(Csupply) {
+      .P--VLOCAL
+      .N--GND
+    }
+
+    PMOS M_TAIL_REF = new pfet_g5v0d10v5(TailRef) {
+      .B--VLOCAL
+      .D--vtail_ref
+      .G--vtail_ref
+      .S--VLOCAL
+    }
+
+    Resistor R_TAIL = new ResistorIdeal(RTail) {
+      .P--vtail_ref
+      .N--GND
+    }
+
+    Resistor R_TAIL_FILTER = new ResistorIdeal(RTailFilter) {
+      .P--vtail_ref
+      .N--VTAIL
+    }
+
+    Capacitor C_TAIL_FILTER = new CapacitorIdeal(CTailFilter) {
+      .P--VTAIL
+      .N--GND
+    }
+
+    PMOS M_CASCODE_REF = new pfet_g5v0d10v5(CascodeRef) {
+      .B--VLOCAL
+      .D--vcasp_ref
+      .G--vcasp_ref
+      .S--VLOCAL
+    }
+
+    Resistor R_CASCODE = new ResistorIdeal(RCascode) {
+      .P--vcasp_ref
+      .N--GND
+    }
+
+    Resistor R_CASCODE_FILTER = new ResistorIdeal(RCascodeFilter) {
+      .P--vcasp_ref
+      .N--VCASP
+    }
+
+    Capacitor C_CASCODE_FILTER = new CapacitorIdeal(CCascodeFilter) {
+      .P--VCASP
+      .N--GND
+    }
+  }
+}
+
+circuit PmosBiasTree(
+  size Ref,
+  size Rref,
+  size Rsupply,
+  size Csupply,
+  size Rfilter,
+  size Cfilter
+) {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output VLOCAL : supply
+  output VBP : analog
+
+  fill {
+    net vbp_ref : analog
+
+    Resistor R_SUPPLY = new ResistorIdeal(Rsupply) {
+      .P--VDD
+      .N--VLOCAL
+    }
+
+    Capacitor C_SUPPLY = new CapacitorIdeal(Csupply) {
+      .P--VLOCAL
+      .N--GND
+    }
+
+    PMOS M_REF = new pfet_g5v0d10v5(Ref) {
+      .B--VLOCAL
+      .D--vbp_ref
+      .G--vbp_ref
+      .S--VLOCAL
+    }
+
+    Resistor R_REF = new ResistorIdeal(Rref) {
+      .P--vbp_ref
+      .N--GND
+    }
+
+    Resistor R_FILTER = new ResistorIdeal(Rfilter) {
+      .P--vbp_ref
+      .N--VBP
+    }
+
+    Capacitor C_FILTER = new CapacitorIdeal(Cfilter) {
+      .P--VBP
+      .N--GND
+    }
+  }
+}
+
+circuit PmosCascodedMirrorFrontEnd(
+  size InputSlice,
+  size Cascode,
+  size Tail
+  ,
+  size Mirror
+) {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VLOCAL : supply
+  input VCASP : analog
+  input TAIL : analog
+
+  fill {
+    net tail : analog
+    net out_mid : analog
+    net sense : analog
+    net sense_mid : analog
+
+    PMOS M_IN_OUT0 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--out_mid
+      .G--IN.P
+      .S--tail
+    }
+
+    PMOS M_IN_OUT1 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--out_mid
+      .G--IN.P
+      .S--tail
+    }
+
+    PMOS M_IN_OUT2 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--out_mid
+      .G--IN.P
+      .S--tail
+    }
+
+    PMOS M_IN_OUT3 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--out_mid
+      .G--IN.P
+      .S--tail
+    }
+
+    PMOS M_IN_SENSE0 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--sense_mid
+      .G--IN.N
+      .S--tail
+    }
+
+    PMOS M_IN_SENSE1 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--sense_mid
+      .G--IN.N
+      .S--tail
+    }
+
+    PMOS M_IN_SENSE2 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--sense_mid
+      .G--IN.N
+      .S--tail
+    }
+
+    PMOS M_IN_SENSE3 = new pfet_g5v0d10v5(InputSlice) {
+      .B--VLOCAL
+      .D--sense_mid
+      .G--IN.N
+      .S--tail
+    }
+
+    PMOS M_TAIL = new pfet_g5v0d10v5(Tail) {
+      .B--VLOCAL
+      .D--tail
+      .G--TAIL
+      .S--VLOCAL
+    }
+
+    PMOS M_CAS_OUT = new pfet_g5v0d10v5(Cascode) {
+      .B--VLOCAL
+      .D--OUT
+      .G--VCASP
+      .S--out_mid
+    }
+
+    PMOS M_CAS_SENSE = new pfet_g5v0d10v5(Cascode) {
+      .B--VLOCAL
+      .D--sense
+      .G--VCASP
+      .S--sense_mid
+    }
+
+    NMOS M_MIR_SENSE = new nfet_g5v0d10v5(Mirror) {
+      .B--GND
+      .D--sense
+      .G--sense
+      .S--GND
+    }
+
+    NMOS M_MIR_OUT = new nfet_g5v0d10v5(Mirror) {
+      .B--GND
+      .D--OUT
+      .G--sense
+      .S--GND
+    }
+  }
+}
+
+circuit NmosLowGainStage(size Drive, size Load) {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  input VLOCAL : supply
+  input VBP : analog
+
+  fill {
+    NMOS M_GAIN = new nfet_g5v0d10v5(Drive) {
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }
+
+    PMOS M_LOAD = new pfet_g5v0d10v5(Load) {
+      .B--VLOCAL
+      .D--OUT
+      .G--VBP
+      .S--VLOCAL
+    }
+  }
+}
