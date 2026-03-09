@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 4.1
 
 // Stress test: single-ended common-source amplifier using sky130 devices.
 //
@@ -45,14 +45,14 @@ circuit CSAmp_ActiveLoad_Sky130 implements SingleEndedAmp {
     numeric {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
-      c_gain_spectrum = transfer_bench::GainSpectrum(from=100kHz, to=10MHz) at net::OUT >= 9dB
+      c_gain_band = transfer_bench::Gain(from=100kHz, to=10MHz) at net::OUT >= 9dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100uVrms
       c_vdd_pwr = vdd_pwr::QuiescentPower <= 10mW
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.3V
       c_psrr = psrr_bench::PSRR at net::OUT >= -25dB
       c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 0dB
       c_forward_gain = sparam_bench::ForwardGain(f=1MHz) >= -22.5dB
-      c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=100kHz, to=10MHz) >= -22.5dB
+      c_forward_gain_band = sparam_bench::ForwardGain(from=100kHz, to=10MHz) >= -22.5dB
       c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) <= 0.4dB
       c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) <= 1e-4dB
       c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) <= 1kOhm

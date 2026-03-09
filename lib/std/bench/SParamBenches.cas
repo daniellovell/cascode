@@ -1,16 +1,6 @@
-VERSION 4.0
+VERSION 4.1
 
 library lib.std.bench
-
-function get_source_impedance(Impedance fallback) : Impedance {
-  if env.SourceImpedance { return env.SourceImpedance }
-  return fallback
-}
-
-function get_load_impedance(Impedance fallback) : Impedance {
-  if env.LoadImpedance { return env.LoadImpedance }
-  return fallback
-}
 
 abstract bench AbstractTwoPortSParam {
   resp P1 : analog
@@ -25,14 +15,34 @@ abstract bench AbstractTwoPortSParam {
   }
 
   measurements {
+    measurement S21(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(f)
+    }
+
+    measurement S21(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }
+
     measurement ForwardGain(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).ValueAt(f)
     }
 
-    measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+    measurement ForwardGain(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }
+
+    measurement S11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).ValueAt(f)
+    }
+
+    measurement S11(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).From(from).To(to)
     }
 
     measurement InputReturnLoss(Frequency f) : dB {
@@ -40,9 +50,19 @@ abstract bench AbstractTwoPortSParam {
       return S.ReturnLoss(1).ValueAt(f)
     }
 
-    measurement InputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+    measurement InputReturnLoss(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(1).From(from).To(to)
+    }
+
+    measurement S22(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 2).Mag()).ValueAt(f)
+    }
+
+    measurement S22(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 2).Mag()).From(from).To(to)
     }
 
     measurement OutputReturnLoss(Frequency f) : dB {
@@ -50,9 +70,19 @@ abstract bench AbstractTwoPortSParam {
       return S.ReturnLoss(2).ValueAt(f)
     }
 
-    measurement OutputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+    measurement OutputReturnLoss(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(2).From(from).To(to)
+    }
+
+    measurement S12(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 2).Mag()).ValueAt(f)
+    }
+
+    measurement S12(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 2).Mag()).From(from).To(to)
     }
 
     measurement ReverseIsolation(Frequency f) : dB {
@@ -60,7 +90,7 @@ abstract bench AbstractTwoPortSParam {
       return S.Isolation(1, 2).ValueAt(f)
     }
 
-    measurement ReverseIsolationSpectrum(Frequency from, Frequency to) : dB {
+    measurement ReverseIsolation(Frequency from, Frequency to) : dB {
       SParameterMatrix S = sparam(sp)
       return S.Isolation(1, 2).From(from).To(to)
     }
@@ -70,7 +100,7 @@ abstract bench AbstractTwoPortSParam {
       return S.VSWR(1).ValueAt(f)
     }
 
-    measurement InputVSWRSpectrum(Frequency from, Frequency to) : Scalar {
+    measurement InputVSWR(Frequency from, Frequency to) : Scalar {
       SParameterMatrix S = sparam(sp)
       return S.VSWR(1).From(from).To(to)
     }
@@ -150,6 +180,11 @@ bench TwoPortSParamNoise extends AbstractTwoPortSParam {
     measurement NoiseFigure(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NF().ValueAt(f)
+    }
+
+    measurement NoiseFigure(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().From(from).To(to)
     }
 
     measurement MinNoiseFigure(Frequency f) : dB {

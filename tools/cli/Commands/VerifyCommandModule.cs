@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -15,6 +16,33 @@ namespace Cascode.Cli.Commands;
 /// </summary>
 internal sealed partial class VerifyCommandModule : ICommandModule
 {
+    private sealed record VerifyArtifactEntry(
+        VerifyInput Input,
+        BenchResult Results,
+        Circuit Circuit
+    );
+
+    private sealed record VerifyCircuitResult(
+        string CircuitName,
+        IReadOnlyList<string> Benches,
+        IReadOnlyList<VerifyArtifactEntry> Artifacts,
+        ComplianceReport Compliance
+    );
+
+    private sealed record VerifyGlobalSummary(
+        int ArtifactCount,
+        int TotalCircuits,
+        int PassedCircuits,
+        int FailedCircuits,
+        int TotalConstraints,
+        int PassedConstraints
+    );
+
+    private sealed record VerifySummary(
+        IReadOnlyList<VerifyCircuitResult> Circuits,
+        VerifyGlobalSummary Global
+    );
+
     private readonly ShellState _state;
     private readonly CliOutputProvider _output;
 
@@ -71,12 +99,11 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         };
 
         if (
-            !TryResolveVerifyInput(
+            !TryResolveVerifyInputs(
                 parsed,
                 runContext,
-                jsonOptions,
                 preferredDirectory: null,
-                out var input,
+                out var inputs,
                 out var resolutionNote
             )
         )
@@ -90,12 +117,12 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             );
         }
 
-        if (NeedsBenchRun(runContext.CascodePath, input, out var runReason))
+        if (NeedsBenchRun(runContext.CascodePath, inputs, out var runReason))
         {
             return RunThenVerify(parsed, runContext, output, jsonOptions, runReason);
         }
 
-        return VerifyFromInput(runContext, input, output, jsonOptions);
+        return VerifyFromInputs(runContext, inputs, output, jsonOptions);
     }
 
     private CommandResult HandleMissingInputWithOptionalRun(
@@ -144,15 +171,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         {
             var outputDirHint = ResolveBenchOutputDirectoryHint(parsed);
             benchRunResult = RunBenchPipeline(runContext.CascodePath, outputDirHint, output);
-            BenchRunRenderer.Render(benchRunResult.Summary, verbose: false, output);
-            if (benchRunResult.Summary.Timing is not null)
-            {
-                BenchRunRenderer.RenderTiming(
-                    benchRunResult.Summary.Timing,
-                    verbose: false,
-                    output
-                );
-            }
+            output.Info("Bench pipeline completed. Rendering verification report.");
         }
         catch (Exception ex)
         {
@@ -161,12 +180,11 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         }
 
         if (
-            !TryResolveVerifyInput(
+            !TryResolveVerifyInputs(
                 parsed,
                 runContext,
-                jsonOptions,
                 benchRunResult.Summary.OutputDir,
-                out var refreshedInput,
+                out var refreshedInputs,
                 out var resolutionNote
             )
         )
@@ -177,53 +195,60 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        return VerifyFromInput(runContext, refreshedInput, output, jsonOptions);
+        return VerifyFromInputs(runContext, refreshedInputs, output, jsonOptions);
     }
 
-    private CommandResult VerifyFromInput(
+    private CommandResult VerifyFromInputs(
         VerifyRunContext runContext,
-        VerifyInput input,
+        IReadOnlyList<VerifyInput> inputs,
         ICliOutput output,
         JsonSerializerOptions jsonOptions
     )
     {
-        BenchResult results;
-        try
+        var artifacts = new List<VerifyArtifactEntry>(inputs.Count);
+        foreach (var input in inputs)
         {
-            results = input.Kind switch
+            BenchResult results;
+            try
             {
-                VerifyInputKind.Results => JsonSerializer.Deserialize<BenchResult>(
-                    System.IO.File.ReadAllText(input.Path),
-                    jsonOptions
-                ) ?? throw new InvalidOperationException("Failed to deserialize results JSON"),
-                VerifyInputKind.Trace => ReadResultsFromTrace(input.Path, jsonOptions),
-                _ => throw new InvalidOperationException("Unsupported verify input kind"),
-            };
-        }
-        catch (Exception ex)
-        {
-            output.Error($"Failed to read verification input '{input.Path}': {ex.Message}");
-            return CommandResult.Failure;
+                results = input.Kind switch
+                {
+                    VerifyInputKind.Results => JsonSerializer.Deserialize<BenchResult>(
+                        System.IO.File.ReadAllText(input.Path),
+                        jsonOptions
+                    ) ?? throw new InvalidOperationException("Failed to deserialize results JSON"),
+                    VerifyInputKind.Trace => ReadResultsFromTrace(input.Path, jsonOptions),
+                    _ => throw new InvalidOperationException("Unsupported verify input kind"),
+                };
+            }
+            catch (Exception ex)
+            {
+                output.Error($"Failed to read verification input '{input.Path}': {ex.Message}");
+                return CommandResult.Failure;
+            }
+
+            Circuit circuit;
+            try
+            {
+                circuit = ResolveResultCircuitOrThrow(runContext, results.Circuit);
+            }
+            catch (InvalidOperationException ex)
+            {
+                output.Error(ex.Message);
+                return CommandResult.Failure;
+            }
+
+            artifacts.Add(new VerifyArtifactEntry(input, results, circuit));
         }
 
-        Circuit circuit;
-        try
+        var summary = BuildVerifySummary(artifacts);
+        if (summary.Global.TotalConstraints == 0)
         {
-            circuit = ResolveResultCircuitOrThrow(runContext, results.Circuit);
-        }
-        catch (InvalidOperationException ex)
-        {
-            output.Error(ex.Message);
-            return CommandResult.Failure;
+            output.Warning("No numeric constraints found in resolved circuits.");
         }
 
-        var report = ComplianceChecker.Check(
-            circuit,
-            results,
-            ConstraintEvaluationMode.AllDeclared
-        );
-        DisplayComplianceReport(output, circuit, results.Bench, report);
-        return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
+        RenderVerifyReport(output, summary);
+        return summary.Global.FailedCircuits == 0 ? CommandResult.Success : CommandResult.Failure;
     }
 
     private static Circuit ResolveResultCircuitOrThrow(
@@ -251,6 +276,164 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         throw new InvalidOperationException(
             $"Verification results request circuit '{requested}', but no matching EL circuit was found in the Cascode source. Available EL circuits: {available}."
         );
+    }
+
+    private static VerifySummary BuildVerifySummary(IReadOnlyList<VerifyArtifactEntry> artifacts)
+    {
+        var circuits = artifacts
+            .GroupBy(a => a.Circuit.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var orderedArtifacts = group
+                    .OrderBy(a => a.Input.Path, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var benches = orderedArtifacts
+                    .Select(a => a.Results.Bench)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var combinedResults = CombineResults(group.Key, benches, orderedArtifacts);
+                var compliance = ComplianceChecker.Check(
+                    orderedArtifacts[0].Circuit,
+                    combinedResults,
+                    ConstraintEvaluationMode.AllDeclared
+                );
+                return new VerifyCircuitResult(group.Key, benches, orderedArtifacts, compliance);
+            })
+            .OrderBy(c => c.CircuitName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var passedCircuits = circuits.Count(c => c.Compliance.FailedCount == 0);
+        var totalConstraints = circuits.Sum(c => c.Compliance.TotalCount);
+        var passedConstraints = circuits.Sum(c => c.Compliance.PassedCount);
+        var global = new VerifyGlobalSummary(
+            ArtifactCount: artifacts.Count,
+            TotalCircuits: circuits.Length,
+            PassedCircuits: passedCircuits,
+            FailedCircuits: circuits.Length - passedCircuits,
+            TotalConstraints: totalConstraints,
+            PassedConstraints: passedConstraints
+        );
+        return new VerifySummary(circuits, global);
+    }
+
+    private static BenchResult CombineResults(
+        string circuitName,
+        IReadOnlyList<string> benches,
+        IReadOnlyList<VerifyArtifactEntry> artifacts
+    )
+    {
+        var mergedMeasurements = new Dictionary<string, MeasurementResult>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        foreach (var artifact in artifacts)
+        {
+            BenchResultParser.MergeMeasurements(
+                mergedMeasurements,
+                artifact.Results.Measurements.Values
+            );
+        }
+
+        return BenchResultParser.CreateCombinedResults(circuitName, benches, mergedMeasurements);
+    }
+
+    private static void RenderVerifyReport(ICliOutput output, VerifySummary summary)
+    {
+        RenderVerifyPlain(summary, output.WriteLine);
+    }
+
+    private static void RenderVerifyPlain(VerifySummary summary, Action<string> writeLine)
+    {
+        if (summary.Circuits.Count == 1)
+        {
+            RenderVerifyPlainSingle(summary.Circuits[0], writeLine);
+            return;
+        }
+
+        writeLine($"Artifacts: {summary.Global.ArtifactCount}");
+        writeLine($"Circuits: {summary.Global.TotalCircuits}");
+        writeLine("Circuit Compliance:");
+        foreach (var circuit in summary.Circuits)
+        {
+            var status = circuit.Compliance.FailedCount == 0 ? "PASS" : "FAIL";
+            writeLine(
+                $"  {circuit.CircuitName}: {status} ({ComplianceReportRenderer.FormatComplianceSummary(circuit.Compliance)})"
+            );
+        }
+
+        writeLine(
+            $"Global Compliance: {FormatComplianceSummary(summary.Global.PassedConstraints, summary.Global.TotalConstraints)}"
+        );
+        writeLine(
+            $"Global Result: {summary.Global.PassedCircuits}/{summary.Global.TotalCircuits} circuits compliant"
+        );
+        writeLine(string.Empty);
+
+        foreach (var circuit in summary.Circuits)
+        {
+            RenderVerifyPlainCircuit(circuit, writeLine);
+        }
+    }
+
+    private static void RenderVerifyPlainSingle(
+        VerifyCircuitResult circuit,
+        Action<string> writeLine
+    )
+    {
+        writeLine($"Circuit: {circuit.CircuitName}");
+        WriteBenchAndArtifactInfo(circuit, writeLine, indent: string.Empty);
+        ComplianceReportRenderer.WriteCompliancePlain(writeLine, circuit.Compliance);
+        writeLine(
+            $"Result: {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
+        );
+    }
+
+    private static void RenderVerifyPlainCircuit(
+        VerifyCircuitResult circuit,
+        Action<string> writeLine
+    )
+    {
+        writeLine($"=== {circuit.CircuitName} ===");
+        WriteBenchAndArtifactInfo(circuit, writeLine, indent: "  ");
+        ComplianceReportRenderer.WriteCompliancePlain(
+            line => writeLine($"  {line}"),
+            circuit.Compliance
+        );
+        writeLine(
+            $"  Result: {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
+        );
+        writeLine(string.Empty);
+    }
+
+    private static void WriteBenchAndArtifactInfo(
+        VerifyCircuitResult circuit,
+        Action<string> writeLine,
+        string indent
+    )
+    {
+        if (circuit.Benches.Count > 0)
+        {
+            writeLine($"{indent}Benches: {string.Join(", ", circuit.Benches)}");
+        }
+
+        if (circuit.Artifacts.Count == 1)
+        {
+            writeLine($"{indent}Artifact: {circuit.Artifacts[0].Input.Path}");
+            return;
+        }
+
+        writeLine($"{indent}Artifacts: {circuit.Artifacts.Count}");
+        foreach (var artifact in circuit.Artifacts)
+        {
+            writeLine($"{indent}  - {artifact.Input.Path}");
+        }
+    }
+
+    private static string FormatComplianceSummary(int passed, int total)
+    {
+        var passPercentage = total > 0 ? (int)Math.Round(100.0 * passed / total) : 0;
+        return $"{passed}/{total} ({passPercentage}% PASS)";
     }
 
     private BenchRunService.MultiCircuitBenchRunResult RunBenchPipeline(
@@ -309,66 +492,5 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         output.WriteLine(
             "Verifies numeric constraints against bench outputs. If results are missing or stale, verify automatically runs the bench pipeline unless --no-run is provided."
         );
-    }
-
-    private static void DisplayComplianceReport(
-        ICliOutput output,
-        Circuit circuit,
-        string benchName,
-        ComplianceReport report
-    )
-    {
-        var header = string.IsNullOrEmpty(benchName)
-            ? $"Constraint Compliance Report for {circuit.Name}"
-            : $"Constraint Compliance Report for {circuit.Name} ({benchName})";
-        output.WriteLine(header);
-        output.WriteLine(new string('-', 50));
-
-        if (report.TotalCount == 0 && report.UncheckedCount == 0)
-        {
-            output.Warning("No numeric constraints found in circuit.");
-        }
-
-        foreach (var result in report.Results)
-        {
-            var status = result.Passed ? "PASS" : "FAIL";
-            var nodeStr = result.Node != null ? $" @ {result.Node}" : "";
-            var expectedStr = ValueFormatter.FormatValue(
-                result.Expected,
-                GetUnitFromConstraint(circuit, result.Id)
-            );
-            var actualStr =
-                result.Actual.HasValue
-                    ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
-                : result.FailureReason == ConstraintResult.BenchError ? " (measurement error)"
-                : " (not measured)";
-
-            output.WriteLine(
-                $"{result.Id, -8} {result.Metric}{nodeStr} {result.Operator} {expectedStr, -12} {status}{actualStr}"
-            );
-        }
-
-        output.WriteLine(new string('-', 50));
-        output.WriteLine($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
-
-        if (report.UncheckedByBench.Count > 0)
-        {
-            output.WriteLine("");
-            foreach (var kvp in report.UncheckedByBench)
-            {
-                var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
-                var constraintWord = kvp.Value.Count == 1 ? "constraint" : "constraints";
-                output.WriteLine(
-                    $"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}."
-                );
-            }
-            output.Warning("Run `verify` with combined results to check all constraints.");
-        }
-    }
-
-    private static string GetUnitFromConstraint(Circuit circuit, string constraintId)
-    {
-        var constraint = circuit.Constraints?.Numeric?.FirstOrDefault(c => c.Id == constraintId);
-        return constraint?.Unit ?? "";
     }
 }

@@ -3,7 +3,7 @@
 Status: Draft
 Authors: Claude (proposed), Titan Yuan (review)
 Created: 2026-02-25
-Last Updated: 2026-02-26
+Last Updated: 2026-03-07
 Target Version: Cascode 4.x
 
 ---
@@ -107,9 +107,12 @@ Like other analyses, arguments may use expressions over `constraints` and `env`.
 
 ### 2.3 Port Discovery
 
-`SPAnalysis` discovers all `Port` primitive instances available in the compiled bench harness (bench `fill {}` plus interface `bind {}` composition). There is no additional analysis argument for selecting ports.
+`SPAnalysis` consumes `Port` primitive instances from the compiled bench harness used for emission.
+There is no additional analysis argument for selecting ports.
 
-For each discovered port, the runtime reads `N`, `Z`, and `V`, validates numbering, and configures the simulator.
+Current semantic validation requires at least one `Port` instance in the compiled bench harness, whether it comes from bench `fill {}` or binding-scoped wiring.
+For each discovered port, the runtime reads `N`, `Z`, and `V`, validates numbering, and configures
+the simulator.
 
 ### 2.4 Simulation Semantics
 
@@ -256,9 +259,34 @@ bench TwoPortSParamNoise {
   }
 
   measurements {
+    measurement S21(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(f)
+    }
+
+    measurement S21(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }
+
     measurement ForwardGain(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return db20(S.S(2, 1).Mag()).ValueAt(f)
+    }
+
+    measurement ForwardGain(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }
+
+    measurement S11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).ValueAt(f)
+    }
+
+    measurement S11(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 1).Mag()).From(from).To(to)
     }
 
     measurement InputReturnLoss(Frequency f) : dB {
@@ -266,9 +294,39 @@ bench TwoPortSParamNoise {
       return S.ReturnLoss(1).ValueAt(f)
     }
 
+    measurement InputReturnLoss(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).From(from).To(to)
+    }
+
+    measurement S22(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 2).Mag()).ValueAt(f)
+    }
+
+    measurement S22(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 2).Mag()).From(from).To(to)
+    }
+
     measurement OutputReturnLoss(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(2).ValueAt(f)
+    }
+
+    measurement OutputReturnLoss(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).From(from).To(to)
+    }
+
+    measurement S12(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 2).Mag()).ValueAt(f)
+    }
+
+    measurement S12(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(1, 2).Mag()).From(from).To(to)
     }
 
     measurement ReverseIsolation(Frequency f) : dB {
@@ -276,9 +334,19 @@ bench TwoPortSParamNoise {
       return S.Isolation(1, 2).ValueAt(f)
     }
 
+    measurement ReverseIsolation(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.Isolation(1, 2).From(from).To(to)
+    }
+
     measurement InputVSWR(Frequency f) : Scalar {
       SParameterMatrix S = sparam(sp)
       return S.VSWR(1).ValueAt(f)
+    }
+
+    measurement InputVSWR(Frequency from, Frequency to) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.VSWR(1).From(from).To(to)
     }
 
     measurement StabilityK(Frequency f) : Scalar {
@@ -301,6 +369,11 @@ bench TwoPortSParamNoise {
       return S.NF().ValueAt(f)
     }
 
+    measurement NoiseFigure(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().From(from).To(to)
+    }
+
     measurement MinNoiseFigure(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NFmin().ValueAt(f)
@@ -314,8 +387,9 @@ bench TwoPortSParamNoise {
 }
 ```
 
-Mixed-mode S-parameters for differential ports can be derived from the single-ended S-parameters.
-A `TwoDiffPortSParam` bench could perform this derivation using four single-ended ports, but mixed-mode S-parameters are out of scope of this RFC.
+Mixed-mode S-parameters for differential ports can be derived from single-ended S-parameters.
+This is now implemented in the standard library as `TwoPortMixedModeSParam`, which computes
+`Sdd`, `Sdc`, `Scd`, and `Scc` terms from four single-ended `Port` instances.
 
 ### 5.2 Interface Binding
 
@@ -344,9 +418,9 @@ Constraints reference measurements through the bind name:
 ```cascode
 constraints {
   numeric {
-    c_forward_gain      = sparam_bench::ForwardGain(f=2.4GHz) >= 15dB
-    c_input_return_loss = sparam_bench::InputReturnLoss(f=2.4GHz) >= 10dB
-    c_k                 = sparam_bench::StabilityK(f=2.4GHz) >= 1
+    c_s21 = sparam_bench::S21(f=2.4GHz) >= 15dB
+    c_s11 = sparam_bench::S11(f=2.4GHz) <= -10dB
+    c_k   = sparam_bench::StabilityK(f=2.4GHz) >= 1
   }
 }
 ```
@@ -399,20 +473,21 @@ Runtime and linker primitive lists must therefore include `Port` (for example in
 
 | Condition | Error |
 | --- | --- |
-| `sparam()` argument is not a declared `SPAnalysis` | `sparam() requires an SPAnalysis argument; '{name}' is not a declared SPAnalysis` |
+| `sparam()` called with wrong arity | `CAS2010: sparam requires exactly 1 argument, got {count}.` |
+| `sparam()` argument is not `SPAnalysis` | `CAS2011: sparam first argument must be an SPAnalysis, got '{type}'.` |
 | Non-real-valued port impedance | `Port impedance must be real-valued: invalid port impedance on port {n}` |
-| Duplicate port number in a bench | `Duplicate port number {n}` |
+| Duplicate port number in a bench | `Duplicate port number {n}: '{nameA}' and '{nameB}'` |
 | Port number <= 0 | `Port number must be a positive integer; got {n}` |
 | Non-sequential port numbering | `Incorrect port ordering, ports must be numbered sequentially from 1` |
-| SPAnalysis with no Port instances | `SPAnalysis requires at least one Port instance` |
-| Stability/gain method on N > 2 ports | `S.StabilityK() is defined for 2-port networks only; bench declares {n} ports` |
+| `SPAnalysis` with no `Port` in bench `fill {}` | `SPAnalysis requires at least one Port instance.` |
+| Two-port-only S-parameter method on N != 2 ports | `{method} is defined for 2-port networks only; bench declares {n} ports.` |
 
 ### 7.2 Runtime Errors
 
 | Condition | Behavior |
 | --- | --- |
-| MAG where `K < 1` | Falls back to MSG with a diagnostic note |
-| Group delay numerical instability | Warning: `Group delay computation may be inaccurate near frequency {f}` |
+| `MAG` where `K < 1` | Falls back to `MSG` numerically (no separate diagnostic required) |
+| `NF` / `NFmin` / `Rn` requested without `SPAnalysis(noise=1)` | Throws runtime error indicating SP noise data is unavailable |
 
 ## 8. Implementation Plan
 

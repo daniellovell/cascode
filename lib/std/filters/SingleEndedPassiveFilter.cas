@@ -1,0 +1,28 @@
+library lib.std.filter
+include lib.std.bench
+
+// Interface: Single-ended passive filter.
+//
+// Provides ports and standard bench bindings for common small-signal, time-domain, and S-parameter metrics.
+interface SingleEndedPassiveFilter {
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  benches {
+    bind SEToSETransfer as transfer_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind SEToSETran as tran_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind TwoPortSParamNoise as sparam_bench {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
+  }
+}

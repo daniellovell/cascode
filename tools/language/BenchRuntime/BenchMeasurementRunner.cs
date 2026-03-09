@@ -10,7 +10,10 @@ public sealed class BenchMeasurementRunner
 {
     private readonly BenchDefinition _bench;
     private readonly IReadOnlyDictionary<string, FunctionDefinition> _functions;
-    private readonly IReadOnlyDictionary<string, MeasurementDefinition> _measurements;
+    private readonly IReadOnlyDictionary<
+        string,
+        IReadOnlyDictionary<int, MeasurementDefinition>
+    > _measurementsByName;
     private readonly IReadOnlyDictionary<string, AnalysisContext> _analyses;
     private readonly IReadOnlyDictionary<string, BenchTerminalRef> _terminals;
     private readonly IReadOnlyDictionary<string, BenchValue> _env;
@@ -84,8 +87,23 @@ public sealed class BenchMeasurementRunner
     {
         _bench = bench;
         _functions = functions;
-        _measurements = bench.Measurements.ToDictionary(
-            m => m.Name,
+        var measurementsByName = new Dictionary<string, Dictionary<int, MeasurementDefinition>>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        foreach (var measurement in bench.Measurements)
+        {
+            if (!measurementsByName.TryGetValue(measurement.Name, out var overloads))
+            {
+                overloads = new Dictionary<int, MeasurementDefinition>();
+                measurementsByName[measurement.Name] = overloads;
+            }
+
+            overloads[measurement.Parameters.Count] = measurement;
+        }
+
+        _measurementsByName = measurementsByName.ToDictionary(
+            kvp => kvp.Key,
+            kvp => (IReadOnlyDictionary<int, MeasurementDefinition>)kvp.Value,
             StringComparer.OrdinalIgnoreCase
         );
         _analyses = analyses;
@@ -159,10 +177,7 @@ public sealed class BenchMeasurementRunner
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         )
         {
-            if (!_measurements.TryGetValue(name, out var m))
-            {
-                throw new InvalidOperationException($"Unknown measurement '{name}'.");
-            }
+            var m = ResolveMeasurement(name, argCount: 0);
 
             var v = EvaluateMeasurement(m.Name);
             if (v is BenchError err)
@@ -189,7 +204,7 @@ public sealed class BenchMeasurementRunner
                 .Distinct(StringComparer.OrdinalIgnoreCase)
         )
         {
-            if (!_measurements.ContainsKey(name))
+            if (!HasMeasurementOverload(name, argCount: 0))
             {
                 throw new InvalidOperationException($"Unknown measurement '{name}'.");
             }
@@ -208,10 +223,7 @@ public sealed class BenchMeasurementRunner
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(args);
 
-        if (!_measurements.TryGetValue(name, out var m))
-        {
-            throw new InvalidOperationException($"Unknown measurement '{name}'.");
-        }
+        var m = ResolveMeasurement(name, args.Count);
         if (m.Parameters.Count == 0)
         {
             throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
@@ -234,10 +246,7 @@ public sealed class BenchMeasurementRunner
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(args);
 
-        if (!_measurements.TryGetValue(name, out var m))
-        {
-            throw new InvalidOperationException($"Unknown measurement '{name}'.");
-        }
+        var m = ResolveMeasurement(name, args.Count);
         if (m.Parameters.Count == 0)
         {
             throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
@@ -265,10 +274,7 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvaluateMeasurement(string name)
     {
-        if (!_measurements.TryGetValue(name, out var measurement))
-        {
-            throw new InvalidOperationException($"Unknown measurement '{name}'.");
-        }
+        var measurement = ResolveMeasurement(name, argCount: 0);
 
         if (measurement.Parameters.Count != 0)
         {
@@ -451,19 +457,7 @@ public sealed class BenchMeasurementRunner
                 return _benchMeasurementRefResolver(r);
 
             case MeasurementUnary u:
-                if (u.Op != "-")
-                {
-                    throw new InvalidOperationException($"Unsupported unary operator '{u.Op}'.");
-                }
-                var unaryOperand = EvaluateExpr(u.Operand, locals);
-                return unaryOperand switch
-                {
-                    BenchNumber n => new BenchNumber(n.Kind, -n.Value),
-                    BenchComplexNumber c => new BenchComplexNumber(c.Kind, -c.Value),
-                    _ => throw new InvalidOperationException(
-                        $"Expected number for 'unary', got {unaryOperand.GetType().Name}."
-                    ),
-                };
+                return ApplyUnary(u.Op, EvaluateExpr(u.Operand, locals));
 
             case MeasurementBinary b:
             {
@@ -523,9 +517,21 @@ public sealed class BenchMeasurementRunner
             return local;
         }
 
-        if (_measurementCache.ContainsKey(path) || _measurements.ContainsKey(path))
+        if (_measurementCache.ContainsKey(path))
         {
             return EvaluateMeasurement(path);
+        }
+
+        if (HasMeasurementOverload(path, argCount: 0))
+        {
+            return EvaluateMeasurement(path);
+        }
+
+        if (HasMeasurementOverload(path))
+        {
+            throw new InvalidOperationException(
+                $"Measurement '{path}' requires arguments (e.g. {path}(...))."
+            );
         }
 
         if (_terminals.TryGetValue(path, out var terminal))
@@ -611,8 +617,13 @@ public sealed class BenchMeasurementRunner
         }
 
         // Allow measurements to reference other measurements by name with explicit call syntax.
-        if (_measurements.TryGetValue(call.Name, out var measurement))
+        if (_measurementsByName.TryGetValue(call.Name, out var measurementOverloads))
         {
+            var measurement = ResolveMeasurementForCall(
+                call.Name,
+                call.Args.Count,
+                measurementOverloads
+            );
             if (measurement.Parameters.Count == 0)
             {
                 if (call.Args.Count != 0)
@@ -621,6 +632,11 @@ public sealed class BenchMeasurementRunner
                         $"Measurement '{call.Name}' does not accept arguments."
                     );
                 }
+                return EvaluateMeasurementInvocation(measurement, args: null);
+            }
+
+            if (call.Args.Count == 0)
+            {
                 return EvaluateMeasurementInvocation(measurement, args: null);
             }
 
@@ -647,6 +663,55 @@ public sealed class BenchMeasurementRunner
             "function"
         );
         return ExecuteStatements(fn.Body, fnArgs);
+    }
+
+    private static MeasurementDefinition ResolveMeasurementForCall(
+        string name,
+        int argCount,
+        IReadOnlyDictionary<int, MeasurementDefinition> overloads
+    )
+    {
+        if (overloads.TryGetValue(argCount, out var exact))
+        {
+            return exact;
+        }
+
+        if (overloads.Count == 1)
+        {
+            return overloads.Values.Single();
+        }
+
+        throw new InvalidOperationException(
+            $"Measurement '{name}' does not define an overload with {argCount} argument(s)."
+        );
+    }
+
+    private bool HasMeasurementOverload(string name, int argCount)
+    {
+        return _measurementsByName.TryGetValue(name, out var overloads)
+            && overloads.ContainsKey(argCount);
+    }
+
+    private bool HasMeasurementOverload(string name)
+    {
+        return _measurementsByName.ContainsKey(name);
+    }
+
+    private MeasurementDefinition ResolveMeasurement(string name, int argCount)
+    {
+        if (!_measurementsByName.TryGetValue(name, out var overloads))
+        {
+            throw new InvalidOperationException($"Unknown measurement '{name}'.");
+        }
+
+        if (overloads.TryGetValue(argCount, out var measurement))
+        {
+            return measurement;
+        }
+
+        throw new InvalidOperationException(
+            $"Measurement '{name}' does not define an overload with {argCount} argument(s)."
+        );
     }
 
     private bool TryEvaluateFromTo(
@@ -3059,6 +3124,75 @@ public sealed class BenchMeasurementRunner
         throw new InvalidOperationException($"Unsupported binary operator '{op}'.");
     }
 
+    private static BenchValue ApplyUnary(string op, BenchValue operand)
+    {
+        if (operand is BenchError)
+        {
+            return operand;
+        }
+
+        if (op != "-")
+        {
+            throw new InvalidOperationException($"Unsupported unary operator '{op}'.");
+        }
+
+        return operand switch
+        {
+            BenchNumber n => new BenchNumber(n.Kind, -n.Value),
+            BenchComplexNumber c => new BenchComplexNumber(c.Kind, -c.Value),
+            BenchGainSpectrum g => new BenchGainSpectrum(
+                g.FrequenciesHz,
+                NegateSamples(g.Values),
+                g.ValueKind
+            ),
+            BenchScalarSpectrum s => new BenchScalarSpectrum(
+                s.FrequenciesHz,
+                NegateSamples(s.Values)
+            ),
+            BenchTimeSpectrum t => new BenchTimeSpectrum(t.FrequenciesHz, NegateSamples(t.ValuesS)),
+            BenchPhaseSpectrum p => new BenchPhaseSpectrum(
+                p.FrequenciesHz,
+                NegateSamples(p.Degrees)
+            ),
+            BenchNoiseSpectrum n => new BenchNoiseSpectrum(
+                n.FrequenciesHz,
+                NegateSamples(n.ValuesVPerRtHz)
+            ),
+            BenchImpedanceSpectrum z => new BenchImpedanceSpectrum(
+                z.FrequenciesHz,
+                NegateSamples(z.ValuesOhm)
+            ),
+            BenchVoltageSpectrum v => new BenchVoltageSpectrum(
+                v.FrequenciesHz,
+                NegateSamples(v.Values)
+            ),
+            BenchCurrentSpectrum i => new BenchCurrentSpectrum(
+                i.FrequenciesHz,
+                NegateSamples(i.Values)
+            ),
+            BenchComplexVoltageSpectrum cv => new BenchComplexVoltageSpectrum(
+                cv.FrequenciesHz,
+                NegateSamples(cv.Values)
+            ),
+            BenchComplexCurrentSpectrum ci => new BenchComplexCurrentSpectrum(
+                ci.FrequenciesHz,
+                NegateSamples(ci.Values)
+            ),
+            BenchTransferFunction tf => new BenchTransferFunction(
+                tf.FrequenciesHz,
+                NegateSamples(tf.Values)
+            ),
+            BenchWaveform w => new BenchWaveform(
+                w.TimePointsS,
+                NegateSamples(w.Values),
+                w.ValueKind
+            ),
+            _ => throw new InvalidOperationException(
+                $"Expected number or spectrum for 'unary', got {operand.GetType().Name}."
+            ),
+        };
+    }
+
     private static BenchValue ApplyBinaryAny(string op, BenchValue left, BenchValue right)
     {
         if (left is BenchNumber ln && right is BenchNumber rn)
@@ -3116,6 +3250,28 @@ public sealed class BenchMeasurementRunner
 
     private static BenchComplexNumber ToComplex(BenchNumber n) =>
         new(n.Kind, new Complex(n.Value, 0.0));
+
+    private static double[] NegateSamples(double[] values)
+    {
+        var result = new double[values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            result[i] = -values[i];
+        }
+
+        return result;
+    }
+
+    private static Complex[] NegateSamples(Complex[] values)
+    {
+        var result = new Complex[values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            result[i] = -values[i];
+        }
+
+        return result;
+    }
 
     private static BenchComplexNumber ApplyBinary(
         string op,
