@@ -4,6 +4,61 @@ include lib.std
 include lib.pdk.sky130.devices.nfet_01v8
 include lib.pdk.sky130.devices.pfet_01v8
 
+circuit Inverter(size NmosSize, size PmosSize) {
+  level EL
+  inline
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    PMOS MP = new pfet_01v8(PmosSize) {
+      .B--VDD
+      .D--OUT
+      .G--IN
+      .S--VDD
+    }
+
+    NMOS MN = new nfet_01v8(NmosSize) {
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }
+  }
+}
+
+circuit CrossCoupledInverter(size NmosSize, size PmosSize) {
+  level EL
+  inline
+
+  supply VDD
+  ground GND
+  output OUT : Diff
+
+  fill {
+    Inverter INV_P = new Inverter(
+      NmosSize=NmosSize,
+      PmosSize=PmosSize) {
+      .VDD--VDD
+      .GND--GND
+      .IN--OUT.N
+      .OUT--OUT.P
+    }
+
+    Inverter INV_N = new Inverter(
+      NmosSize=NmosSize,
+      PmosSize=PmosSize) {
+      .VDD--VDD
+      .GND--GND
+      .IN--OUT.P
+      .OUT--OUT.N
+    }
+  }
+}
+
 circuit LCTank_Sky130 implements DifferentialOscillator {
   level EL
 
@@ -28,32 +83,12 @@ circuit LCTank_Sky130 implements DifferentialOscillator {
       .N--vosc
     }
 
-    PMOS MP_P = new pfet_01v8(PCore) {
-      .B--vosc
-      .D--OUT.P
-      .G--OUT.N
-      .S--vosc
-    }
-
-    PMOS MP_N = new pfet_01v8(PCore) {
-      .B--vosc
-      .D--OUT.N
-      .G--OUT.P
-      .S--vosc
-    }
-
-    NMOS MN_P = new nfet_01v8(NCore) {
-      .B--GND
-      .D--OUT.P
-      .G--OUT.N
-      .S--GND
-    }
-
-    NMOS MN_N = new nfet_01v8(NCore) {
-      .B--GND
-      .D--OUT.N
-      .G--OUT.P
-      .S--GND
+    CrossCoupledInverter core = new CrossCoupledInverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .OUT--OUT
     }
 
     Inductor L_TANK = new InductorIdeal(size(L=6n)) {
