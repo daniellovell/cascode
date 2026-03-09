@@ -1,0 +1,13 @@
+VERSION 4.1
+
+library lib.std.bench
+
+function get_source_impedance(Impedance fallback) : Impedance {
+  if env.SourceImpedance { return env.SourceImpedance }
+  return fallback
+}
+
+function get_load_impedance(Impedance fallback) : Impedance {
+  if env.LoadImpedance { return env.LoadImpedance }
+  return fallback
+}

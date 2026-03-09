@@ -162,9 +162,15 @@ internal static class CharGenService
 
         if (result.ExitCode != 0)
         {
+            var firstBenchError = result
+                .Summary.CircuitSummaries.SelectMany(s => s.Benches)
+                .Where(b => !b.Succeeded && !string.IsNullOrWhiteSpace(b.Error))
+                .Select(b => b.Error)
+                .FirstOrDefault();
+
             return new CharGenResult(
                 Succeeded: false,
-                Message: "bench run failed. See emitted artifacts for details.",
+                Message: firstBenchError ?? "bench run failed. See emitted artifacts for details.",
                 JobDir: args.OutputDir
             );
         }

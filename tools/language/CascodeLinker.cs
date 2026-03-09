@@ -17,6 +17,26 @@ public sealed record CascodeLinkResult(
 
 public static class CascodeLinker
 {
+    private static readonly HashSet<string> BuiltinMeasurementFunctions = new(
+        new[]
+        {
+            "transfer",
+            "voltage",
+            "current",
+            "sparam",
+            "db20",
+            "db10",
+            "noise",
+            "input_referred_noise",
+            "quiescent_power",
+            "abs",
+            "sqrt",
+            "period",
+            "op_param",
+        },
+        StringComparer.Ordinal
+    );
+
     public static CascodeLinkResult LinkFile(
         string entryPath,
         string outputDir,
@@ -300,45 +320,26 @@ public static class CascodeLinker
             return new CascodeLinkResult(false, null, null, diagnostics);
         }
 
-        CascodeDocument linked;
-        if (options.BenchMode == LinkBenchMode.None)
+        var validatedMerged = BuildValidatedMergedDocument(
+            includedDocs,
+            diagnostics,
+            logger,
+            out var mergedDocument
+        );
+        if (!validatedMerged)
         {
-            linked = BuildIncludePrunedDocument(
-                entryRead.Document,
-                includedDocs,
-                workspaceRoot,
-                diagnostics
-            );
+            return new CascodeLinkResult(false, null, null, diagnostics);
         }
-        else
-        {
-            var merged = MergeDocuments(
-                includedDocs.Select(d => d.Document).ToList(),
-                diagnostics,
-                logger
-            );
-            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-            {
-                return new CascodeLinkResult(false, null, null, diagnostics);
-            }
 
-            // Now that the document is self-contained (no includes), run bundle expansion and bench validation.
-            // This is the earliest point where bundle types and bench/interface bindings are resolvable.
-            linked = BundleDesugarer.Desugar(merged);
-            linked = BenchInheritanceResolver.Resolve(linked, diagnostics);
-            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-            {
-                return new CascodeLinkResult(false, null, null, diagnostics);
-            }
-
-            linked = BenchBindingExtender.Apply(linked, diagnostics);
-            BenchSemanticChecker.Check(linked, diagnostics);
-            BenchBindingChecker.Check(linked, diagnostics);
-            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-            {
-                return new CascodeLinkResult(false, null, null, diagnostics);
-            }
-        }
+        CascodeDocument linked =
+            options.BenchMode == LinkBenchMode.None
+                ? BuildIncludePrunedDocument(
+                    entryRead.Document,
+                    includedDocs,
+                    workspaceRoot,
+                    diagnostics
+                )
+                : mergedDocument;
 
         Directory.CreateDirectory(outputDir);
 
@@ -526,6 +527,12 @@ public static class CascodeLinker
             return;
         }
 
+        // Same-library files are also visible (for split libraries like lib.std.bench/*).
+        foreach (var p in libraryIndex.FindExact(normalized))
+        {
+            AddCandidate(candidates, p, symbolName: null);
+        }
+
         // Ancestors only (no descendants): lib.std.bench inherits lib.std and lib.
         for (var i = parts.Length - 1; i >= 1; i--)
         {
@@ -570,6 +577,14 @@ public static class CascodeLinker
 
             if (c.Fill is not null)
             {
+                foreach (var inst in c.Fill.Instances)
+                {
+                    foreach (var param in inst.Params.Values)
+                    {
+                        CollectFunctionReferencesFromParamValue(param, required);
+                    }
+                }
+
                 foreach (var dev in c.Fill.Devices)
                 {
                     required.Primitives.Add(dev.Primitive);
@@ -618,20 +633,14 @@ public static class CascodeLinker
                 required.Benches.Add(b.BaseBench);
             }
 
+            CollectBenchFunctionRequirements(b, required);
+
             foreach (var term in b.Terminals)
             {
                 if (term.Type is not null)
                 {
                     AddBundleIfNeeded(term.Type, required);
                 }
-            }
-
-            foreach (var fn in b.Functions)
-            {
-                // Not a reference; but measurements can call other measurements/functions.
-                // Cross-file function resolution is currently best-effort: only bring in
-                // file-level functions that are explicitly referenced elsewhere.
-                _ = fn;
             }
 
             // Fill blocks in benches may instantiate harness primitives; don't treat those as circuit deps.
@@ -651,7 +660,201 @@ public static class CascodeLinker
                 }
             }
         }
+
+        foreach (var fn in doc.Functions)
+        {
+            CollectFunctionReferencesFromStatements(fn.Body, required);
+        }
     }
+
+    private static void CollectBenchFunctionRequirements(
+        BenchDefinition bench,
+        RequiredSymbols required
+    )
+    {
+        foreach (var parameter in bench.Parameters)
+        {
+            if (parameter.Default is not null)
+            {
+                CollectFunctionReferencesFromExpr(parameter.Default, required);
+            }
+        }
+
+        foreach (var analysis in bench.Analyses)
+        {
+            foreach (var value in analysis.Parameters.Values)
+            {
+                CollectFunctionReferencesFromExpr(value, required);
+            }
+        }
+
+        var benchLocalNames = CollectBenchLocalNames(bench);
+        foreach (var fn in bench.Functions)
+        {
+            CollectFunctionReferencesFromStatements(fn.Body, required, benchLocalNames);
+        }
+
+        foreach (var measurement in bench.Measurements)
+        {
+            // Bench-local functions and sibling measurements stay inside the bench scope, so
+            // exclude them from global function requirements.
+            CollectFunctionReferencesFromStatements(measurement.Body, required, benchLocalNames);
+        }
+
+        if (bench.Fill is null)
+        {
+            return;
+        }
+
+        foreach (var inst in bench.Fill.Instances)
+        {
+            foreach (var param in inst.Params.Values)
+            {
+                CollectFunctionReferencesFromParamValue(param, required, benchLocalNames);
+            }
+        }
+    }
+
+    private static HashSet<string> CollectBenchLocalNames(BenchDefinition bench)
+    {
+        var benchMeasurementNames = bench
+            .Measurements.Select(m => m.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var benchFunctionNames = bench
+            .Functions.Select(fn => fn.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var benchLocalNames = new HashSet<string>(benchMeasurementNames, StringComparer.Ordinal);
+        benchLocalNames.UnionWith(benchFunctionNames);
+        return benchLocalNames;
+    }
+
+    private static void CollectFunctionReferencesFromParamValue(
+        ParamValue paramValue,
+        RequiredSymbols required,
+        ISet<string>? excludedNames = null
+    )
+    {
+        if (
+            string.IsNullOrWhiteSpace(paramValue.Symbolic)
+            || !CascodeAstBuilder.TryParseMeasurementExprText(
+                paramValue.Symbolic,
+                out var parsed,
+                out _
+            )
+            || parsed is null
+        )
+        {
+            return;
+        }
+
+        CollectFunctionReferencesFromExpr(parsed, required, excludedNames);
+    }
+
+    private static void CollectFunctionReferencesFromStatements(
+        IEnumerable<BenchStatement> statements,
+        RequiredSymbols required,
+        ISet<string>? excludedNames = null
+    )
+    {
+        foreach (var statement in statements)
+        {
+            switch (statement)
+            {
+                case BenchVarDecl decl:
+                    CollectFunctionReferencesFromExpr(decl.Expr, required, excludedNames);
+                    break;
+                case BenchReturn ret:
+                    CollectFunctionReferencesFromExpr(ret.Expr, required, excludedNames);
+                    break;
+                case BenchIf bif:
+                    CollectFunctionReferencesFromBoolExpr(bif.Condition, required, excludedNames);
+                    CollectFunctionReferencesFromStatements(bif.ThenBody, required, excludedNames);
+                    if (bif.ElseBody is not null)
+                    {
+                        CollectFunctionReferencesFromStatements(
+                            bif.ElseBody,
+                            required,
+                            excludedNames
+                        );
+                    }
+                    break;
+            }
+        }
+    }
+
+    private static void CollectFunctionReferencesFromBoolExpr(
+        BoolExpr expr,
+        RequiredSymbols required,
+        ISet<string>? excludedNames = null
+    )
+    {
+        switch (expr)
+        {
+            case BoolTruthy truthy:
+                CollectFunctionReferencesFromExpr(truthy.Expr, required, excludedNames);
+                break;
+            case BoolCompare cmp:
+                CollectFunctionReferencesFromExpr(cmp.Left, required, excludedNames);
+                CollectFunctionReferencesFromExpr(cmp.Right, required, excludedNames);
+                break;
+        }
+    }
+
+    private static void CollectFunctionReferencesFromExpr(
+        MeasurementExpr expr,
+        RequiredSymbols required,
+        ISet<string>? excludedNames = null
+    )
+    {
+        switch (expr)
+        {
+            case MeasurementCall call:
+                if (
+                    !IsBuiltinMeasurementFunction(call.Name)
+                    && (excludedNames is null || !excludedNames.Contains(call.Name))
+                )
+                {
+                    required.Functions.Add(call.Name);
+                }
+                foreach (var arg in call.Args)
+                {
+                    CollectFunctionReferencesFromExpr(arg.Value, required, excludedNames);
+                }
+                break;
+            case MeasurementMethodCall methodCall:
+                CollectFunctionReferencesFromExpr(methodCall.Receiver, required, excludedNames);
+                foreach (var arg in methodCall.Args)
+                {
+                    CollectFunctionReferencesFromExpr(arg.Value, required, excludedNames);
+                }
+                break;
+            case MeasurementConditional conditional:
+                CollectFunctionReferencesFromBoolExpr(
+                    conditional.Condition,
+                    required,
+                    excludedNames
+                );
+                CollectFunctionReferencesFromExpr(conditional.ThenExpr, required, excludedNames);
+                CollectFunctionReferencesFromExpr(conditional.ElseExpr, required, excludedNames);
+                break;
+            case MeasurementBinary binary:
+                CollectFunctionReferencesFromExpr(binary.Left, required, excludedNames);
+                CollectFunctionReferencesFromExpr(binary.Right, required, excludedNames);
+                break;
+            case MeasurementUnary unary:
+                CollectFunctionReferencesFromExpr(unary.Operand, required, excludedNames);
+                break;
+            case MeasurementBenchMeasurementRef benchRef:
+                foreach (var arg in benchRef.Args)
+                {
+                    CollectFunctionReferencesFromExpr(arg.Expr, required, excludedNames);
+                }
+                break;
+        }
+    }
+
+    private static bool IsBuiltinMeasurementFunction(string name) =>
+        BuiltinMeasurementFunctions.Contains(name);
 
     private static void AddBundleIfNeeded(string typeName, RequiredSymbols required)
     {
@@ -1039,6 +1242,36 @@ public static class CascodeLinker
         public HashSet<string> Circuits { get; } = new(StringComparer.Ordinal);
     }
 
+    private static bool BuildValidatedMergedDocument(
+        IReadOnlyList<LinkedDocument> includedDocs,
+        List<Diagnostic> diagnostics,
+        ILogger? logger,
+        out CascodeDocument mergedDocument
+    )
+    {
+        mergedDocument = MergeDocuments(
+            includedDocs.Select(d => d.Document).ToList(),
+            diagnostics,
+            logger
+        );
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return false;
+        }
+
+        mergedDocument = BundleDesugarer.Desugar(mergedDocument);
+        mergedDocument = BenchInheritanceResolver.Resolve(mergedDocument, diagnostics);
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return false;
+        }
+
+        mergedDocument = BenchBindingExtender.Apply(mergedDocument, diagnostics);
+        BenchSemanticChecker.Check(mergedDocument, diagnostics);
+        CompleteDocumentSemanticValidator.Check(mergedDocument, diagnostics);
+        return !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    }
+
     private static CascodeDocument BuildIncludePrunedDocument(
         CascodeDocument entryDoc,
         IReadOnlyList<LinkedDocument> includedDocs,
@@ -1092,6 +1325,7 @@ public static class CascodeLinker
             benchSources,
             seed
         );
+        RestrictFunctionRequirementsToConstraintReachability(entryDoc, seed);
 
         var queue = new Queue<(SymbolKind Kind, string Name)>();
         EnqueueRequired(seed, queue);
@@ -1115,6 +1349,7 @@ public static class CascodeLinker
                 symbol.Name,
                 traitSources,
                 benchSources,
+                functionSources,
                 circuitSources
             );
             if (symbol.Kind is SymbolKind.Trait or SymbolKind.Circuit)
@@ -1199,6 +1434,46 @@ public static class CascodeLinker
             {
                 required.Benches.Add(invocation.Binding.BenchName);
             }
+        }
+    }
+
+    private static void RestrictFunctionRequirementsToConstraintReachability(
+        CascodeDocument entryDoc,
+        RequiredSymbols required
+    )
+    {
+        var reachableBenches = required.Benches.ToHashSet(StringComparer.Ordinal);
+        required.Functions.Clear();
+
+        foreach (var circuit in entryDoc.Circuits)
+        {
+            if (circuit.Fill is null)
+            {
+                continue;
+            }
+
+            foreach (var inst in circuit.Fill.Instances)
+            {
+                foreach (var param in inst.Params.Values)
+                {
+                    CollectFunctionReferencesFromParamValue(param, required);
+                }
+            }
+        }
+
+        foreach (var bench in entryDoc.BenchDefinitions)
+        {
+            if (!reachableBenches.Contains(bench.Name))
+            {
+                continue;
+            }
+
+            CollectBenchFunctionRequirements(bench, required);
+        }
+
+        foreach (var function in entryDoc.Functions)
+        {
+            CollectFunctionReferencesFromStatements(function.Body, required);
         }
     }
 
@@ -1319,6 +1594,7 @@ public static class CascodeLinker
         string name,
         IReadOnlyDictionary<string, SymbolSource<TraitDefinition>> traitSources,
         IReadOnlyDictionary<string, SymbolSource<BenchDefinition>> benchSources,
+        IReadOnlyDictionary<string, SymbolSource<FunctionDefinition>> functionSources,
         IReadOnlyDictionary<string, SymbolSource<Circuit>> circuitSources
     )
     {
@@ -1335,6 +1611,12 @@ public static class CascodeLinker
                 if (benchSources.TryGetValue(name, out var bench))
                 {
                     temp.BenchDefinitions.Add(bench.Definition);
+                }
+                break;
+            case SymbolKind.Function:
+                if (functionSources.TryGetValue(name, out var function))
+                {
+                    temp.Functions.Add(function.Definition);
                 }
                 break;
             case SymbolKind.Circuit:

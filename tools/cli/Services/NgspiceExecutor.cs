@@ -9,12 +9,14 @@ internal static class NgspiceExecutor
 
     public static NgspiceRun Run(string spiceFile)
     {
+        var ngspice = NgspiceLocator.Resolve();
+
         spiceFile = Path.GetFullPath(spiceFile);
         var workingDir = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory();
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = "ngspice",
+            FileName = ngspice.Path,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
