@@ -1,6 +1,6 @@
 {
   "name": "@cascode/cascode-js-linux-x64",
-  "version": "0.7.0",
+  "version": "0.7.3",
   "description": "Prebuilt Linux x64 runtime bundle for @cascode/cascode-js",
   "license": "BSD-3-Clause",
   "private": false,
