@@ -156,10 +156,7 @@ public static class BenchPlanBuilder
 
             if (parameter.Default is not null)
             {
-                var value = evalRunner.EvaluateExpressionForPlan(
-                    parameter.Default,
-                    result
-                );
+                var value = evalRunner.EvaluateExpressionForPlan(parameter.Default, result);
                 if (value is BenchMissing)
                 {
                     throw new InvalidOperationException(
