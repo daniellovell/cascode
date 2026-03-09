@@ -1,12 +1,6 @@
-VERSION 4.0
+VERSION 4.1
 
 library lib.std.bench
-
-function get_input_amplitude(Voltage fallback) : Voltage {
-  if env.InputPower { return sqrt(8 * env.SourceImpedance * env.InputPower) }
-  if env.InputAmplitude { return env.InputAmplitude }
-  return fallback
-}
 
 abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
   abstract resp OUT

@@ -11,3 +11,9 @@ function get_load_impedance(Impedance fallback) : Impedance {
   if env.LoadImpedance { return env.LoadImpedance }
   return fallback
 }
+
+function get_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower { return sqrt(8 * env.SourceImpedance * env.InputPower) }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}

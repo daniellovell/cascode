@@ -125,7 +125,7 @@ circuit Top {
 """;
 
         var tb = EmitTestbench(cascode, instanceName: "pss");
-        Assert.Contains("pss 1G 5n OUT 1000 5", tb, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pss 1G 5n OUT 1000 5 50 1e-3", tb, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(
             "wrdata Top_pss__pss.pss.currents.wrdata i(Vvin)",
             tb,
