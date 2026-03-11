@@ -354,6 +354,31 @@ public sealed class NgspiceInstallerTests : IDisposable
         Assert.Equal(2, minor);
     }
 
+    [UnixOnlyFact]
+    public void Install_FromSource_StreamsBuildLogsToCallback()
+    {
+        var runtime = CreateRuntime(isWindows: false, isLinux: true, rid: "linux-x64");
+        runtime.AvailableTools.UnionWith(
+            new[] { "bison", "flex", "autoconf", "automake", "libtool", "make", "cc" }
+        );
+        runtime.DownloadBytes = Encoding.UTF8.GetBytes("source-archive-bytes");
+        WriteSourceManifest(
+            runtime.BaseDirectory,
+            sourceHash: Sha256Hex(runtime.DownloadBytes),
+            windowsHash: Sha256Hex("windows")
+        );
+        var logs = new List<string>();
+
+        var result = new NgspiceInstaller(runtime).Install(
+            new SimulatorInstallOptions(Force: true, FromSource: true, Log: logs.Add)
+        );
+
+        Assert.True(result.Success, result.Message);
+        Assert.Contains(logs, line => line.Contains("configure: checking build system type"));
+        Assert.Contains(logs, line => line.Contains("make: all-recursive"));
+        Assert.Contains(logs, line => line.Contains("make install: installing ngspice"));
+    }
+
     private FakeInstallerRuntime CreateRuntime(bool isWindows, bool isLinux, string rid)
     {
         var root = Path.Combine(_tempDir.FullName, Guid.NewGuid().ToString("N"));
@@ -436,11 +461,13 @@ public sealed class NgspiceInstallerTests : IDisposable
         public CommandRunResult RunCommand(
             string fileName,
             IReadOnlyList<string> args,
-            string? workingDirectory
+            string? workingDirectory,
+            Action<CommandOutputLine>? onOutput = null
         )
         {
             if (string.Equals(Path.GetFileName(fileName), "configure", StringComparison.Ordinal))
             {
+                onOutput?.Invoke(new CommandOutputLine(false, "checking build system type..."));
                 ConfigurePrefix = args.FirstOrDefault(a =>
                         a.StartsWith("--prefix=", StringComparison.Ordinal)
                     )
@@ -448,8 +475,19 @@ public sealed class NgspiceInstallerTests : IDisposable
                 return new CommandRunResult(0, string.Empty, string.Empty);
             }
 
+            if (
+                fileName == "make"
+                && args.Count == 1
+                && args[0].StartsWith("-j", StringComparison.Ordinal)
+            )
+            {
+                onOutput?.Invoke(new CommandOutputLine(false, "all-recursive"));
+                return new CommandRunResult(0, string.Empty, string.Empty);
+            }
+
             if (fileName == "make" && args.SequenceEqual(new[] { "install" }))
             {
+                onOutput?.Invoke(new CommandOutputLine(false, "installing ngspice"));
                 if (ConfigurePrefix is null)
                 {
                     return new CommandRunResult(1, string.Empty, "missing prefix");

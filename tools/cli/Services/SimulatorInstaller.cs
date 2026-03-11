@@ -6,7 +6,11 @@ internal static class SimulatorInstallModes
     public const string SourceBuild = "source-build";
 }
 
-internal sealed record SimulatorInstallOptions(bool Force = false, bool FromSource = false);
+internal sealed record SimulatorInstallOptions(
+    bool Force = false,
+    bool FromSource = false,
+    Action<string>? Log = null
+);
 
 /// <summary>
 /// Standard result payload returned by simulator installers.

@@ -46,6 +46,38 @@ public sealed class InstallCommandModuleTests
         Assert.Contains(output.Lines, line => line.Contains("\"InstallMode\":\"release-binary\""));
     }
 
+    [Fact]
+    public void InstallNgspice_StreamsInstallerLogs_WhenNotJson()
+    {
+        var installer = new FakeInstaller
+        {
+            EmittedLogs = new[] { "configure: checking...", "make: all" },
+        };
+        var output = new CaptureCliOutput();
+        var module = CreateModule(installer, output);
+
+        var result = Execute(module, "install", "ngspice", "--from-source");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("configure: checking...", output.Lines);
+        Assert.Contains("make: all", output.Lines);
+        Assert.Contains("ok", output.Lines);
+    }
+
+    [Fact]
+    public void InstallNgspice_DoesNotStreamInstallerLogs_InJsonMode()
+    {
+        var installer = new FakeInstaller { EmittedLogs = new[] { "configure: checking..." } };
+        var output = new CaptureCliOutput();
+        var module = CreateModule(installer, output);
+
+        var result = Execute(module, "install", "ngspice", "--from-source", "--json");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.DoesNotContain("configure: checking...", output.Lines);
+        Assert.Contains(output.Lines, line => line.Contains("\"Message\":\"ok\""));
+    }
+
     private static InstallCommandModule CreateModule(
         ISimulatorInstaller installer,
         CaptureCliOutput output
@@ -76,6 +108,8 @@ public sealed class InstallCommandModuleTests
 
         public SimulatorInstallOptions? LastOptions { get; private set; }
 
+        public IReadOnlyList<string> EmittedLogs { get; init; } = Array.Empty<string>();
+
         public SimulatorInstallResult NextResult { get; set; } =
             new(
                 Success: true,
@@ -88,6 +122,10 @@ public sealed class InstallCommandModuleTests
         public SimulatorInstallResult Install(SimulatorInstallOptions options)
         {
             LastOptions = options;
+            foreach (var line in EmittedLogs)
+            {
+                options.Log?.Invoke(line);
+            }
             return NextResult;
         }
     }
