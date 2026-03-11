@@ -71,6 +71,7 @@ public static partial class MazeRouter
         var terminals = ComputeTerminalPositions(placement, graph, canvasWidth, canvasHeight);
         var terminalsByNet = GroupTerminalsByNet(terminals, graph);
         var obstacles = ObstacleMap.FromPlacement(placement, graph);
+        var mosAxisGuards = ObstacleMap.CreateMosAxisGuards(terminals, graph);
         var occupied = new OccupiedSegments();
 
         var allSegments = new List<WireSegment>();
@@ -135,13 +136,21 @@ public static partial class MazeRouter
                     terms,
                     routeConstraint.Waypoints,
                     obstacles,
+                    mosAxisGuards,
                     occupied,
                     forbiddenPoints
                 );
             }
             else
             {
-                segs = RouteNet(netName, terms, obstacles, occupied, forbiddenPoints);
+                segs = RouteNet(
+                    netName,
+                    terms,
+                    obstacles,
+                    mosAxisGuards,
+                    occupied,
+                    forbiddenPoints
+                );
             }
 
             AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
@@ -212,6 +221,7 @@ public static partial class MazeRouter
         string netName,
         List<TerminalPosition> terminals,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> mosAxisGuards,
         OccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
@@ -237,7 +247,15 @@ public static partial class MazeRouter
             var from = new GridPoint(terminals[fromIdx].X, terminals[fromIdx].Y);
             var to = new GridPoint(terminals[toIdx].X, terminals[toIdx].Y);
 
-            var path = PathFinder.FindPath(from, to, netName, obstacles, overlay, forbiddenPoints);
+            var path = PathFinder.FindPath(
+                from,
+                to,
+                netName,
+                obstacles,
+                mosAxisGuards,
+                overlay,
+                forbiddenPoints
+            );
             rawSegments.AddRange(path);
 
             // Add path segments to overlay so subsequent edges avoid them
@@ -257,7 +275,8 @@ public static partial class MazeRouter
         var cleanedSegments = EliminateRedundantParallelPaths(
             mergedSegments,
             netName,
-            terminalPoints
+            terminalPoints,
+            mosAxisGuards
         );
 
         return cleanedSegments;
@@ -278,13 +297,21 @@ public static partial class MazeRouter
         List<TerminalPosition> terminals,
         IReadOnlyList<GridPoint> waypoints,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> mosAxisGuards,
         OccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
         if (waypoints.Count == 0 || terminals.Count < 2)
         {
-            return RouteNet(netName, terminals, obstacles, occupied, forbiddenPoints);
+            return RouteNet(
+                netName,
+                terminals,
+                obstacles,
+                mosAxisGuards,
+                occupied,
+                forbiddenPoints
+            );
         }
 
         var rawSegments = new List<WireSegment>();
@@ -310,6 +337,7 @@ public static partial class MazeRouter
                 routePoints[i + 1],
                 netName,
                 obstacles,
+                mosAxisGuards,
                 overlay,
                 forbiddenPoints
             );
@@ -339,6 +367,7 @@ public static partial class MazeRouter
                 attachPoint,
                 netName,
                 obstacles,
+                mosAxisGuards,
                 overlay,
                 forbiddenPoints
             );
@@ -351,7 +380,7 @@ public static partial class MazeRouter
 
         var merged = MergeCollinearSegments(rawSegments, netName);
         var terminalPoints = terminals.Select(t => new GridPoint(t.X, t.Y)).ToHashSet();
-        return EliminateRedundantParallelPaths(merged, netName, terminalPoints);
+        return EliminateRedundantParallelPaths(merged, netName, terminalPoints, mosAxisGuards);
     }
 
     /// <summary>

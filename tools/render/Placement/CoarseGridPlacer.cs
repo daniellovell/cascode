@@ -60,6 +60,7 @@ public static class CoarseGridPlacer
     private const int SymmetryWeight = 8;
     private const int ConnectedDeviceAlignmentWeight = 12;
     private const int ConnectedDeviceAxisMismatchFactor = 4;
+    private const int PreferredConnectedDeviceAxisWeight = 256;
     private const int SharedSignalCmosClusterWeight = 1;
     private const int SharedSignalCmosLShapeCenterlineWeight = 4;
     private const int CenteredPassiveLoadWeight = 8;
@@ -75,6 +76,13 @@ public static class CoarseGridPlacer
         East,
         South,
         West,
+    }
+
+    private enum ConnectedDeviceAlignmentPreference
+    {
+        None,
+        Vertical,
+        Horizontal,
     }
 
     public static CoarseGridResult Place(
@@ -1690,6 +1698,8 @@ public static class CoarseGridPlacer
     {
         var symmetricPairs = BuildSymmetricPairLookup(topology.SymmetricGroups);
         var excludedPairs = BuildSharedSignalCmosTriplePairLookup(graph);
+        var sharedDrainOrSourceNetPairs = BuildNonRailMosPairLookup(graph, IsDrainOrSourceTerminal);
+        var sharedGatePairs = BuildNonRailMosPairLookup(graph, IsGateTerminal);
         foreach (var (deviceA, deviceB) in EnumerateConnectedDevicePairs(graph))
         {
             if (excludedPairs.Contains((deviceA, deviceB)))
@@ -1707,6 +1717,17 @@ public static class CoarseGridPlacer
                 continue;
             }
 
+            var preference = GetConnectedDeviceAlignmentPreference(
+                deviceA,
+                deviceB,
+                sharedDrainOrSourceNetPairs,
+                sharedGatePairs
+            );
+            if (preference == ConnectedDeviceAlignmentPreference.None)
+            {
+                continue;
+            }
+
             var token = $"{ToVarToken(deviceA)}_{ToVarToken(deviceB)}";
             var rowDiff = model.NewIntVar(0, 500, $"conn_align_row_diff_{token}");
             model.AddAbsEquality(rowDiff, rowA - rowB);
@@ -1720,13 +1741,16 @@ public static class CoarseGridPlacer
             var colAlignedCost = model.NewIntVar(0, 2500, $"conn_align_col_cost_{token}");
             model.Add(colAlignedCost == colDiff * ConnectedDeviceAxisMismatchFactor + rowDiff);
 
-            var preferSameRow =
-                topology.DeviceRows.TryGetValue(deviceA, out var topoRowA)
-                && topology.DeviceRows.TryGetValue(deviceB, out var topoRowB)
-                && topoRowA == topoRowB;
+            objectives.Add(
+                (preference == ConnectedDeviceAlignmentPreference.Vertical ? colDiff : rowDiff)
+                    * PreferredConnectedDeviceAxisWeight
+            );
+
             var candidates = new List<LinearExpr>
             {
-                preferSameRow ? rowAlignedCost : colAlignedCost,
+                preference == ConnectedDeviceAlignmentPreference.Vertical
+                    ? colAlignedCost
+                    : rowAlignedCost,
             };
             if (symmetricPairs.Contains((deviceA, deviceB)))
             {
@@ -1771,6 +1795,55 @@ public static class CoarseGridPlacer
                 }
 
                 result.Add(OrderPair(a, b));
+            }
+        }
+
+        return result;
+    }
+
+    private static ConnectedDeviceAlignmentPreference GetConnectedDeviceAlignmentPreference(
+        string deviceA,
+        string deviceB,
+        IReadOnlySet<(string Left, string Right)> sharedDrainOrSourceNetPairs,
+        IReadOnlySet<(string Left, string Right)> sharedGatePairs
+    )
+    {
+        var pair = OrderPair(deviceA, deviceB);
+        if (sharedDrainOrSourceNetPairs.Contains(pair))
+        {
+            return ConnectedDeviceAlignmentPreference.Vertical;
+        }
+
+        return sharedGatePairs.Contains(pair)
+            ? ConnectedDeviceAlignmentPreference.Horizontal
+            : ConnectedDeviceAlignmentPreference.None;
+    }
+
+    private static HashSet<(string Left, string Right)> BuildNonRailMosPairLookup(
+        CircuitGraph graph,
+        Func<string, bool> includeTerminal
+    )
+    {
+        var result = new HashSet<(string Left, string Right)>();
+        foreach (var (netName, refs) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var deviceIds = refs.Where(r => includeTerminal(r.Terminal))
+                .Where(r => GetMosFlavor(graph, r.DeviceId) is not null)
+                .Select(r => r.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
+            for (var i = 0; i < deviceIds.Count; i++)
+            {
+                for (var j = i + 1; j < deviceIds.Count; j++)
+                {
+                    result.Add((deviceIds[i], deviceIds[j]));
+                }
             }
         }
 

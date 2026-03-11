@@ -13,7 +13,8 @@ public static partial class MazeRouter
     private static List<WireSegment> EliminateRedundantParallelPaths(
         List<WireSegment> segments,
         string netName,
-        IReadOnlySet<GridPoint> terminalPoints
+        IReadOnlySet<GridPoint> terminalPoints,
+        IReadOnlyList<Obstacle> hardObstacles
     )
     {
         if (segments.Count <= 1)
@@ -43,21 +44,40 @@ public static partial class MazeRouter
             var sortedByY = segs.OrderBy(s => s.From.Y).ToList();
             var midY = (sortedByY.First().From.Y + sortedByY.Last().From.Y) / 2;
             var kept = sortedByY.MinBy(s => Math.Abs(s.From.Y - midY))!;
+            var removedSegs = new List<WireSegment>();
 
             foreach (var seg in segs)
             {
-                if (seg != kept)
+                if (seg == kept)
                 {
-                    toRemove.Add(seg);
+                    continue;
                 }
+
+                if (
+                    WouldRemovingSegmentDisconnectTerminal(
+                        seg,
+                        range,
+                        kept,
+                        verticalSegments,
+                        terminalPoints,
+                        hardObstacles
+                    )
+                )
+                {
+                    continue;
+                }
+
+                toRemove.Add(seg);
+                removedSegs.Add(seg);
             }
 
             var connectors = GenerateVerticalConnectorsForParallelGroup(
-                segs,
+                removedSegs,
                 range,
                 kept,
                 verticalSegments,
-                netName
+                netName,
+                hardObstacles
             );
             toAdd.AddRange(connectors);
         }
@@ -105,39 +125,36 @@ public static partial class MazeRouter
     /// when existing vertical segments don't already provide connectivity.
     /// </summary>
     private static IEnumerable<WireSegment> GenerateVerticalConnectorsForParallelGroup(
-        List<WireSegment> segs,
+        IReadOnlyList<WireSegment> removedSegs,
         (int minX, int maxX) range,
         WireSegment kept,
         List<WireSegment> verticalSegments,
-        string netName
+        string netName,
+        IReadOnlyList<Obstacle> hardObstacles
     )
     {
         var connectors = new List<WireSegment>();
 
-        foreach (var seg in segs)
+        foreach (var seg in removedSegs)
         {
-            if (seg == kept)
-            {
-                continue;
-            }
-
             var segY = seg.From.Y;
             var keptY = kept.From.Y;
 
-            var hasLeftVertical = verticalSegments.Any(v =>
-                v.From.X == range.minX
-                && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
-                && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
-            );
+            var hasLeftVertical = HasVerticalCoverage(range.minX, segY, keptY, verticalSegments);
 
-            var hasRightVertical = verticalSegments.Any(v =>
-                v.From.X == range.maxX
-                && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
-                && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
-            );
+            var hasRightVertical = HasVerticalCoverage(range.maxX, segY, keptY, verticalSegments);
 
             // Add connector at LEFT endpoint if no left vertical coverage
-            if (!hasLeftVertical)
+            if (
+                !hasLeftVertical
+                && !ObstacleMap.SegmentIntersectsAny(
+                    range.minX,
+                    Math.Min(segY, keptY),
+                    range.minX,
+                    Math.Max(segY, keptY),
+                    hardObstacles
+                )
+            )
             {
                 connectors.Add(
                     new WireSegment(
@@ -149,7 +166,16 @@ public static partial class MazeRouter
             }
 
             // Add connector at RIGHT endpoint if no right vertical coverage
-            if (!hasRightVertical)
+            if (
+                !hasRightVertical
+                && !ObstacleMap.SegmentIntersectsAny(
+                    range.maxX,
+                    Math.Min(segY, keptY),
+                    range.maxX,
+                    Math.Max(segY, keptY),
+                    hardObstacles
+                )
+            )
             {
                 connectors.Add(
                     new WireSegment(
@@ -162,6 +188,81 @@ public static partial class MazeRouter
         }
 
         return connectors;
+    }
+
+    private static bool WouldRemovingSegmentDisconnectTerminal(
+        WireSegment segment,
+        (int minX, int maxX) range,
+        WireSegment kept,
+        IReadOnlyList<WireSegment> verticalSegments,
+        IReadOnlySet<GridPoint> terminalPoints,
+        IReadOnlyList<Obstacle> hardObstacles
+    )
+    {
+        var segY = segment.From.Y;
+        var keptY = kept.From.Y;
+
+        return EndpointWouldBeDisconnected(
+                new GridPoint(range.minX, segY),
+                range.minX,
+                segY,
+                keptY,
+                verticalSegments,
+                terminalPoints,
+                hardObstacles
+            )
+            || EndpointWouldBeDisconnected(
+                new GridPoint(range.maxX, segY),
+                range.maxX,
+                segY,
+                keptY,
+                verticalSegments,
+                terminalPoints,
+                hardObstacles
+            );
+    }
+
+    private static bool EndpointWouldBeDisconnected(
+        GridPoint endpoint,
+        int x,
+        int segY,
+        int keptY,
+        IReadOnlyList<WireSegment> verticalSegments,
+        IReadOnlySet<GridPoint> terminalPoints,
+        IReadOnlyList<Obstacle> hardObstacles
+    )
+    {
+        if (!terminalPoints.Contains(endpoint))
+        {
+            return false;
+        }
+
+        if (HasVerticalCoverage(x, segY, keptY, verticalSegments))
+        {
+            return false;
+        }
+
+        return ObstacleMap.SegmentIntersectsAny(
+            x,
+            Math.Min(segY, keptY),
+            x,
+            Math.Max(segY, keptY),
+            hardObstacles
+        );
+    }
+
+    private static bool HasVerticalCoverage(
+        int x,
+        int firstY,
+        int secondY,
+        IReadOnlyList<WireSegment> verticalSegments
+    )
+    {
+        return verticalSegments.Any(v =>
+            v.From.X == x
+            && Math.Min(v.From.Y, v.To.Y) <= Math.Min(firstY, secondY)
+            && Math.Max(v.From.Y, v.To.Y) >= Math.Max(firstY, secondY)
+        );
     }
 
     /// <summary>

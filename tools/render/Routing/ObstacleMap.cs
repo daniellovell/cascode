@@ -45,6 +45,53 @@ public static class ObstacleMap
     }
 
     /// <summary>
+    /// Creates narrow no-route guards along MOS drain/source axes so wires cannot
+    /// run through the device body between those terminals.
+    /// </summary>
+    public static IReadOnlyList<Obstacle> CreateMosAxisGuards(
+        IReadOnlyList<TerminalPosition> terminalPositions,
+        CircuitGraph graph
+    )
+    {
+        var guards = new List<Obstacle>();
+        var terminalsByDevice = terminalPositions
+            .Where(t => !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
+            .GroupBy(t => t.DeviceId, StringComparer.Ordinal);
+
+        foreach (var deviceTerminals in terminalsByDevice)
+        {
+            if (!graph.Devices.TryGetValue(deviceTerminals.Key, out var device))
+            {
+                continue;
+            }
+
+            var deviceType = device.DeviceType.ToLowerInvariant();
+            if (deviceType is not ("nmos" or "nfet" or "pmos" or "pfet"))
+            {
+                continue;
+            }
+
+            var drain = deviceTerminals.FirstOrDefault(t => t.Terminal == "D");
+            var source = deviceTerminals.FirstOrDefault(t => t.Terminal == "S");
+            if (drain is null || source is null || drain.X != source.X)
+            {
+                continue;
+            }
+
+            var minY = Math.Min(drain.Y, source.Y) + 1;
+            var maxY = Math.Max(drain.Y, source.Y) - 1;
+            if (minY > maxY)
+            {
+                continue;
+            }
+
+            guards.Add(new Obstacle(drain.X - 1, minY, drain.X + 1, maxY));
+        }
+
+        return guards;
+    }
+
+    /// <summary>
     /// Computes bounding box for a device at given cell.
     /// </summary>
     private static Obstacle? ComputeDeviceBounds(string deviceType, GridCell cell)

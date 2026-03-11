@@ -317,6 +317,76 @@ public sealed class RenderConstraintTests
     }
 
     [Fact]
+    public void Place_DrainSourceConnectedPair_PrefersVerticalAlignment()
+    {
+        var circuit = TestCircuits.DrainSourceConnectedPair();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_TOP", out var mTop));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_BOT", out var mBot));
+        Assert.Equal(mTop.Column, mBot.Column);
+    }
+
+    [Fact]
+    public void Place_SharingDrainNet_PrefersVerticalAlignment()
+    {
+        var circuit = TestCircuits.DrainDrainConnectedPair();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_LEFT", out var mLeft));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_RIGHT", out var mRight));
+        Assert.Equal(mLeft.Column, mRight.Column);
+    }
+
+    [Fact]
+    public void Place_SharingSourceNet_PrefersVerticalAlignment()
+    {
+        var circuit = TestCircuits.SourceSourceConnectedPair();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_LEFT", out var mLeft));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_RIGHT", out var mRight));
+        Assert.Equal(mLeft.Column, mRight.Column);
+    }
+
+    [Fact]
+    public void Place_SharingGateSignal_PrefersHorizontalAlignmentWithoutDrainSourceConnection()
+    {
+        var circuit = TestCircuits.SharedGatePair();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_LEFT", out var mLeft));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_RIGHT", out var mRight));
+        Assert.Equal(mLeft.Row, mRight.Row);
+    }
+
+    [Fact]
+    public void Place_DrainSourceConnection_TakesPriorityOverSharedGateSignal()
+    {
+        var circuit = TestCircuits.DrainSourceConnectionOverridesSharedGatePair();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("M_TOP", out var mTop));
+        Assert.True(placement.DevicePlacements.TryGetValue("M_BOT", out var mBot));
+        Assert.Equal(mTop.Column, mBot.Column);
+    }
+
+    [Fact]
     public void Place_DiffPairHardConstraint_RejectsDifferentRows()
     {
         var circuit = TestCircuits.TwoDevices();

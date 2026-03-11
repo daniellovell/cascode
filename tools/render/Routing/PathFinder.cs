@@ -18,6 +18,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> hardObstacles,
         IOccupiedSegments occupied,
         IReadOnlySet<GridPoint>? forbiddenPoints = null
     )
@@ -41,6 +42,7 @@ public static class PathFinder
             to,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints,
             horizontalFirst: !preferVerticalFirst
@@ -55,6 +57,7 @@ public static class PathFinder
             to,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints,
             horizontalFirst: preferVerticalFirst
@@ -65,27 +68,42 @@ public static class PathFinder
         }
 
         // Try jogging by small offsets to avoid conflicts
-        path = TryJogPath(from, to, netName, obstacles, occupied, forbiddenPoints);
+        path = TryJogPath(from, to, netName, obstacles, hardObstacles, occupied, forbiddenPoints);
         if (path != null)
         {
             return path;
         }
 
-        // Fallback: try both L-path orientations, prefer one without forbidden point violations
+        // Fallback: keep hard obstacles enforced even if we have to relax soft preferences.
         var fallback1 = CreateLPath(from, to, netName, horizontalFirst: !preferVerticalFirst);
-        if (!PathViolatesForbiddenPoints(fallback1, forbiddenPoints))
+        if (
+            !PathViolatesHardObstacles(fallback1, hardObstacles)
+            && !PathViolatesForbiddenPoints(fallback1, forbiddenPoints)
+        )
         {
             return fallback1;
         }
 
         var fallback2 = CreateLPath(from, to, netName, horizontalFirst: preferVerticalFirst);
-        if (!PathViolatesForbiddenPoints(fallback2, forbiddenPoints))
+        if (
+            !PathViolatesHardObstacles(fallback2, hardObstacles)
+            && !PathViolatesForbiddenPoints(fallback2, forbiddenPoints)
+        )
         {
             return fallback2;
         }
 
-        // Last resort: return a path even if it violates (better to have a visible wire)
-        return fallback1;
+        if (!PathViolatesHardObstacles(fallback1, hardObstacles))
+        {
+            return fallback1;
+        }
+
+        if (!PathViolatesHardObstacles(fallback2, hardObstacles))
+        {
+            return fallback2;
+        }
+
+        return new List<WireSegment>();
     }
 
     /// <summary>
@@ -96,6 +114,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> hardObstacles,
         IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints,
         bool horizontalFirst
@@ -112,6 +131,7 @@ public static class PathFinder
                     to.Y,
                     netName,
                     obstacles,
+                    hardObstacles,
                     occupied,
                     forbiddenPoints
                 )
@@ -138,6 +158,7 @@ public static class PathFinder
             corner.Y,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints
         );
@@ -148,6 +169,7 @@ public static class PathFinder
             to.Y,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints
         );
@@ -172,6 +194,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> hardObstacles,
         IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
@@ -187,6 +210,7 @@ public static class PathFinder
                 to,
                 netName,
                 obstacles,
+                hardObstacles,
                 occupied,
                 forbiddenPoints,
                 jogHorizontal: false,
@@ -207,6 +231,7 @@ public static class PathFinder
                 to,
                 netName,
                 obstacles,
+                hardObstacles,
                 occupied,
                 forbiddenPoints,
                 jogHorizontal: true,
@@ -227,6 +252,7 @@ public static class PathFinder
                 to,
                 netName,
                 obstacles,
+                hardObstacles,
                 occupied,
                 forbiddenPoints,
                 jogHorizontal: false,
@@ -246,6 +272,7 @@ public static class PathFinder
                 to,
                 netName,
                 obstacles,
+                hardObstacles,
                 occupied,
                 forbiddenPoints,
                 jogHorizontal: true,
@@ -268,6 +295,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> hardObstacles,
         IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints,
         bool jogHorizontal,
@@ -303,6 +331,7 @@ public static class PathFinder
             mid1.Y,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints
         );
@@ -313,6 +342,7 @@ public static class PathFinder
             mid2.Y,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints
         );
@@ -323,6 +353,7 @@ public static class PathFinder
             to.Y,
             netName,
             obstacles,
+            hardObstacles,
             occupied,
             forbiddenPoints
         );
@@ -384,10 +415,16 @@ public static class PathFinder
         int y2,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
+        IReadOnlyList<Obstacle> hardObstacles,
         IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
+        if (ObstacleMap.SegmentIntersectsAny(x1, y1, x2, y2, hardObstacles))
+        {
+            return false;
+        }
+
         if (ObstacleMap.SegmentIntersectsAny(x1, y1, x2, y2, obstacles))
         {
             return false;
@@ -446,6 +483,33 @@ public static class PathFinder
                 {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if any segment in the path intersects a hard obstacle.
+    /// </summary>
+    private static bool PathViolatesHardObstacles(
+        List<WireSegment> path,
+        IReadOnlyList<Obstacle> hardObstacles
+    )
+    {
+        foreach (var seg in path)
+        {
+            if (
+                ObstacleMap.SegmentIntersectsAny(
+                    seg.From.X,
+                    seg.From.Y,
+                    seg.To.X,
+                    seg.To.Y,
+                    hardObstacles
+                )
+            )
+            {
+                return true;
             }
         }
 

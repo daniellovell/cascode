@@ -522,9 +522,11 @@ public class MazeRouterTests
         var topology = TopologyAnalyzer.Analyze(graph);
         var placement = CoarseGridPlacer.Place(topology, graph);
         var result = MazeRouter.Route(placement, graph);
+        var mosAxisGuards = CreateMosAxisGuards(result.TerminalPositions, graph);
 
         // For each net, if two device terminals share the same X coordinate,
-        // there should be a direct vertical path between them on that X
+        // there should be a direct vertical path between them on that X unless
+        // doing so would require routing through a MOS body between drain/source.
         foreach (var (netName, segments) in result.SegmentsByNet)
         {
             // Skip power rails
@@ -551,6 +553,11 @@ public class MazeRouterTests
                 var ys = group.Select(t => t.Y).OrderBy(y => y).ToList();
                 var minY = ys.First();
                 var maxY = ys.Last();
+
+                if (IntervalIntersectsMosAxisGuard(x, minY, maxY, mosAxisGuards))
+                {
+                    continue;
+                }
 
                 // Get vertical segments on this X coordinate
                 var verticalSegsOnX = segments.Where(s => s.From.X == x && s.To.X == x).ToList();
@@ -588,6 +595,66 @@ public class MazeRouterTests
                 );
             }
         }
+    }
+
+    [Fact]
+    public void Route_OutputStage_VlocalAvoidsMosAxisBodyOverlap()
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), "tests/golden/cas/stress/TLC2272A_Sky130.cas");
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var outputStage = doc.Circuits.Single(c => c.Name == "OutputStage");
+        var flattened = CircuitFlattener.Flatten(outputStage, doc);
+
+        var graph = CircuitGraph.Build(flattened);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        var violations = FindMosAxisBodyOverlapViolations(result, graph)
+            .Where(message => message.Contains("net 'vlocal'", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(
+            violations.Count == 0,
+            "Expected vlocal to route around MOS bodies, but found overlaps: "
+                + string.Join("; ", violations)
+        );
+    }
+
+    [Fact]
+    public void Route_OutputStage_VlocalRemainsConnectedToMosSourceTerminals()
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), "tests/golden/cas/stress/TLC2272A_Sky130.cas");
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var outputStage = doc.Circuits.Single(c => c.Name == "OutputStage");
+        var flattened = CircuitFlattener.Flatten(outputStage, doc);
+
+        var graph = CircuitGraph.Build(flattened);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        var vlocalPoints = result
+            .TerminalPositions.Where(t =>
+                !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                && graph.GetNetForTerminal(t.DeviceId, t.Terminal) == "vlocal"
+            )
+            .Select(t => new GridPoint(t.X, t.Y))
+            .Distinct()
+            .ToList();
+
+        Assert.True(
+            AreAllPointsConnected(vlocalPoints, result.SegmentsByNet["vlocal"]),
+            "Expected all vlocal terminals to remain connected after post-processing."
+        );
     }
 
     [Theory]
@@ -1225,5 +1292,89 @@ public class MazeRouterTests
             dir = Directory.GetParent(dir)?.FullName;
         }
         return dir ?? throw new InvalidOperationException("Could not find repo root");
+    }
+
+    private static bool IntervalIntersectsMosAxisGuard(
+        int x,
+        int minY,
+        int maxY,
+        IReadOnlyList<Obstacle> mosAxisGuards
+    )
+    {
+        return mosAxisGuards.Any(guard =>
+            x > guard.MinX && x < guard.MaxX && maxY > guard.MinY && minY < guard.MaxY
+        );
+    }
+
+    private static List<string> FindMosAxisBodyOverlapViolations(
+        RoutingResult result,
+        CircuitGraph graph
+    )
+    {
+        var mosAxisGuards = CreateMosAxisGuards(result.TerminalPositions, graph);
+        var violations = new List<string>();
+
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            foreach (var segment in segments.Where(s => s.From.X == s.To.X))
+            {
+                var minY = Math.Min(segment.From.Y, segment.To.Y);
+                var maxY = Math.Max(segment.From.Y, segment.To.Y);
+
+                if (!IntervalIntersectsMosAxisGuard(segment.From.X, minY, maxY, mosAxisGuards))
+                {
+                    continue;
+                }
+
+                violations.Add(
+                    $"net '{netName}' segment ({segment.From.X},{segment.From.Y})->({segment.To.X},{segment.To.Y}) overlaps a MOS axis guard"
+                );
+            }
+        }
+
+        return violations;
+    }
+
+    private static List<Obstacle> CreateMosAxisGuards(
+        IReadOnlyList<TerminalPosition> terminalPositions,
+        CircuitGraph graph
+    )
+    {
+        var guards = new List<Obstacle>();
+        var terminalsByDevice = terminalPositions
+            .Where(t => !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
+            .GroupBy(t => t.DeviceId, StringComparer.Ordinal);
+
+        foreach (var deviceTerminals in terminalsByDevice)
+        {
+            if (!graph.Devices.TryGetValue(deviceTerminals.Key, out var device))
+            {
+                continue;
+            }
+
+            var deviceType = device.DeviceType.ToLowerInvariant();
+            if (deviceType is not ("nmos" or "nfet" or "pmos" or "pfet"))
+            {
+                continue;
+            }
+
+            var drain = deviceTerminals.FirstOrDefault(t => t.Terminal == "D");
+            var source = deviceTerminals.FirstOrDefault(t => t.Terminal == "S");
+            if (drain is null || source is null || drain.X != source.X)
+            {
+                continue;
+            }
+
+            var minY = Math.Min(drain.Y, source.Y) + 1;
+            var maxY = Math.Max(drain.Y, source.Y) - 1;
+            if (minY > maxY)
+            {
+                continue;
+            }
+
+            guards.Add(new Obstacle(drain.X - 1, minY, drain.X + 1, maxY));
+        }
+
+        return guards;
     }
 }

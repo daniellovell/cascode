@@ -454,6 +454,240 @@ internal static class TestCircuits
             },
         };
 
+    public static Circuit DrainSourceConnectedPair() =>
+        new()
+        {
+            Name = "drain_source_connected_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_TOP",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nmid",
+                            ["G"] = "vg_top",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_BOT",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nout",
+                            ["G"] = "vg_bot",
+                            ["S"] = "nmid",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nmid", Domain = "signal" },
+                    new() { Id = "nout", Domain = "signal" },
+                    new() { Id = "vg_top", Domain = "signal" },
+                    new() { Id = "vg_bot", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit DrainDrainConnectedPair() =>
+        new()
+        {
+            Name = "drain_drain_connected_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_LEFT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nshared",
+                            ["G"] = "vg_left",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_RIGHT",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nshared",
+                            ["G"] = "vg_right",
+                            ["S"] = "GND",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nshared", Domain = "signal" },
+                    new() { Id = "vg_left", Domain = "signal" },
+                    new() { Id = "vg_right", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit SourceSourceConnectedPair() =>
+        new()
+        {
+            Name = "source_source_connected_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_LEFT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nout_left",
+                            ["G"] = "vg_left",
+                            ["S"] = "nshared",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_RIGHT",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nout_right",
+                            ["G"] = "vg_right",
+                            ["S"] = "nshared",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nshared", Domain = "signal" },
+                    new() { Id = "nout_left", Domain = "signal" },
+                    new() { Id = "nout_right", Domain = "signal" },
+                    new() { Id = "vg_left", Domain = "signal" },
+                    new() { Id = "vg_right", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit SharedGatePair() =>
+        new()
+        {
+            Name = "shared_gate_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_LEFT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nout_l",
+                            ["G"] = "vg_shared",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_RIGHT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nout_r",
+                            ["G"] = "vg_shared",
+                            ["S"] = "vsrc_r",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nout_l", Domain = "signal" },
+                    new() { Id = "nout_r", Domain = "signal" },
+                    new() { Id = "vg_shared", Domain = "signal" },
+                    new() { Id = "vsrc_r", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit DrainSourceConnectionOverridesSharedGatePair() =>
+        new()
+        {
+            Name = "drain_source_overrides_shared_gate_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>(),
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_TOP",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nmid",
+                            ["G"] = "vg_shared",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_BOT",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nout",
+                            ["G"] = "vg_shared",
+                            ["S"] = "nmid",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nmid", Domain = "signal" },
+                    new() { Id = "nout", Domain = "signal" },
+                    new() { Id = "vg_shared", Domain = "signal" },
+                },
+            },
+        };
+
     public static Circuit TwoIndependentDevices() =>
         new()
         {
