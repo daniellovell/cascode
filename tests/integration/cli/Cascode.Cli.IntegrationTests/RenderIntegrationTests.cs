@@ -180,6 +180,8 @@ public class RenderIntegrationTests
         var cmfbNY = GetDeviceOriginY(svgContent, "R_CMFB_N");
         Assert.NotEqual(cmfbPX, cmfbNX);
         Assert.Equal(cmfbPY, cmfbNY);
+        Assert.DoesNotContain("rotate(-90)", GetDeviceGroup(svgContent, "R_CMFB_P"));
+        Assert.DoesNotContain("rotate(-90)", GetDeviceGroup(svgContent, "R_CMFB_N"));
     }
 
     [Theory]
@@ -300,6 +302,19 @@ public class RenderIntegrationTests
 
         Assert.True(match.Success, $"Device '{deviceId}' transform should be found");
         return double.Parse(match.Groups[2].Value);
+    }
+
+    private static string GetDeviceGroup(string svgContent, string deviceId)
+    {
+        var escapedDeviceId = Regex.Escape(deviceId);
+        var match = Regex.Match(
+            svgContent,
+            $@"<g id=""{escapedDeviceId}""[^>]*>.*?</g>",
+            RegexOptions.Singleline
+        );
+
+        Assert.True(match.Success, $"Device '{deviceId}' group should be found");
+        return match.Value;
     }
 
     private static List<SvgWireSegment> GetWireSegments(string svgContent, string netName)

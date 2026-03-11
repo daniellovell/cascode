@@ -506,56 +506,185 @@ public static class CoarseGridPlacer
     )
     {
         var occupancyRadius = BuildInterveningOccupancyRadius(graph, deviceIds);
-        var rowAxisPassThrough = new Dictionary<(string DeviceId, string NetName), BoolVar>();
-        var colAxisPassThrough = new Dictionary<(string DeviceId, string NetName), BoolVar>();
+        var terminalCoords =
+            new Dictionary<(string DeviceId, string Terminal), (IntVar X, IntVar Y)>();
+        var deviceCenters = new Dictionary<string, (IntVar X, IntVar Y)>(StringComparer.Ordinal);
+        var terminalsByDeviceAndNet = graph.Devices.ToDictionary(
+            kv => kv.Key,
+            kv =>
+                kv.Value.Bindings.Where(binding => !IsBodyOrShieldTerminal(binding.Key))
+                    .GroupBy(binding => binding.Value, StringComparer.Ordinal)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.Select(binding => binding.Key).ToList(),
+                        StringComparer.Ordinal
+                    ),
+            StringComparer.Ordinal
+        );
 
-        BoolVar GetAxisPassThrough(string deviceId, string netName, bool verticalAxis)
+        (IntVar X, IntVar Y) GetTerminalCoordinates(string deviceId, string terminal)
         {
-            var store = verticalAxis ? colAxisPassThrough : rowAxisPassThrough;
-            var key = (deviceId, netName);
-            if (store.TryGetValue(key, out var cached))
+            var key = (deviceId, terminal);
+            if (terminalCoords.TryGetValue(key, out var cached))
             {
                 return cached;
             }
 
+            var token = $"{ToVarToken(deviceId)}_{ToVarToken(terminal)}";
+            var xOffsetTable = BuildAxisOffsetTable(graph, deviceId, terminal, axis: "x");
+            var yOffsetTable = BuildAxisOffsetTable(graph, deviceId, terminal, axis: "y");
+            var xOffset = model.NewIntVar(-1, 1, $"direct_xoff_{token}");
+            var yOffset = model.NewIntVar(-1, 1, $"direct_yoff_{token}");
+            model.AddElement(transforms[deviceId], xOffsetTable, xOffset);
+            model.AddElement(transforms[deviceId], yOffsetTable, yOffset);
+
+            var xCoord = model.NewIntVar(-200, 200, $"direct_xcoord_{token}");
+            var yCoord = model.NewIntVar(-200, 200, $"direct_ycoord_{token}");
+            model.Add(xCoord == cols[deviceId] * 2 + xOffset);
+            model.Add(yCoord == rows[deviceId] * 2 + yOffset);
+            terminalCoords[key] = (xCoord, yCoord);
+            return (xCoord, yCoord);
+        }
+
+        (IntVar X, IntVar Y) GetDeviceCenterCoordinates(string deviceId)
+        {
+            if (deviceCenters.TryGetValue(deviceId, out var cached))
+            {
+                return cached;
+            }
+
+            var token = ToVarToken(deviceId);
+            var xCoord = model.NewIntVar(-200, 200, $"device_xcoord_{token}");
+            var yCoord = model.NewIntVar(-200, 200, $"device_ycoord_{token}");
+            model.Add(xCoord == cols[deviceId] * 2);
+            model.Add(yCoord == rows[deviceId] * 2);
+            deviceCenters[deviceId] = (xCoord, yCoord);
+            return (xCoord, yCoord);
+        }
+
+        BoolVar BuildTerminalOnSegmentWitness(
+            string deviceId,
+            string terminal,
+            IntVar ax,
+            IntVar ay,
+            IntVar bx,
+            IntVar by,
+            bool verticalAxis,
+            string token
+        )
+        {
+            var (tx, ty) = GetTerminalCoordinates(deviceId, terminal);
+            var axisAligned = verticalAxis
+                ? BuildAxisOverlapBool(
+                    model,
+                    ax,
+                    0,
+                    tx,
+                    0,
+                    $"direct_witness_same_x_{token}_{ToVarToken(terminal)}"
+                )
+                : BuildAxisOverlapBool(
+                    model,
+                    ay,
+                    0,
+                    ty,
+                    0,
+                    $"direct_witness_same_y_{token}_{ToVarToken(terminal)}"
+                );
+            var inSpan = verticalAxis
+                ? BuildBetweenBool(
+                    model,
+                    ay,
+                    0,
+                    by,
+                    0,
+                    ty,
+                    0,
+                    $"direct_witness_between_y_{token}_{ToVarToken(terminal)}"
+                )
+                : BuildBetweenBool(
+                    model,
+                    ax,
+                    0,
+                    bx,
+                    0,
+                    tx,
+                    0,
+                    $"direct_witness_between_x_{token}_{ToVarToken(terminal)}"
+                );
+            var onSegment = model.NewBoolVar(
+                $"direct_witness_on_segment_{token}_{ToVarToken(terminal)}"
+            );
+            model.AddBoolAnd([axisAligned, inSpan]).OnlyEnforceIf(onSegment);
+            model.AddBoolOr([axisAligned.Not(), inSpan.Not(), onSegment]);
+            return onSegment;
+        }
+
+        BoolVar GetDeviceSegmentWitness(
+            string deviceId,
+            string netName,
+            IntVar ax,
+            IntVar ay,
+            IntVar bx,
+            IntVar by,
+            bool verticalAxis,
+            string token
+        )
+        {
             if (
-                !graph.Devices.TryGetValue(deviceId, out var device)
-                || !transforms.TryGetValue(deviceId, out var transformVar)
+                !terminalsByDeviceAndNet.TryGetValue(deviceId, out var nets)
+                || !nets.TryGetValue(netName, out var terminals)
+                || terminals.Count == 0
             )
             {
-                var none = model.NewBoolVar(
-                    $"{(verticalAxis ? "col" : "row")}_axis_passthrough_none_{ToVarToken(deviceId)}_{ToVarToken(netName)}"
-                );
+                var none = model.NewBoolVar($"direct_witness_none_{token}");
                 model.Add(none == 0);
-                store[key] = none;
                 return none;
             }
 
-            var truth = BuildAxisPassThroughTruthTable(
-                device,
-                netName,
-                verticalAxis ? AxisDirection.Vertical : AxisDirection.Horizontal
-            );
-            var truthInt = model.NewIntVar(
-                0,
-                1,
-                $"{(verticalAxis ? "col" : "row")}_axis_passthrough_int_{ToVarToken(deviceId)}_{ToVarToken(netName)}"
-            );
-            model.AddElement(transformVar, truth, truthInt);
+            var witnesses = terminals
+                .Select(terminal =>
+                    BuildTerminalOnSegmentWitness(
+                        deviceId,
+                        terminal,
+                        ax,
+                        ay,
+                        bx,
+                        by,
+                        verticalAxis,
+                        token
+                    )
+                )
+                .ToList();
+            if (witnesses.Count == 1)
+            {
+                return witnesses[0];
+            }
 
-            var truthBool = model.NewBoolVar(
-                $"{(verticalAxis ? "col" : "row")}_axis_passthrough_bool_{ToVarToken(deviceId)}_{ToVarToken(netName)}"
-            );
-            model.Add(truthInt == 1).OnlyEnforceIf(truthBool);
-            model.Add(truthInt == 0).OnlyEnforceIf(truthBool.Not());
-            store[key] = truthBool;
-            return truthBool;
+            var anyWitness = model.NewBoolVar($"direct_witness_any_{token}");
+            model.AddBoolOr(witnesses).OnlyEnforceIf(anyWitness);
+            foreach (var witness in witnesses)
+            {
+                model.AddImplication(witness, anyWitness);
+            }
+
+            return anyWitness;
         }
 
         foreach (var (netName, refs) in graph.NetConnections)
         {
-            var participants = refs.Select(r => r.DeviceId)
-                .Distinct(StringComparer.Ordinal)
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var participants = refs.Where(r =>
+                    !IsBodyOrShieldTerminal(r.Terminal)
+                    && rows.ContainsKey(r.DeviceId)
+                    && cols.ContainsKey(r.DeviceId)
+                    && transforms.ContainsKey(r.DeviceId)
+                )
+                .Distinct()
                 .ToList();
             if (participants.Count < 2)
             {
@@ -568,46 +697,98 @@ public static class CoarseGridPlacer
                 {
                     var a = participants[i];
                     var b = participants[j];
-                    if (!rows.ContainsKey(a) || !rows.ContainsKey(b))
+                    if (a.DeviceId == b.DeviceId)
                     {
                         continue;
                     }
 
+                    var (ax, ay) = GetTerminalCoordinates(a.DeviceId, a.Terminal);
+                    var (bx, by) = GetTerminalCoordinates(b.DeviceId, b.Terminal);
+                    var token =
+                        $"{ToVarToken(netName)}_{ToVarToken(a.DeviceId)}_{ToVarToken(a.Terminal)}_{ToVarToken(b.DeviceId)}_{ToVarToken(b.Terminal)}";
+                    var sameX = BuildAxisOverlapBool(model, ax, 0, bx, 0, $"direct_same_x_{token}");
+                    var sameY = BuildAxisOverlapBool(model, ay, 0, by, 0, $"direct_same_y_{token}");
+
                     foreach (var k in deviceIds)
                     {
-                        if (k == a || k == b || !rows.ContainsKey(k))
+                        if (k == a.DeviceId || k == b.DeviceId || !rows.ContainsKey(k))
                         {
                             continue;
                         }
 
-                        var kParticipatesOnNet = participants.Contains(k, StringComparer.Ordinal);
-                        var allowBetweenOnRow = kParticipatesOnNet
-                            ? GetAxisPassThrough(k, netName, verticalAxis: false)
-                            : null;
-                        var allowBetweenOnCol = kParticipatesOnNet
-                            ? GetAxisPassThrough(k, netName, verticalAxis: true)
-                            : null;
+                        var (kx, ky) = GetDeviceCenterCoordinates(k);
+                        var radius2 = occupancyRadius.TryGetValue(k, out var radius)
+                            ? radius * 2
+                            : 0;
+                        var overlapsVerticalSegment = BuildAxisOverlapBool(
+                            model,
+                            kx,
+                            radius2,
+                            ax,
+                            0,
+                            $"direct_block_same_x_{token}_{ToVarToken(k)}"
+                        );
+                        var betweenVerticalEndpoints = BuildBetweenBool(
+                            model,
+                            ay,
+                            0,
+                            by,
+                            0,
+                            ky,
+                            radius2,
+                            $"direct_block_between_y_{token}_{ToVarToken(k)}"
+                        );
+                        var verticalWitness = GetDeviceSegmentWitness(
+                            k,
+                            netName,
+                            ax,
+                            ay,
+                            bx,
+                            by,
+                            verticalAxis: true,
+                            $"{token}_{ToVarToken(k)}_vertical"
+                        );
+                        model.AddBoolOr([
+                            sameX.Not(),
+                            overlapsVerticalSegment.Not(),
+                            betweenVerticalEndpoints.Not(),
+                            verticalWitness,
+                        ]);
 
-                        AddNotBetweenOnRow(
+                        var overlapsHorizontalSegment = BuildAxisOverlapBool(
                             model,
-                            rows,
-                            cols,
-                            occupancyRadius,
-                            a,
-                            b,
-                            k,
-                            allowBetweenOnRow
+                            ky,
+                            radius2,
+                            ay,
+                            0,
+                            $"direct_block_same_y_{token}_{ToVarToken(k)}"
                         );
-                        AddNotBetweenOnColumn(
+                        var betweenHorizontalEndpoints = BuildBetweenBool(
                             model,
-                            rows,
-                            cols,
-                            occupancyRadius,
-                            a,
-                            b,
-                            k,
-                            allowBetweenOnCol
+                            ax,
+                            0,
+                            bx,
+                            0,
+                            kx,
+                            radius2,
+                            $"direct_block_between_x_{token}_{ToVarToken(k)}"
                         );
+                        var horizontalWitness = GetDeviceSegmentWitness(
+                            k,
+                            netName,
+                            ax,
+                            ay,
+                            bx,
+                            by,
+                            verticalAxis: false,
+                            $"{token}_{ToVarToken(k)}_horizontal"
+                        );
+                        model.AddBoolOr([
+                            sameY.Not(),
+                            overlapsHorizontalSegment.Not(),
+                            betweenHorizontalEndpoints.Not(),
+                            horizontalWitness,
+                        ]);
                     }
                 }
             }
@@ -817,90 +998,6 @@ public static class CoarseGridPlacer
         }
     }
 
-    private static void AddNotBetweenOnRow(
-        CpModel model,
-        IReadOnlyDictionary<string, IntVar> rows,
-        IReadOnlyDictionary<string, IntVar> cols,
-        IReadOnlyDictionary<string, int> occupancyRadius,
-        string a,
-        string b,
-        string k,
-        BoolVar? allowBetween
-    )
-    {
-        var rowAligned = BuildAxisTripleOverlapBool(
-            model,
-            rows[a],
-            occupancyRadius[a],
-            rows[b],
-            occupancyRadius[b],
-            rows[k],
-            occupancyRadius[k],
-            $"row_aligned_{ToVarToken(a)}_{ToVarToken(b)}_{ToVarToken(k)}"
-        );
-
-        var between = BuildBetweenBool(
-            model,
-            cols[a],
-            occupancyRadius[a],
-            cols[b],
-            occupancyRadius[b],
-            cols[k],
-            occupancyRadius[k],
-            $"row_between_{ToVarToken(a)}_{ToVarToken(b)}_{ToVarToken(k)}"
-        );
-        if (allowBetween is null)
-        {
-            model.AddBoolOr([rowAligned.Not(), between.Not()]);
-        }
-        else
-        {
-            model.AddBoolOr([rowAligned.Not(), between.Not(), allowBetween]);
-        }
-    }
-
-    private static void AddNotBetweenOnColumn(
-        CpModel model,
-        IReadOnlyDictionary<string, IntVar> rows,
-        IReadOnlyDictionary<string, IntVar> cols,
-        IReadOnlyDictionary<string, int> occupancyRadius,
-        string a,
-        string b,
-        string k,
-        BoolVar? allowBetween
-    )
-    {
-        var colAligned = BuildAxisTripleOverlapBool(
-            model,
-            cols[a],
-            occupancyRadius[a],
-            cols[b],
-            occupancyRadius[b],
-            cols[k],
-            occupancyRadius[k],
-            $"col_aligned_{ToVarToken(a)}_{ToVarToken(b)}_{ToVarToken(k)}"
-        );
-
-        var between = BuildBetweenBool(
-            model,
-            rows[a],
-            occupancyRadius[a],
-            rows[b],
-            occupancyRadius[b],
-            rows[k],
-            occupancyRadius[k],
-            $"col_between_{ToVarToken(a)}_{ToVarToken(b)}_{ToVarToken(k)}"
-        );
-        if (allowBetween is null)
-        {
-            model.AddBoolOr([colAligned.Not(), between.Not()]);
-        }
-        else
-        {
-            model.AddBoolOr([colAligned.Not(), between.Not(), allowBetween]);
-        }
-    }
-
     private static BoolVar BuildBetweenBool(
         CpModel model,
         IntVar a,
@@ -937,27 +1034,6 @@ public static class CoarseGridPlacer
         model.AddImplication(betweenForward, between);
         model.AddImplication(betweenReverse, between);
         return between;
-    }
-
-    private static BoolVar BuildAxisTripleOverlapBool(
-        CpModel model,
-        IntVar a,
-        int aRadius,
-        IntVar b,
-        int bRadius,
-        IntVar k,
-        int kRadius,
-        string token
-    )
-    {
-        var overlapAB = BuildAxisOverlapBool(model, a, aRadius, b, bRadius, $"ab_{token}");
-        var overlapAK = BuildAxisOverlapBool(model, a, aRadius, k, kRadius, $"ak_{token}");
-        var overlapBK = BuildAxisOverlapBool(model, b, bRadius, k, kRadius, $"bk_{token}");
-
-        var aligned = model.NewBoolVar(token);
-        model.AddBoolAnd([overlapAB, overlapAK, overlapBK]).OnlyEnforceIf(aligned);
-        model.AddBoolOr([overlapAB.Not(), overlapAK.Not(), overlapBK.Not(), aligned]);
-        return aligned;
     }
 
     private static BoolVar BuildAxisOverlapBool(
@@ -1008,48 +1084,6 @@ public static class CoarseGridPlacer
     {
         Horizontal,
         Vertical,
-    }
-
-    private static int[] BuildAxisPassThroughTruthTable(
-        Cascode.Language.DeviceDeclaration device,
-        string netName,
-        AxisDirection axis
-    )
-    {
-        var truth = new int[16];
-        for (var transform = 0; transform < 16; transform++)
-        {
-            var match = false;
-            foreach (var (terminal, net) in device.Bindings)
-            {
-                if (!string.Equals(net, netName, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var baseEdge = GetDefaultEdge(device.DeviceType, terminal);
-                if (!baseEdge.HasValue)
-                {
-                    continue;
-                }
-
-                var edge = TransformEdge(baseEdge.Value, transform);
-                match = axis switch
-                {
-                    AxisDirection.Horizontal => edge is Edge.West or Edge.East,
-                    AxisDirection.Vertical => edge is Edge.North or Edge.South,
-                    _ => false,
-                };
-                if (match)
-                {
-                    break;
-                }
-            }
-
-            truth[transform] = match ? 1 : 0;
-        }
-
-        return truth;
     }
 
     private static int[] BuildPassiveAxisTruthTable(string deviceType, AxisDirection axis)

@@ -3,6 +3,7 @@ namespace Cascode.Render.Tests;
 using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
+using Cascode.Render.Routing;
 
 public class PlacementGoldenTests
 {
@@ -111,30 +112,40 @@ public class PlacementGoldenTests
     [Fact]
     public void Placement_FullyDiffOta_KeepsCmfbResistorsCenteredWithinLoadPair()
     {
-        var placement = LoadPlacement("tests/golden/cas/ota/OTA5TFullyDiff.el.cai");
+        var (placement, graph) = LoadPlacementAndGraph(
+            "tests/golden/cas/ota/OTA5TFullyDiff.el.cai"
+        );
         var cells = placement.DevicePlacements;
+        var terminalsByNet = MazeRouter.GetTerminalsByNet(placement, graph);
 
         var loadA = GetRequiredCell(cells, "M_LOAD_N");
         var loadB = GetRequiredCell(cells, "M_LOAD_P");
         var cmfbA = GetRequiredCell(cells, "R_CMFB_N");
         var cmfbB = GetRequiredCell(cells, "R_CMFB_P");
 
-        var leftLoad = loadA.Column <= loadB.Column ? loadA : loadB;
-        var rightLoad = loadA.Column <= loadB.Column ? loadB : loadA;
-        var leftCmfb = cmfbA.Column <= cmfbB.Column ? cmfbA : cmfbB;
-        var rightCmfb = cmfbA.Column <= cmfbB.Column ? cmfbB : cmfbA;
+        var leftLoad = loadA.Column <= loadB.Column ? ("M_LOAD_N", loadA) : ("M_LOAD_P", loadB);
+        var rightLoad = loadA.Column <= loadB.Column ? ("M_LOAD_P", loadB) : ("M_LOAD_N", loadA);
+        var leftCmfb = cmfbA.Column <= cmfbB.Column ? ("R_CMFB_N", cmfbA) : ("R_CMFB_P", cmfbB);
+        var rightCmfb = cmfbA.Column <= cmfbB.Column ? ("R_CMFB_P", cmfbB) : ("R_CMFB_N", cmfbA);
         Assert.True(
-            leftLoad.Column < leftCmfb.Column && rightCmfb.Column < rightLoad.Column,
-            $"Expected the CMFB resistor pair to stay inside the load pair span, got loads=({leftLoad.Column}, {rightLoad.Column}) and cmfb=({leftCmfb.Column}, {rightCmfb.Column})."
+            leftLoad.Item2.Column < leftCmfb.Item2.Column
+                && rightCmfb.Item2.Column < rightLoad.Item2.Column,
+            $"Expected the CMFB resistor pair to stay inside the load pair span, got loads=({leftLoad.Item2.Column}, {rightLoad.Item2.Column}) and cmfb=({leftCmfb.Item2.Column}, {rightCmfb.Item2.Column})."
         );
         Assert.Equal(cmfbA.Row, cmfbB.Row);
         Assert.NotEqual(cmfbA.Column, cmfbB.Column);
-        Assert.Equal(leftLoad.Column + rightLoad.Column, cmfbA.Column + cmfbB.Column);
+        Assert.Equal(leftLoad.Item2.Column + rightLoad.Item2.Column, cmfbA.Column + cmfbB.Column);
 
-        var cmfbAOffset = CoarseGridPlacer.GetTerminalEdgeOffset2("resistor", "P", cmfbA);
-        var cmfbBOffset = CoarseGridPlacer.GetTerminalEdgeOffset2("resistor", "P", cmfbB);
-        Assert.Equal(0, cmfbAOffset.XOffset2);
-        Assert.Equal(0, cmfbBOffset.XOffset2);
+        var leftGate = GetTerminal(terminalsByNet, "vcm_node", leftLoad.Item1, "G");
+        var rightGate = GetTerminal(terminalsByNet, "vcm_node", rightLoad.Item1, "G");
+        var leftCmfbSense = GetTerminal(terminalsByNet, "vcm_node", leftCmfb.Item1, "N");
+        var rightCmfbSense = GetTerminal(terminalsByNet, "vcm_node", rightCmfb.Item1, "N");
+
+        Assert.Equal(leftGate.Y, leftCmfbSense.Y);
+        Assert.Equal(leftGate.Y, rightCmfbSense.Y);
+        Assert.Equal(leftGate.Y, rightGate.Y);
+        Assert.InRange(leftCmfbSense.X, leftGate.X + 1, rightGate.X - 1);
+        Assert.InRange(rightCmfbSense.X, leftGate.X + 1, rightGate.X - 1);
     }
 
     [Fact]
@@ -314,6 +325,35 @@ public class PlacementGoldenTests
             $"Missing placement for '{deviceId}'."
         );
         return cell;
+    }
+
+    private static TerminalPosition GetTerminal(
+        IReadOnlyDictionary<string, IReadOnlyList<TerminalPosition>> byNet,
+        string netName,
+        string deviceId,
+        string terminal
+    )
+    {
+        Assert.True(byNet.TryGetValue(netName, out var terminals), $"Missing net '{netName}'.");
+        return terminals.Single(t => t.DeviceId == deviceId && t.Terminal == terminal);
+    }
+
+    private static (CoarseGridResult Placement, CircuitGraph Graph) LoadPlacementAndGraph(
+        string cascodePath
+    )
+    {
+        var repoRoot = GetRepoRoot();
+        var fullCascodePath = Path.Combine(repoRoot, cascodePath);
+
+        using var reader = File.OpenText(fullCascodePath);
+        var readResult = CascodeReader.TryRead(reader, fullCascodePath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        return (CoarseGridPlacer.Place(topology, graph), graph);
     }
 
     private static string GetRepoRoot()
