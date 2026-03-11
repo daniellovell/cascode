@@ -1074,7 +1074,12 @@ public static class CoarseGridPlacer
             }
 
             var type = device.DeviceType.ToLowerInvariant();
-            radii[deviceId] = type is "nmos" or "nfet" or "pmos" or "pfet" ? 1 : 0;
+            radii[deviceId] = type switch
+            {
+                "nmos" or "nfet" or "pmos" or "pfet" => 1,
+                "instance" => 1,
+                _ => 0,
+            };
         }
 
         return radii;

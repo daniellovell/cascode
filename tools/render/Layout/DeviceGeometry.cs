@@ -20,8 +20,8 @@ public static class DeviceGeometry
     public const double PortPinX = 13.0;
     public const double PortPinY = 2.5;
 
-    public const double InstanceBlockWidth = 30.0;
-    public const double InstanceBlockHeight = 30.0;
+    public const double InstanceBlockWidth = 50.0;
+    public const double InstanceBlockHeight = 50.0;
 
     public const double MosfetGateX = 0.5;
     public const double MosfetGateY = 12.5;

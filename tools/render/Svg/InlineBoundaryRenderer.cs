@@ -90,12 +90,77 @@ internal static class InlineBoundaryRenderer
             return null;
         }
 
-        const double padding = 12;
+        const double padding = 4;
+        const double instanceClearance = 10;
+        var groupSet = new HashSet<string>(deviceIds, StringComparer.Ordinal);
+        var boundsMinX = minX.Value - padding;
+        var boundsMinY = minY.Value - padding;
+        var boundsMaxX = maxX.Value + padding;
+        var boundsMaxY = maxY.Value + padding;
+
+        foreach (var (deviceId, _) in placement.DevicePlacements)
+        {
+            if (
+                groupSet.Contains(deviceId)
+                || !graph.Devices.TryGetValue(deviceId, out var device)
+                || !string.Equals(device.DeviceType, "instance", StringComparison.OrdinalIgnoreCase)
+                || !DevicePlacementHelper.TryGetDevicePlacement(
+                    placement,
+                    deviceId,
+                    device,
+                    out var instancePlacement
+                )
+            )
+            {
+                continue;
+            }
+
+            var instanceMinX = instancePlacement.X;
+            var instanceMaxX = instancePlacement.X + instancePlacement.Width;
+            var instanceMinY = instancePlacement.Y;
+            var instanceMaxY = instancePlacement.Y + instancePlacement.Height;
+            var overlapsY = boundsMinY < instanceMaxY && boundsMaxY > instanceMinY;
+            if (!overlapsY)
+            {
+                continue;
+            }
+
+            if (boundsMaxX <= instanceMinX)
+            {
+                boundsMaxX = Math.Min(boundsMaxX, instanceMinX - instanceClearance);
+                continue;
+            }
+
+            if (boundsMinX >= instanceMaxX)
+            {
+                boundsMinX = Math.Max(boundsMinX, instanceMaxX + instanceClearance);
+                continue;
+            }
+
+            var boundsCenterX = (boundsMinX + boundsMaxX) / 2.0;
+            var instanceCenterX = (instanceMinX + instanceMaxX) / 2.0;
+            if (boundsCenterX <= instanceCenterX)
+            {
+                boundsMaxX = Math.Min(boundsMaxX, instanceMinX - instanceClearance);
+            }
+            else
+            {
+                boundsMinX = Math.Max(boundsMinX, instanceMaxX + instanceClearance);
+            }
+        }
+
+        if (boundsMaxX <= boundsMinX)
+        {
+            var midX = (boundsMinX + boundsMaxX) / 2.0;
+            boundsMinX = midX - 0.5;
+            boundsMaxX = midX + 0.5;
+        }
+
         return (
-            X: minX.Value - padding,
-            Y: minY.Value - padding,
-            Width: (maxX.Value - minX.Value) + padding * 2,
-            Height: (maxY.Value - minY.Value) + padding * 2
+            X: boundsMinX,
+            Y: boundsMinY,
+            Width: boundsMaxX - boundsMinX,
+            Height: boundsMaxY - boundsMinY
         );
     }
 }

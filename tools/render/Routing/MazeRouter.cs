@@ -18,7 +18,7 @@ public static partial class MazeRouter
         CircuitGraph graph
     )
     {
-        var canvasWidth = placement.ColumnCount * DeviceGeometry.CellWidth;
+        var canvasWidth = ComputeCanvasWidth(placement, graph);
         var canvasHeight =
             placement.RowCount * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
 
@@ -64,7 +64,7 @@ public static partial class MazeRouter
         RouteConstraintSet? constraints = null
     )
     {
-        var canvasWidth = placement.ColumnCount * DeviceGeometry.CellWidth;
+        var canvasWidth = ComputeCanvasWidth(placement, graph);
         var canvasHeight =
             placement.RowCount * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
 
@@ -72,6 +72,9 @@ public static partial class MazeRouter
         var terminalsByNet = GroupTerminalsByNet(terminals, graph);
         var obstacles = ObstacleMap.FromPlacement(placement, graph);
         var mosAxisGuards = ObstacleMap.CreateMosAxisGuards(terminals, graph);
+        var hardObstacles = mosAxisGuards
+            .Concat(ObstacleMap.CreateInstanceBlockGuards(placement, graph))
+            .ToList();
         var occupied = new OccupiedSegments();
 
         var allSegments = new List<WireSegment>();
@@ -136,7 +139,7 @@ public static partial class MazeRouter
                     terms,
                     routeConstraint.Waypoints,
                     obstacles,
-                    mosAxisGuards,
+                    hardObstacles,
                     occupied,
                     forbiddenPoints
                 );
@@ -147,7 +150,7 @@ public static partial class MazeRouter
                     netName,
                     terms,
                     obstacles,
-                    mosAxisGuards,
+                    hardObstacles,
                     occupied,
                     forbiddenPoints
                 );
@@ -169,6 +172,28 @@ public static partial class MazeRouter
         };
 
         return (result, occupied);
+    }
+
+    private static int ComputeCanvasWidth(CoarseGridResult placement, CircuitGraph graph)
+    {
+        var canvasWidth = placement.ColumnCount * DeviceGeometry.CellWidth;
+        foreach (var (deviceId, cell) in placement.DevicePlacements)
+        {
+            if (
+                !graph.Devices.TryGetValue(deviceId, out var device)
+                || !string.Equals(device.DeviceType, "instance", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                continue;
+            }
+
+            var rightX =
+                DeviceGeometry.GetCellCenterX(cell.Column)
+                + DeviceGeometry.InstanceBlockWidth / 2.0;
+            canvasWidth = Math.Max(canvasWidth, (int)Math.Ceiling(rightX));
+        }
+
+        return canvasWidth;
     }
 
     /// <summary>

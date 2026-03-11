@@ -92,6 +92,43 @@ public static class ObstacleMap
     }
 
     /// <summary>
+    /// Creates hard no-route guards for instance blocks so fallback routing
+    /// can never cut through a block body.
+    /// </summary>
+    public static IReadOnlyList<Obstacle> CreateInstanceBlockGuards(
+        CoarseGridResult placement,
+        CircuitGraph graph
+    )
+    {
+        var guards = new List<Obstacle>();
+        foreach (var (deviceId, cell) in placement.DevicePlacements)
+        {
+            if (
+                !graph.Devices.TryGetValue(deviceId, out var device)
+                || !string.Equals(device.DeviceType, "instance", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                continue;
+            }
+
+            var cx = DeviceGeometry.GetCellCenterX(cell.Column);
+            var cy = DeviceGeometry.GetCellCenterY(cell.Row);
+            var x = cx - DeviceGeometry.InstanceBlockWidth / 2.0;
+            var y = cy - DeviceGeometry.InstanceBlockHeight / 2.0;
+            guards.Add(
+                new Obstacle(
+                    MinX: (int)Math.Floor(x),
+                    MinY: (int)Math.Floor(y),
+                    MaxX: (int)Math.Ceiling(x + DeviceGeometry.InstanceBlockWidth),
+                    MaxY: (int)Math.Ceiling(y + DeviceGeometry.InstanceBlockHeight)
+                )
+            );
+        }
+
+        return guards;
+    }
+
+    /// <summary>
     /// Computes bounding box for a device at given cell.
     /// </summary>
     private static Obstacle? ComputeDeviceBounds(string deviceType, GridCell cell)
