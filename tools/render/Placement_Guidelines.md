@@ -3,7 +3,7 @@
 Status: Draft
 Authors: Titan Yuan
 Created: 2026-03-05
-Last Updated: 2026-03-06
+Last Updated: 2026-03-10
 
 ---
 
@@ -66,12 +66,20 @@ The U-turn term has its own weight:
 3. If, after orientation, a component has a terminal connected to ground on its south edge, no other component may occupy a grid cell in the same column at a larger row index (i.e., below it). As with constraint 2, this is edge-specific to the south edge after orientation.
 4. For every pair of components that share the same row or same column and that share a signal at any of their terminals, no component that does not also participate in that signal may be placed strictly between them along that row or column. "Strictly between" excludes the endpoints. For this test only, NMOS and PMOS devices are treated as having an effective 3 x 3 cell footprint centered on their anchor cell (one neighboring cell in each direction), so intervening/alignment checks use this expanded occupancy.
 5. If a component does participate in that shared signal and is placed strictly between the pair, it is only allowed when that signal is present on the component edge aligned with the bisected axis under the chosen orientation: west/east for same-row placement and north/south for same-column placement.
+6. For NMOS and PMOS devices, the gate edge is constrained to face the signal source whenever the source direction is unambiguous at coarse-placement time. Input and bias ports force the gate to the west edge unless the device participates in a detected differential pair, and an internal point-to-point gate net (exactly one gate terminal plus one non-gate device terminal, excluding body/shield terminals) forces the gate to face that terminal's side when the source device ends up strictly left or right of the MOS device.
+7. Devices participating in a detected differential pair must occupy the same row. Within each detected pair, the left device gate must face west and the right device gate must face east, so the two gates point in opposite outward directions about the pair's vertical centerline.
+8. Devices participating in a detected current mirror must occupy the same row. For mirrors with more than two devices, all devices in the mirror group share one common row.
+9. For a point-to-point non-rail connection that resolves to a straight horizontal or vertical segment at coarse-placement time, no terminal on any third device may lie strictly on that segment unless that terminal is bound to the same net. This constraint is terminal-based rather than anchor-based: it blocks off-net terminals from sitting on another signal's straight connection even when the owning device is not itself an endpoint of that signal.
+10. A passive classified as horizontal by topology analysis must remain horizontal when it touches a branching non-rail net. In practice this covers fanout and feedback spines where rotating the passive vertical would collapse multiple same-net elements into one column and obscure the branch structure.
 
 ### Soft Constraints
 
 1. Input and bias ports are biased toward the left side.
 2. Output ports are biased toward the right side.
 3. Symmetric device groups are biased toward a shared vertical symmetry axis.
+4. Any pair of MOS devices that share a net through non-body terminals is biased toward topology-aware alignment. Pairs assigned to the same coarse topology row prefer row alignment; pairs assigned to different coarse rows prefer column alignment. When the pair is the mirrored pair of a detected symmetric group, equal-row placement mirrored about the vertical symmetry axis is treated as an alternative aligned state. This generic rule is suppressed on the three-device CMOS branching nets handled by the dedicated L-shape objective.
+5. CMOS devices sharing a non-rail signal are additionally biased toward local clustering by Manhattan distance rather than a strict same-row or same-column rule. When exactly three such devices form an L shape with two on a common row and the third off-row, the off-row device is biased toward the vertical centerline of the horizontal pair.
+6. Same-flavor drain/source chains are biased toward matching mirror-X orientation, but this soft preference yields to the hard gate-facing rule above when the two disagree.
 
 No compactness bias and no default-orientation stability bias are included in the current objective.
 

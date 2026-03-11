@@ -1,12 +1,12 @@
 DeviceId,Row,Column,Rotation,MirrorX,MirrorY
 RCAS_TOP,0,6,90,true,false
 LD,0,10,90,true,false
-CCAS,1,6,90,true,false
-RCAS_BOT,1,8,90,true,false
+COUT,0,12,180,true,true
+RCAS_BOT,1,6,90,true,false
+CCAS,1,8,90,true,false
 M2,1,10,270,false,true
-COUT,1,12,270,false,true
 LM,2,0,180,true,true
-LG,2,4,0,false,true
+LG,2,4,180,true,true
 M1,2,10,270,false,true
 CM,3,2,90,true,false
 LS,3,10,90,true,false

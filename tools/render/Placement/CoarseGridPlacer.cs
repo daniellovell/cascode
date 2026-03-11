@@ -58,7 +58,11 @@ public static class CoarseGridPlacer
     private const int InPortWeight = 0;
     private const int OutPortWeight = 0;
     private const int SymmetryWeight = 8;
-    private const int SharedSignalCmosAxisPenaltyWeight = 4;
+    private const int ConnectedDeviceAlignmentWeight = 12;
+    private const int ConnectedDeviceAxisMismatchFactor = 4;
+    private const int SharedSignalCmosClusterWeight = 1;
+    private const int SharedSignalCmosLShapeCenterlineWeight = 4;
+    private const int CenteredPassiveLoadWeight = 8;
     private const int SameFlavorDrainSourceMirrorMismatchPenaltyWeight = 12;
     private const int AxisMismatchPenaltyWeight = 1;
     private const int UTurnPenaltyWeight = 128;
@@ -128,9 +132,21 @@ public static class CoarseGridPlacer
             constraints,
             hardConstraintEntities
         );
+        AddBranchingHorizontalPassiveOrientationConstraints(model, topology, graph, transforms);
         AddRailPassiveVerticalConstraints(model, graph, deviceIds, transforms);
         AddRailEdgeConstraints(model, graph, deviceIds, rows, cols, transforms);
         AddNoInterveningDeviceConstraints(model, graph, deviceIds, rows, cols, transforms);
+        AddOffNetTerminalOnConnectionConstraints(model, graph, deviceIds, rows, cols, transforms);
+        AddMosGateFacingSourceConstraints(
+            model,
+            graph,
+            topology.SymmetricGroups,
+            deviceIds,
+            cols,
+            transforms
+        );
+        AddDiffPairSymmetryConstraints(model, topology.SymmetricGroups, rows, cols, transforms);
+        AddCurrentMirrorSameRowConstraints(model, topology.SymmetricGroups, rows);
 
         var objectives = new List<LinearExpr>();
         AddWireLengthObjective(model, graph, rows, cols, transforms, objectives, colDomain);
@@ -143,6 +159,15 @@ public static class CoarseGridPlacer
             objectives,
             symmetryAxis
         );
+        AddConnectedDeviceAlignmentObjectives(
+            model,
+            topology,
+            graph,
+            rows,
+            cols,
+            objectives,
+            symmetryAxis
+        );
         AddSameFlavorDrainSourceMirrorObjectives(
             model,
             graph,
@@ -150,7 +175,8 @@ public static class CoarseGridPlacer
             objectives,
             SameFlavorDrainSourceMirrorMismatchPenaltyWeight
         );
-        AddSharedSignalCmosAxisObjectives(model, graph, rows, cols, objectives);
+        AddSharedSignalCmosClusteringObjectives(model, graph, rows, cols, objectives);
+        AddCenteredPassiveLoadObjectives(model, topology, graph, rows, cols, objectives);
         model.Minimize(LinearExpr.Sum(objectives));
 
         var solver = new CpSolver();
@@ -365,6 +391,39 @@ public static class CoarseGridPlacer
         }
     }
 
+    private static void AddBranchingHorizontalPassiveOrientationConstraints(
+        CpModel model,
+        TopologyResult topology,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> transforms
+    )
+    {
+        foreach (var (deviceId, orientation) in topology.PassiveOrientations)
+        {
+            if (
+                orientation != PassiveOrientation.Horizontal
+                || !graph.Devices.TryGetValue(deviceId, out var device)
+                || !transforms.TryGetValue(deviceId, out var transformVar)
+                || !TouchesBranchingNonRailNet(graph, device)
+            )
+            {
+                continue;
+            }
+
+            var horizontalByTransform = BuildPassiveAxisTruthTable(
+                device.DeviceType,
+                AxisDirection.Horizontal
+            );
+            var horizontalMatch = model.NewIntVar(
+                0,
+                1,
+                $"branching_horizontal_passive_{ToVarToken(deviceId)}"
+            );
+            model.AddElement(transformVar, horizontalByTransform, horizontalMatch);
+            model.Add(horizontalMatch == 1);
+        }
+    }
+
     private static int[] BuildRailEdgeTruthTable(
         Cascode.Language.DeviceDeclaration device,
         CircuitGraph graph,
@@ -537,6 +596,209 @@ public static class CoarseGridPlacer
                         );
                     }
                 }
+            }
+        }
+    }
+
+    private static void AddMosGateFacingSourceConstraints(
+        CpModel model,
+        CircuitGraph graph,
+        IReadOnlyList<SymmetricGroup> groups,
+        IReadOnlyList<string> deviceIds,
+        IReadOnlyDictionary<string, IntVar> cols,
+        IReadOnlyDictionary<string, IntVar> transforms
+    )
+    {
+        var mirrorXByDevice = new Dictionary<string, BoolVar>(StringComparer.Ordinal);
+        var diffPairDeviceIds = groups
+            .Where(g => g.Type == SymmetryType.DiffPair)
+            .SelectMany(g => g.DeviceIds)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var deviceId in deviceIds)
+        {
+            if (
+                GetMosFlavor(graph, deviceId) is null
+                || !cols.TryGetValue(deviceId, out var gateCol)
+                || !transforms.ContainsKey(deviceId)
+            )
+            {
+                continue;
+            }
+
+            var gateNet = graph.GetNetForTerminal(deviceId, "G");
+            if (string.IsNullOrWhiteSpace(gateNet) || graph.IsSupplyOrGround(gateNet))
+            {
+                continue;
+            }
+
+            var mirrorX = GetMirrorXBool(model, transforms, deviceId, mirrorXByDevice);
+            if (graph.InputPorts.Contains(gateNet) || graph.BiasPorts.Contains(gateNet))
+            {
+                if (diffPairDeviceIds.Contains(deviceId))
+                {
+                    continue;
+                }
+
+                model.Add(mirrorX == 0);
+                continue;
+            }
+
+            if (
+                !TryGetPointToPointGateSource(graph, deviceId, gateNet, out var sourceRef)
+                || !cols.TryGetValue(sourceRef.DeviceId, out var sourceCol)
+            )
+            {
+                continue;
+            }
+
+            var token =
+                $"{ToVarToken(gateNet)}_{ToVarToken(sourceRef.DeviceId)}_{ToVarToken(deviceId)}";
+            var sourceLeft = model.NewBoolVar($"gate_src_left_{token}");
+            model.Add(sourceCol <= gateCol - 1).OnlyEnforceIf(sourceLeft);
+            model.Add(sourceCol >= gateCol).OnlyEnforceIf(sourceLeft.Not());
+            model.AddImplication(sourceLeft, mirrorX.Not());
+
+            var sourceRight = model.NewBoolVar($"gate_src_right_{token}");
+            model.Add(sourceCol >= gateCol + 1).OnlyEnforceIf(sourceRight);
+            model.Add(sourceCol <= gateCol).OnlyEnforceIf(sourceRight.Not());
+            model.AddImplication(sourceRight, mirrorX);
+        }
+    }
+
+    private static void AddOffNetTerminalOnConnectionConstraints(
+        CpModel model,
+        CircuitGraph graph,
+        IReadOnlyList<string> deviceIds,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols,
+        IReadOnlyDictionary<string, IntVar> transforms
+    )
+    {
+        var terminalCoords =
+            new Dictionary<(string DeviceId, string Terminal), (IntVar X, IntVar Y)>();
+        var candidateTerminals = graph
+            .Devices.SelectMany(kv =>
+                kv.Value.Bindings.Keys.Where(terminal => !IsBodyOrShieldTerminal(terminal))
+                    .Select(terminal => (DeviceId: kv.Key, Terminal: terminal))
+            )
+            .Where(t =>
+                rows.ContainsKey(t.DeviceId)
+                && cols.ContainsKey(t.DeviceId)
+                && transforms.ContainsKey(t.DeviceId)
+            )
+            .ToList();
+
+        (IntVar X, IntVar Y) GetTerminalCoordinates(string deviceId, string terminal)
+        {
+            var key = (deviceId, terminal);
+            if (terminalCoords.TryGetValue(key, out var cached))
+            {
+                return cached;
+            }
+
+            var token = $"{ToVarToken(deviceId)}_{ToVarToken(terminal)}";
+            var xOffsetTable = BuildAxisOffsetTable(graph, deviceId, terminal, axis: "x");
+            var yOffsetTable = BuildAxisOffsetTable(graph, deviceId, terminal, axis: "y");
+            var xOffset = model.NewIntVar(-1, 1, $"terminal_xoff_{token}");
+            var yOffset = model.NewIntVar(-1, 1, $"terminal_yoff_{token}");
+            model.AddElement(transforms[deviceId], xOffsetTable, xOffset);
+            model.AddElement(transforms[deviceId], yOffsetTable, yOffset);
+
+            var xCoord = model.NewIntVar(-200, 200, $"terminal_xcoord_{token}");
+            var yCoord = model.NewIntVar(-200, 200, $"terminal_ycoord_{token}");
+            model.Add(xCoord == cols[deviceId] * 2 + xOffset);
+            model.Add(yCoord == rows[deviceId] * 2 + yOffset);
+            terminalCoords[key] = (xCoord, yCoord);
+            return (xCoord, yCoord);
+        }
+
+        foreach (var (netName, refs) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var connectionRefs = refs.Where(r =>
+                    !IsBodyOrShieldTerminal(r.Terminal)
+                    && rows.ContainsKey(r.DeviceId)
+                    && cols.ContainsKey(r.DeviceId)
+                    && transforms.ContainsKey(r.DeviceId)
+                )
+                .Distinct()
+                .ToList();
+            if (
+                connectionRefs.Count != 2
+                || connectionRefs[0].DeviceId == connectionRefs[1].DeviceId
+            )
+            {
+                continue;
+            }
+
+            var a = connectionRefs[0];
+            var b = connectionRefs[1];
+            var (ax, ay) = GetTerminalCoordinates(a.DeviceId, a.Terminal);
+            var (bx, by) = GetTerminalCoordinates(b.DeviceId, b.Terminal);
+            var token = $"{ToVarToken(netName)}_{ToVarToken(a.DeviceId)}_{ToVarToken(b.DeviceId)}";
+            var sameX = BuildAxisOverlapBool(model, ax, 0, bx, 0, $"offnet_same_x_{token}");
+            var sameY = BuildAxisOverlapBool(model, ay, 0, by, 0, $"offnet_same_y_{token}");
+
+            foreach (var candidate in candidateTerminals)
+            {
+                if (
+                    candidate.DeviceId == a.DeviceId
+                    || candidate.DeviceId == b.DeviceId
+                    || string.Equals(
+                        graph.GetNetForTerminal(candidate.DeviceId, candidate.Terminal),
+                        netName,
+                        StringComparison.Ordinal
+                    )
+                )
+                {
+                    continue;
+                }
+
+                var (tx, ty) = GetTerminalCoordinates(candidate.DeviceId, candidate.Terminal);
+                var sameXAsConnection = BuildAxisOverlapBool(
+                    model,
+                    ax,
+                    0,
+                    tx,
+                    0,
+                    $"offnet_same_x_{token}_{ToVarToken(candidate.DeviceId)}_{ToVarToken(candidate.Terminal)}"
+                );
+                var sameYAsConnection = BuildAxisOverlapBool(
+                    model,
+                    ay,
+                    0,
+                    ty,
+                    0,
+                    $"offnet_same_y_{token}_{ToVarToken(candidate.DeviceId)}_{ToVarToken(candidate.Terminal)}"
+                );
+                var betweenY = BuildBetweenBool(
+                    model,
+                    ay,
+                    0,
+                    by,
+                    0,
+                    ty,
+                    0,
+                    $"offnet_between_y_{token}_{ToVarToken(candidate.DeviceId)}_{ToVarToken(candidate.Terminal)}"
+                );
+                var betweenX = BuildBetweenBool(
+                    model,
+                    ax,
+                    0,
+                    bx,
+                    0,
+                    tx,
+                    0,
+                    $"offnet_between_x_{token}_{ToVarToken(candidate.DeviceId)}_{ToVarToken(candidate.Terminal)}"
+                );
+
+                model.AddBoolOr([sameX.Not(), sameXAsConnection.Not(), betweenY.Not()]);
+                model.AddBoolOr([sameY.Not(), sameYAsConnection.Not(), betweenX.Not()]);
             }
         }
     }
@@ -771,6 +1033,29 @@ public static class CoarseGridPlacer
             }
 
             truth[transform] = match ? 1 : 0;
+        }
+
+        return truth;
+    }
+
+    private static int[] BuildPassiveAxisTruthTable(string deviceType, AxisDirection axis)
+    {
+        var truth = new int[16];
+        var baseEdge = GetDefaultEdge(deviceType, "P");
+        if (!baseEdge.HasValue)
+        {
+            return truth;
+        }
+
+        for (var transform = 0; transform < 16; transform++)
+        {
+            var edge = TransformEdge(baseEdge.Value, transform);
+            truth[transform] = axis switch
+            {
+                AxisDirection.Horizontal => edge is Edge.West or Edge.East ? 1 : 0,
+                AxisDirection.Vertical => edge is Edge.North or Edge.South ? 1 : 0,
+                _ => 0,
+            };
         }
 
         return truth;
@@ -1393,7 +1678,199 @@ public static class CoarseGridPlacer
         }
     }
 
-    private static void AddSharedSignalCmosAxisObjectives(
+    private static void AddConnectedDeviceAlignmentObjectives(
+        CpModel model,
+        TopologyResult topology,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols,
+        List<LinearExpr> objectives,
+        int symmetryAxis
+    )
+    {
+        var symmetricPairs = BuildSymmetricPairLookup(topology.SymmetricGroups);
+        var excludedPairs = BuildSharedSignalCmosTriplePairLookup(graph);
+        foreach (var (deviceA, deviceB) in EnumerateConnectedDevicePairs(graph))
+        {
+            if (excludedPairs.Contains((deviceA, deviceB)))
+            {
+                continue;
+            }
+
+            if (
+                !rows.TryGetValue(deviceA, out var rowA)
+                || !rows.TryGetValue(deviceB, out var rowB)
+                || !cols.TryGetValue(deviceA, out var colA)
+                || !cols.TryGetValue(deviceB, out var colB)
+            )
+            {
+                continue;
+            }
+
+            var token = $"{ToVarToken(deviceA)}_{ToVarToken(deviceB)}";
+            var rowDiff = model.NewIntVar(0, 500, $"conn_align_row_diff_{token}");
+            model.AddAbsEquality(rowDiff, rowA - rowB);
+
+            var colDiff = model.NewIntVar(0, 500, $"conn_align_col_diff_{token}");
+            model.AddAbsEquality(colDiff, colA - colB);
+
+            var rowAlignedCost = model.NewIntVar(0, 2500, $"conn_align_row_cost_{token}");
+            model.Add(rowAlignedCost == rowDiff * ConnectedDeviceAxisMismatchFactor + colDiff);
+
+            var colAlignedCost = model.NewIntVar(0, 2500, $"conn_align_col_cost_{token}");
+            model.Add(colAlignedCost == colDiff * ConnectedDeviceAxisMismatchFactor + rowDiff);
+
+            var preferSameRow =
+                topology.DeviceRows.TryGetValue(deviceA, out var topoRowA)
+                && topology.DeviceRows.TryGetValue(deviceB, out var topoRowB)
+                && topoRowA == topoRowB;
+            var candidates = new List<LinearExpr>
+            {
+                preferSameRow ? rowAlignedCost : colAlignedCost,
+            };
+            if (symmetricPairs.Contains((deviceA, deviceB)))
+            {
+                var axisDelta = model.NewIntVar(-500, 500, $"conn_align_axis_delta_{token}");
+                model.Add(axisDelta == colA + colB - 2 * symmetryAxis);
+
+                var axisDiff = model.NewIntVar(0, 500, $"conn_align_axis_diff_{token}");
+                model.AddAbsEquality(axisDiff, axisDelta);
+
+                var symmetryPenalty = model.NewIntVar(
+                    0,
+                    2500,
+                    $"conn_align_symmetry_penalty_{token}"
+                );
+                model.Add(
+                    symmetryPenalty == axisDiff * ConnectedDeviceAxisMismatchFactor + rowDiff
+                );
+                candidates.Add(symmetryPenalty);
+            }
+
+            var alignmentPenalty = model.NewIntVar(0, 2500, $"conn_align_penalty_{token}");
+            model.AddMinEquality(alignmentPenalty, candidates);
+            objectives.Add(alignmentPenalty * ConnectedDeviceAlignmentWeight);
+        }
+    }
+
+    private static HashSet<(string Left, string Right)> BuildSymmetricPairLookup(
+        IReadOnlyList<SymmetricGroup> groups
+    )
+    {
+        var result = new HashSet<(string Left, string Right)>();
+        foreach (var group in groups)
+        {
+            var ids = group.DeviceIds.Distinct(StringComparer.Ordinal).ToList();
+            for (var i = 0; i < ids.Count / 2; i++)
+            {
+                var a = ids[i];
+                var b = ids[ids.Count - 1 - i];
+                if (a == b)
+                {
+                    continue;
+                }
+
+                result.Add(OrderPair(a, b));
+            }
+        }
+
+        return result;
+    }
+
+    private static HashSet<(string Left, string Right)> BuildSharedSignalCmosTriplePairLookup(
+        CircuitGraph graph
+    )
+    {
+        var result = new HashSet<(string Left, string Right)>();
+        foreach (var (deviceA, deviceB, deviceC, _) in EnumerateSharedSignalCmosTriples(graph))
+        {
+            result.Add(OrderPair(deviceA, deviceB));
+            result.Add(OrderPair(deviceA, deviceC));
+            result.Add(OrderPair(deviceB, deviceC));
+        }
+
+        return result;
+    }
+
+    private static void AddDiffPairSymmetryConstraints(
+        CpModel model,
+        IReadOnlyList<SymmetricGroup> groups,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols,
+        IReadOnlyDictionary<string, IntVar> transforms
+    )
+    {
+        var mirrorXByDevice = new Dictionary<string, BoolVar>(StringComparer.Ordinal);
+
+        foreach (var group in groups.Where(g => g.Type == SymmetryType.DiffPair))
+        {
+            var ids = group
+                .DeviceIds.Where(id =>
+                    rows.ContainsKey(id) && cols.ContainsKey(id) && transforms.ContainsKey(id)
+                )
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            if (ids.Count < 2)
+            {
+                continue;
+            }
+
+            var anchorRow = rows[ids[0]];
+            foreach (var id in ids.Skip(1))
+            {
+                model.Add(rows[id] == anchorRow);
+            }
+
+            for (var i = 0; i < ids.Count / 2; i++)
+            {
+                var a = ids[i];
+                var b = ids[ids.Count - 1 - i];
+                if (a == b)
+                {
+                    continue;
+                }
+
+                var token = $"{ToVarToken(group.PivotNet)}_{ToVarToken(a)}_{ToVarToken(b)}";
+                var aLeftOfB = model.NewBoolVar($"diff_pair_left_of_{token}");
+                model.Add(cols[a] <= cols[b] - 1).OnlyEnforceIf(aLeftOfB);
+                model.Add(cols[a] >= cols[b]).OnlyEnforceIf(aLeftOfB.Not());
+
+                var mirrorXA = GetMirrorXBool(model, transforms, a, mirrorXByDevice);
+                var mirrorXB = GetMirrorXBool(model, transforms, b, mirrorXByDevice);
+                model.Add(mirrorXA == 0).OnlyEnforceIf(aLeftOfB);
+                model.Add(mirrorXB == 1).OnlyEnforceIf(aLeftOfB);
+                model.Add(mirrorXA == 1).OnlyEnforceIf(aLeftOfB.Not());
+                model.Add(mirrorXB == 0).OnlyEnforceIf(aLeftOfB.Not());
+            }
+        }
+    }
+
+    private static void AddCurrentMirrorSameRowConstraints(
+        CpModel model,
+        IReadOnlyList<SymmetricGroup> groups,
+        IReadOnlyDictionary<string, IntVar> rows
+    )
+    {
+        foreach (var group in groups.Where(g => g.Type == SymmetryType.CurrentMirror))
+        {
+            var ids = group
+                .DeviceIds.Where(rows.ContainsKey)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            if (ids.Count < 2)
+            {
+                continue;
+            }
+
+            var anchorRow = rows[ids[0]];
+            foreach (var id in ids.Skip(1))
+            {
+                model.Add(rows[id] == anchorRow);
+            }
+        }
+    }
+
+    private static void AddSharedSignalCmosClusteringObjectives(
         CpModel model,
         CircuitGraph graph,
         IReadOnlyDictionary<string, IntVar> rows,
@@ -1414,20 +1891,283 @@ public static class CoarseGridPlacer
             }
 
             var token = $"{ToVarToken(netName)}_{ToVarToken(deviceA)}_{ToVarToken(deviceB)}";
-            var sameRow = model.NewBoolVar($"cmos_axis_same_row_{token}");
-            model.Add(rowA == rowB).OnlyEnforceIf(sameRow);
-            model.Add(rowA != rowB).OnlyEnforceIf(sameRow.Not());
-
-            var sameCol = model.NewBoolVar($"cmos_axis_same_col_{token}");
-            model.Add(colA == colB).OnlyEnforceIf(sameCol);
-            model.Add(colA != colB).OnlyEnforceIf(sameCol.Not());
-
-            // Penalize only when both row and column differ.
-            var misaligned = model.NewBoolVar($"cmos_axis_misaligned_{token}");
-            model.AddBoolAnd([sameRow.Not(), sameCol.Not()]).OnlyEnforceIf(misaligned);
-            model.AddBoolOr([sameRow, sameCol, misaligned]);
-            objectives.Add(misaligned * SharedSignalCmosAxisPenaltyWeight);
+            var rowDiff = model.NewIntVar(0, 500, $"cmos_cluster_row_diff_{token}");
+            model.AddAbsEquality(rowDiff, rowA - rowB);
+            var colDiff = model.NewIntVar(0, 500, $"cmos_cluster_col_diff_{token}");
+            model.AddAbsEquality(colDiff, colA - colB);
+            objectives.Add((rowDiff + colDiff) * SharedSignalCmosClusterWeight);
         }
+
+        foreach (
+            var (deviceA, deviceB, deviceC, netName) in EnumerateSharedSignalCmosTriples(graph)
+        )
+        {
+            if (
+                !rows.ContainsKey(deviceA)
+                || !rows.ContainsKey(deviceB)
+                || !rows.ContainsKey(deviceC)
+                || !cols.ContainsKey(deviceA)
+                || !cols.ContainsKey(deviceB)
+                || !cols.ContainsKey(deviceC)
+            )
+            {
+                continue;
+            }
+
+            AddSharedSignalCmosLShapeCenterlineObjective(
+                model,
+                rows,
+                cols,
+                objectives,
+                netName,
+                horizontalA: deviceB,
+                horizontalB: deviceC,
+                vertical: deviceA
+            );
+            AddSharedSignalCmosLShapeCenterlineObjective(
+                model,
+                rows,
+                cols,
+                objectives,
+                netName,
+                horizontalA: deviceA,
+                horizontalB: deviceC,
+                vertical: deviceB
+            );
+            AddSharedSignalCmosLShapeCenterlineObjective(
+                model,
+                rows,
+                cols,
+                objectives,
+                netName,
+                horizontalA: deviceA,
+                horizontalB: deviceB,
+                vertical: deviceC
+            );
+        }
+    }
+
+    private static void AddCenteredPassiveLoadObjectives(
+        CpModel model,
+        TopologyResult topology,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols,
+        List<LinearExpr> objectives
+    )
+    {
+        foreach (
+            var (
+                pivotNet,
+                loadA,
+                loadB,
+                passiveA,
+                passiveB,
+                branchMatches
+            ) in EnumerateCenteredPassiveLoadGroups(graph, topology)
+        )
+        {
+            if (
+                !rows.ContainsKey(loadA)
+                || !rows.ContainsKey(loadB)
+                || !rows.ContainsKey(passiveA)
+                || !rows.ContainsKey(passiveB)
+                || !cols.ContainsKey(loadA)
+                || !cols.ContainsKey(loadB)
+                || !cols.ContainsKey(passiveA)
+                || !cols.ContainsKey(passiveB)
+            )
+            {
+                continue;
+            }
+
+            var token =
+                $"{ToVarToken(pivotNet)}_{ToVarToken(loadA)}_{ToVarToken(loadB)}_{ToVarToken(passiveA)}_{ToVarToken(passiveB)}";
+            var centerlineDelta = model.NewIntVar(
+                -500,
+                500,
+                $"centered_passive_centerline_delta_{token}"
+            );
+            model.Add(
+                centerlineDelta == cols[passiveA] + cols[passiveB] - cols[loadA] - cols[loadB]
+            );
+
+            var centerlineMismatch = model.NewIntVar(
+                0,
+                500,
+                $"centered_passive_centerline_abs_{token}"
+            );
+            model.AddAbsEquality(centerlineMismatch, centerlineDelta);
+            objectives.Add(centerlineMismatch * CenteredPassiveLoadWeight);
+
+            foreach (var (loadId, passiveId) in branchMatches)
+            {
+                var rowDelta = model.NewIntVar(
+                    -500,
+                    500,
+                    $"centered_passive_row_delta_{token}_{ToVarToken(loadId)}_{ToVarToken(passiveId)}"
+                );
+                model.Add(rowDelta == rows[passiveId] - rows[loadId]);
+
+                var rowMismatch = model.NewIntVar(
+                    0,
+                    500,
+                    $"centered_passive_row_abs_{token}_{ToVarToken(loadId)}_{ToVarToken(passiveId)}"
+                );
+                model.AddAbsEquality(rowMismatch, rowDelta);
+                objectives.Add(rowMismatch * CenteredPassiveLoadWeight);
+
+                var inwardDelta = model.NewIntVar(
+                    -500,
+                    500,
+                    $"centered_passive_inward_delta_{token}_{ToVarToken(loadId)}_{ToVarToken(passiveId)}"
+                );
+                model.Add(inwardDelta == cols[passiveId] * 2 - cols[loadA] - cols[loadB]);
+
+                var inwardDistance = model.NewIntVar(
+                    0,
+                    500,
+                    $"centered_passive_inward_abs_{token}_{ToVarToken(loadId)}_{ToVarToken(passiveId)}"
+                );
+                model.AddAbsEquality(inwardDistance, inwardDelta);
+                objectives.Add(inwardDistance * CenteredPassiveLoadWeight);
+            }
+        }
+    }
+
+    private static IEnumerable<(
+        string PivotNet,
+        string LoadA,
+        string LoadB,
+        string PassiveA,
+        string PassiveB,
+        IReadOnlyList<(string LoadId, string PassiveId)> BranchMatches
+    )> EnumerateCenteredPassiveLoadGroups(CircuitGraph graph, TopologyResult topology)
+    {
+        var passivePairs = TopologyAnalyzer.DetectSymmetricPassivePairs(graph, topology);
+        foreach (
+            var loadGroup in topology.SymmetricGroups.Where(g => g.Type == SymmetryType.LoadPair)
+        )
+        {
+            var loadIds = loadGroup.DeviceIds.Distinct(StringComparer.Ordinal).ToList();
+            if (loadIds.Count != 2)
+            {
+                continue;
+            }
+
+            var loadByOuterNet = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var loadId in loadIds)
+            {
+                var outerNet = graph.GetNetForTerminal(loadId, "D");
+                if (string.IsNullOrWhiteSpace(outerNet) || graph.IsSupplyOrGround(outerNet))
+                {
+                    loadByOuterNet.Clear();
+                    break;
+                }
+
+                loadByOuterNet[outerNet] = loadId;
+            }
+
+            if (loadByOuterNet.Count != 2)
+            {
+                continue;
+            }
+
+            foreach (
+                var passivePair in passivePairs.Where(pair => pair.PivotNet == loadGroup.PivotNet)
+            )
+            {
+                var passiveIds = new[] { passivePair.Left, passivePair.Right }
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                if (passiveIds.Count != 2)
+                {
+                    continue;
+                }
+
+                var branchMatches = new List<(string LoadId, string PassiveId)>();
+                foreach (var passiveId in passiveIds)
+                {
+                    var outerNet = graph.GetNetForTerminal(passiveId, "P");
+                    if (
+                        string.IsNullOrWhiteSpace(outerNet)
+                        || !loadByOuterNet.TryGetValue(outerNet, out var loadId)
+                    )
+                    {
+                        branchMatches.Clear();
+                        break;
+                    }
+
+                    branchMatches.Add((loadId, passiveId));
+                }
+
+                if (
+                    branchMatches.Count == 2
+                    && branchMatches
+                        .Select(match => match.LoadId)
+                        .Distinct(StringComparer.Ordinal)
+                        .Count() == 2
+                )
+                {
+                    yield return (
+                        loadGroup.PivotNet,
+                        loadIds[0],
+                        loadIds[1],
+                        passiveIds[0],
+                        passiveIds[1],
+                        branchMatches
+                    );
+                }
+            }
+        }
+    }
+
+    private static void AddSharedSignalCmosLShapeCenterlineObjective(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols,
+        List<LinearExpr> objectives,
+        string netName,
+        string horizontalA,
+        string horizontalB,
+        string vertical
+    )
+    {
+        var token =
+            $"{ToVarToken(netName)}_{ToVarToken(horizontalA)}_{ToVarToken(horizontalB)}_{ToVarToken(vertical)}";
+        var pairSameRow = model.NewBoolVar($"cmos_l_same_row_{token}");
+        model.Add(rows[horizontalA] == rows[horizontalB]).OnlyEnforceIf(pairSameRow);
+        model.Add(rows[horizontalA] != rows[horizontalB]).OnlyEnforceIf(pairSameRow.Not());
+
+        var pairSpansColumns = model.NewBoolVar($"cmos_l_spans_cols_{token}");
+        model.Add(cols[horizontalA] != cols[horizontalB]).OnlyEnforceIf(pairSpansColumns);
+        model.Add(cols[horizontalA] == cols[horizontalB]).OnlyEnforceIf(pairSpansColumns.Not());
+
+        var verticalOffRow = model.NewBoolVar($"cmos_l_vertical_off_row_{token}");
+        model.Add(rows[vertical] != rows[horizontalA]).OnlyEnforceIf(verticalOffRow);
+        model.Add(rows[vertical] == rows[horizontalA]).OnlyEnforceIf(verticalOffRow.Not());
+
+        var formsLShape = model.NewBoolVar($"cmos_l_shape_{token}");
+        model
+            .AddBoolAnd([pairSameRow, pairSpansColumns, verticalOffRow])
+            .OnlyEnforceIf(formsLShape);
+        model.AddBoolOr([
+            pairSameRow.Not(),
+            pairSpansColumns.Not(),
+            verticalOffRow.Not(),
+            formsLShape,
+        ]);
+
+        var centerlineDelta = model.NewIntVar(-500, 500, $"cmos_l_centerline_delta_{token}");
+        model.Add(centerlineDelta == cols[horizontalA] + cols[horizontalB] - (cols[vertical] * 2));
+
+        var centerlineAbs = model.NewIntVar(0, 500, $"cmos_l_centerline_abs_{token}");
+        model.AddAbsEquality(centerlineAbs, centerlineDelta);
+
+        var gatedPenalty = model.NewIntVar(0, 500, $"cmos_l_centerline_penalty_{token}");
+        model.Add(gatedPenalty == centerlineAbs).OnlyEnforceIf(formsLShape);
+        model.Add(gatedPenalty == 0).OnlyEnforceIf(formsLShape.Not());
+        objectives.Add(gatedPenalty * SharedSignalCmosLShapeCenterlineWeight);
     }
 
     private static void AddSameFlavorDrainSourceMirrorObjectives(
@@ -1445,25 +2185,6 @@ public static class CoarseGridPlacer
 
         var mirrorXByDevice = new Dictionary<string, BoolVar>(StringComparer.Ordinal);
 
-        BoolVar GetMirrorXBool(string deviceId)
-        {
-            if (mirrorXByDevice.TryGetValue(deviceId, out var cached))
-            {
-                return cached;
-            }
-
-            var token = ToVarToken(deviceId);
-            var mirrorXByTransform = new[] { 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1 };
-            var mirrorXInt = model.NewIntVar(0, 1, $"mirror_x_int_{token}");
-            model.AddElement(transforms[deviceId], mirrorXByTransform, mirrorXInt);
-
-            var mirrorX = model.NewBoolVar($"mirror_x_{token}");
-            model.Add(mirrorXInt == 1).OnlyEnforceIf(mirrorX);
-            model.Add(mirrorXInt == 0).OnlyEnforceIf(mirrorX.Not());
-            mirrorXByDevice[deviceId] = mirrorX;
-            return mirrorX;
-        }
-
         foreach (var (deviceA, deviceB, netName) in EnumerateSameFlavorDrainSourcePairs(graph))
         {
             if (!transforms.ContainsKey(deviceA) || !transforms.ContainsKey(deviceB))
@@ -1471,8 +2192,8 @@ public static class CoarseGridPlacer
                 continue;
             }
 
-            var mirrorXA = GetMirrorXBool(deviceA);
-            var mirrorXB = GetMirrorXBool(deviceB);
+            var mirrorXA = GetMirrorXBool(model, transforms, deviceA, mirrorXByDevice);
+            var mirrorXB = GetMirrorXBool(model, transforms, deviceB, mirrorXByDevice);
             var token = $"{ToVarToken(netName)}_{ToVarToken(deviceA)}_{ToVarToken(deviceB)}";
             var mismatch = model.NewBoolVar($"same_flavor_ds_mirror_mismatch_{token}");
             model.Add(mirrorXA != mirrorXB).OnlyEnforceIf(mismatch);
@@ -1526,6 +2247,88 @@ public static class CoarseGridPlacer
                         yield return (sorted[i], sorted[j], netName);
                     }
                 }
+            }
+        }
+    }
+
+    private static IEnumerable<(string DeviceA, string DeviceB)> EnumerateConnectedDevicePairs(
+        CircuitGraph graph
+    )
+    {
+        var yielded = new HashSet<(string DeviceA, string DeviceB)>();
+        foreach (var (_, refs) in graph.NetConnections)
+        {
+            var deviceIds = refs.Where(terminalRef => !IsBodyOrShieldTerminal(terminalRef.Terminal))
+                .Where(terminalRef => GetMosFlavor(graph, terminalRef.DeviceId) is not null)
+                .Select(terminalRef => terminalRef.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToList();
+
+            for (var i = 0; i < deviceIds.Count; i++)
+            {
+                for (var j = i + 1; j < deviceIds.Count; j++)
+                {
+                    var pair = OrderPair(deviceIds[i], deviceIds[j]);
+                    if (yielded.Add(pair))
+                    {
+                        yield return pair;
+                    }
+                }
+            }
+        }
+    }
+
+    private static (string Left, string Right) OrderPair(string a, string b)
+    {
+        return string.Compare(a, b, StringComparison.Ordinal) <= 0 ? (a, b) : (b, a);
+    }
+
+    private static IEnumerable<(
+        string DeviceA,
+        string DeviceB,
+        string DeviceC,
+        string NetName
+    )> EnumerateSharedSignalCmosTriples(CircuitGraph graph)
+    {
+        var yielded = new HashSet<(string DeviceA, string DeviceB, string DeviceC)>();
+        foreach (var (netName, refs) in graph.NetConnections)
+        {
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+            {
+                continue;
+            }
+
+            var cmosIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var terminalRef in refs)
+            {
+                if (IsBodyOrShieldTerminal(terminalRef.Terminal))
+                {
+                    continue;
+                }
+
+                if (!graph.Devices.TryGetValue(terminalRef.DeviceId, out var device))
+                {
+                    continue;
+                }
+
+                var type = device.DeviceType.ToLowerInvariant();
+                if (type is "nmos" or "nfet" or "pmos" or "pfet")
+                {
+                    cmosIds.Add(terminalRef.DeviceId);
+                }
+            }
+
+            if (cmosIds.Count != 3)
+            {
+                continue;
+            }
+
+            var sorted = cmosIds.OrderBy(id => id, StringComparer.Ordinal).ToList();
+            var key = (sorted[0], sorted[1], sorted[2]);
+            if (yielded.Add(key))
+            {
+                yield return (sorted[0], sorted[1], sorted[2], netName);
             }
         }
     }
@@ -1813,6 +2616,11 @@ public static class CoarseGridPlacer
         return t is "B" or "BULK" or "BODY" or "SH" or "SHIELD";
     }
 
+    private static bool IsGateTerminal(string terminal)
+    {
+        return string.Equals(terminal.Trim(), "G", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsDrainOrSourceTerminal(string terminal)
     {
         var t = terminal.Trim().ToUpperInvariant();
@@ -1839,5 +2647,94 @@ public static class CoarseGridPlacer
             "pmos" or "pfet" => "pmos",
             _ => null,
         };
+    }
+
+    private static bool TouchesBranchingNonRailNet(
+        CircuitGraph graph,
+        Cascode.Language.DeviceDeclaration device
+    )
+    {
+        foreach (var netName in device.Bindings.Values.Distinct(StringComparer.Ordinal))
+        {
+            if (
+                graph.IsSupplyOrGround(netName)
+                || !graph.NetConnections.TryGetValue(netName, out var refs)
+            )
+            {
+                continue;
+            }
+
+            var participants = refs.Select(r => r.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .Count();
+            if (participants >= 3)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetPointToPointGateSource(
+        CircuitGraph graph,
+        string deviceId,
+        string gateNet,
+        out TerminalRef sourceRef
+    )
+    {
+        sourceRef = default;
+        if (!graph.NetConnections.TryGetValue(gateNet, out var connections))
+        {
+            return false;
+        }
+
+        var activeRefs = connections
+            .Where(r => !IsBodyOrShieldTerminal(r.Terminal))
+            .Distinct()
+            .ToList();
+        if (activeRefs.Count != 2)
+        {
+            return false;
+        }
+
+        var hasSelfGate = activeRefs.Any(r =>
+            string.Equals(r.DeviceId, deviceId, StringComparison.Ordinal)
+            && IsGateTerminal(r.Terminal)
+        );
+        if (!hasSelfGate)
+        {
+            return false;
+        }
+
+        sourceRef = activeRefs.SingleOrDefault(r =>
+            !string.Equals(r.DeviceId, deviceId, StringComparison.Ordinal)
+            && !IsGateTerminal(r.Terminal)
+        );
+        return sourceRef != default;
+    }
+
+    private static BoolVar GetMirrorXBool(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> transforms,
+        string deviceId,
+        IDictionary<string, BoolVar> cache
+    )
+    {
+        if (cache.TryGetValue(deviceId, out var cached))
+        {
+            return cached;
+        }
+
+        var token = ToVarToken(deviceId);
+        var mirrorXByTransform = new[] { 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1 };
+        var mirrorXInt = model.NewIntVar(0, 1, $"mirror_x_int_{token}");
+        model.AddElement(transforms[deviceId], mirrorXByTransform, mirrorXInt);
+
+        var mirrorX = model.NewBoolVar($"mirror_x_{token}");
+        model.Add(mirrorXInt == 1).OnlyEnforceIf(mirrorX);
+        model.Add(mirrorXInt == 0).OnlyEnforceIf(mirrorX.Not());
+        cache[deviceId] = mirrorX;
+        return mirrorX;
     }
 }

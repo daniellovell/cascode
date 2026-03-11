@@ -1,6 +1,6 @@
 DeviceId,Row,Column,Rotation,MirrorX,MirrorY
-cm.M_SENSE,0,0,270,true,true
-cm.M_TAP0,0,1,270,false,true
-dp.M_N,1,0,270,false,true
-dp.M_P,1,1,270,false,true
-dp.M_TAIL,2,0,180,false,true
+cm.M_TAP0,0,0,180,true,false
+cm.M_SENSE,0,2,180,false,false
+dp.M_P,1,0,270,false,true
+dp.M_N,1,1,270,true,true
+dp.M_TAIL,2,0,180,false,false

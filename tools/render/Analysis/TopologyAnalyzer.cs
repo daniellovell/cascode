@@ -526,7 +526,8 @@ public static class TopologyAnalyzer
     }
 
     /// <summary>
-    /// Detects current mirrors: diode-connected device sharing gate net with other same-type devices.
+    /// Detects current mirrors: diode-connected device sharing both gate and source nets with
+    /// other same-type devices.
     /// </summary>
     private static IEnumerable<SymmetricGroup> DetectCurrentMirrors(CircuitGraph graph)
     {
@@ -560,6 +561,12 @@ public static class TopologyAnalyzer
             processedGateNets.Add(gateNet);
 
             var diodeDeviceDecl = graph.Devices[diodeDevice];
+            var diodeSourceNet = graph.GetNetForTerminal(diodeDevice, "S");
+            if (string.IsNullOrWhiteSpace(diodeSourceNet))
+            {
+                continue;
+            }
+
             var mirrorDevices = new List<string> { diodeDevice };
 
             foreach (var (deviceId, device) in graph.Devices)
@@ -577,7 +584,11 @@ public static class TopologyAnalyzer
                 }
 
                 var deviceGateNet = graph.GetNetForTerminal(deviceId, "G");
-                if (deviceGateNet == gateNet)
+                var deviceSourceNet = graph.GetNetForTerminal(deviceId, "S");
+                if (
+                    deviceGateNet == gateNet
+                    && string.Equals(deviceSourceNet, diodeSourceNet, StringComparison.Ordinal)
+                )
                 {
                     mirrorDevices.Add(deviceId);
                 }

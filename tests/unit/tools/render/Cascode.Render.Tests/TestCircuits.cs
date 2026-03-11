@@ -349,6 +349,164 @@ internal static class TestCircuits
             },
         };
 
+    public static Circuit CurrentMirrorPair() =>
+        new()
+        {
+            Name = "current_mirror_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_REF",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "vref",
+                            ["G"] = "vref",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_OUT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "vref",
+                            ["S"] = "VDD",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "vref", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit SharedGateDifferentSourcePair() =>
+        new()
+        {
+            Name = "shared_gate_different_source_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_REF",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "vref",
+                            ["G"] = "vref",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_OUT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "vref",
+                            ["S"] = "vsrc2",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "vref", Domain = "signal" },
+                    new() { Id = "vsrc2", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit TwoIndependentDevices() =>
+        new()
+        {
+            Name = "two_independent_devices",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_IN",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "nint",
+                            ["G"] = "IN",
+                            ["S"] = "GND",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "R_LOAD",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "VDD", ["N"] = "OUT" },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "nint", Domain = "signal" },
+                },
+            },
+        };
+
     public static Circuit CmfbResistors() =>
         new()
         {
@@ -481,14 +639,14 @@ internal static class TestCircuits
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "VG_LEFT",
-                    Type = "signal",
+                    Name = "VBIAS_LEFT",
+                    Type = "bias",
                 },
                 new()
                 {
-                    Direction = PortDirection.Output,
-                    Name = "VG_RIGHT",
-                    Type = "signal",
+                    Direction = PortDirection.Input,
+                    Name = "VBIAS_RIGHT",
+                    Type = "bias",
                 },
                 new()
                 {
@@ -509,7 +667,7 @@ internal static class TestCircuits
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "cas",
-                            ["G"] = "VG_LEFT",
+                            ["G"] = "vg_left",
                             ["S"] = "GND",
                         },
                     },
@@ -521,14 +679,38 @@ internal static class TestCircuits
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
-                            ["G"] = "VG_RIGHT",
+                            ["G"] = "vg_right",
                             ["S"] = "cas",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "R_LEFT",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["P"] = "VBIAS_LEFT",
+                            ["N"] = "vg_left",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "R_RIGHT",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["P"] = "vg_right",
+                            ["N"] = "VBIAS_RIGHT",
                         },
                     },
                 },
                 Nets = new List<NetDeclaration>
                 {
                     new() { Id = "cas", Domain = "signal" },
+                    new() { Id = "vg_left", Domain = "signal" },
+                    new() { Id = "vg_right", Domain = "signal" },
                 },
             },
         };
@@ -611,6 +793,94 @@ internal static class TestCircuits
                 Nets = new List<NetDeclaration>
                 {
                     new() { Id = "cas", Domain = "signal" },
+                },
+            },
+        };
+
+    public static Circuit SameFlavorPmosDrainSourceChainWithCompetingGateSides() =>
+        new()
+        {
+            Name = "same_flavor_pmos_ds_chain",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VBIAS_LEFT",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VBIAS_RIGHT",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_TOP",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "cas",
+                            ["G"] = "vg_right",
+                            ["S"] = "VDD",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_BOT",
+                        DeviceType = "pmos",
+                        Primitive = "PMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "vg_left",
+                            ["S"] = "cas",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "R_LEFT",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["P"] = "VBIAS_LEFT",
+                            ["N"] = "vg_left",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "R_RIGHT",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["P"] = "vg_right",
+                            ["N"] = "VBIAS_RIGHT",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "cas", Domain = "signal" },
+                    new() { Id = "vg_left", Domain = "signal" },
+                    new() { Id = "vg_right", Domain = "signal" },
                 },
             },
         };

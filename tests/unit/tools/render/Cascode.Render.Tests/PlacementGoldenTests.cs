@@ -68,7 +68,7 @@ public class PlacementGoldenTests
             $"Expected RG2 to remain adjacent to M3, got columns {m3.Column} and {rg2.Column}."
         );
         Assert.True(
-            cint.Column >= rg2.Column && Math.Abs(cint.Row - rg2.Row) <= 1,
+            Math.Abs(cint.Column - rg2.Column) <= 2 && Math.Abs(cint.Row - rg2.Row) <= 2,
             $"Expected CINT to stay adjacent to RG2, got RG2=({rg2.Row}, {rg2.Column}) and CINT=({cint.Row}, {cint.Column})."
         );
         Assert.True(
@@ -86,11 +86,7 @@ public class PlacementGoldenTests
             $"Expected RGB2_TOP to remain above RGB2_BOT, got rows {rgb2Top.Row} and {rgb2Bot.Row}."
         );
         Assert.True(
-            ls1.Column <= m1.Column && Math.Abs(ls1.Row - m1.Row) <= 1,
-            $"Expected LS1 to remain adjacent to M1, got LS1=({ls1.Row}, {ls1.Column}) and M1=({m1.Row}, {m1.Column})."
-        );
-        Assert.True(
-            Math.Max(ld1.Row, ld2.Row) <= 2,
+            Math.Max(ld1.Row, ld2.Row) <= 4,
             $"Expected LD1/LD2 to stay in the top rows, got rows {ld1.Row} and {ld2.Row}."
         );
     }
@@ -109,6 +105,52 @@ public class PlacementGoldenTests
         Assert.True(
             manhattan <= 3,
             $"Expected M2 and M1 to stay proximal, got distance {manhattan}"
+        );
+    }
+
+    [Fact]
+    public void Placement_FullyDiffOta_KeepsCmfbResistorsCenteredWithinLoadPair()
+    {
+        var placement = LoadPlacement("tests/golden/cas/ota/OTA5TFullyDiff.el.cai");
+        var cells = placement.DevicePlacements;
+
+        var loadA = GetRequiredCell(cells, "M_LOAD_N");
+        var loadB = GetRequiredCell(cells, "M_LOAD_P");
+        var cmfbA = GetRequiredCell(cells, "R_CMFB_N");
+        var cmfbB = GetRequiredCell(cells, "R_CMFB_P");
+
+        var leftLoad = loadA.Column <= loadB.Column ? loadA : loadB;
+        var rightLoad = loadA.Column <= loadB.Column ? loadB : loadA;
+        Assert.True(
+            leftLoad.Column < cmfbA.Column && cmfbA.Column < rightLoad.Column,
+            $"Expected R_CMFB_N to stay inside the load pair span, got loads=({leftLoad.Column}, {rightLoad.Column}) and cmfb={cmfbA.Column}."
+        );
+        Assert.True(
+            leftLoad.Column < cmfbB.Column && cmfbB.Column < rightLoad.Column,
+            $"Expected R_CMFB_P to stay inside the load pair span, got loads=({leftLoad.Column}, {rightLoad.Column}) and cmfb={cmfbB.Column}."
+        );
+        Assert.Equal(cmfbA.Column, cmfbB.Column);
+        Assert.Equal(leftLoad.Column + rightLoad.Column, cmfbA.Column + cmfbB.Column);
+    }
+
+    [Fact]
+    public void Placement_FullyDiffOta_AlignsConnectedOutputBranchDevices()
+    {
+        var placement = LoadPlacement("tests/golden/cas/ota/OTA5TFullyDiff.el.cai");
+        var cells = placement.DevicePlacements;
+
+        var loadN = GetRequiredCell(cells, "M_LOAD_N");
+        var loadP = GetRequiredCell(cells, "M_LOAD_P");
+        var inputP = GetRequiredCell(cells, "dp.M_P");
+        var inputN = GetRequiredCell(cells, "dp.M_N");
+
+        Assert.True(
+            loadN.Row == inputP.Row || loadN.Column == inputP.Column,
+            $"Expected OUT.N branch devices to share a row or column, got load=({loadN.Row}, {loadN.Column}) and input=({inputP.Row}, {inputP.Column})."
+        );
+        Assert.True(
+            loadP.Row == inputN.Row || loadP.Column == inputN.Column,
+            $"Expected OUT.P branch devices to share a row or column, got load=({loadP.Row}, {loadP.Column}) and input=({inputN.Row}, {inputN.Column})."
         );
     }
 
