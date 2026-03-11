@@ -121,16 +121,20 @@ public class PlacementGoldenTests
 
         var leftLoad = loadA.Column <= loadB.Column ? loadA : loadB;
         var rightLoad = loadA.Column <= loadB.Column ? loadB : loadA;
+        var leftCmfb = cmfbA.Column <= cmfbB.Column ? cmfbA : cmfbB;
+        var rightCmfb = cmfbA.Column <= cmfbB.Column ? cmfbB : cmfbA;
         Assert.True(
-            leftLoad.Column < cmfbA.Column && cmfbA.Column < rightLoad.Column,
-            $"Expected R_CMFB_N to stay inside the load pair span, got loads=({leftLoad.Column}, {rightLoad.Column}) and cmfb={cmfbA.Column}."
+            leftLoad.Column < leftCmfb.Column && rightCmfb.Column < rightLoad.Column,
+            $"Expected the CMFB resistor pair to stay inside the load pair span, got loads=({leftLoad.Column}, {rightLoad.Column}) and cmfb=({leftCmfb.Column}, {rightCmfb.Column})."
         );
-        Assert.True(
-            leftLoad.Column < cmfbB.Column && cmfbB.Column < rightLoad.Column,
-            $"Expected R_CMFB_P to stay inside the load pair span, got loads=({leftLoad.Column}, {rightLoad.Column}) and cmfb={cmfbB.Column}."
-        );
-        Assert.Equal(cmfbA.Column, cmfbB.Column);
+        Assert.Equal(cmfbA.Row, cmfbB.Row);
+        Assert.NotEqual(cmfbA.Column, cmfbB.Column);
         Assert.Equal(leftLoad.Column + rightLoad.Column, cmfbA.Column + cmfbB.Column);
+
+        var cmfbAOffset = CoarseGridPlacer.GetTerminalEdgeOffset2("resistor", "P", cmfbA);
+        var cmfbBOffset = CoarseGridPlacer.GetTerminalEdgeOffset2("resistor", "P", cmfbB);
+        Assert.Equal(0, cmfbAOffset.XOffset2);
+        Assert.Equal(0, cmfbBOffset.XOffset2);
     }
 
     [Fact]

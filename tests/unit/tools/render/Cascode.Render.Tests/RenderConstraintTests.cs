@@ -766,8 +766,18 @@ public sealed class RenderConstraintTests
             )
             {
                 Assert.True(
-                    manhattanDistance <= 6,
+                    manhattanDistance <= 8,
                     $"Expected load pair '{deviceA}'/'{deviceB}' with centered passive sensing on '{netName}' to remain within one inserted passive span, got Manhattan distance {manhattanDistance}."
+                );
+                alignedPairs++;
+                continue;
+            }
+
+            if (IsSymmetricPair(topology, deviceA, deviceB))
+            {
+                Assert.True(
+                    manhattanDistance <= 8,
+                    $"Expected symmetric CMOS devices '{deviceA}' and '{deviceB}' sharing net '{netName}' to remain within one mirrored branch span, got Manhattan distance {manhattanDistance}."
                 );
                 alignedPairs++;
                 continue;
@@ -976,6 +986,16 @@ public sealed class RenderConstraintTests
         }
 
         return false;
+    }
+
+    private static bool IsSymmetricPair(TopologyResult topology, string deviceA, string deviceB)
+    {
+        return topology.SymmetricGroups.Any(group =>
+        {
+            var ids = group.DeviceIds.Distinct(StringComparer.Ordinal).ToList();
+            return ids.Contains(deviceA, StringComparer.Ordinal)
+                && ids.Contains(deviceB, StringComparer.Ordinal);
+        });
     }
 
     private static bool IsBodyOrShieldTerminal(string terminal)

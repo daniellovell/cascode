@@ -151,6 +151,37 @@ public class RenderIntegrationTests
         );
     }
 
+    [Fact]
+    public async Task Render_StressFullyDiffOta_CmfbResistorsShareYPosition()
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var home = CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            "render_stress_ota5t"
+        );
+        var outputPath = Path.Combine(home.Path, "ota5t_stress.svg");
+        var inputPath = "tests/golden/cas/stress/OTA5TFullyDiff_Ideal.cas";
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            home,
+            "render",
+            inputPath,
+            "--output",
+            outputPath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result);
+        var svgContent = await File.ReadAllTextAsync(outputPath);
+
+        var cmfbPX = GetDeviceOriginX(svgContent, "R_CMFB_P");
+        var cmfbNX = GetDeviceOriginX(svgContent, "R_CMFB_N");
+        var cmfbPY = GetDeviceOriginY(svgContent, "R_CMFB_P");
+        var cmfbNY = GetDeviceOriginY(svgContent, "R_CMFB_N");
+        Assert.NotEqual(cmfbPX, cmfbNX);
+        Assert.Equal(cmfbPY, cmfbNY);
+    }
+
     [Theory]
     [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT", 50.0)]
     [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P", 25.0)]
@@ -244,6 +275,30 @@ public class RenderIntegrationTests
         );
 
         Assert.True(match.Success, $"Port '{portName}' transform should be found");
+        return double.Parse(match.Groups[2].Value);
+    }
+
+    private static double GetDeviceOriginX(string svgContent, string deviceId)
+    {
+        var escapedDeviceId = Regex.Escape(deviceId);
+        var match = Regex.Match(
+            svgContent,
+            $@"<g id=""{escapedDeviceId}""[^>]*transform=""translate\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)"""
+        );
+
+        Assert.True(match.Success, $"Device '{deviceId}' transform should be found");
+        return double.Parse(match.Groups[1].Value);
+    }
+
+    private static double GetDeviceOriginY(string svgContent, string deviceId)
+    {
+        var escapedDeviceId = Regex.Escape(deviceId);
+        var match = Regex.Match(
+            svgContent,
+            $@"<g id=""{escapedDeviceId}""[^>]*transform=""translate\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)"""
+        );
+
+        Assert.True(match.Success, $"Device '{deviceId}' transform should be found");
         return double.Parse(match.Groups[2].Value);
     }
 

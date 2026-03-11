@@ -1,8 +1,8 @@
 DeviceId,Row,Column,Rotation,MirrorX,MirrorY
-R_CMFB_N,2,1,180,false,true
-M_LOAD_N,1,0,270,true,true
-M_LOAD_P,1,2,270,false,true
-dp.M_P,2,0,270,false,true
-R_CMFB_P,0,1,180,false,true
-dp.M_N,2,2,270,true,true
-dp.M_TAIL,3,1,180,false,false
+M_LOAD_N,0,0,180,true,false
+R_CMFB_N,0,2,270,true,true
+R_CMFB_P,0,6,270,true,true
+M_LOAD_P,0,8,270,false,true
+dp.M_P,1,0,270,false,true
+dp.M_N,1,8,270,true,true
+dp.M_TAIL,2,4,180,false,false

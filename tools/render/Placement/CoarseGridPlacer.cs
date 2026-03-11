@@ -154,7 +154,8 @@ public static class CoarseGridPlacer
             transforms
         );
         AddDiffPairSymmetryConstraints(model, topology.SymmetricGroups, rows, cols, transforms);
-        AddCurrentMirrorSameRowConstraints(model, topology.SymmetricGroups, rows);
+        AddCurrentMirrorSameRowConstraints(model, topology.SymmetricGroups, rows, cols);
+        AddSymmetricPassiveSameRowConstraints(model, topology, graph, rows, cols);
 
         var objectives = new List<LinearExpr>();
         AddWireLengthObjective(model, graph, rows, cols, transforms, objectives, colDomain);
@@ -406,10 +407,15 @@ public static class CoarseGridPlacer
         IReadOnlyDictionary<string, IntVar> transforms
     )
     {
+        var symmetricPassiveIds = TopologyAnalyzer
+            .DetectSymmetricPassivePairs(graph, topology)
+            .SelectMany(pair => new[] { pair.Left, pair.Right })
+            .ToHashSet(StringComparer.Ordinal);
         foreach (var (deviceId, orientation) in topology.PassiveOrientations)
         {
             if (
                 orientation != PassiveOrientation.Horizontal
+                || symmetricPassiveIds.Contains(deviceId)
                 || !graph.Devices.TryGetValue(deviceId, out var device)
                 || !transforms.TryGetValue(deviceId, out var transformVar)
                 || !TouchesBranchingNonRailNet(graph, device)
@@ -1893,6 +1899,7 @@ public static class CoarseGridPlacer
             {
                 model.Add(rows[id] == anchorRow);
             }
+            AddDistinctColumnConstraints(model, ids, cols);
 
             for (var i = 0; i < ids.Count / 2; i++)
             {
@@ -1921,7 +1928,8 @@ public static class CoarseGridPlacer
     private static void AddCurrentMirrorSameRowConstraints(
         CpModel model,
         IReadOnlyList<SymmetricGroup> groups,
-        IReadOnlyDictionary<string, IntVar> rows
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols
     )
     {
         foreach (var group in groups.Where(g => g.Type == SymmetryType.CurrentMirror))
@@ -1939,6 +1947,49 @@ public static class CoarseGridPlacer
             foreach (var id in ids.Skip(1))
             {
                 model.Add(rows[id] == anchorRow);
+            }
+            AddDistinctColumnConstraints(model, ids, cols);
+        }
+    }
+
+    private static void AddSymmetricPassiveSameRowConstraints(
+        CpModel model,
+        TopologyResult topology,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> rows,
+        IReadOnlyDictionary<string, IntVar> cols
+    )
+    {
+        foreach (
+            var (left, right, _) in TopologyAnalyzer.DetectSymmetricPassivePairs(graph, topology)
+        )
+        {
+            if (
+                !rows.TryGetValue(left, out var leftRow)
+                || !rows.TryGetValue(right, out var rightRow)
+                || !cols.TryGetValue(left, out var leftCol)
+                || !cols.TryGetValue(right, out var rightCol)
+            )
+            {
+                continue;
+            }
+
+            model.Add(leftRow == rightRow);
+            model.Add(leftCol != rightCol);
+        }
+    }
+
+    private static void AddDistinctColumnConstraints(
+        CpModel model,
+        IReadOnlyList<string> ids,
+        IReadOnlyDictionary<string, IntVar> cols
+    )
+    {
+        for (var i = 0; i < ids.Count; i++)
+        {
+            for (var j = i + 1; j < ids.Count; j++)
+            {
+                model.Add(cols[ids[i]] != cols[ids[j]]);
             }
         }
     }
