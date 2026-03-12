@@ -239,12 +239,13 @@ public sealed class LabelPlacer
         int columnCount
     )
     {
-        if (column < symmetryAxis)
+        var axisPosition = PlacementAxis.GetAxisPosition(columnCount);
+        if (column < axisPosition)
         {
             return LeftSidePreference;
         }
 
-        if (column > symmetryAxis)
+        if (column > axisPosition)
         {
             return RightSidePreference;
         }

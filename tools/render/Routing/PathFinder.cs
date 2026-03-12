@@ -176,7 +176,17 @@ public static class PathFinder
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
-        var offsets = new[] { Pitch, -Pitch, 2 * Pitch, -2 * Pitch };
+        var offsets = new[]
+        {
+            Pitch,
+            -Pitch,
+            2 * Pitch,
+            -2 * Pitch,
+            3 * Pitch,
+            -3 * Pitch,
+            4 * Pitch,
+            -4 * Pitch,
+        };
 
         // Try horizontal jog (route via intermediate Y)
         foreach (var dy in offsets)

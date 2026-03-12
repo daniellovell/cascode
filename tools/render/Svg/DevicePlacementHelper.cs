@@ -54,7 +54,7 @@ internal static class DevicePlacementHelper
         else if (DeviceTypeHelper.IsPassive(deviceType))
         {
             var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
+            var isLeftOfAxis = PlacementAxis.IsLeftOfAxis(placement, cell.Column);
 
             if (isHorizontalPassive)
             {

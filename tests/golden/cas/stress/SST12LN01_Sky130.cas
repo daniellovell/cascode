@@ -1,0 +1,86 @@
+VERSION 4.1
+
+// SST12LN01 is a 2.4 to 2.5 GHz LNA matched to 50 Ohms at the input and output.
+// SST12LN01 stress pin using the datasheet metrics Cascode can express today:
+// S21, S11, S22, S12, NF, and quiescent power.
+// IIP3 and P1dB are omitted until PAC benches support them.
+
+include lib.std
+include lib.pdk.sky130.devices.nfet_g5v0d10v5
+include lib.pdk.sky130.devices.pfet_g5v0d10v5
+
+circuit SST12LN01_Sky130 implements SingleEndedAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    net nin : analog
+    net nmatch : analog
+    net ng : analog
+    net ns : analog
+    net ncas : analog
+    net nd : analog
+    net ng2 : analog
+    net nout2 : analog
+    net nsf : analog
+    net vcas : analog
+    net vgb2 : analog
+    net vgbias_ref : analog
+
+    Capacitor CIN = new CapacitorIdeal(size(C=10p)) { .P--IN, .N--nin }
+    Inductor LM = new InductorQ(size(L=3.2n, Q=15, freq=2.4G)) { .P--nin, .N--nmatch }
+    Capacitor CM = new CapacitorIdeal(size(C=65f)) { .P--nmatch, .N--GND }
+    Inductor LG = new InductorQ(size(L=8n, Q=15, freq=2.4G)) { .P--nmatch, .N--ng }
+
+    Resistor RGTOP = new ResistorIdeal(size(R=910k)) { .P--VDD, .N--vgbias_ref }
+    Resistor RGBOT = new ResistorIdeal(size(R=560k)) { .P--vgbias_ref, .N--GND }
+    Capacitor CGBIAS = new CapacitorIdeal(size(C=40p)) { .P--vgbias_ref, .N--GND }
+    Resistor RGATE = new ResistorIdeal(size(R=470k)) { .P--vgbias_ref, .N--ng }
+
+    Inductor LS = new InductorQ(size(L=680p, Q=15, freq=2.4G)) { .P--ns, .N--GND }
+    Inductor LD = new InductorQ(size(L=8.2n, Q=15, freq=2.4G)) { .P--VDD, .N--nd }
+    Capacitor CINT = new CapacitorIdeal(size(C=800f)) { .P--nd, .N--ng2 }
+    Resistor RG2TOP = new ResistorIdeal(size(R=680k)) { .P--VDD, .N--vgb2 }
+    Resistor RG2BOT = new ResistorIdeal(size(R=470k)) { .P--vgb2, .N--GND }
+    Capacitor CGB2 = new CapacitorIdeal(size(C=40p)) { .P--vgb2, .N--GND }
+    Resistor RG2 = new ResistorIdeal(size(R=330k)) { .P--vgb2, .N--ng2 }
+    Resistor RSF = new ResistorIdeal(size(R=150)) { .P--nsf, .N--GND }
+    Resistor ROUT_SER = new ResistorIdeal(size(R=24.2)) { .P--nsf, .N--nout2 }
+    Capacitor COUT = new CapacitorIdeal(size(C=10p)) { .P--nout2, .N--OUT }
+    Capacitor COUT_SH = new CapacitorIdeal(size(C=860f)) { .P--OUT, .N--GND }
+    Resistor ROUT_BIAS = new ResistorIdeal(size(R=1M)) { .P--OUT, .N--GND }
+
+    Resistor RCASTOP = new ResistorIdeal(size(R=100k)) { .P--VDD, .N--vcas }
+    Resistor RCASBOT = new ResistorIdeal(size(R=200k)) { .P--vcas, .N--GND }
+    Capacitor CCAS = new CapacitorIdeal(size(C=40p)) { .P--vcas, .N--GND }
+
+    NMOS M1 = new nfet_g5v0d10v5(size(W=40u, L=500n, M=5)) { .D--ncas, .G--ng, .S--ns, .B--GND }
+    NMOS M2 = new nfet_g5v0d10v5(size(W=25u, L=500n, M=5)) { .D--nd, .G--vcas, .S--ncas, .B--GND }
+    NMOS M3 = new nfet_g5v0d10v5(size(W=100u, L=500n, M=10)) { .D--VDD, .G--ng2, .S--nsf, .B--GND }
+  }
+
+  env {
+    InputCommonModeRange = 0V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_s21 = sparam_bench::S21(from=2.4GHz, to=2.55GHz) >= 14dB
+      c_s11 = sparam_bench::S11(from=2.4GHz, to=2.55GHz) <= -12dB
+      c_s22 = sparam_bench::S22(from=2.4GHz, to=2.55GHz) <= -12dB
+      c_s12 = sparam_bench::S12(from=2.4GHz, to=2.55GHz) <= -22dB
+      c_nf = sparam_bench::NoiseFigure(from=2.4GHz, to=2.55GHz) <= 1.55dB
+      c_pwr = vdd_pwr::QuiescentPower <= 36.3mW
+    }
+  }
+
+  harness {
+    supply VDD = 3.3V
+    ground GND = 0V
+  }
+}

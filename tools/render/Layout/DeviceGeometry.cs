@@ -81,8 +81,22 @@ public static class DeviceGeometry
         var terminals = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal);
         var topY = RoundToInt(topLeftY);
         var bottomY = RoundToInt(topLeftY + InstanceBlockHeight);
+        var centerX = SnapToRoutingGrid(topLeftX + InstanceBlockWidth / 2.0);
 
         var isVddSide = bindings.Values.Any(supplyNames.Contains);
+        foreach (
+            var supplyTerminal in bindings.Where(binding => supplyNames.Contains(binding.Value))
+        )
+        {
+            terminals[supplyTerminal.Key] = (centerX, topY);
+        }
+
+        foreach (
+            var groundTerminal in bindings.Where(binding => groundNames.Contains(binding.Value))
+        )
+        {
+            terminals[groundTerminal.Key] = (centerX, bottomY);
+        }
 
         var signalPortsToPlace = signalPorts.ToList();
         var edgeY = isVddSide ? bottomY : topY;
@@ -262,7 +276,7 @@ public static class DeviceGeometry
             terminals["D"] = (p.DrainX, isPmos ? p.SourceY : p.DrainY);
             terminals["S"] = (p.SourceX, isPmos ? p.DrainY : p.SourceY);
         }
-        else if (type is "resistor" or "capacitor")
+        else if (type is "resistor" or "capacitor" or "inductor")
         {
             if (isHorizontalPassive)
             {
@@ -337,7 +351,7 @@ public static class DeviceGeometry
                 return (0, sourceRowOffset);
             }
         }
-        else if (type is "resistor" or "capacitor")
+        else if (type is "resistor" or "capacitor" or "inductor")
         {
             terminal = terminal.ToUpperInvariant();
 

@@ -223,19 +223,30 @@ public static partial class MazeRouter
             return rawSegments;
         }
 
-        // Build MST of terminals
-        var mstEdges = ComputeMST(terminals);
-
         // Create an overlay to track raw segments during intra-net routing.
         // This prevents ghost segments from polluting the shared occupied map
         // when they get pruned later by merge/prune operations.
         var overlay = new OverlayOccupiedSegments(occupied);
+        var remainingTerminals = terminals.ToList();
+
+        RouteBoundarySegmentsFirst(
+            netName,
+            terminals,
+            remainingTerminals,
+            obstacles,
+            overlay,
+            forbiddenPoints,
+            rawSegments
+        );
+
+        // Build MST of the remaining terminals
+        var mstEdges = ComputeMST(remainingTerminals);
 
         // Route each edge
         foreach (var (fromIdx, toIdx) in mstEdges)
         {
-            var from = new GridPoint(terminals[fromIdx].X, terminals[fromIdx].Y);
-            var to = new GridPoint(terminals[toIdx].X, terminals[toIdx].Y);
+            var from = new GridPoint(remainingTerminals[fromIdx].X, remainingTerminals[fromIdx].Y);
+            var to = new GridPoint(remainingTerminals[toIdx].X, remainingTerminals[toIdx].Y);
 
             var path = PathFinder.FindPath(from, to, netName, obstacles, overlay, forbiddenPoints);
             rawSegments.AddRange(path);
@@ -261,6 +272,64 @@ public static partial class MazeRouter
         );
 
         return cleanedSegments;
+    }
+
+    private static void RouteBoundarySegmentsFirst(
+        string netName,
+        IReadOnlyList<TerminalPosition> terminals,
+        List<TerminalPosition> remainingTerminals,
+        IReadOnlyList<Obstacle> obstacles,
+        OverlayOccupiedSegments overlay,
+        IReadOnlySet<GridPoint> forbiddenPoints,
+        List<WireSegment> rawSegments
+    )
+    {
+        var removablePorts = new List<TerminalPosition>();
+        foreach (
+            var portTerminal in terminals.Where(t =>
+                t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+            )
+        )
+        {
+            var anchor = terminals
+                .Where(t =>
+                    t != portTerminal
+                    && !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                    && t.Y == portTerminal.Y
+                )
+                .OrderBy(t => Math.Abs(t.X - portTerminal.X))
+                .FirstOrDefault();
+            if (anchor is null)
+            {
+                continue;
+            }
+
+            var path = PathFinder.FindPath(
+                new GridPoint(portTerminal.X, portTerminal.Y),
+                new GridPoint(anchor.X, anchor.Y),
+                netName,
+                obstacles,
+                overlay,
+                forbiddenPoints
+            );
+            if (path.Count == 0 || path.Any(segment => segment.From.Y != segment.To.Y))
+            {
+                continue;
+            }
+
+            rawSegments.AddRange(path);
+            foreach (var segment in path)
+            {
+                overlay.Add(segment);
+            }
+
+            removablePorts.Add(portTerminal);
+        }
+
+        foreach (var portTerminal in removablePorts)
+        {
+            remainingTerminals.Remove(portTerminal);
+        }
     }
 
     /// <summary>

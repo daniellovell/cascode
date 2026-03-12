@@ -60,7 +60,7 @@ public static class ObstacleMap
             );
         }
 
-        if (deviceType is "resistor" or "capacitor")
+        if (deviceType is "resistor" or "capacitor" or "inductor")
         {
             var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
             return new Obstacle(

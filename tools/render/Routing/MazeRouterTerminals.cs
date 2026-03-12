@@ -62,10 +62,10 @@ public static partial class MazeRouter
                     new TerminalPosition(deviceId, "S", p.SourceX, isPmos ? p.DrainY : p.SourceY)
                 );
             }
-            else if (deviceType is "resistor" or "capacitor")
+            else if (deviceType is "resistor" or "capacitor" or "inductor")
             {
                 var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-                var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
+                var isLeftOfAxis = PlacementAxis.IsLeftOfAxis(placement, cell.Column);
 
                 if (isHorizontalPassive)
                 {
@@ -89,6 +89,14 @@ public static partial class MazeRouter
 
         // Port terminals
         var terminalYByNet = ComputeTerminalYByNet(positions, graph);
+        var preferredPortYs = new Dictionary<string, int>(
+            placement.PortYHints,
+            StringComparer.Ordinal
+        );
+        foreach (var (port, y) in ComputeFeedthroughPortHints(placement, graph))
+        {
+            preferredPortYs[port] = y;
+        }
 
         // Left ports (inputs, bias) - use average Y
         var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
@@ -96,7 +104,7 @@ public static partial class MazeRouter
             leftPorts,
             terminalYByNet,
             preferMinY: false,
-            placement.PortYHints
+            preferredPortYs
         );
         foreach (var port in leftPorts)
         {
@@ -109,7 +117,7 @@ public static partial class MazeRouter
             graph.OutputPorts.ToList(),
             terminalYByNet,
             preferMinY: false,
-            placement.PortYHints
+            preferredPortYs
         );
         foreach (var port in graph.OutputPorts)
         {
@@ -118,6 +126,81 @@ public static partial class MazeRouter
         }
 
         return positions;
+    }
+
+    private static IReadOnlyDictionary<string, int> ComputeFeedthroughPortHints(
+        CoarseGridResult placement,
+        CircuitGraph graph
+    )
+    {
+        var pairs = new List<(string LeftPort, string RightPort, int BaseY)>();
+        foreach (var (deviceId, device) in graph.Devices)
+        {
+            var deviceType = device.DeviceType.ToLowerInvariant();
+            if (deviceType is not ("resistor" or "capacitor" or "inductor"))
+            {
+                continue;
+            }
+
+            if (
+                !placement.DevicePlacements.TryGetValue(deviceId, out var cell)
+                || !device.Bindings.TryGetValue("P", out var pNet)
+                || !device.Bindings.TryGetValue("N", out var nNet)
+            )
+            {
+                continue;
+            }
+
+            var pIsLeft = graph.InputPorts.Contains(pNet) || graph.BiasPorts.Contains(pNet);
+            var nIsLeft = graph.InputPorts.Contains(nNet) || graph.BiasPorts.Contains(nNet);
+            var pIsRight = graph.OutputPorts.Contains(pNet);
+            var nIsRight = graph.OutputPorts.Contains(nNet);
+            if (!(pIsLeft && nIsRight) && !(nIsLeft && pIsRight))
+            {
+                continue;
+            }
+
+            var y = placement.HorizontalPassiveIds.Contains(deviceId)
+                ? DeviceGeometry
+                    .GetHorizontalPassivePlacement(
+                        cell.Row,
+                        cell.Column,
+                        placement.ColumnCount,
+                        PlacementAxis.IsLeftOfAxis(placement, cell.Column)
+                    )
+                    .PY
+                : DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column).PY;
+            pairs.Add((pIsLeft ? pNet : nNet, pIsRight ? pNet : nNet, y));
+        }
+
+        var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        var usedYs = new List<int>();
+        foreach (
+            var (leftPort, rightPort, baseY) in pairs
+                .OrderBy(pair => pair.BaseY)
+                .ThenBy(pair => IsPositivePortName(pair.LeftPort) ? 0 : 1)
+                .ThenBy(pair => pair.LeftPort, StringComparer.Ordinal)
+        )
+        {
+            var y = baseY;
+            while (usedYs.Any(existing => Math.Abs(existing - y) < 15))
+            {
+                y += 15;
+            }
+
+            result[leftPort] = y;
+            result[rightPort] = y;
+            usedYs.Add(y);
+        }
+
+        return result;
+    }
+
+    private static bool IsPositivePortName(string portName)
+    {
+        return portName.EndsWith(".P", StringComparison.OrdinalIgnoreCase)
+            || portName.EndsWith("_P", StringComparison.OrdinalIgnoreCase)
+            || portName.EndsWith("+", StringComparison.Ordinal);
     }
 
     /// <summary>
