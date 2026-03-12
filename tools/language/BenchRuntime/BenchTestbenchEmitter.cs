@@ -722,6 +722,22 @@ public static class BenchTestbenchEmitter
             return;
         }
 
+        if (type.Equals("Impulse", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetPinPair(element, out var p, out var n))
+            {
+                return;
+            }
+
+            var ic =
+                GetParam(element, "ic")
+                ?? GetParam(element, "IC")
+                ?? GetParam(element, "initial")
+                ?? GetFirstParam(element);
+            EmitImpulse(sb, element.Id, p, n, ic, backend);
+            return;
+        }
+
         if (type.Equals("Port", StringComparison.OrdinalIgnoreCase))
         {
             if (!TryGetPinPair(element, out var p, out var n))
@@ -741,6 +757,20 @@ public static class BenchTestbenchEmitter
             sb.AppendLine($"V{element.Id} {p} {n} DC {dc} portnum={portNumber} z0={z0}");
             return;
         }
+    }
+
+    private static void EmitImpulse(
+        StringBuilder sb,
+        string id,
+        string p,
+        string n,
+        BenchValue? ic,
+        BenchBackendType backend
+    )
+    {
+        var capName = id.StartsWith("C", StringComparison.OrdinalIgnoreCase) ? id : $"C{id}";
+        var icText = FormatScalarForSpice(ic, backend);
+        sb.AppendLine($"{capName} {p} {n} 1e-18 ic={icText}");
     }
 
     private static void EmitImpedance(

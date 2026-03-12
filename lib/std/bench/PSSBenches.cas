@@ -100,13 +100,12 @@ bench SEOscPSS extends AbstractOutputPSS {
     net gnd : ground
     GND _ = new GND() { .GND--gnd }
 
-    Capacitor Ckick = new CapacitorIdeal(size(C=0.001f, ic=1)) {
+    Impulse Cimpulse = new Impulse(ic=1) {
       .P--OUT
       .N--gnd
     }
 
-
-    Impedor load = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
+    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT
       .N--gnd
     }
@@ -130,7 +129,7 @@ bench DiffOscPSS extends AbstractOutputPSS {
     net gnd : ground
     GND _ = new GND() { .GND--gnd }
 
-    Capacitor Ckick = new CapacitorIdeal(size(C=0.001f, ic=1)) {
+    Impulse impulse = new Impulse(ic=1) {
       .P--OUT.P
       .N--OUT.N
     }

@@ -148,6 +148,63 @@ circuit Top {
         );
     }
 
+    [Fact]
+    public void EmitAll_EmitsImpulseAsAttocapWithInitialCondition()
+    {
+        var cascode = """
+VERSION 4.0
+
+bench PssBench {
+  resp OUT : analog
+
+  fill {
+    net gnd : ground
+    GND g = new GND() { .GND--gnd }
+    Impulse Cimpulse = new Impulse(ic=0.25) {
+      .P--OUT
+      .N--gnd
+    }
+    Impedor loadZ = new Impedor(Z=50Ohm) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7, uic=1)
+  }
+
+  measurements {
+    measurement Freq : Hz {
+      return 1Hz
+    }
+  }
+}
+
+circuit Top {
+  level EL
+  output OUT : analog
+
+  constraints {
+    numeric {
+      c_freq = pss::Freq >= 0Hz
+    }
+  }
+
+  benches {
+    bind PssBench as pss {
+      bench.OUT--dut.OUT
+    }
+  }
+
+  fill { }
+}
+""";
+
+        var tb = EmitTestbench(cascode, instanceName: "pss");
+        Assert.Contains("Cimpulse OUT gnd 1e-18 ic=", tb, StringComparison.Ordinal);
+    }
+
     private static string EmitTestbench(string cascode, string instanceName)
     {
         var parsed = CascodeReader.TryParse(cascode, "bench_pss.cas");
