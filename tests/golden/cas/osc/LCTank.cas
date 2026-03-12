@@ -1,0 +1,40 @@
+VERSION 4.1
+
+include lib.std
+
+circuit LCTank implements DifferentialOscillator {
+  level EL
+
+  ground GND
+  output OUT : Diff
+
+  env {
+    OutputCommonModeRange = 0V
+    LoadImpedance = 1GOhm
+  }
+
+  fill {
+    Inductor L_TANK = new InductorIdeal(size(L=6n)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+
+    Capacitor C_TANK = new CapacitorIdeal(size(C=500f)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+  }
+
+  constraints {
+    numeric {
+      c_fundamental_frequency_min =
+        pss_bench(guess_freq=2.906GHz)::FundamentalFrequency >= 2.9GHz
+      c_fundamental_frequency_max =
+        pss_bench(guess_freq=2.906GHz)::FundamentalFrequency <= 2.91GHz
+    }
+  }
+
+  harness {
+    ground GND = 0V
+  }
+}

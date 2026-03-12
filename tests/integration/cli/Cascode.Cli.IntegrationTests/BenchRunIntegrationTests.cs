@@ -318,23 +318,21 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task BenchRun_LCTankSky130_PSSConstraintsPass()
+    public async Task BenchRun_LCTank_PSSConstraintsPass()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/osc/LCTank_Sky130.cas");
-        var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/osc/LCTank.cas");
 
-        await SetupPdkAsync(pdkRoot);
         await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
-            new[] { new MetricCallArg("guess_freq", "2.4GHz") }
+            new[] { new MetricCallArg("guess_freq", "2.906GHz") }
         );
-        var resultsPath = Path.Combine(_outputDir, $"LCTank_Sky130_{instanceName}_results.json");
+        var resultsPath = Path.Combine(_outputDir, $"LCTank_{instanceName}_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
 
         var results = await ReadBenchResultsAsync(resultsPath);
-        Assert.Equal("LCTank_Sky130", results.Circuit);
+        Assert.Equal("LCTank", results.Circuit);
         Assert.Equal(instanceName, results.Bench);
         Assert.True(
             results.Measurements.ContainsKey("FundamentalFrequency"),
@@ -347,7 +345,44 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(results.Measurements["FundamentalFrequency"].Value.HasValue);
         Assert.False(double.IsNaN(results.Measurements["FundamentalFrequency"].Value!.Value));
 
-        var combinedResultsPath = Path.Combine(_outputDir, "LCTank_Sky130_results.json");
+        var combinedResultsPath = Path.Combine(_outputDir, "LCTank_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_LCOscSky130_PSSConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/osc/LCOsc_Sky130.cas");
+        var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
+
+        await SetupPdkAsync(pdkRoot);
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
+
+        var instanceName = BenchInvocationName.Compute(
+            "pss_bench",
+            new[] { new MetricCallArg("guess_freq", "2.4GHz") }
+        );
+        var resultsPath = Path.Combine(_outputDir, $"LCOsc_Sky130_{instanceName}_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("LCOsc_Sky130", results.Circuit);
+        Assert.Equal(instanceName, results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("FundamentalFrequency"),
+            "FundamentalFrequency measurement missing"
+        );
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["FundamentalFrequency"].Error),
+            "FundamentalFrequency had error: " + results.Measurements["FundamentalFrequency"].Error
+        );
+        Assert.True(results.Measurements["FundamentalFrequency"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["FundamentalFrequency"].Value!.Value));
+
+        var combinedResultsPath = Path.Combine(_outputDir, "LCOsc_Sky130_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
 
         await VerifyAsync(cascodePath, combinedResultsPath);

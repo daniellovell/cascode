@@ -59,7 +59,7 @@ circuit CrossCoupledInverter(size NmosSize, size PmosSize) {
   }
 }
 
-circuit LCTank_Sky130 implements DifferentialOscillator {
+circuit LCOsc_Sky130 implements DifferentialOscillator {
   level EL
 
   supply VDD
@@ -91,7 +91,7 @@ circuit LCTank_Sky130 implements DifferentialOscillator {
       .OUT--OUT
     }
 
-    Inductor L_TANK = new InductorIdeal(size(L=6n)) {
+    Inductor L_TANK = new InductorQ(size(L=6n, Q=10, freq=2.4G)) {
       .P--OUT.P
       .N--OUT.N
     }
