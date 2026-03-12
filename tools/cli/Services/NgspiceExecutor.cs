@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Cascode.Cli.Services;
 
@@ -13,26 +14,42 @@ internal static class NgspiceExecutor
 
         spiceFile = Path.GetFullPath(spiceFile);
         var workingDir = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory();
+        return RunProcess(ngspice.Path, workingDir, new[] { "-b", Path.GetFileName(spiceFile) });
+    }
 
+    internal static NgspiceRun RunProcess(
+        string executablePath,
+        string workingDir,
+        IReadOnlyList<string> arguments
+    )
+    {
         var startInfo = new ProcessStartInfo
         {
-            FileName = ngspice.Path,
+            FileName = executablePath,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = workingDir,
         };
-        startInfo.ArgumentList.Add("-b");
-        startInfo.ArgumentList.Add(Path.GetFileName(spiceFile));
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
+        // Read both redirected streams concurrently to avoid deadlock when one pipe fills.
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
         process.WaitForExit();
+        Task.WaitAll(stdoutTask, stderrTask);
 
-        return new NgspiceRun(process.ExitCode, stdout, stderr);
+        return new NgspiceRun(
+            process.ExitCode,
+            stdoutTask.GetAwaiter().GetResult(),
+            stderrTask.GetAwaiter().GetResult()
+        );
     }
 }
