@@ -8,7 +8,7 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
   analysis {
     PSSAnalysis pss = new PSSAnalysis(
       fguess=guess_freq,
-      tstab=100 * period(guess_freq),
+      tstab=1000 * period(guess_freq),
       harmonics=20)
   }
 
@@ -86,19 +86,27 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
 bench SEOscPSS extends AbstractOutputPSS {
   resp OUT : analog
 
+  override analysis {
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=guess_freq,
+      tstab=1000 * period(guess_freq),
+      harmonics=20,
+      iterations=1000,
+      steady_coef=0.1,
+      uic=1)
+  }
+
   fill {
     net gnd : ground
     GND _ = new GND() { .GND--gnd }
 
-    VSIN kick = new VSIN(A=1uV, freq=guess_freq, phase=0deg) {
+    Capacitor Ckick = new CapacitorIdeal(size(C=0.001f, ic=1)) {
+      .P--OUT
       .N--gnd
     }
 
-    Impedor sourceZ = new Impedor(Z=get_source_impedance(50Ohm)) { }
-    kick.P--sourceZ.P
-    sourceZ.N--OUT
 
-    Impedor loadZ = new Impedor(Z=get_load_impedance(50Ohm)) {
+    Impedor load = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT
       .N--gnd
     }
@@ -108,31 +116,30 @@ bench SEOscPSS extends AbstractOutputPSS {
 bench DiffOscPSS extends AbstractOutputPSS {
   resp OUT : Diff
 
+  override analysis {
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=guess_freq,
+      tstab=1000 * period(guess_freq),
+      harmonics=20,
+      iterations=1000,
+      steady_coef=0.1,
+      uic=1)
+  }
+
   fill {
     net gnd : ground
     GND _ = new GND() { .GND--gnd }
 
-    VSIN kickP = new VSIN(A=1uV, freq=guess_freq, phase=0deg) {
-      .N--gnd
-    }
-    VSIN kickN = new VSIN(A=1uV, freq=guess_freq, phase=180deg) {
-      .N--gnd
+    Capacitor Ckick = new CapacitorIdeal(size(C=0.001f, ic=1)) {
+      .P--OUT.P
+      .N--OUT.N
     }
 
-    Impedor sourceP = new Impedor(Z=get_source_impedance(100Ohm).DiffToShunt()) { }
-    Impedor sourceN = new Impedor(Z=get_source_impedance(100Ohm).DiffToShunt()) { }
-
-    kickP.P--sourceP.P
-    sourceP.N--OUT.P
-
-    kickN.P--sourceN.P
-    sourceN.N--OUT.N
-
-    Impedor loadP = new Impedor(Z=get_load_impedance(100Ohm).DiffToShunt()) {
+    Impedor loadP = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT.P
       .N--gnd
     }
-    Impedor loadN = new Impedor(Z=get_load_impedance(100Ohm).DiffToShunt()) {
+    Impedor loadN = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
       .P--OUT.N
       .N--gnd
     }

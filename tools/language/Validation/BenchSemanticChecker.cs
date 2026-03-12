@@ -2355,6 +2355,9 @@ public static class BenchSemanticChecker
                 ["fguess"] = MeasurementTypeKind.Frequency,
                 ["tstab"] = MeasurementTypeKind.Time,
                 ["harmonics"] = MeasurementTypeKind.Scalar,
+                ["iterations"] = MeasurementTypeKind.Scalar,
+                ["steady_coef"] = MeasurementTypeKind.Scalar,
+                ["uic"] = MeasurementTypeKind.Scalar,
             },
             BenchValueType.NoiseAnalysis => new Dictionary<string, MeasurementTypeKind>
             {

@@ -55,7 +55,13 @@ bench BadPssTypes {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1V, tstab=1Hz, harmonics=1ns)
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=1V,
+      tstab=1Hz,
+      harmonics=1ns,
+      iterations=1Hz,
+      steady_coef=1ns,
+      uic=1V)
   }}
 
   measurements {{
@@ -78,5 +84,8 @@ bench BadPssTypes {{
         Assert.Contains("expects 'Time'", joined, StringComparison.Ordinal);
         Assert.Contains("pss.harmonics", joined, StringComparison.Ordinal);
         Assert.Contains("expects 'Scalar'", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.iterations", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.steady_coef", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.uic", joined, StringComparison.Ordinal);
     }
 }

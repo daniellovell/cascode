@@ -29,7 +29,13 @@ bench PssBench {
   }
 
   analysis {
-    PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7)
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=2.4GHz,
+      tstab=10ns,
+      harmonics=7,
+      iterations=1000,
+      steady_coef=0.1,
+      uic=1)
   }
 
   measurements {
@@ -60,7 +66,11 @@ circuit Top {
 """;
 
         var tb = EmitTestbench(cascode, instanceName: "pss");
-        Assert.Contains("pss 2.4G 10n OUT 1000 7", tb, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "pss 2.4G 10n OUT 1000 7 1000 0.1 uic",
+            tb,
+            StringComparison.OrdinalIgnoreCase
+        );
         Assert.Contains("setplot pss1", tb, StringComparison.Ordinal);
         Assert.Contains("wrdata Top_pss__pss.pss.wrdata v(OUT)", tb, StringComparison.Ordinal);
     }
@@ -126,6 +136,11 @@ circuit Top {
 
         var tb = EmitTestbench(cascode, instanceName: "pss");
         Assert.Contains("pss 1G 5n OUT 1000 5 50 1e-3", tb, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "pss 1G 5n OUT 1000 5 50 1e-3 uic",
+            tb,
+            StringComparison.OrdinalIgnoreCase
+        );
         Assert.Contains(
             "wrdata Top_pss__pss.pss.currents.wrdata i(Vvin)",
             tb,

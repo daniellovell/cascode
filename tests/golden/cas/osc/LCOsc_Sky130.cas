@@ -105,9 +105,9 @@ circuit LCOsc_Sky130 implements DifferentialOscillator {
   constraints {
     numeric {
       c_fundamental_frequency_min =
-        pss_bench(guess_freq=2.4GHz)::FundamentalFrequency >= 2.2GHz
+        pss_bench(guess_freq=2.742GHz)::FundamentalFrequency >= 2.7GHz
       c_fundamental_frequency_max =
-        pss_bench(guess_freq=2.4GHz)::FundamentalFrequency <= 2.6GHz
+        pss_bench(guess_freq=2.742GHz)::FundamentalFrequency <= 2.8GHz
     }
   }
 

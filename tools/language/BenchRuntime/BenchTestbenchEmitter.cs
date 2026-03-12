@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -497,7 +498,11 @@ public static class BenchTestbenchEmitter
 
             var fguess = SiValue.FormatForBackend(fguessHz, backend);
             var tstab = SiValue.FormatForBackend(tstabS, backend);
-            sb.AppendLine($"pss {fguess} {tstab} {oscNode} 1000 {harmonics} 50 1e-3");
+            var steadyCoef = FormatUnitlessScalar(a.SteadyCoef);
+            var uicSuffix = a.UseInitialConditions ? " uic" : string.Empty;
+            sb.AppendLine(
+                $"pss {fguess} {tstab} {oscNode} 1000 {harmonics} {a.Iterations} {steadyCoef}{uicSuffix}"
+            );
             sb.AppendLine($"setplot pss{pssIndex}");
 
             var wrdata = BenchRuntimePaths.GetPssWrdataPath(
@@ -918,5 +923,22 @@ public static class BenchTestbenchEmitter
         }
 
         return "0";
+    }
+
+    private static string FormatUnitlessScalar(double value)
+    {
+        if (value == Math.Round(value))
+        {
+            return ((long)value).ToString(CultureInfo.InvariantCulture);
+        }
+
+        var abs = Math.Abs(value);
+        if (abs >= 1e-2 && abs < 1e3)
+        {
+            return value.ToString("0.###############", CultureInfo.InvariantCulture);
+        }
+
+        var formatted = value.ToString("0.###############e+0", CultureInfo.InvariantCulture);
+        return formatted.Replace("E", "e", StringComparison.Ordinal);
     }
 }
