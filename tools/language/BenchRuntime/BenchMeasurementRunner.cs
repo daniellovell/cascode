@@ -3038,9 +3038,14 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        if (waveform.TimePointsS.Length < 2 || waveform.Values.Length < 2)
+        if (
+            waveform.TimePointsS.Length != waveform.Values.Length
+            || waveform.TimePointsS.Length < 2
+        )
         {
-            throw new InvalidOperationException("waveform must have at least two samples.");
+            throw new InvalidOperationException(
+                "harmonic: waveform time/value arrays must have equal length and at least two samples."
+            );
         }
 
         var periodS = WaveformDurationS(waveform, "harmonic");

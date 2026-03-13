@@ -123,7 +123,14 @@ public static class BenchSemanticChecker
 
         foreach (var analysis in bench.Analyses)
         {
-            ValidateAnalysisParams(analysis, scope, measurementTypes, benchesByName, diagnostics);
+            ValidateAnalysisParams(
+                bench,
+                analysis,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
         }
 
         foreach (var fn in bench.Functions)
@@ -974,7 +981,11 @@ public static class BenchSemanticChecker
     {
         switch (expr)
         {
-            case MeasurementNumber:
+            case MeasurementNumber number:
+                if (TryResolveConstantScalar(number, out var numberValue))
+                {
+                    return MeasurementType.FromResolvedScalar(numberValue);
+                }
                 return MeasurementType.Scalar();
 
             case MeasurementQuantity q:
@@ -1021,10 +1032,18 @@ public static class BenchSemanticChecker
                 return MeasurementType.Scalar();
 
             case MeasurementUnary u:
+                if (TryResolveConstantScalar(u, out var unaryValue))
+                {
+                    return MeasurementType.FromResolvedScalar(unaryValue);
+                }
                 var ot = InferExprType(u.Operand, scope, measurementTypes, benchesByName);
                 return ot;
 
             case MeasurementBinary b:
+                if (TryResolveConstantScalar(b, out var binaryValue))
+                {
+                    return MeasurementType.FromResolvedScalar(binaryValue);
+                }
                 var lt = InferExprType(b.Left, scope, measurementTypes, benchesByName);
                 var rt = InferExprType(b.Right, scope, measurementTypes, benchesByName);
                 return MeasurementType.InferBinary(b.Op, lt, rt);
@@ -2017,7 +2036,10 @@ public static class BenchSemanticChecker
                     measurementTypes,
                     benchesByName
                 );
-                if (harmonicType.Kind != MeasurementTypeKind.Scalar)
+                if (
+                    harmonicType.Kind != MeasurementTypeKind.Scalar
+                    || harmonicType.IsKnownNonIntegerScalar
+                )
                 {
                     diagnostics.Add(
                         new Diagnostic(
@@ -2075,7 +2097,10 @@ public static class BenchSemanticChecker
                 measurementTypes,
                 benchesByName
             );
-            if (harmonicsType.Kind != MeasurementTypeKind.Scalar)
+            if (
+                harmonicsType.Kind != MeasurementTypeKind.Scalar
+                || harmonicsType.IsKnownNonIntegerScalar
+            )
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -2309,19 +2334,68 @@ public static class BenchSemanticChecker
         }
     }
 
-    private static bool TryResolveConstantInt(MeasurementExpr expr, out int value)
+    private static bool TryResolveConstantScalar(MeasurementExpr expr, out double value)
     {
         if (
             expr is MeasurementNumber number
-            && int.TryParse(
+            && double.TryParse(
                 number.Raw,
-                NumberStyles.Integer,
+                NumberStyles.Float,
                 CultureInfo.InvariantCulture,
                 out value
             )
+            && double.IsFinite(value)
         )
         {
             return true;
+        }
+
+        if (
+            expr is MeasurementUnary unary
+            && (unary.Op == "+" || unary.Op == "-")
+            && TryResolveConstantScalar(unary.Operand, out var operand)
+        )
+        {
+            value = unary.Op == "-" ? -operand : operand;
+            return true;
+        }
+
+        if (
+            expr is MeasurementBinary binary
+            && TryResolveConstantScalar(binary.Left, out var left)
+            && TryResolveConstantScalar(binary.Right, out var right)
+        )
+        {
+            switch (binary.Op)
+            {
+                case "+":
+                    value = left + right;
+                    return double.IsFinite(value);
+                case "-":
+                    value = left - right;
+                    return double.IsFinite(value);
+                case "*":
+                    value = left * right;
+                    return double.IsFinite(value);
+                case "/" when right != 0:
+                    value = left / right;
+                    return double.IsFinite(value);
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static bool TryResolveConstantInt(MeasurementExpr expr, out int value)
+    {
+        if (TryResolveConstantScalar(expr, out var scalar))
+        {
+            if (scalar == Math.Round(scalar) && scalar >= int.MinValue && scalar <= int.MaxValue)
+            {
+                value = (int)scalar;
+                return true;
+            }
         }
 
         value = 0;
@@ -2329,6 +2403,7 @@ public static class BenchSemanticChecker
     }
 
     private static void ValidateAnalysisParams(
+        BenchDefinition bench,
         AnalysisDeclaration analysis,
         TypeScope scope,
         IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
@@ -2392,6 +2467,22 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+        }
+
+        if (
+            analysis.Type == BenchValueType.PSSAnalysis
+            && !bench.Terminals.Any(t => t.Role == BenchTerminalRole.Resp)
+        )
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2006: PSSAnalysis '{analysis.Name}' requires at least one resp terminal.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
         }
 
         foreach (var (name, expr) in analysis.Parameters)
@@ -2466,6 +2557,26 @@ public static class BenchSemanticChecker
                 diagnostics.Add(
                     new Diagnostic(
                         $"CAS2006: Analysis parameter '{analysis.Name}.iterations' must be >= 1, got {iterations}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+            return;
+        }
+
+        if (name.Equals("harmonics", StringComparison.OrdinalIgnoreCase))
+        {
+            if (
+                TryResolveConstantScalar(expr, out var harmonics)
+                && (harmonics < 1 || harmonics != Math.Round(harmonics))
+            )
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.harmonics' must be an integer >= 1, got {harmonics.ToString(CultureInfo.InvariantCulture)}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -2642,11 +2753,35 @@ public static class BenchSemanticChecker
         SPAnalysis,
     }
 
-    private sealed record MeasurementType(MeasurementTypeKind Kind, string? TerminalDomain = null)
+    private enum MeasurementScalarSubtype
+    {
+        Unknown,
+        Integer,
+        NonInteger,
+    }
+
+    private sealed record MeasurementType(
+        MeasurementTypeKind Kind,
+        MeasurementScalarSubtype ScalarSubtype = MeasurementScalarSubtype.Unknown,
+        string? TerminalDomain = null
+    )
     {
         public static MeasurementType Bool() => new(MeasurementTypeKind.Bool);
 
         public static MeasurementType Scalar() => new(MeasurementTypeKind.Scalar);
+
+        public static MeasurementType IntegerScalar() =>
+            new(MeasurementTypeKind.Scalar, MeasurementScalarSubtype.Integer);
+
+        public static MeasurementType NonIntegerScalar() =>
+            new(MeasurementTypeKind.Scalar, MeasurementScalarSubtype.NonInteger);
+
+        public static MeasurementType FromResolvedScalar(double value) =>
+            value == Math.Round(value) ? IntegerScalar() : NonIntegerScalar();
+
+        public bool IsKnownNonIntegerScalar =>
+            Kind == MeasurementTypeKind.Scalar
+            && ScalarSubtype == MeasurementScalarSubtype.NonInteger;
 
         public static MeasurementType ElementPin() => new(MeasurementTypeKind.ElementPin);
 

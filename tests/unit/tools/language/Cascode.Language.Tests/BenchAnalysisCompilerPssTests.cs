@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Cascode.Language.BenchRuntime;
 using Cascode.Language.BenchRuntime.Netlist;
+using Cascode.TestSupport;
 
 namespace Cascode.Language.Tests;
 
@@ -12,6 +13,8 @@ public sealed class BenchAnalysisCompilerPssTests
     [Fact]
     public void Compile_PssAnalysis_ProducesPlanFieldsIncludingOscNode()
     {
+        using var cascodeHome = CascodeHome.CreateInTemp("bench-analysis-compiler-pss");
+
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
@@ -112,25 +115,27 @@ bench DefaultPss {{
     [Fact]
     public void Compile_PssAnalysis_RequiresRespTerminal()
     {
-        var cascode =
-            $@"VERSION {CascodeVersion.Current}
+        using var cascodeHome = CascodeHome.CreateInTemp("bench-analysis-compiler-pss");
 
-bench MissingResp {{
-  stim IN : analog
-  analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3)
-  }}
-}}
-";
-
-        using var reader = new StringReader(cascode);
-        var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(
-            result.Success,
-            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
-        );
-
-        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "MissingResp");
+        var bench = new BenchDefinition
+        {
+            Name = "MissingResp",
+            Terminals = { new BenchTerminal(BenchTerminalRole.Stim, "IN", "analog") },
+            Analyses =
+            {
+                new AnalysisDeclaration
+                {
+                    Type = BenchValueType.PSSAnalysis,
+                    Name = "pss",
+                    Parameters = new Dictionary<string, MeasurementExpr>(StringComparer.Ordinal)
+                    {
+                        ["fguess"] = new MeasurementQuantity("1GHz"),
+                        ["tstab"] = new MeasurementQuantity("1ns"),
+                        ["harmonics"] = new MeasurementNumber("3"),
+                    },
+                },
+            },
+        };
         var evalRunner = new BenchMeasurementRunner(
             bench,
             functions: new Dictionary<string, FunctionDefinition>(StringComparer.OrdinalIgnoreCase),

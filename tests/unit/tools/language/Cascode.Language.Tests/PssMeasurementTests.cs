@@ -249,13 +249,18 @@ bench PssBuiltinTypeErrors {{
       return harmonic_power(iout, 50Ohm)
     }}
 
+    measurement BadHarmonicIndex : W {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return harmonic_power(vout, 50Ohm, 0.5)
+    }}
+
     measurement BadMean : V {{
       return mean(1V)
     }}
 
     measurement BadThd : Scalar {{
       VoltageWaveform vout = voltage(pss, OUT)
-      return thd(vout, 2Hz)
+      return thd(vout, 0.5)
     }}
   }}
 }}
@@ -280,6 +285,14 @@ bench PssBuiltinTypeErrors {{
         Assert.Contains(
             result.Diagnostics,
             d => d.Message.Contains("mean argument must be", StringComparison.Ordinal)
+        );
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains(
+                    "harmonic_power third argument must be an Int",
+                    StringComparison.Ordinal
+                )
         );
         Assert.Contains(
             result.Diagnostics,
@@ -380,5 +393,56 @@ bench PssCurrentMissing {{
             runner.RunMetrics(new[] { "InputCurrentMax" })
         );
         Assert.Contains("current(pss, ...): missing current vector for 'Vsrc'", ex.Message);
+    }
+
+    [Fact]
+    public void Pss_HarmonicPowerRejectsMalformedWaveformSamples()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssMalformedWaveform {{
+  measurements {{
+    measurement FundamentalPower(VoltageWaveform vout) : W {{
+      return harmonic_power(vout, 50Ohm)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "PssMalformedWaveform");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetricWithNamedArgs(
+                "FundamentalPower",
+                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["vout"] = new BenchWaveform(
+                        new[] { 0.0, 1e-6 },
+                        new[] { 0.25 },
+                        BenchNumericKind.VoltageV
+                    ),
+                }
+            )
+        );
+        Assert.Contains("equal length and at least two samples", ex.Message);
     }
 }
