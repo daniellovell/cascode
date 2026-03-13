@@ -11,3 +11,17 @@ function get_load_impedance(Impedance fallback) : Impedance {
   if env.LoadImpedance { return env.LoadImpedance }
   return fallback
 }
+
+function get_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower { return sqrt(8 * (env.SourceImpedance / 1Ohm) * (env.InputPower / 1W)) * 1V }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}
+
+function get_diff_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower {
+    return sqrt(2 * (env.SourceImpedance / 1Ohm) * (env.InputPower / 1W)) * 1V
+  }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}

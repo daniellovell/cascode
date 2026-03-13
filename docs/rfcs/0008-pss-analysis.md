@@ -56,29 +56,39 @@ For driven circuits (where a `VSIN` source provides the excitation), the solver 
 
 ### 1.5 Harness Topology
 
-PSS benches use standard fill-block primitives rather than `Port` instances. The harness follows the `TranBenches` pattern:
+PSS benches use standard fill-block primitives rather than `Port` instances. The harness follows the bench/binding design contract: benches remain topology-agnostic and bindings provide the bias context.
 
-- Input stimulus (driven benches): `VSIN` source through `Impedor` source impedance, biased at `env.InputCommonModeRange`.
-- Output termination: `Impedor` load impedance. Driven benches bias the load at `env.OutputCommonModeRange`; oscillator benches leave the DC operating point to the DUT.
-- The stimulus amplitude is resolved through `get_input_amplitude(25mV)`, which checks `env.InputPower` first (deriving amplitude from available power and source impedance), then `env.InputAmplitude`, then the fallback. `TranBenches` is updated to use the same helper, retiring the hardcoded amplitude and the unused `env.TranInputAmplitude` reference.
+- Input stimulus (driven benches): `VSIN` source through `Impedor` source impedance, referenced to ground. The bench does not provide input common-mode biasing. That responsibility falls to the interface binding, which has topology-specific knowledge of the DUT's DC operating requirements.
+- Output termination: `Impedor` load impedance, referenced to ground. Like the input side, any output common-mode biasing is the binding's responsibility.
+- The stimulus amplitude is resolved through `get_input_amplitude(25mV)` for single-ended benches and `get_diff_input_amplitude(25mV)` for differential benches. Both helpers check `env.InputPower` first, then `env.InputAmplitude`, then the fallback. `TranBenches` follows the same split so per-leg differential drive is computed consistently in PSS and transient benches.
 
-This separation keeps `PSSAnalysis` purely about solver parameters while the fill block owns the stimulus topology.
+This separation keeps `PSSAnalysis` purely about solver parameters while the fill block owns the stimulus topology, and the binding owns the DC operating-point context.
 
 ### 1.6 Input Amplitude Resolution
 
-The `get_input_amplitude` helper resolves the VSIN drive amplitude through a priority chain:
+The standard library uses separate helpers for single-ended and differential VSIN drive amplitude resolution:
 
 ```cascode
 function get_input_amplitude(Voltage fallback) : Voltage {
-  if env.InputPower { return sqrt(8 * env.SourceImpedance * env.InputPower) }
+  if env.InputPower { return sqrt(8 * (env.SourceImpedance / 1Ohm) * (env.InputPower / 1W)) * 1V }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}
+
+function get_diff_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower {
+    return sqrt(2 * (env.SourceImpedance / 1Ohm) * (env.InputPower / 1W)) * 1V
+  }
   if env.InputAmplitude { return env.InputAmplitude }
   return fallback
 }
 ```
 
-When `env.InputPower` is set, the peak amplitude is derived from the maximum available power of a sinusoidal source into a matched load: $A = \sqrt{8\,R_s\,P_{avail}}$, where $R_s$ is `env.SourceImpedance`. This is the standard RF convention — the interface specifies power (e.g. `-10dBm`) and the harness computes the voltage for the given source impedance. Changing `SourceImpedance` automatically adjusts the drive voltage to maintain the same available power.
+For single-ended benches, when `env.InputPower` is set, the peak amplitude is derived from the maximum available power of a sinusoidal source into a matched load: $A = \sqrt{8\,R_s\,P_{avail}}$, where `R_s` is `env.SourceImpedance`. This is the standard RF convention: the interface specifies power and the harness computes the voltage for the given source impedance.
 
-When `env.InputPower` is not set, the helper falls back to `env.InputAmplitude` (an explicit peak voltage), then to the hardcoded fallback (25 mV for both PSS and transient benches).
+For differential benches, `env.InputPower` is interpreted as total differential available power. The helper splits that power across the two legs and computes the per-leg VSIN amplitude against the corresponding per-leg source impedance, yielding $A_{leg} = \sqrt{2\,R_{diff}\,P_{avail}} = \sqrt{4\,R_{leg}\,P_{avail}}$ with `R_leg = env.SourceImpedance.DiffToShunt()`. This avoids the previous overdrive case where reusing the single-ended helper on each leg would deliver 4x the intended total power.
+
+When `env.InputPower` is not set, both helpers fall back to `env.InputAmplitude` (an explicit peak voltage), then to the hardcoded fallback (25 mV for both PSS and transient benches).
 
 Note that available power (what the source can deliver into a matched load) differs from delivered power (what actually enters the DUT). The `InputPower` measurement computes delivered power from the terminal voltage waveform, which accounts for impedance mismatch.
 
@@ -128,8 +138,8 @@ Like `duration`, this built-in is general-purpose and applies to any waveform, n
 A new `harmonic_power` built-in computes real power at a specific harmonic from a periodic voltage waveform and a known impedance:
 
 ```
-harmonic_power(VoltageWaveform, Impedance) → Power (W)
-harmonic_power(VoltageWaveform, Impedance, Int k) → Power (W)
+harmonic_power(VoltageWaveform, Impedance) → power-valued scalar (W)
+harmonic_power(VoltageWaveform, Impedance, Scalar k) → power-valued scalar (W)
 ```
 
 The two-argument form defaults to the fundamental ($k = 1$). The fundamental frequency is inferred from the waveform's time span ($f = 1 / (t_{end} - t_{start})$), which is exact for PSS waveforms since they cover precisely one solved period. The built-in extracts the $k$-th harmonic peak phasor $V_k$, then computes:
@@ -143,7 +153,7 @@ where $R$ is the resistive component of the impedance. This built-in is not PSS-
 A `thd` built-in computes total harmonic distortion from a periodic voltage waveform:
 
 ```
-thd(VoltageWaveform, Int harmonics) → Scalar
+thd(VoltageWaveform, Scalar harmonics) → Scalar
 ```
 
 The fundamental frequency is inferred from the waveform's time span, same as `harmonic_power`. The `harmonics` argument controls how many harmonics above the fundamental to include. The result is the voltage-domain THD:
@@ -178,35 +188,38 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
   }
 
   measurements {
-    measurement HarmonicFrequency : Hz {
+    measurement FundamentalFrequency : Hz {
       VoltageWaveform vout = voltage(pss, OUT)
       return 1 / duration(vout)
     }
-    measurement HarmonicPeriod : s {
+    measurement FundamentalPeriod : s {
       VoltageWaveform vout = voltage(pss, OUT)
       return duration(vout)
     }
     measurement OutputPower : W {
       VoltageWaveform vout = voltage(pss, OUT)
-      return harmonic_power(vout, env.LoadImpedance)
+      Impedance loadImp = env.LoadImpedance
+      return harmonic_power(vout, loadImp)
     }
-    measurement OutputPowerHarmonic(Int k) : W {
+    measurement OutputPowerHarmonic(Scalar k) : W {
       VoltageWaveform vout = voltage(pss, OUT)
-      return harmonic_power(vout, env.LoadImpedance, k)
+      Impedance loadImp = env.LoadImpedance
+      return harmonic_power(vout, loadImp, k)
     }
-    measurement SupplyPower(Current dcCurrent) : W {
-      return harness.VDD * abs(dcCurrent)
+    measurement SupplyPower(Scalar supplyVoltage, Scalar dcCurrent) : W {
+      return supplyVoltage * abs(dcCurrent)
     }
-    measurement DrainEfficiency(Power dcPower) : Scalar {
+    measurement DrainEfficiency(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
       return pout / dcPower
     }
   }
 }
 ```
 
-`SupplyPower` receives the mean supply current from the caller (typically a binding that extracts it from the PSS waveform via `mean(current(pss, supplyDC.P))`). The supply voltage `harness.VDD` resolves to the declared VDC supply voltage in the harness context. `DrainEfficiency` takes a precomputed `Power dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits.
+`SupplyPower` receives the mean supply current and the corresponding rail voltage from the caller (typically a binding that extracts current from the PSS waveform via `mean(current(pss, supplyDC.P))` and forwards the rail value explicitly). `DrainEfficiency` takes a precomputed scalar `dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits without assuming any particular rail name.
 
 ### 3.2 AbstractInputOutputPSS
 
@@ -220,35 +233,41 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
   measurements {
     measurement InputPower : W {
       VoltageWaveform vin = voltage(pss, IN)
-      return harmonic_power(vin, env.SourceImpedance)
+      Impedance sourceImp = env.SourceImpedance
+      return harmonic_power(vin, sourceImp)
     }
-    measurement InputPowerHarmonic(Int k) : W {
+    measurement InputPowerHarmonic(Scalar k) : W {
       VoltageWaveform vin = voltage(pss, IN)
-      return harmonic_power(vin, env.SourceImpedance, k)
+      Impedance sourceImp = env.SourceImpedance
+      return harmonic_power(vin, sourceImp, k)
     }
     measurement Gain : dB {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      Power pin = harmonic_power(vin, env.SourceImpedance)
-      return 10 * log10(pout / pin)
+      Impedance loadImp = env.LoadImpedance
+      Impedance sourceImp = env.SourceImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
+      return db10(pout / pin)
     }
-    measurement THD(Int harmonics) : Scalar {
+    measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       return thd(vout, harmonics)
     }
-    measurement PAE(Power dcPower) : Scalar {
+    measurement PAE(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       VoltageWaveform vin = voltage(pss, IN)
-      Power pout = harmonic_power(vout, env.LoadImpedance)
-      Power pin = harmonic_power(vin, env.SourceImpedance)
+      Impedance loadImp = env.LoadImpedance
+      Impedance sourceImp = env.SourceImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
       return (pout - pin) / dcPower
     }
   }
 }
 ```
 
-`DrainEfficiency` is inherited from `AbstractOutputPSS`. `PAE` takes `Power dcPower`; the binding passes the result of `SupplyPower`.
+`DrainEfficiency` is inherited from `AbstractOutputPSS`. `PAE` takes scalar `dcPower`; the binding passes the result of `SupplyPower`.
 
 ### 3.3 Concrete Benches
 
@@ -300,7 +319,7 @@ bench DiffOscPSS extends AbstractOutputPSS {
 
 #### 3.3.3 SEToSEPSS — Single-Ended Driven
 
-Large-signal sinusoidal drive through source impedance, with input and output common-mode biasing.
+Large-signal sinusoidal drive through source impedance, with ground-referenced stimulus. The bench does not provide common-mode biasing; the interface binding is responsible for setting the DUT's DC operating point.
 
 ```cascode
 bench SEToSEPSS extends AbstractInputOutputPSS {
@@ -308,18 +327,12 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
   resp OUT : analog
 
   fill {
-    net vcm_in : analog
     net gnd : ground
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputCommonModeDC = new VDC(V=env.InputCommonModeRange) {
-      .P--vcm_in
-      .N--gnd
-    }
-
     VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
-      .N--vcm_in
+      .N--gnd
     }
 
     Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
@@ -336,7 +349,7 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
 
 #### 3.3.4 DiffToDiffPSS — Differential Driven
 
-Anti-phase `VSIN` pair through split source impedances, with differential load termination.
+Anti-phase `VSIN` pair through split source impedances, with ground-referenced differential load termination. Like `SEToSEPSS`, the bench does not provide common-mode biasing; the interface binding sets the DUT's DC operating point.
 
 ```cascode
 bench DiffToDiffPSS extends AbstractInputOutputPSS {
@@ -344,27 +357,15 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
   resp OUT : Diff
 
   fill {
-    net vcm_in : analog
-    net vcm_out : analog
     net gnd : ground
 
     GND _ = new GND() { .GND--gnd }
 
-    VDC inputCommonModeVDC = new VDC(V=env.InputCommonModeRange) {
-      .P--vcm_in
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
       .N--gnd
     }
-
-    VDC outputCommonModeVDC = new VDC(V=env.OutputCommonModeRange) {
-      .P--vcm_out
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
       .N--gnd
-    }
-
-    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
-      .N--vcm_in
-    }
-    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
-      .N--vcm_in
     }
 
     Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
@@ -378,11 +379,11 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
       .P--OUT.P
-      .N--vcm_out
+      .N--gnd
     }
     Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
       .P--OUT.N
-      .N--vcm_out
+      .N--gnd
     }
   }
 }
@@ -392,7 +393,7 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
 ## 4. Interface Binding
 
-PSS benches are bound like any other bench. Bench terminals are mapped to DUT terminals; the fill block's sources and impedances sit on those terminal nets.
+PSS benches are bound like any other bench. Bench terminals are mapped to DUT terminals; the fill block's sources and impedances sit on those terminal nets. Because the bench fill blocks do not provide common-mode biasing, the binding must ensure all DUT analog terminals have a defined DC path — the same responsibility described in the bench/binding design contract.
 
 ```cascode
 interface SingleEndedPA {
@@ -425,7 +426,7 @@ interface SingleEndedPA {
 
       measurements {
         Current idc = mean(current(pss, supplyDC.P))
-        measurement SupplyPower : W = base::SupplyPower(dcCurrent=idc)
+        measurement SupplyPower : W = base::SupplyPower(supplyVoltage=harness.VDD, dcCurrent=idc)
         measurement DrainEfficiency : Scalar = base::DrainEfficiency(dcPower=SupplyPower())
         measurement PAE : Scalar = base::PAE(dcPower=SupplyPower())
       }
@@ -434,14 +435,16 @@ interface SingleEndedPA {
 }
 ```
 
-The binding declares a `VDC` supply source explicitly so that `current(pss, supplyDC.P)` can extract the branch current through it during PSS. The `mean` built-in averages the one-period current waveform to obtain the DC supply current, which is then forwarded to the inherited `SupplyPower`, `DrainEfficiency`, and `PAE` measurements. No separate `QuiescentPower` bench is needed — the supply current is measured directly under large-signal periodic drive, which captures class-dependent current draw that a DC operating-point measurement would miss.
+The binding declares a `VDC` supply source explicitly so that `current(pss, supplyDC.P)` can extract the branch current through it during PSS. The `mean` built-in averages the one-period current waveform to obtain the DC supply current, and the binding forwards both that current and the appropriate rail voltage to the inherited `SupplyPower`, `DrainEfficiency`, and `PAE` measurements. No separate `QuiescentPower` bench is needed — the supply current is measured directly under large-signal periodic drive, which captures class-dependent current draw that a DC operating-point measurement would miss.
+
+Note that this PA example has `InputCommonModeRange = 0V`, so the bench's ground-referenced VSIN matches the intended bias. For amplifier topologies that require a non-zero input common-mode (op-amps, for example), the binding must add a `VDC` bias source, the same pattern used in the standard amplifier interface bindings for `QuiescentPower` and `DCBias`.
 
 Constraints reference measurements through the bind name:
 
 ```cascode
 constraints {
   numeric {
-    c_osc_freq = pss_bench(guess_freq=2.4GHz)::HarmonicFrequency >= 2.3GHz
+    c_osc_freq = pss_bench(guess_freq=2.4GHz)::FundamentalFrequency >= 2.3GHz
     c_output_pwr = pss_bench(guess_freq=2.4GHz)::OutputPower >= 10mW
     c_pae = pss_bench(guess_freq=2.4GHz)::PAE >= 0.3
   }
@@ -524,8 +527,8 @@ Four built-in functions are added to the function registry:
 
 - `duration(VoltageWaveform | CurrentWaveform) → Time` — time span of a waveform. For PSS, this is the solved period.
 - `mean(VoltageWaveform | CurrentWaveform) → Voltage | Current` — arithmetic mean of a waveform's sample values (the DC component). Returns a scalar in the waveform's native unit.
-- `harmonic_power(VoltageWaveform, Impedance [, Int]) → Power (W)` — real power at a specific harmonic from a periodic voltage waveform across a known impedance. Fundamental frequency inferred from waveform time span.
-- `thd(VoltageWaveform, Int) → Scalar` — total harmonic distortion (voltage-domain) of a periodic waveform. Fundamental frequency inferred from waveform time span.
+- `harmonic_power(VoltageWaveform, Impedance [, Scalar]) → power-valued scalar (W)` — real power at a specific harmonic from a periodic voltage waveform across a known impedance. Fundamental frequency inferred from waveform time span.
+- `thd(VoltageWaveform, Scalar) → Scalar` — total harmonic distortion (voltage-domain) of a periodic waveform. Fundamental frequency inferred from waveform time span.
 
 ---
 
@@ -544,7 +547,9 @@ Four built-in functions are added to the function registry:
 | `harmonic_power` second argument is not an `Impedance` | `harmonic_power second argument must be an Impedance` |
 | `mean` argument is not a `VoltageWaveform` or `CurrentWaveform` | `mean argument must be a VoltageWaveform or CurrentWaveform` |
 | `thd` first argument is not a `VoltageWaveform` | `thd first argument must be a VoltageWaveform` |
-| `thd` second argument is not an `Int` | `thd second argument must be an Int` |
+| `thd` second argument is not an integer-valued scalar | `thd second argument must be an integer scalar` |
+
+Declaration typing note: measurement signatures and local declarations currently accept scalar physical types such as `Voltage`, `Current`, and `Impedance`, plus `Scalar`; there is no `Power` declaration keyword, so power-carrying locals/parameters should use `Scalar` and keep `: W` on the measurement return type.
 
 ### 7.2 Runtime Errors
 

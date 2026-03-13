@@ -113,6 +113,11 @@ public sealed record TranDataset(
     IReadOnlyDictionary<string, double[]> NodeVoltages
 );
 
+public sealed record PssDataset(
+    double[] TimePoints,
+    IReadOnlyDictionary<string, double[]> NodeVoltages
+);
+
 public sealed record BenchWaveform(
     double[] TimePointsS,
     double[] Values,

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
 using Cascode.Language;
+using Cascode.Language.BenchRuntime;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -280,19 +281,189 @@ public sealed class BenchRunIntegrationTests : IDisposable
         await VerifyAsync(cascodePath, combinedResultsPath);
     }
 
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_SingleResistor_OnePortSParamConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/SingleResistor.cas");
+
+        await RunBenchAsync(cascodePath);
+
+        var resultsPath = Path.Combine(_outputDir, "SingleResistor_sparam_bench_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("SingleResistor", results.Circuit);
+        Assert.Equal("sparam_bench", results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("S11(from=1MHz, to=100MHz)"),
+            "expected S11(from=1MHz, to=100MHz) measurement in bench results"
+        );
+        Assert.True(
+            results.Measurements.ContainsKey("ReturnLoss(from=1MHz, to=100MHz)"),
+            "expected ReturnLoss(from=1MHz, to=100MHz) measurement in bench results"
+        );
+        Assert.True(string.IsNullOrEmpty(results.Measurements["S11(from=1MHz, to=100MHz)"].Error));
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["ReturnLoss(from=1MHz, to=100MHz)"].Error)
+        );
+        Assert.NotNull(results.Measurements["S11(from=1MHz, to=100MHz)"].Values);
+        Assert.NotNull(results.Measurements["ReturnLoss(from=1MHz, to=100MHz)"].Values);
+        Assert.NotEmpty(results.Measurements["S11(from=1MHz, to=100MHz)"].Values!);
+        Assert.NotEmpty(results.Measurements["ReturnLoss(from=1MHz, to=100MHz)"].Values!);
+
+        var combinedResultsPath = Path.Combine(_outputDir, "SingleResistor_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_LCSeries_PSSConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/LCSeries.cas");
+
+        await RunBenchAsync(cascodePath);
+
+        var instanceName = BenchInvocationName.Compute(
+            "pss_bench",
+            new[] { new MetricCallArg("guess_freq", "100MHz") }
+        );
+        var resultsPath = Path.Combine(_outputDir, $"LCSeries_{instanceName}_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("LCSeries", results.Circuit);
+        Assert.Equal(instanceName, results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("FundamentalFrequency"),
+            "FundamentalFrequency measurement missing"
+        );
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["FundamentalFrequency"].Error),
+            "FundamentalFrequency had error: " + results.Measurements["FundamentalFrequency"].Error
+        );
+        Assert.True(results.Measurements["FundamentalFrequency"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["FundamentalFrequency"].Value!.Value));
+
+        var combinedResultsPath = Path.Combine(_outputDir, "LCSeries_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_LCTank_PSSConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/osc/LCTank.cas");
+
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
+
+        var instanceName = BenchInvocationName.Compute(
+            "pss_bench",
+            new[] { new MetricCallArg("guess_freq", "2.8GHz") }
+        );
+        var resultsPath = Path.Combine(_outputDir, $"LCTank_{instanceName}_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("LCTank", results.Circuit);
+        Assert.Equal(instanceName, results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("FundamentalFrequency"),
+            "FundamentalFrequency measurement missing"
+        );
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["FundamentalFrequency"].Error),
+            "FundamentalFrequency had error: " + results.Measurements["FundamentalFrequency"].Error
+        );
+        Assert.True(results.Measurements["FundamentalFrequency"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["FundamentalFrequency"].Value!.Value));
+
+        var combinedResultsPath = Path.Combine(_outputDir, "LCTank_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_LCOscSky130_PSSConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/osc/LCOsc_Sky130.cas");
+        var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
+
+        await SetupPdkAsync(pdkRoot);
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
+
+        var instanceName = BenchInvocationName.Compute(
+            "pss_bench",
+            new[] { new MetricCallArg("guess_freq", "2.7GHz") }
+        );
+        var resultsPath = Path.Combine(_outputDir, $"LCOsc_Sky130_{instanceName}_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("LCOsc_Sky130", results.Circuit);
+        Assert.Equal(instanceName, results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("FundamentalFrequency"),
+            "FundamentalFrequency measurement missing"
+        );
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["FundamentalFrequency"].Error),
+            "FundamentalFrequency had error: " + results.Measurements["FundamentalFrequency"].Error
+        );
+        Assert.True(results.Measurements["FundamentalFrequency"].Value.HasValue);
+        Assert.False(double.IsNaN(results.Measurements["FundamentalFrequency"].Value!.Value));
+
+        var combinedResultsPath = Path.Combine(_outputDir, "LCOsc_Sky130_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
+    }
+
     private async Task RunBenchAsync(string cascodePath, params string[] additionalArgs)
+    {
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(30), additionalArgs);
+    }
+
+    private async Task RunBenchAsync(
+        string cascodePath,
+        TimeSpan timeout,
+        params string[] additionalArgs
+    )
     {
         var args = new List<string> { "bench", "run", cascodePath };
         args.AddRange(additionalArgs);
         args.Add("-o");
         args.Add(_outputDir);
 
-        var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
-            _cascodeHome,
-            [.. args]
-        );
+        var run = await CliIntegrationTestHelper.RunCliAsync(timeout, _cascodeHome, [.. args]);
         CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+    }
+
+    private async Task SetupPdkAsync(string pdkRoot)
+    {
+        var pdkSet = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "pdk",
+            "set-dir",
+            pdkRoot
+        );
+        CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
+
+        var scan = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(3),
+            _cascodeHome,
+            "pdk",
+            "scan",
+            pdkRoot
+        );
+        CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
     }
 
     private async Task<BenchResult> ReadBenchResultsAsync(string resultsPath)
