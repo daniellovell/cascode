@@ -60,25 +60,35 @@ PSS benches use standard fill-block primitives rather than `Port` instances. The
 
 - Input stimulus (driven benches): `VSIN` source through `Impedor` source impedance, referenced to ground. The bench does not provide input common-mode biasing. That responsibility falls to the interface binding, which has topology-specific knowledge of the DUT's DC operating requirements.
 - Output termination: `Impedor` load impedance, referenced to ground. Like the input side, any output common-mode biasing is the binding's responsibility.
-- The stimulus amplitude is resolved through `get_input_amplitude(25mV)`, which checks `env.InputPower` first (deriving amplitude from available power and source impedance), then `env.InputAmplitude`, then the fallback. `TranBenches` is updated to use the same helper, retiring the hardcoded amplitude and the unused `env.TranInputAmplitude` reference.
+- The stimulus amplitude is resolved through `get_input_amplitude(25mV)` for single-ended benches and `get_diff_input_amplitude(25mV)` for differential benches. Both helpers check `env.InputPower` first, then `env.InputAmplitude`, then the fallback. `TranBenches` follows the same split so per-leg differential drive is computed consistently in PSS and transient benches.
 
 This separation keeps `PSSAnalysis` purely about solver parameters while the fill block owns the stimulus topology, and the binding owns the DC operating-point context.
 
 ### 1.6 Input Amplitude Resolution
 
-The `get_input_amplitude` helper resolves the VSIN drive amplitude through a priority chain:
+The standard library uses separate helpers for single-ended and differential VSIN drive amplitude resolution:
 
 ```cascode
 function get_input_amplitude(Voltage fallback) : Voltage {
-  if env.InputPower { return sqrt(8 * env.SourceImpedance * env.InputPower) }
+  if env.InputPower { return sqrt(8 * (env.SourceImpedance / 1Ohm) * (env.InputPower / 1W)) * 1V }
+  if env.InputAmplitude { return env.InputAmplitude }
+  return fallback
+}
+
+function get_diff_input_amplitude(Voltage fallback) : Voltage {
+  if env.InputPower {
+    return sqrt(2 * (env.SourceImpedance / 1Ohm) * (env.InputPower / 1W)) * 1V
+  }
   if env.InputAmplitude { return env.InputAmplitude }
   return fallback
 }
 ```
 
-When `env.InputPower` is set, the peak amplitude is derived from the maximum available power of a sinusoidal source into a matched load: $A = \sqrt{8\,R_s\,P_{avail}}$, where $R_s$ is `env.SourceImpedance`. This is the standard RF convention — the interface specifies power (e.g. `-10dBm`) and the harness computes the voltage for the given source impedance. Changing `SourceImpedance` automatically adjusts the drive voltage to maintain the same available power.
+For single-ended benches, when `env.InputPower` is set, the peak amplitude is derived from the maximum available power of a sinusoidal source into a matched load: $A = \sqrt{8\,R_s\,P_{avail}}$, where `R_s` is `env.SourceImpedance`. This is the standard RF convention: the interface specifies power and the harness computes the voltage for the given source impedance.
 
-When `env.InputPower` is not set, the helper falls back to `env.InputAmplitude` (an explicit peak voltage), then to the hardcoded fallback (25 mV for both PSS and transient benches).
+For differential benches, `env.InputPower` is interpreted as total differential available power. The helper splits that power across the two legs and computes the per-leg VSIN amplitude against the corresponding per-leg source impedance, yielding $A_{leg} = \sqrt{2\,R_{diff}\,P_{avail}} = \sqrt{4\,R_{leg}\,P_{avail}}$ with `R_leg = env.SourceImpedance.DiffToShunt()`. This avoids the previous overdrive case where reusing the single-ended helper on each leg would deliver 4x the intended total power.
+
+When `env.InputPower` is not set, both helpers fall back to `env.InputAmplitude` (an explicit peak voltage), then to the hardcoded fallback (25 mV for both PSS and transient benches).
 
 Note that available power (what the source can deliver into a matched load) differs from delivered power (what actually enters the DUT). The `InputPower` measurement computes delivered power from the terminal voltage waveform, which accounts for impedance mismatch.
 
@@ -196,8 +206,8 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
       Impedance loadImp = env.LoadImpedance
       return harmonic_power(vout, loadImp, k)
     }
-    measurement SupplyPower(Scalar dcCurrent) : W {
-      return harness.VDD * abs(dcCurrent)
+    measurement SupplyPower(Scalar supplyVoltage, Scalar dcCurrent) : W {
+      return supplyVoltage * abs(dcCurrent)
     }
     measurement DrainEfficiency(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
@@ -209,7 +219,7 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
 }
 ```
 
-`SupplyPower` receives the mean supply current from the caller (typically a binding that extracts it from the PSS waveform via `mean(current(pss, supplyDC.P))`). The supply voltage `harness.VDD` resolves to the declared VDC supply voltage in the harness context. `DrainEfficiency` takes a precomputed scalar `dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits.
+`SupplyPower` receives the mean supply current and the corresponding rail voltage from the caller (typically a binding that extracts current from the PSS waveform via `mean(current(pss, supplyDC.P))` and forwards the rail value explicitly). `DrainEfficiency` takes a precomputed scalar `dcPower`; the binding passes the result of `SupplyPower`. Both measurements are defined here rather than in `AbstractInputOutputPSS` because they apply equally to autonomous oscillators and driven circuits without assuming any particular rail name.
 
 ### 3.2 AbstractInputOutputPSS
 
@@ -351,10 +361,10 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
       .N--gnd
     }
-    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
       .N--gnd
     }
 
@@ -416,7 +426,7 @@ interface SingleEndedPA {
 
       measurements {
         Current idc = mean(current(pss, supplyDC.P))
-        measurement SupplyPower : W = base::SupplyPower(dcCurrent=idc)
+        measurement SupplyPower : W = base::SupplyPower(supplyVoltage=harness.VDD, dcCurrent=idc)
         measurement DrainEfficiency : Scalar = base::DrainEfficiency(dcPower=SupplyPower())
         measurement PAE : Scalar = base::PAE(dcPower=SupplyPower())
       }
@@ -425,7 +435,7 @@ interface SingleEndedPA {
 }
 ```
 
-The binding declares a `VDC` supply source explicitly so that `current(pss, supplyDC.P)` can extract the branch current through it during PSS. The `mean` built-in averages the one-period current waveform to obtain the DC supply current, which is then forwarded to the inherited `SupplyPower`, `DrainEfficiency`, and `PAE` measurements. No separate `QuiescentPower` bench is needed — the supply current is measured directly under large-signal periodic drive, which captures class-dependent current draw that a DC operating-point measurement would miss.
+The binding declares a `VDC` supply source explicitly so that `current(pss, supplyDC.P)` can extract the branch current through it during PSS. The `mean` built-in averages the one-period current waveform to obtain the DC supply current, and the binding forwards both that current and the appropriate rail voltage to the inherited `SupplyPower`, `DrainEfficiency`, and `PAE` measurements. No separate `QuiescentPower` bench is needed — the supply current is measured directly under large-signal periodic drive, which captures class-dependent current draw that a DC operating-point measurement would miss.
 
 Note that this PA example has `InputCommonModeRange = 0V`, so the bench's ground-referenced VSIN matches the intended bias. For amplifier topologies that require a non-zero input common-mode (op-amps, for example), the binding must add a `VDC` bias source, the same pattern used in the standard amplifier interface bindings for `QuiescentPower` and `DCBias`.
 

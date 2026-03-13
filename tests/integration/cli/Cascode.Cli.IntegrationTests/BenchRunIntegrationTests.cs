@@ -285,7 +285,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_SingleResistor_OnePortSParamConstraintsPass()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/filters/RSeries.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/SingleResistor.cas");
 
         await RunBenchAsync(cascodePath);
 

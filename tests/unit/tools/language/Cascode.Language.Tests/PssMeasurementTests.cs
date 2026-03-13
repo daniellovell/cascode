@@ -2,12 +2,76 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Cascode.Language;
 using Cascode.Language.BenchRuntime;
+using Cascode.TestSupport;
 
 namespace Cascode.Language.Tests;
 
 public sealed class PssMeasurementTests
 {
+    [Fact]
+    public void Pss_SupplyPower_UsesExplicitSupplyVoltageArgument()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("pss-supply-power");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            bench WrapperPss extends AbstractOutputPSS {
+              resp OUT : analog
+
+              fill { }
+            }
+            """
+        );
+
+        var link = CascodeLinker.LinkFile(entryPath, outDir, repoRoot);
+        Assert.True(
+            link.Success,
+            string.Join(Environment.NewLine, link.Diagnostics.Select(d => d.Message))
+        );
+        using var reader = File.OpenText(link.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, link.LinkedCasPath!);
+        var bench = linked.BenchDefinitions.Single(b => b.Name == "WrapperPss");
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: linked.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["VDD"] = new BenchNumber(BenchNumericKind.VoltageV, 1.8),
+                ["VPWR"] = new BenchNumber(BenchNumericKind.VoltageV, 2.5),
+            },
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements: []
+        );
+
+        var value = runner.RunMetricWithNamedArgs(
+            "SupplyPower",
+            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["supplyVoltage"] = new BenchNumber(BenchNumericKind.Scalar, 2.5),
+                ["dcCurrent"] = new BenchNumber(BenchNumericKind.Scalar, -0.002),
+            }
+        );
+        Assert.Equal(0.005, value.Value, precision: 9);
+    }
+
     [Fact]
     public void Pss_ComputeDurationPowerAndThd()
     {

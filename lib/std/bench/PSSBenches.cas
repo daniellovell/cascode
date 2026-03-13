@@ -31,8 +31,8 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
       Impedance loadImp = get_load_impedance(50Ohm)
       return harmonic_power(vout, loadImp, k)
     }
-    measurement SupplyPower(Scalar dcCurrent) : W {
-      return harness.VDD * abs(dcCurrent)
+    measurement SupplyPower(Scalar supplyVoltage, Scalar dcCurrent) : W {
+      return supplyVoltage * abs(dcCurrent)
     }
     measurement DrainEfficiency(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
@@ -105,7 +105,7 @@ bench SEOscPSS extends AbstractOutputPSS {
       .N--gnd
     }
 
-    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
+    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm)) {
       .P--OUT
       .N--gnd
     }
@@ -178,10 +178,10 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
       .N--gnd
     }
-    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
       .N--gnd
     }
 

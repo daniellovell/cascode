@@ -91,11 +91,11 @@ bench DiffToSETran(Frequency stim_freq = 1kHz) extends AbstractInputOutputTran {
     // Differential sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
-    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
+    // "rail-to-rail saturation". Circuits can override by setting env.InputAmplitude.
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -137,11 +137,11 @@ bench DiffToDiffTran(Frequency stim_freq = 1kHz) extends AbstractInputOutputTran
     // Differential sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
-    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
+    // "rail-to-rail saturation". Circuits can override by setting env.InputAmplitude.
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -187,7 +187,7 @@ bench SEToSETran(Frequency stim_freq = 1kHz) extends AbstractInputOutputTran {
     // Single-ended sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
-    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
+    // "rail-to-rail saturation". Circuits can override by setting env.InputAmplitude.
     VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
