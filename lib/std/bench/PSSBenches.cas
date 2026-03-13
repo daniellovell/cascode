@@ -1,0 +1,206 @@
+VERSION 4.1
+
+library lib.std.bench
+
+abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
+  abstract resp OUT
+
+  analysis {
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=guess_freq,
+      tstab=100 * period(guess_freq),
+      harmonics=20)
+  }
+
+  measurements {
+    measurement FundamentalFrequency : Hz {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }
+    measurement FundamentalPeriod : s {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return duration(vout)
+    }
+    measurement OutputPower : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      return harmonic_power(vout, loadImp)
+    }
+    measurement OutputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      return harmonic_power(vout, loadImp, k)
+    }
+    measurement SupplyPower(Scalar supplyVoltage, Scalar dcCurrent) : W {
+      return supplyVoltage * abs(dcCurrent)
+    }
+    measurement DrainEfficiency(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      return pout / dcPower
+    }
+  }
+}
+
+abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
+  abstract stim IN
+  abstract resp OUT
+
+  measurements {
+    measurement InputPower : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      Impedance sourceImp = get_source_impedance(50Ohm)
+      return harmonic_power(vin, sourceImp)
+    }
+    measurement InputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      Impedance sourceImp = get_source_impedance(50Ohm)
+      return harmonic_power(vin, sourceImp, k)
+    }
+    measurement Gain : dB {
+      VoltageWaveform vout = voltage(pss, OUT)
+      VoltageWaveform vin = voltage(pss, IN)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Impedance sourceImp = get_source_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
+      return db10(pout / pin)
+    }
+    measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      return thd(vout, harmonics)
+    }
+    measurement PAE(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      VoltageWaveform vin = voltage(pss, IN)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Impedance sourceImp = get_source_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = harmonic_power(vin, sourceImp)
+      return (pout - pin) / dcPower
+    }
+  }
+}
+
+bench SEOscPSS extends AbstractOutputPSS {
+  resp OUT : analog
+
+  override analysis {
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=guess_freq,
+      tstab=1000 * period(guess_freq),
+      harmonics=20,
+      iterations=1000,
+      steady_coef=0.1,
+      uic=1)
+  }
+
+  fill {
+    net gnd : ground
+    GND _ = new GND() { .GND--gnd }
+
+    Kick kick = new Kick(ic=1) {
+      .P--OUT
+      .N--gnd
+    }
+
+    Impedor loadZ = new Impedor(Z=get_load_impedance(1GOhm)) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+}
+
+bench DiffOscPSS extends AbstractOutputPSS {
+  resp OUT : Diff
+
+  override analysis {
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=guess_freq,
+      tstab=1000 * period(guess_freq),
+      harmonics=20,
+      iterations=1000,
+      steady_coef=0.1,
+      uic=1)
+  }
+
+  fill {
+    net gnd : ground
+    GND _ = new GND() { .GND--gnd }
+
+    Kick kick = new Kick(ic=1) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+
+    Impedor loadP = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=get_load_impedance(1GOhm).DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+}
+
+bench SEToSEPSS extends AbstractInputOutputPSS {
+  stim IN : analog
+  resp OUT : analog
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() { .GND--gnd }
+
+    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+      .N--gnd
+    }
+
+    Impedor sourceZ = new Impedor(Z=get_source_impedance(50Ohm)) { }
+    vin.P--sourceZ.P
+    sourceZ.N--IN
+
+    Impedor loadZ = new Impedor(Z=get_load_impedance(50Ohm)) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+}
+
+bench DiffToDiffPSS extends AbstractInputOutputPSS {
+  stim IN : Diff
+  resp OUT : Diff
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() { .GND--gnd }
+
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+      .N--gnd
+    }
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
+      .N--gnd
+    }
+
+    Impedor sourceP = new Impedor(Z=get_source_impedance(100Ohm).DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=get_source_impedance(100Ohm).DiffToShunt()) { }
+
+    inP.P--sourceP.P
+    sourceP.N--IN.P
+
+    inN.P--sourceN.P
+    sourceN.N--IN.N
+
+    Impedor loadP = new Impedor(Z=get_load_impedance(100Ohm).DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=get_load_impedance(100Ohm).DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+}

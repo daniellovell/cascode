@@ -45,7 +45,9 @@ public sealed class BenchMeasurementRunner
     /// <param name="Ac">AC analysis dataset when available.</param>
     /// <param name="Noise">Noise analysis dataset when available.</param>
     /// <param name="Tran">Transient analysis dataset when available.</param>
+    /// <param name="Pss">Periodic steady-state analysis dataset when available.</param>
     /// <param name="TranCurrents">Transient current dataset when available.</param>
+    /// <param name="PssCurrents">Periodic steady-state current dataset when available.</param>
     /// <param name="AcCurrents">AC current dataset when available.</param>
     /// <param name="SParameters">S-parameter dataset when available.</param>
     /// <param name="SpNoise">S-parameter noise data when available.</param>
@@ -59,7 +61,9 @@ public sealed class BenchMeasurementRunner
         AcDataset? Ac = null,
         NoiseDataset? Noise = null,
         TranDataset? Tran = null,
+        PssDataset? Pss = null,
         TranDataset? TranCurrents = null,
+        PssDataset? PssCurrents = null,
         AcDataset? AcCurrents = null,
         BenchSParameterMatrix? SParameters = null,
         SpNoiseDataset? SpNoise = null,
@@ -551,7 +555,7 @@ public sealed class BenchMeasurementRunner
             {
                 if (member.Equals("start", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (analysis.Tran is not null)
+                    if (analysis.Tran is not null || analysis.Pss is not null)
                     {
                         return new BenchNumber(BenchNumericKind.TimeS, analysis.StartS);
                     }
@@ -559,7 +563,7 @@ public sealed class BenchMeasurementRunner
                 }
                 if (member.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (analysis.Tran is not null)
+                    if (analysis.Tran is not null || analysis.Pss is not null)
                     {
                         return new BenchNumber(BenchNumericKind.TimeS, analysis.StopS);
                     }
@@ -602,6 +606,14 @@ public sealed class BenchMeasurementRunner
                 return EvalPeriod(call, locals);
             case "op_param":
                 return EvalOpParam(call, locals);
+            case "duration":
+                return EvalDuration(call, locals);
+            case "mean":
+                return EvalMean(call, locals);
+            case "harmonic_power":
+                return EvalHarmonicPower(call, locals);
+            case "thd":
+                return EvalThd(call, locals);
         }
 
         // Allow measurements to reference other measurements by name with explicit call syntax.
@@ -1940,6 +1952,17 @@ public sealed class BenchMeasurementRunner
             return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
         }
 
+        if (analysis.Pss is not null)
+        {
+            var t = analysis.Pss.TimePoints;
+            var values = new double[t.Length];
+            for (var i = 0; i < t.Length; i++)
+            {
+                values[i] = TerminalVoltage(analysis.Pss, terminal, i);
+            }
+            return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
+        }
+
         if (analysis.Ac is not null)
         {
             var f = analysis.Ac.FrequenciesHz;
@@ -1986,6 +2009,23 @@ public sealed class BenchMeasurementRunner
             var signed = values.Select(v => sign * v).ToArray();
             return new BenchWaveform(
                 analysis.TranCurrents.TimePoints,
+                signed,
+                BenchNumericKind.CurrentA
+            );
+        }
+
+        if (analysis.PssCurrents is not null)
+        {
+            if (!analysis.PssCurrents.NodeVoltages.TryGetValue(sourceName, out var values))
+            {
+                throw new InvalidOperationException(
+                    $"current(pss, ...): missing current vector for '{sourceName}'."
+                );
+            }
+
+            var signed = values.Select(v => sign * v).ToArray();
+            return new BenchWaveform(
+                analysis.PssCurrents.TimePoints,
                 signed,
                 BenchNumericKind.CurrentA
             );
@@ -2093,6 +2133,25 @@ public sealed class BenchMeasurementRunner
         return ResolveArgs(call.Args, parameterNames, locals, targetName, targetKind);
     }
 
+    private Dictionary<string, BenchValue> BindFunctionCallArguments(
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals,
+        IReadOnlyList<string> parameterNames,
+        string targetName,
+        string targetKind,
+        IReadOnlySet<string> optionalParameterNames
+    )
+    {
+        return ResolveArgs(
+            call.Args,
+            parameterNames,
+            locals,
+            targetName,
+            targetKind,
+            optionalParameterNames
+        );
+    }
+
     private Dictionary<string, BenchValue> BindMethodCallArguments(
         MeasurementMethodCall call,
         Dictionary<string, BenchValue> locals,
@@ -2137,6 +2196,13 @@ public sealed class BenchMeasurementRunner
             else if (i < positional.Count)
             {
                 values[parameterName] = EvaluateExpr(positional[i].Value, locals);
+            }
+            else if (
+                optionalParameterNames is not null
+                && optionalParameterNames.Contains(parameterName)
+            )
+            {
+                continue;
             }
             else
             {
@@ -2404,6 +2470,21 @@ public sealed class BenchMeasurementRunner
         return tran.NodeVoltages[t.LeafNodes[0]][index] - tran.NodeVoltages[t.LeafNodes[1]][index];
     }
 
+    private static double TerminalVoltage(PssDataset pss, BenchTerminalRef t, int index)
+    {
+        if (t.LeafNodes.Count == 0)
+        {
+            return 0;
+        }
+
+        if (t.LeafNodes.Count == 1)
+        {
+            return pss.NodeVoltages[t.LeafNodes[0]][index];
+        }
+
+        return pss.NodeVoltages[t.LeafNodes[0]][index] - pss.NodeVoltages[t.LeafNodes[1]][index];
+    }
+
     /// <summary>
     /// Resolves a terminal voltage from DC operating-point node voltages.
     /// </summary>
@@ -2621,6 +2702,115 @@ public sealed class BenchMeasurementRunner
         return new BenchNumber(BenchNumericKind.TimeS, 1.0 / f.Value);
     }
 
+    private BenchNumber EvalDuration(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        var args = BindFunctionCallArguments(call, locals, new[] { "waveform" });
+        var waveform = RequireWaveform(args["waveform"], "duration");
+        var duration = WaveformDurationS(waveform, "duration");
+        return new BenchNumber(BenchNumericKind.TimeS, duration);
+    }
+
+    private BenchNumber EvalMean(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        var args = BindFunctionCallArguments(call, locals, new[] { "waveform" });
+        var waveform = RequireWaveform(args["waveform"], "mean");
+        if (
+            waveform.Values.Length < 2
+            || waveform.TimePointsS.Length < 2
+            || waveform.TimePointsS.Length != waveform.Values.Length
+        )
+        {
+            throw new InvalidOperationException(
+                "mean: waveform must contain >=2 aligned time/value samples."
+            );
+        }
+
+        var duration = WaveformDurationS(waveform, "mean");
+        var area = 0.0;
+        for (var i = 1; i < waveform.TimePointsS.Length; i++)
+        {
+            var dt = waveform.TimePointsS[i] - waveform.TimePointsS[i - 1];
+            if (dt <= 0 || !double.IsFinite(dt))
+            {
+                throw new InvalidOperationException(
+                    "mean: waveform time points must be strictly increasing."
+                );
+            }
+            area += 0.5 * (waveform.Values[i - 1] + waveform.Values[i]) * dt;
+        }
+
+        var mean = area / duration;
+        return new BenchNumber(waveform.ValueKind, mean);
+    }
+
+    private BenchNumber EvalHarmonicPower(
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        var args = BindFunctionCallArguments(
+            call,
+            locals,
+            new[] { "waveform", "impedance", "k" },
+            "harmonic_power",
+            "function",
+            new HashSet<string>(new[] { "k" }, StringComparer.OrdinalIgnoreCase)
+        );
+
+        var waveform = RequireVoltageWaveform(args["waveform"], "harmonic_power");
+        var resistanceOhm = ResolveResistiveImpedanceOhm(args["impedance"], "harmonic_power");
+        var harmonicIndex = 1;
+        if (args.TryGetValue("k", out var harmonicArg))
+        {
+            var k = RequireNumber(harmonicArg, "harmonic_power.k");
+            if (k.Kind != BenchNumericKind.Scalar || k.Value < 1 || k.Value != Math.Round(k.Value))
+            {
+                throw new InvalidOperationException(
+                    $"harmonic_power: harmonic index must be a positive integer, got '{k.Value}'."
+                );
+            }
+
+            harmonicIndex = (int)k.Value;
+        }
+
+        var harmonic = ComputeHarmonicPeakPhasor(waveform, harmonicIndex);
+        var powerW = harmonic.Magnitude * harmonic.Magnitude / (2.0 * resistanceOhm);
+        return new BenchNumber(BenchNumericKind.Scalar, powerW);
+    }
+
+    private BenchNumber EvalThd(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        var args = BindFunctionCallArguments(call, locals, new[] { "waveform", "harmonics" });
+        var waveform = RequireVoltageWaveform(args["waveform"], "thd");
+        var harmonics = RequireNumber(args["harmonics"], "thd.harmonics");
+        if (
+            harmonics.Kind != BenchNumericKind.Scalar
+            || harmonics.Value < 1
+            || harmonics.Value != Math.Round(harmonics.Value)
+        )
+        {
+            throw new InvalidOperationException(
+                $"thd: harmonics must be a positive integer, got '{harmonics.Value}'."
+            );
+        }
+
+        var maxHarmonic = (int)harmonics.Value;
+        var fundamental = ComputeHarmonicPeakPhasor(waveform, 1).Magnitude;
+        if (fundamental <= 0.0)
+        {
+            throw new InvalidOperationException("thd: fundamental magnitude is zero.");
+        }
+
+        var sumSquares = 0.0;
+        for (var k = 2; k <= maxHarmonic; k++)
+        {
+            var vk = ComputeHarmonicPeakPhasor(waveform, k).Magnitude;
+            sumSquares += vk * vk;
+        }
+
+        return new BenchNumber(BenchNumericKind.Scalar, Math.Sqrt(sumSquares) / fundamental);
+    }
+
     private BenchNumber EvalQuiescentPower(
         MeasurementCall call,
         Dictionary<string, BenchValue> locals
@@ -2744,6 +2934,140 @@ public sealed class BenchMeasurementRunner
             ?? throw new InvalidOperationException(
                 $"Expected terminal for '{name}', got {value.GetType().Name}."
             );
+    }
+
+    private static BenchWaveform RequireWaveform(BenchValue value, string functionName)
+    {
+        return value as BenchWaveform
+            ?? throw new InvalidOperationException(
+                $"{functionName}: expected waveform, got {value.GetType().Name}."
+            );
+    }
+
+    private static BenchWaveform RequireVoltageWaveform(BenchValue value, string functionName)
+    {
+        var waveform = RequireWaveform(value, functionName);
+        if (waveform.ValueKind != BenchNumericKind.VoltageV)
+        {
+            throw new InvalidOperationException(
+                $"{functionName}: first argument must be a VoltageWaveform."
+            );
+        }
+
+        return waveform;
+    }
+
+    private static double WaveformDurationS(BenchWaveform waveform, string functionName)
+    {
+        if (waveform.TimePointsS.Length == 0)
+        {
+            throw new InvalidOperationException($"{functionName}: waveform has no samples.");
+        }
+
+        var duration =
+            waveform.TimePointsS[waveform.TimePointsS.Length - 1] - waveform.TimePointsS[0];
+        if (!double.IsFinite(duration) || duration <= 0)
+        {
+            throw new InvalidOperationException(
+                $"{functionName}: waveform duration must be positive, got '{duration}'."
+            );
+        }
+
+        return duration;
+    }
+
+    private static double ResolveResistiveImpedanceOhm(BenchValue value, string functionName)
+    {
+        if (!TryAsImpedance(value, out var impedance))
+        {
+            throw new InvalidOperationException(
+                $"{functionName}: second argument must be Impedance."
+            );
+        }
+
+        return ResolveResistiveImpedanceOhm(impedance, functionName);
+    }
+
+    private static double ResolveResistiveImpedanceOhm(
+        BenchImpedanceParallel impedance,
+        string functionName
+    )
+    {
+        var invResistanceSum = 0.0;
+        foreach (var element in impedance.Elements)
+        {
+            if (element.Kind != BenchNumericKind.ImpedanceOhm)
+            {
+                continue;
+            }
+
+            if (!double.IsFinite(element.Value) || element.Value <= 0)
+            {
+                throw new InvalidOperationException(
+                    $"{functionName}: invalid resistive impedance '{element.Value}'."
+                );
+            }
+
+            invResistanceSum += 1.0 / element.Value;
+        }
+
+        if (invResistanceSum <= 0 || !double.IsFinite(invResistanceSum))
+        {
+            throw new InvalidOperationException(
+                $"{functionName}: impedance must include a positive resistive component."
+            );
+        }
+
+        var resistance = 1.0 / invResistanceSum;
+        if (!double.IsFinite(resistance) || resistance <= 0)
+        {
+            throw new InvalidOperationException(
+                $"{functionName}: invalid impedance for power calculation."
+            );
+        }
+
+        return resistance;
+    }
+
+    private static Complex ComputeHarmonicPeakPhasor(BenchWaveform waveform, int harmonicIndex)
+    {
+        if (harmonicIndex < 1)
+        {
+            throw new InvalidOperationException(
+                $"harmonic index must be >= 1, got '{harmonicIndex}'."
+            );
+        }
+
+        if (
+            waveform.TimePointsS.Length != waveform.Values.Length
+            || waveform.TimePointsS.Length < 2
+        )
+        {
+            throw new InvalidOperationException(
+                "harmonic: waveform time/value arrays must have equal length and at least two samples."
+            );
+        }
+
+        var periodS = WaveformDurationS(waveform, "harmonic");
+        var omega = 2.0 * Math.PI * harmonicIndex / periodS;
+        var t0 = waveform.TimePointsS[0];
+        Complex integral = Complex.Zero;
+        for (var i = 1; i < waveform.TimePointsS.Length; i++)
+        {
+            var ta = waveform.TimePointsS[i - 1] - t0;
+            var tb = waveform.TimePointsS[i] - t0;
+            var dt = tb - ta;
+            if (dt <= 0)
+            {
+                continue;
+            }
+
+            var fa = waveform.Values[i - 1] * Complex.Exp(-Complex.ImaginaryOne * omega * ta);
+            var fb = waveform.Values[i] * Complex.Exp(-Complex.ImaginaryOne * omega * tb);
+            integral += 0.5 * (fa + fb) * dt;
+        }
+
+        return (2.0 / periodS) * integral;
     }
 
     private static BenchNumber RequireNumber(BenchValue value, string name)
@@ -3103,6 +3427,13 @@ public sealed class BenchMeasurementRunner
         bool leftOnLhs
     )
     {
+        if (op == "/" && leftOnLhs && TryAsImpedance(other, out var divisor))
+        {
+            var numeratorOhm = ResolveResistiveImpedanceOhm(z, "impedance division");
+            var denominatorOhm = ResolveResistiveImpedanceOhm(divisor, "impedance division");
+            return new BenchNumber(BenchNumericKind.Scalar, numeratorOhm / denominatorOhm);
+        }
+
         if (other is not BenchNumber n || n.Kind != BenchNumericKind.Scalar)
         {
             throw new InvalidOperationException(

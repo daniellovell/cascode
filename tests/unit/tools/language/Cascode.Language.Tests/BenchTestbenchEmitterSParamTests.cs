@@ -341,8 +341,12 @@ circuit Top {
 }
 """;
 
-        var ex = Assert.Throws<InvalidOperationException>(() => EmitTestbench(cascode, "sp"));
-        Assert.Contains("noise must be 0 or 1", ex.Message, StringComparison.Ordinal);
+        var parsed = CascodeReader.TryParse(cascode, "bench_ports.cas");
+        Assert.False(parsed.Success);
+        Assert.Contains(
+            parsed.Diagnostics,
+            d => d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
+        );
     }
 
     [Fact]

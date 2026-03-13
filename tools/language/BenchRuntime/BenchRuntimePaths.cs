@@ -142,6 +142,21 @@ public static class BenchRuntimePaths
         return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.tran.wrdata");
     }
 
+    public static string GetPssWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName,
+        string analysisName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.pss.wrdata");
+    }
+
     public static string GetTranCurrentsWrdataPath(
         string outputDir,
         string circuitName,
@@ -157,6 +172,24 @@ public static class BenchRuntimePaths
         return Path.Combine(
             outputDir,
             $"{circuitName}_{bindingName}__{analysisName}.tran.currents.wrdata"
+        );
+    }
+
+    public static string GetPssCurrentsWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName,
+        string analysisName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
+
+        return Path.Combine(
+            outputDir,
+            $"{circuitName}_{bindingName}__{analysisName}.pss.currents.wrdata"
         );
     }
 }

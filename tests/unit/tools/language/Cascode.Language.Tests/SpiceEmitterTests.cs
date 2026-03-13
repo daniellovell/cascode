@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cascode.Language;
+using Cascode.Language.Validation;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -110,6 +111,76 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Contains("W=2u", output);
         Assert.Contains("L=180n", output);
         Assert.Contains("m=1", output);
+    }
+
+    [Fact]
+    public void EmitDesign_CapacitorInitialCondition_EmitsIcParameter()
+    {
+        var doc = new CascodeDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "CapacitorIdeal",
+                    Kind = "capacitor",
+                    Device = "capacitor",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string> { ["C"] = "primSize.C" },
+                },
+            ],
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new()
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new()
+                            {
+                                DeviceType = "capacitor",
+                                Id = "C1",
+                                Primitive = "CapacitorIdeal",
+                                Size = new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["C"] = "1e-18",
+                                        ["ic"] = "1",
+                                    },
+                                },
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "OUT",
+                                    ["N"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("CC1 OUT GND", output, StringComparison.Ordinal);
+        Assert.Contains("ic=1", output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -272,6 +343,204 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         );
 
         Assert.Contains(variantName, output);
+    }
+
+    [Fact]
+    public void EmitVariant_RequiredChildParameter_IsNotSatisfiedByParentScope()
+    {
+        var doc = new CascodeDocument
+        {
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Child",
+                    Level = CascodeLevel.EL,
+                    Parameters =
+                    [
+                        new CircuitParameter
+                        {
+                            Name = "width",
+                            Type = "real",
+                            Default = null,
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Parameters =
+                    [
+                        new CircuitParameter
+                        {
+                            Name = "width",
+                            Type = "real",
+                            Default = new ParamValue { Numeric = "2u" },
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "u1",
+                                Type = "Child",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.Contains(validation.GetErrors(), e => e.Code == "HIER-002");
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            SpiceEmitter.EmitDesign(top, writer, document: doc)
+        );
+        Assert.Contains("Missing required parameter 'width' for circuit 'Child'", ex.Message);
+    }
+
+    [Fact]
+    public void EmitVariant_RequiredChildSize_IsNotSatisfiedByParentScope()
+    {
+        var doc = new CascodeDocument
+        {
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Child",
+                    Level = CascodeLevel.EL,
+                    Sizes = [new SizeDeclaration { Name = "Core", Default = null }],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Sizes =
+                    [
+                        new SizeDeclaration
+                        {
+                            Name = "Core",
+                            Default = new SizePack
+                            {
+                                Entries = new Dictionary<string, string> { ["W"] = "1u" },
+                            },
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "u1",
+                                Type = "Child",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.Contains(validation.GetErrors(), e => e.Code == "HIER-007");
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            SpiceEmitter.EmitDesign(top, writer, document: doc)
+        );
+        Assert.Contains("Missing required size pack 'Core' for circuit 'Child'", ex.Message);
+    }
+
+    [Fact]
+    public void EmitVariant_UsesParentBindingsAsExpressionFallback()
+    {
+        var doc = new CascodeDocument
+        {
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Child",
+                    Level = CascodeLevel.EL,
+                    Parameters =
+                    [
+                        new CircuitParameter
+                        {
+                            Name = "ratio",
+                            Type = "real",
+                            Default = new ParamValue { Symbolic = "gain*2" },
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Parameters =
+                    [
+                        new CircuitParameter
+                        {
+                            Name = "gain",
+                            Type = "real",
+                            Default = new ParamValue { Numeric = "3" },
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "u1",
+                                Type = "Child",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("Child_ratio_6", output);
     }
 
     [Fact]

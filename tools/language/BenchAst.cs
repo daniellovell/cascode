@@ -87,6 +87,7 @@ public enum BenchValueType
     ACAnalysis,
     DCAnalysis,
     TranAnalysis,
+    PSSAnalysis,
     NoiseAnalysis,
     STBAnalysis,
     SPAnalysis,
