@@ -27,6 +27,14 @@ public sealed class VerifyReportRendererTests
 
         Assert.Contains("RcLowpass", rendered, StringComparison.Ordinal);
         Assert.Contains("Compliance: 1/1 (100% PASS)", rendered, StringComparison.Ordinal);
+        Assert.Contains("Status", rendered, StringComparison.Ordinal);
+        Assert.Contains("Id", rendered, StringComparison.Ordinal);
+        Assert.Contains("Metric", rendered, StringComparison.Ordinal);
+        Assert.Contains("Expected", rendered, StringComparison.Ordinal);
+        Assert.Contains("Actual", rendered, StringComparison.Ordinal);
+        Assert.Contains("c_bw", rendered, StringComparison.Ordinal);
+        Assert.Contains(">= 1 kHz", rendered, StringComparison.Ordinal);
+        Assert.Contains("1.2 kHz", rendered, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -53,6 +61,64 @@ public sealed class VerifyReportRendererTests
         Assert.Contains("Result: 1/1 constraints satisfied", rendered, StringComparison.Ordinal);
         Assert.Contains("RcLowpassA", rendered, StringComparison.Ordinal);
         Assert.Contains("RcLowpassB", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Render_SingleCircuitSpectre_WithUncheckedConstraints_ShowsUncheckedSummary()
+    {
+        var report = new VerifyReport(
+            [
+                new VerifyCircuitReport(
+                    "RcLowpass",
+                    ["lp"],
+                    ["/tmp/RcLowpass_results.json"],
+                    new ComplianceReport
+                    {
+                        Results =
+                        [
+                            new ConstraintResult
+                            {
+                                Id = "c_bw",
+                                Metric = "LowpassBandwidth",
+                                Operator = ">=",
+                                Expected = 1_000,
+                                Unit = "Hz",
+                                Actual = 1_200,
+                                ActualUnit = "Hz",
+                                Passed = true,
+                            },
+                        ],
+                        UncheckedByBench = new Dictionary<string, List<UncheckedConstraint>>
+                        {
+                            ["tran_bench"] =
+                            [
+                                new UncheckedConstraint { Id = "c_swing", Metric = "OutputSwing" },
+                            ],
+                        },
+                    }
+                ),
+            ],
+            new VerifyGlobalReport(
+                ArtifactCount: 1,
+                TotalCircuits: 1,
+                PassedCircuits: 1,
+                FailedCircuits: 0,
+                TotalConstraints: 1,
+                PassedConstraints: 1
+            )
+        );
+
+        var rendered = RenderSpectre(report);
+
+        Assert.Contains(
+            "Result: 1/1 constraints satisfied (1 unchecked)",
+            rendered,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("Unchecked constraints:", rendered, StringComparison.Ordinal);
+        Assert.Contains("tran_bench", rendered, StringComparison.Ordinal);
+        Assert.Contains("c_swing", rendered, StringComparison.Ordinal);
+        Assert.Contains("OutputSwing", rendered, StringComparison.Ordinal);
     }
 
     private static VerifyReport CreateSingleCircuitReport()
