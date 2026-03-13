@@ -461,7 +461,7 @@ S_PARAMETER_MATRIX_TYPE : 'SParameterMatrix' ;
 
 ### 6.3 Harness Primitive Recognition
 
-No new terminal declaration grammar is needed. `Port` is recognized as a harness primitive type name, consistent with `GND`, `VDC`, `VAC`, `VSIN`, and `Impedance`/`Impedor`.
+No new terminal declaration grammar is needed. `Port` is recognized as a harness primitive type name, consistent with `GND`, `VDC`, `VAC`, `VSIN`, `Kick`, and `Impedance`/`Impedor`.
 
 Runtime and linker primitive lists must therefore include `Port` (for example in `IsHarnessPrimitive` and in bench harness element compilation).
 

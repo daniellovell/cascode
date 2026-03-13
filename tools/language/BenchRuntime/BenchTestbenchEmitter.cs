@@ -722,7 +722,7 @@ public static class BenchTestbenchEmitter
             return;
         }
 
-        if (type.Equals("Impulse", StringComparison.OrdinalIgnoreCase))
+        if (type.Equals("Kick", StringComparison.OrdinalIgnoreCase))
         {
             if (!TryGetPinPair(element, out var p, out var n))
             {
@@ -734,7 +734,7 @@ public static class BenchTestbenchEmitter
                 ?? GetParam(element, "IC")
                 ?? GetParam(element, "initial")
                 ?? GetFirstParam(element);
-            EmitImpulse(sb, element.Id, p, n, ic, backend);
+            EmitKick(sb, element.Id, p, n, ic, backend);
             return;
         }
 
@@ -759,7 +759,7 @@ public static class BenchTestbenchEmitter
         }
     }
 
-    private static void EmitImpulse(
+    private static void EmitKick(
         StringBuilder sb,
         string id,
         string p,

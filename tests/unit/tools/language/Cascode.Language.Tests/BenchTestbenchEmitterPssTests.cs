@@ -149,7 +149,7 @@ circuit Top {
     }
 
     [Fact]
-    public void EmitAll_EmitsImpulseAsAttocapWithInitialCondition()
+    public void EmitAll_EmitsKickAsAttocapWithInitialCondition()
     {
         var cascode = """
 VERSION 4.0
@@ -160,7 +160,7 @@ bench PssBench {
   fill {
     net gnd : ground
     GND g = new GND() { .GND--gnd }
-    Impulse Cimpulse = new Impulse(ic=0.25) {
+    Kick kick = new Kick(ic=0.25) {
       .P--OUT
       .N--gnd
     }
@@ -202,7 +202,7 @@ circuit Top {
 """;
 
         var tb = EmitTestbench(cascode, instanceName: "pss");
-        Assert.Contains("Cimpulse OUT gnd 1e-18 ic=", tb, StringComparison.Ordinal);
+        Assert.Contains("Ckick OUT gnd 1e-18 ic=", tb, StringComparison.Ordinal);
     }
 
     private static string EmitTestbench(string cascode, string instanceName)
