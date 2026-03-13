@@ -114,6 +114,76 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     }
 
     [Fact]
+    public void EmitDesign_CapacitorInitialCondition_EmitsIcParameter()
+    {
+        var doc = new CascodeDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "CapacitorIdeal",
+                    Kind = "capacitor",
+                    Device = "capacitor",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string> { ["C"] = "primSize.C" },
+                },
+            ],
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new()
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new()
+                            {
+                                DeviceType = "capacitor",
+                                Id = "C1",
+                                Primitive = "CapacitorIdeal",
+                                Size = new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["C"] = "1e-18",
+                                        ["ic"] = "1",
+                                    },
+                                },
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "OUT",
+                                    ["N"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("CC1 OUT GND", output, StringComparison.Ordinal);
+        Assert.Contains("ic=1", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EmitVariant_ReferencesCorrectVariantName()
     {
         var doc = new CascodeDocument

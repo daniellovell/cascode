@@ -39,7 +39,7 @@ This chapter uses the following terms:
 - **Bench instance**: the specialization of a bench binding with compile-time bench parameters,
   written as `binding_name(param=value, ...)`. Different bench instances produce separate emitted
   testbenches and separate result sets.
-- **Harness primitive**: a special instance kind (for example `VAC`, `VDC`, `VSIN`, `Impedor`) that
+- **Harness primitive**: a special instance kind (for example `VAC`, `VDC`, `VSIN`, `Kick`, `Impedor`) that
   the bench runtime recognizes and emits as backend elements during `cascode emit`.
 
 ---
@@ -295,6 +295,7 @@ Other instances are treated as normal structural instances in the test circuit.
 | `VDC` | `V=Voltage` | `.P`, `.N` | DC voltage source |
 | `VAC` | `A=Voltage`, `phase=Phase` | `.P`, `.N` | Small-signal AC source (AC magnitude and phase) |
 | `VSIN` | `DC=Voltage`, `A=Voltage`, `freq=Frequency`, `phase=Phase` | `.P`, `.N` | Time-domain sinusoidal source for transient benches |
+| `Kick` | `ic=Voltage` | `.P`, `.N` | Startup perturbation element; emits as an attofarad capacitor with an initial condition |
 | `Impedor` / `Impedance` | `Z=Impedance` | `.P`, `.N` | Impedance element; emits as R/C/L or a parallel combination |
 | `Port` | `N=Integer`, `Z=Impedance`, `V=Voltage` | `.P`, `.N` | S-parameter reference plane (see [Section 4.2.6](#426-port-harness-primitives-s-parameter-benches)) |
 

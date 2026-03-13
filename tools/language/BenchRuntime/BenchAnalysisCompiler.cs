@@ -310,6 +310,28 @@ internal static class BenchAnalysisCompiler
                     );
                 }
 
+                var iterations = EvaluateOptionalPositiveIntegerParam(
+                    a,
+                    "iterations",
+                    50,
+                    evalRunner,
+                    benchParams
+                );
+                var steadyCoef = EvaluateOptionalPositiveScalarParam(
+                    a,
+                    "steady_coef",
+                    1e-3,
+                    evalRunner,
+                    benchParams
+                );
+                var useInitialConditions = EvaluateOptionalBinaryFlagParam(
+                    a,
+                    "uic",
+                    defaultValue: false,
+                    evalRunner,
+                    benchParams
+                );
+
                 analyses.Add(
                     new BenchPlanAnalysis(
                         a.Type,
@@ -321,7 +343,10 @@ internal static class BenchAnalysisCompiler
                         FguessHz: fguessV.Value,
                         TstabS: tstabV.Value,
                         Harmonics: (int)harmonicsV.Value,
-                        OscNode: outputTerminal.LeafNodes[0]
+                        OscNode: outputTerminal.LeafNodes[0],
+                        Iterations: iterations,
+                        SteadyCoef: steadyCoef,
+                        UseInitialConditions: useInitialConditions
                     )
                 );
             }
@@ -361,6 +386,96 @@ internal static class BenchAnalysisCompiler
             ?? throw new InvalidOperationException(
                 $"PSSAnalysis terminal '{output.Name}' did not resolve to a terminal."
             );
+    }
+
+    private static int EvaluateOptionalPositiveIntegerParam(
+        AnalysisDeclaration analysis,
+        string name,
+        int defaultValue,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue(name, out var expression))
+        {
+            return defaultValue;
+        }
+
+        var value = evalRunner.EvaluateExpressionForPlan(expression, benchParams) as BenchNumber;
+        if (
+            value is null
+            || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
+            || value.Value < 1
+            || value.Value != Math.Round(value.Value)
+            || value.Value > int.MaxValue
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.{name}' expects a positive integer."
+            );
+        }
+
+        return checked((int)value.Value);
+    }
+
+    private static double EvaluateOptionalPositiveScalarParam(
+        AnalysisDeclaration analysis,
+        string name,
+        double defaultValue,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue(name, out var expression))
+        {
+            return defaultValue;
+        }
+
+        var value = evalRunner.EvaluateExpressionForPlan(expression, benchParams) as BenchNumber;
+        if (
+            value is null
+            || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
+            || value.Value <= 0
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.{name}' expects a positive scalar."
+            );
+        }
+
+        return value.Value;
+    }
+
+    private static bool EvaluateOptionalBinaryFlagParam(
+        AnalysisDeclaration analysis,
+        string name,
+        bool defaultValue,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue(name, out var expression))
+        {
+            return defaultValue;
+        }
+
+        var value = evalRunner.EvaluateExpressionForPlan(expression, benchParams) as BenchNumber;
+        if (
+            value is null
+            || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
+            || value.Value != Math.Round(value.Value)
+            || value.Value is not 0 and not 1
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.{name}' expects 0 or 1."
+            );
+        }
+
+        return value.Value == 1;
     }
 
     private static string? FindNoiseInputSource(BenchNetlist netlist)

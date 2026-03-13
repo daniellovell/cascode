@@ -1654,6 +1654,7 @@ public static class SpiceEmitter
             );
         }
 
+        var sizePack = PrimitiveResolver.ResolveSizePack(device, sizeBindings);
         var deviceParams = PrimitiveResolver
             .BuildParamExpressions(device, primitive, sizeBindings)
             .Where(kvp => !IsReservedPrimitiveMetaParam(kvp.Key))
@@ -1663,6 +1664,16 @@ public static class SpiceEmitter
         var useSubckt = resolvedModel?.IsSubckt ?? false;
 
         var deviceKind = device.DeviceType.ToLowerInvariant();
+        if (
+            deviceKind == "capacitor"
+            && sizePack?.Entries.TryGetValue("ic", out var initialCondition) == true
+            && !string.IsNullOrWhiteSpace(initialCondition)
+            && !initialCondition.Equals("??", StringComparison.Ordinal)
+        )
+        {
+            deviceParams["ic"] = initialCondition;
+        }
+
         var isBuiltinPassive =
             !useSubckt
             && (deviceKind is "resistor" or "capacitor" or "inductor")

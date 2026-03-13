@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -497,7 +498,11 @@ public static class BenchTestbenchEmitter
 
             var fguess = SiValue.FormatForBackend(fguessHz, backend);
             var tstab = SiValue.FormatForBackend(tstabS, backend);
-            sb.AppendLine($"pss {fguess} {tstab} {oscNode} 1000 {harmonics} 50 1e-3");
+            var steadyCoef = FormatUnitlessScalar(a.SteadyCoef);
+            var uicSuffix = a.UseInitialConditions ? " uic" : string.Empty;
+            sb.AppendLine(
+                $"pss {fguess} {tstab} {oscNode} 1000 {harmonics} {a.Iterations} {steadyCoef}{uicSuffix}"
+            );
             sb.AppendLine($"setplot pss{pssIndex}");
 
             var wrdata = BenchRuntimePaths.GetPssWrdataPath(
@@ -717,6 +722,28 @@ public static class BenchTestbenchEmitter
             return;
         }
 
+        if (type.Equals("Kick", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetPinPair(element, out var p, out var n))
+            {
+                return;
+            }
+
+            var ic =
+                GetParam(element, "ic")
+                ?? GetParam(element, "IC")
+                ?? GetParam(element, "initial")
+                ?? GetFirstParam(element);
+            if (ic is null)
+            {
+                throw new InvalidOperationException(
+                    $"Kick harness element '{element.Id}' requires parameter 'ic'."
+                );
+            }
+            EmitKick(sb, element.Id, p, n, ic, backend);
+            return;
+        }
+
         if (type.Equals("Port", StringComparison.OrdinalIgnoreCase))
         {
             if (!TryGetPinPair(element, out var p, out var n))
@@ -736,6 +763,20 @@ public static class BenchTestbenchEmitter
             sb.AppendLine($"V{element.Id} {p} {n} DC {dc} portnum={portNumber} z0={z0}");
             return;
         }
+    }
+
+    private static void EmitKick(
+        StringBuilder sb,
+        string id,
+        string p,
+        string n,
+        BenchValue ic,
+        BenchBackendType backend
+    )
+    {
+        var capName = id.StartsWith("C", StringComparison.OrdinalIgnoreCase) ? id : $"C{id}";
+        var icText = FormatScalarForSpice(ic, backend);
+        sb.AppendLine($"{capName} {p} {n} 1e-18 ic={icText}");
     }
 
     private static void EmitImpedance(
@@ -918,5 +959,22 @@ public static class BenchTestbenchEmitter
         }
 
         return "0";
+    }
+
+    private static string FormatUnitlessScalar(double value)
+    {
+        if (value == Math.Round(value))
+        {
+            return ((long)value).ToString(CultureInfo.InvariantCulture);
+        }
+
+        var abs = Math.Abs(value);
+        if (abs >= 1e-2 && abs < 1e3)
+        {
+            return value.ToString("0.###############", CultureInfo.InvariantCulture);
+        }
+
+        var formatted = value.ToString("0.###############e+0", CultureInfo.InvariantCulture);
+        return formatted.Replace("E", "e", StringComparison.Ordinal);
     }
 }

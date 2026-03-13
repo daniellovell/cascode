@@ -22,7 +22,10 @@ public sealed record BenchPlanAnalysis(
     string? OscNode = null,
     string? NoiseInputSource = null,
     double? StepS = null,
-    bool EnableNoise = false
+    bool EnableNoise = false,
+    int Iterations = 50,
+    double SteadyCoef = 1e-3,
+    bool UseInitialConditions = false
 );
 
 public sealed record BenchHarnessElement(
