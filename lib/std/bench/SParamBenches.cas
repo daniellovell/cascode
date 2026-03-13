@@ -41,13 +41,20 @@ bench OnePortSParam extends AbstractOnePortSParam {
 
   fill {
     net gnd : ground
+    // S-parameter analysis requires at least two ports.
+    net p2 : analog
 
     GND _ = new GND() {
       .GND--gnd
     }
 
-    Port port1 = new Port(N=1, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
       .P--P1
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {
+      .P--p2
       .N--gnd
     }
   }

@@ -1,0 +1,37 @@
+VERSION 4.0
+
+include lib.std
+
+circuit SingleResistor {
+  level EL
+
+  input IN : analog
+  ground GND
+
+  env {
+    InputCommonModeRange = 0V
+    SourceImpedance = 50Ohm
+  }
+
+  fill {
+    Resistor R1 = new ResistorIdeal(size(R=100)) {
+      .P--IN
+      .N--GND
+    }
+  }
+
+  benches {
+    bind OnePortSParam as sparam_bench {
+      bench.P1--dut.IN
+    }
+  }
+
+  constraints {
+    numeric {
+      c_s11_min = sparam_bench::S11(from=1MHz, to=100MHz) >= -9.543dB
+      c_s11_max = sparam_bench::S11(from=1MHz, to=100MHz) <= -9.542dB
+      c_return_loss_min = sparam_bench::ReturnLoss(from=1MHz, to=100MHz) >= 9.542dB
+      c_return_loss_max = sparam_bench::ReturnLoss(from=1MHz, to=100MHz) <= 9.543dB
+    }
+  }
+}

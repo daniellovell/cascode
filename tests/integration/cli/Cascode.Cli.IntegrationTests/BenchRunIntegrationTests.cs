@@ -283,6 +283,41 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
+    public async Task BenchRun_SingleResistor_OnePortSParamConstraintsPass()
+    {
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/filters/RSeries.cas");
+
+        await RunBenchAsync(cascodePath);
+
+        var resultsPath = Path.Combine(_outputDir, "SingleResistor_sparam_bench_results.json");
+        Assert.True(File.Exists(resultsPath), "results.json not found");
+
+        var results = await ReadBenchResultsAsync(resultsPath);
+        Assert.Equal("SingleResistor", results.Circuit);
+        Assert.Equal("sparam_bench", results.Bench);
+        Assert.True(
+            results.Measurements.ContainsKey("S11(from=1MHz, to=100MHz)"),
+            "expected S11(from=1MHz, to=100MHz) measurement in bench results"
+        );
+        Assert.True(
+            results.Measurements.ContainsKey("ReturnLoss(from=1MHz, to=100MHz)"),
+            "expected ReturnLoss(from=1MHz, to=100MHz) measurement in bench results"
+        );
+        Assert.True(string.IsNullOrEmpty(results.Measurements["S11(from=1MHz, to=100MHz)"].Error));
+        Assert.True(
+            string.IsNullOrEmpty(results.Measurements["ReturnLoss(from=1MHz, to=100MHz)"].Error)
+        );
+        Assert.NotNull(results.Measurements["S11(from=1MHz, to=100MHz)"].Values);
+        Assert.NotNull(results.Measurements["ReturnLoss(from=1MHz, to=100MHz)"].Values);
+        Assert.NotEmpty(results.Measurements["S11(from=1MHz, to=100MHz)"].Values!);
+        Assert.NotEmpty(results.Measurements["ReturnLoss(from=1MHz, to=100MHz)"].Values!);
+
+        var combinedResultsPath = Path.Combine(_outputDir, "SingleResistor_results.json");
+        Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
     public async Task BenchRun_LCSeries_PSSConstraintsPass()
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/LCSeries.cas");
