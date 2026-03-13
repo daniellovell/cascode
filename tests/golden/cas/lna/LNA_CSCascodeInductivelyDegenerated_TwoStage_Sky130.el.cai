@@ -1,0 +1,154 @@
+VERSION 4.0
+
+primitive Resistor ResistorIdeal(size primSize) {
+  device "resistor"
+  params {
+    R = primSize.R
+  }
+}
+
+primitive Capacitor CapacitorIdeal(size primSize) {
+  device "capacitor"
+  params {
+    C = primSize.C
+  }
+}
+
+primitive Inductor InductorIdeal(size primSize) {
+  device "inductor"
+  params {
+    L = primSize.L
+  }
+}
+
+primitive NMOS nfet_01v8(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+circuit LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130 implements SingleEndedAmp {
+  level EL
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    net ncas1 : analog
+    net nd1 : analog
+    net nd2 : analog
+    net ng1 : analog
+    net ng2 : analog
+    net nmatch : analog
+    net ns1 : analog
+    net vcas1 : analog
+    net vgb2 : analog
+
+    Capacitor CCAS1 = new CapacitorIdeal(size(C=20p)) {
+      .P--vcas1
+      .N--GND
+    }
+    Capacitor CGB2 = new CapacitorIdeal(size(C=20p)) {
+      .P--vgb2
+      .N--GND
+    }
+    Capacitor CINT = new CapacitorIdeal(size(C=1.35p)) {
+      .P--nd1
+      .N--ng2
+    }
+    Capacitor CM = new CapacitorIdeal(size(C=240f)) {
+      .P--nmatch
+      .N--GND
+    }
+    Capacitor COUT = new CapacitorIdeal(size(C=600f)) {
+      .P--nd2
+      .N--OUT
+    }
+
+    Inductor LD1 = new InductorIdeal(size(L=5.6n)) {
+      .P--VDD
+      .N--nd1
+    }
+    Inductor LD2 = new InductorIdeal(size(L=6.8n)) {
+      .P--VDD
+      .N--nd2
+    }
+    Inductor LG = new InductorIdeal(size(L=31n)) {
+      .P--nmatch
+      .N--ng1
+    }
+    Inductor LM = new InductorIdeal(size(L=9.5n)) {
+      .P--IN
+      .N--nmatch
+    }
+    Inductor LS1 = new InductorIdeal(size(L=2.1n)) {
+      .P--ns1
+      .N--GND
+    }
+
+    NMOS M1 = new nfet_01v8(size(W=58u, L=180n, M=1)) {
+      .B--GND
+      .D--ncas1
+      .G--ng1
+      .S--ns1
+    }
+    NMOS M2 = new nfet_01v8(size(W=35u, L=180n, M=1)) {
+      .B--GND
+      .D--nd1
+      .G--vcas1
+      .S--ncas1
+    }
+    NMOS M3 = new nfet_01v8(size(W=39u, L=180n, M=1)) {
+      .B--GND
+      .D--nd2
+      .G--ng2
+      .S--GND
+    }
+
+    Resistor RCAS1_TOP = new ResistorIdeal(size(R=100k)) {
+      .P--VDD
+      .N--vcas1
+    }
+    Resistor RCAS1_BOT = new ResistorIdeal(size(R=200k)) {
+      .P--vcas1
+      .N--GND
+    }
+    Resistor RG2 = new ResistorIdeal(size(R=1k)) {
+      .P--vgb2
+      .N--ng2
+    }
+    Resistor RGB2_TOP = new ResistorIdeal(size(R=200k)) {
+      .P--VDD
+      .N--vgb2
+    }
+    Resistor RGB2_BOT = new ResistorIdeal(size(R=220k)) {
+      .P--vgb2
+      .N--GND
+    }
+  }
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_s21 = sparam_bench::S21(from=2.3GHz, to=2.5GHz) >= 20dB
+      c_s11 = sparam_bench::S11(from=2.3GHz, to=2.5GHz) <= -15dB
+      c_noise_figure = sparam_bench::NoiseFigure(from=2.3GHz, to=2.5GHz) <= 2dB
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 8mW
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}

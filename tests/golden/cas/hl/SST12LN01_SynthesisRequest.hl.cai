@@ -1,0 +1,45 @@
+VERSION 4.1
+
+// SST12LN01 is a 2.4 to 2.5 GHz LNA matched to 50 Ohms at the input and output.
+// SST12LN01 request pinned to the datasheet metrics Cascode can express today:
+// S21, S11, S22, S12, NF, and quiescent power.
+// IIP3 and P1dB are omitted until PAC benches support them.
+
+include lib.std
+
+circuit SST12LN01_SynthesisRequest implements SingleEndedAmp {
+  level HL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  slot
+
+  env {
+    InputCommonModeRange = 0V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_s21 = sparam_bench::S21(from=2.4GHz, to=2.55GHz) >= 14dB
+      c_s11 = sparam_bench::S11(from=2.4GHz, to=2.55GHz) <= -12dB
+      c_s22 = sparam_bench::S22(from=2.4GHz, to=2.55GHz) <= -12dB
+      c_s12 = sparam_bench::S12(from=2.4GHz, to=2.55GHz) <= -22dB
+      c_nf = sparam_bench::NoiseFigure(from=2.4GHz, to=2.55GHz) <= 1.55dB
+      c_pwr = vdd_pwr::QuiescentPower <= 36.3mW
+    }
+  }
+
+  harness {
+    supply VDD = 3.3V
+    ground GND = 0V
+  }
+
+  synth {
+    seed = 42
+    objective = minimize_power
+  }
+}

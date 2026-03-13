@@ -201,6 +201,28 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
+                case CascodeParser.InterfaceSupplyContext supplyCtx:
+                    interfaceDef.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = supplyCtx.IDENT().GetText(),
+                            Type = "supply",
+                        }
+                    );
+                    break;
+
+                case CascodeParser.InterfaceGroundContext groundCtx:
+                    interfaceDef.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = groundCtx.IDENT().GetText(),
+                            Type = "ground",
+                        }
+                    );
+                    break;
+
                 case CascodeParser.InterfaceConnectorsContext connectorsCtx:
                     foreach (var connDefCtx in connectorsCtx.connectorDef())
                     {

@@ -1,0 +1,42 @@
+// Render-only topology fixture for DiffRCFilter.
+// Exercise this file with render and routing regressions only; it intentionally omits
+// complete-document contract metadata and should not be used by `cascode emit` or `cascode erc` tests.
+
+VERSION 4.1
+
+primitive Capacitor CapacitorIdeal(size primSize) {
+  device "capacitor"
+  params {
+    C = primSize.C
+  }
+}
+
+primitive Resistor ResistorIdeal(size primSize) {
+  device "resistor"
+  params {
+    R = primSize.R
+  }
+}
+
+circuit DiffRCFilter {
+  level EL
+  ground GND
+  input IN.N : analog
+  input IN.P : analog
+  output OUT.N : analog
+  output OUT.P : analog
+  fill {
+    Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
+      .N--OUT.N
+      .P--OUT.P
+    }
+    Resistor R_N = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.N
+      .P--IN.N
+    }
+    Resistor R_P = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.P
+      .P--IN.P
+    }
+  }
+}

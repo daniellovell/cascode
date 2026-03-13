@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -196,13 +197,134 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task CSAmpResistiveSky130_AllConstraintsPass() =>
-        await RunConstraintCheckForCas("CSAmp_Resistive_Sky130.cas", "CSAmp_Resistive_Sky130");
+    public async Task CSAmpActiveLoadSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CSAmp_ActiveLoad_Sky130.cas", "CSAmp_ActiveLoad_Sky130");
 
     [Fact]
     [Trait("Category", "Simulation")]
     public async Task CapFeedbackFDSky130_AllConstraintsPass() =>
         await RunConstraintCheckForCas("CapFeedbackFD_Sky130.cas", "CapFeedbackFD_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_Sky130"
+        );
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130"
+        );
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task SST12LN01_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("SST12LN01_Sky130.cas", "SST12LN01_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task TLC2272A_Sky130_AllConstraintsPass()
+    {
+        await RunConstraintCheckForCas("TLC2272A_Sky130.cas", "TLC2272A_Sky130");
+
+        var noiseWrdataPath = Path.Combine(
+            _outputDir,
+            "TLC2272A_Sky130_noise_bench__noise_ac.noise.wrdata"
+        );
+        Assert.True(File.Exists(noiseWrdataPath), $"noise wrdata not found: {noiseWrdataPath}");
+
+        var acWrdataPath = Path.Combine(_outputDir, "TLC2272A_Sky130_noise_bench__ac.ac.wrdata");
+        Assert.True(File.Exists(acWrdataPath), $"noise AC wrdata not found: {acWrdataPath}");
+
+        var outputNoise = NgspiceWrdataNoiseParser.Parse(noiseWrdataPath);
+        var ac = NgspiceWrdataAcParser.Parse(acWrdataPath, new[] { "IN_N", "IN_P", "OUT" });
+
+        var inputReferredSpotNoise = ComputeInputReferredNoiseAt(
+            outputNoise,
+            ac,
+            frequencyHz: 1_000
+        );
+        Assert.True(
+            inputReferredSpotNoise <= 9e-9,
+            $"expected TLC2272A spot noise <= 9nV/rtHz, actual {inputReferredSpotNoise} V/rtHz"
+        );
+    }
+
+    private static double ComputeInputReferredNoiseAt(
+        NoiseDataset outputNoise,
+        AcDataset ac,
+        double frequencyHz
+    )
+    {
+        var inputP = ac.NodeVoltages["IN_P"];
+        var inputN = ac.NodeVoltages["IN_N"];
+        var output = ac.NodeVoltages["OUT"];
+
+        var transferMagnitudes = new double[ac.FrequenciesHz.Length];
+        for (var i = 0; i < ac.FrequenciesHz.Length; i++)
+        {
+            var inputDiff = inputP[i] - inputN[i];
+            transferMagnitudes[i] =
+                inputDiff == Complex.Zero ? 0 : (output[i] / inputDiff).Magnitude;
+        }
+
+        var outputNoiseDensity = InterpolateLogFrequency(
+            outputNoise.FrequenciesHz,
+            outputNoise.OutputNoiseVPerRtHz,
+            frequencyHz
+        );
+        var transferMagnitude = InterpolateLogFrequency(
+            ac.FrequenciesHz,
+            transferMagnitudes,
+            frequencyHz
+        );
+
+        Assert.True(transferMagnitude > 0, "expected positive differential transfer magnitude");
+        return outputNoiseDensity / transferMagnitude;
+    }
+
+    private static double InterpolateLogFrequency(
+        IReadOnlyList<double> frequenciesHz,
+        IReadOnlyList<double> values,
+        double targetHz
+    )
+    {
+        Assert.True(frequenciesHz.Count > 0, "expected at least one frequency sample");
+        Assert.Equal(frequenciesHz.Count, values.Count);
+
+        if (targetHz <= frequenciesHz[0])
+        {
+            return values[0];
+        }
+
+        var last = frequenciesHz.Count - 1;
+        if (targetHz >= frequenciesHz[last])
+        {
+            return values[last];
+        }
+
+        var upper = 1;
+        while (frequenciesHz[upper] < targetHz)
+        {
+            upper++;
+        }
+
+        var lower = upper - 1;
+        var lowerHz = frequenciesHz[lower];
+        var upperHz = frequenciesHz[upper];
+        var lowerValue = values[lower];
+        var upperValue = values[upper];
+
+        var position =
+            (Math.Log10(targetHz) - Math.Log10(lowerHz))
+            / (Math.Log10(upperHz) - Math.Log10(lowerHz));
+        return lowerValue + ((upperValue - lowerValue) * position);
+    }
 
     private async Task RunConstraintCheckForCas(string casFileName, string circuitName)
     {

@@ -20,7 +20,7 @@ circuit Test {{
   output OUT : analog
   fill {{
     net n1 : analog
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       .D--n1
       .S--GND
@@ -75,7 +75,7 @@ circuit Compat {{
   ground GND
   input IN : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       .D--VDD
       .S--GND
@@ -114,7 +114,7 @@ circuit Prune {{
   ground GND
   input IN : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       .D--VDD
       .S--GND
@@ -153,8 +153,8 @@ circuit Prune {{
         var source =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
-  device ""level1_nmos""
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
   params {{
     W = primSize.W
     L = primSize.L
@@ -168,7 +168,7 @@ circuit LowercaseAnchor {{
   output OUT : analog
   ground GND
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n, M=1)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n, M=1)) {{
       .D--OUT
       .G--IN
       .S--GND

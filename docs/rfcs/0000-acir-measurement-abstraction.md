@@ -1380,7 +1380,6 @@ The measurement system uses semantic types representing physical quantities. All
 | `CurrentRatio` | linear | dB, A/A | Current gain or attenuation |
 | `Impedance` | Ohm | kOhm, MOhm | Complex impedance; supports `\|\|` for parallel combinations |
 | `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
-| `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
 | `Capacitance` | F | pF, fF, nF, uF | Capacitance values |
 | `Inductance` | H | nH, uH, mH | Inductance values |
 | `Voltage` | V | mV, uV, nV | Voltage values |
@@ -2307,10 +2306,10 @@ The standard library provides language-level primitives and interfaces. PDKs pro
 
 | Provided By | Contents | Examples |
 |-------------|----------|----------|
-| **Standard Library** | Bundles, interfaces, benches, built-in primitives | `Diff`, `SingleEndedOpAmp`, `DiffToSETransfer`, `Level1_NMOS` |
+| **Standard Library** | Bundles, interfaces, benches, built-in primitives | `Diff`, `SingleEndedOpAmp`, `DiffToSETransfer`, `NMOS_Level1` |
 | **PDK** | Device models, process-specific primitives | `sky130_fd_pr__nfet_01v8`, `gpdk045_nmos` |
 
-The stdlib `Devices.cas` provides ideal `Level1_NMOS` and `Level1_PMOS` primitives for simulation without a PDK. Real designs should use PDK-provided primitives for accurate modeling.
+The stdlib `Devices.cas` provides ideal `NMOS_Level1` and `PMOS_Level1` primitives for simulation without a PDK. Real designs should use PDK-provided primitives for accurate modeling.
 
 ### C.4 Common Bundles
 

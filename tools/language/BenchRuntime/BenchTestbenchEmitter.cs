@@ -404,7 +404,7 @@ public static class BenchTestbenchEmitter
                     plan.InstanceName,
                     a.Name
                 );
-                sb.AppendLine($"wrdata {Path.GetFileName(nfWrdata)} NF");
+                sb.AppendLine($"wrdata {Path.GetFileName(nfWrdata)} NF NFmin Rn");
             }
         }
 

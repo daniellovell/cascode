@@ -34,8 +34,16 @@ public static class SpiceEmitter
     {
         "nmos",
         "pmos",
-        "level1_nmos",
-        "level1_pmos",
+        "nmos_level1",
+        "pmos_level1",
+    };
+
+    private static readonly Dictionary<string, string> QFactorPassiveDevices = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        { "capacitor_q", "C" },
+        { "inductor_q", "L" },
     };
 
     private static string SanitizeNetName(string netName)
@@ -121,7 +129,7 @@ public static class SpiceEmitter
             circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
         }
 
-        // If the design uses generic MOS model names (e.g. level1_nmos), emit model cards so
+        // If the design uses generic MOS model names (e.g. nmos_level1), emit model cards so
         // ngspice can simulate without a PDK model include.
         if (backend == BenchBackendType.Ngspice)
         {
@@ -271,6 +279,17 @@ public static class SpiceEmitter
         ArgumentNullException.ThrowIfNull(outputDir);
 
         var validationResult = new ValidationResult();
+
+        var semanticValidation = CompleteDocumentSemanticValidator.Validate(doc);
+        validationResult.Merge(semanticValidation);
+        if (!validationResult.IsValid)
+        {
+            return new ValidatedEmitResult
+            {
+                Validation = validationResult,
+                Emit = new SpiceEmitResult(),
+            };
+        }
 
         // Validate hierarchy first (circuit references, parameters, ports, cycles)
         var hierarchyValidation = HierarchyValidator.Validate(doc);
@@ -927,6 +946,43 @@ public static class SpiceEmitter
             backend
         );
 
+        var hasTwoTerminals = info.TerminalBindings.Count == 2;
+        var terminalNets = hasTwoTerminals ? info.TerminalBindings.Values.ToArray() : null;
+        if (
+            info.IsBuiltinPassive
+            && !string.IsNullOrWhiteSpace(info.SeriesResistanceValue)
+            && terminalNets is not null
+        )
+        {
+            var positiveNet = terminalNets[0];
+            var negativeNet = terminalNets[1];
+            var seriesNode = SanitizeNetName($"{device.Id}__esr_n");
+
+            var passiveSb = new StringBuilder();
+            passiveSb.Append(info.SpiceType);
+            passiveSb.Append(device.Id);
+            passiveSb.Append(' ');
+            passiveSb.Append(SanitizeNetName(positiveNet));
+            passiveSb.Append(' ');
+            passiveSb.Append(seriesNode);
+            passiveSb.Append(' ');
+            if (!string.IsNullOrWhiteSpace(info.PassiveValue))
+            {
+                passiveSb.Append(info.PassiveValue);
+            }
+            AppendParamAssignments(
+                passiveSb,
+                info.ParamExpressions,
+                expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+            );
+            writer.WriteLine(passiveSb.ToString().TrimEnd());
+
+            writer.WriteLine(
+                $"R{device.Id}__esr {seriesNode} {SanitizeNetName(negativeNet)} {info.SeriesResistanceValue}"
+            );
+            return;
+        }
+
         var sb = new StringBuilder();
         sb.Append(info.SpiceType);
         sb.Append(device.Id);
@@ -1368,6 +1424,55 @@ public static class SpiceEmitter
             backend
         );
 
+        var hasTwoTerminals = info.TerminalBindings.Count == 2;
+        var terminalNets = hasTwoTerminals ? info.TerminalBindings.Values.ToArray() : null;
+        if (
+            info.IsBuiltinPassive
+            && !string.IsNullOrWhiteSpace(info.SeriesResistanceValue)
+            && terminalNets is not null
+        )
+        {
+            var positiveNet = terminalNets[0];
+            var negativeNet = terminalNets[1];
+            var prefix = BuildHierarchyPrefix(hierarchyPath);
+            var devicePrefix = $"{prefix}__{device.Id}";
+            var seriesNode = SanitizeNetName($"{devicePrefix}__esr_n");
+
+            var passiveSb = new StringBuilder();
+            passiveSb.Append(info.SpiceType);
+            passiveSb.Append(devicePrefix);
+            passiveSb.Append(' ');
+            passiveSb.Append(
+                SanitizeNetName(
+                    SubstituteNet(
+                        positiveNet,
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                )
+            );
+            passiveSb.Append(' ');
+            passiveSb.Append(seriesNode);
+            passiveSb.Append(' ');
+            if (!string.IsNullOrWhiteSpace(info.PassiveValue))
+            {
+                passiveSb.Append(info.PassiveValue);
+            }
+            AppendParamAssignments(
+                passiveSb,
+                info.ParamExpressions,
+                expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+            );
+            writer.WriteLine(passiveSb.ToString().TrimEnd());
+
+            writer.WriteLine(
+                $"R{devicePrefix}__esr {seriesNode} {SanitizeNetName(SubstituteNet(negativeNet, hierarchyPath, netSubstitutions, internalNets, resolution))} {info.SeriesResistanceValue}"
+            );
+            return;
+        }
+
         var sb = new StringBuilder();
         sb.Append(info.SpiceType);
         sb.Append(BuildHierarchyPrefix(hierarchyPath));
@@ -1455,6 +1560,30 @@ public static class SpiceEmitter
         return SiValue.TransformForBackend(evaluated, backend);
     }
 
+    private static double EvaluateNumericParam(
+        IReadOnlyDictionary<string, string> paramExpressions,
+        string paramName,
+        ExpressionContext context
+    )
+    {
+        if (!paramExpressions.TryGetValue(paramName, out var expr))
+        {
+            throw new InvalidOperationException($"Missing required parameter '{paramName}'.");
+        }
+
+        return ParameterEvaluator.ParseNumeric(context.Evaluate(expr.Trim()));
+    }
+
+    private static void EnsurePositiveFiniteParameter(double value, string paramName)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0.0)
+        {
+            throw new InvalidOperationException(
+                $"Parameter '{paramName}' must be a finite positive value."
+            );
+        }
+    }
+
     /// <summary>
     /// Composes a hierarchy path into a flat naming prefix.
     /// E.g., ["outer", "inner"] → "outer__inner"
@@ -1537,6 +1666,7 @@ public static class SpiceEmitter
         public required bool UseSubckt { get; init; }
         public required bool IsBuiltinPassive { get; init; }
         public required string? PassiveValue { get; init; }
+        public required string? SeriesResistanceValue { get; init; }
         public required string SpiceType { get; init; }
         public required IReadOnlyDictionary<string, string> TerminalBindings { get; init; }
         public required IReadOnlyDictionary<string, string> ParamExpressions { get; init; }
@@ -1585,6 +1715,7 @@ public static class SpiceEmitter
 
         var paramExpressions = deviceParams;
         string? passiveValue = null;
+        string? seriesResistanceValue = null;
         if (isBuiltinPassive)
         {
             var key = deviceKind switch
@@ -1601,6 +1732,41 @@ public static class SpiceEmitter
                     .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
             }
+        }
+
+        if (
+            !isBuiltinPassive
+            && !useSubckt
+            && QFactorPassiveDevices.TryGetValue(modelName, out var valueKey)
+            && deviceParams.TryGetValue(valueKey, out var valueExpr)
+        )
+        {
+            isBuiltinPassive = true;
+            passiveValue = RenderEvaluatedExpression(expressionContext, valueExpr, backend);
+            var reactiveVal = ParameterEvaluator.ParseNumeric(
+                expressionContext.Evaluate(valueExpr.Trim())
+            );
+            var qVal = EvaluateNumericParam(deviceParams, "Q", expressionContext);
+            var freqVal = EvaluateNumericParam(deviceParams, "freq", expressionContext);
+            EnsurePositiveFiniteParameter(reactiveVal, valueKey);
+            EnsurePositiveFiniteParameter(qVal, "Q");
+            EnsurePositiveFiniteParameter(freqVal, "freq");
+            var rser = valueKey switch
+            {
+                "C" => 1.0 / (2.0 * Math.PI * freqVal * reactiveVal * qVal),
+                "L" => (2.0 * Math.PI * freqVal * reactiveVal) / qVal,
+                _ => throw new InvalidOperationException(
+                    $"Unsupported Q-factor passive value key '{valueKey}'."
+                ),
+            };
+            seriesResistanceValue = SiValue.FormatForBackend(rser, backend);
+            paramExpressions = deviceParams
+                .Where(kvp =>
+                    !kvp.Key.Equals(valueKey, StringComparison.OrdinalIgnoreCase)
+                    && !kvp.Key.Equals("Q", StringComparison.OrdinalIgnoreCase)
+                    && !kvp.Key.Equals("freq", StringComparison.OrdinalIgnoreCase)
+                )
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
         }
 
         var spiceType = useSubckt
@@ -1627,6 +1793,7 @@ public static class SpiceEmitter
             UseSubckt = useSubckt,
             IsBuiltinPassive = isBuiltinPassive,
             PassiveValue = passiveValue,
+            SeriesResistanceValue = seriesResistanceValue,
             SpiceType = spiceType,
             TerminalBindings = terminalBindings,
             ParamExpressions = paramExpressions,
@@ -1811,10 +1978,10 @@ public static class SpiceEmitter
         {
             var modelLine = model switch
             {
-                "level1_nmos" =>
-                    ".model level1_nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
-                "level1_pmos" =>
-                    ".model level1_pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
+                "nmos_level1" =>
+                    ".model nmos_level1 nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
+                "pmos_level1" =>
+                    ".model pmos_level1 pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
                 "nmos" => ".model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
                 "pmos" => ".model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
                 _ => null,

@@ -1,4 +1,4 @@
-VERSION 4.0
+VERSION 4.1
 
 // ML-level (unsized) version of TelescopicCascodeSingleEnded_Attach.
 // Same hierarchical topology as EL version but with ?? placeholders for sizing.
@@ -44,8 +44,8 @@ interface CurrentMirrorLike {
 
 
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -53,8 +53,8 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -115,9 +115,9 @@ circuit DiffPair implements DiffPairLike {
   input TAIL : bias
   fill {
     net tnode : analog
-    NMOS M_N = new Level1_NMOS(size(W=??, L=??, M=??)) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
-    NMOS M_P = new Level1_NMOS(size(W=??, L=??, M=??)) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
-    NMOS M_TAIL = new Level1_NMOS(size(W=??, L=??, M=??)) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+    NMOS M_N = new NMOS_Level1(size(W=??, L=??, M=??)) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    NMOS M_P = new NMOS_Level1(size(W=??, L=??, M=??)) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    NMOS M_TAIL = new NMOS_Level1(size(W=??, L=??, M=??)) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
   }
 }
 
@@ -130,8 +130,8 @@ circuit LoadPair_N implements LoadPairLike {
   io DRAIN : Diff
   io SOURCE : Diff
   fill {
-    NMOS M_P = new Level1_NMOS(size(W=??, L=??, M=??)) { .B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P }
-    NMOS M_N = new Level1_NMOS(size(W=??, L=??, M=??)) { .B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N }
+    NMOS M_P = new NMOS_Level1(size(W=??, L=??, M=??)) { .B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P }
+    NMOS M_N = new NMOS_Level1(size(W=??, L=??, M=??)) { .B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N }
   }
 }
 
@@ -144,7 +144,7 @@ circuit CurrentMirror_P(int ratio=1) implements CurrentMirrorLike {
   input SENSE : analog
   output TAP[0] : analog
   fill {
-    PMOS M_SENSE = new Level1_PMOS(size(W=??, L=??, M=??)) { .B--VDD, .D--SENSE, .G--SENSE, .S--RAIL.N }
-    PMOS M_TAP0 = new Level1_PMOS(size(W=??, L=??, M=ratio)) { .B--VDD, .D--TAP[0], .G--SENSE, .S--RAIL.P }
+    PMOS M_SENSE = new PMOS_Level1(size(W=??, L=??, M=??)) { .B--VDD, .D--SENSE, .G--SENSE, .S--RAIL.N }
+    PMOS M_TAP0 = new PMOS_Level1(size(W=??, L=??, M=ratio)) { .B--VDD, .D--TAP[0], .G--SENSE, .S--RAIL.P }
   }
 }

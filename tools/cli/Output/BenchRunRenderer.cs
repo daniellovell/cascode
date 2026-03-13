@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Cascode.Bench;
 using Cascode.Cli.Services;
 using Spectre.Console;
 

@@ -1,0 +1,55 @@
+VERSION 4.1
+
+// TLC2272A request pinned to the datasheet metrics Cascode can express today:
+// gain, GBW, phase margin, CMRR, PSRR, quiescent power, spot/input-referred noise,
+// integrated low-frequency input noise, and output swing.
+// Spot noise is enforced in the EL regression because numeric constraints do not yet
+// accept noise-density thresholds such as nV/rtHz.
+// Slew rate, offset, bias current, settling time, and VICR are intentionally omitted
+// because the current standard benches do not support them.
+
+include lib.std
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+circuit TLC2272A_SynthesisRequest implements SingleEndedOpAmp {
+  level HL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+
+  slot
+
+  env {
+    InputCommonModeRange = 2.5V
+    SourceImpedance = 0Ohm
+    LoadImpedance = 10kOhm
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 83.5dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 2MHz
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
+      c_cmrr = cmrr_bench::CMRR at net::OUT >= 70dB
+      c_psrr = psrr_bench::PSRR at net::OUT >= 80dB
+      c_pwr = vdd_pwr::QuiescentPower <= 15mW
+      c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 300nVrms
+      c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 4.5Vpp
+    }
+  }
+
+  harness {
+    supply VDD = 5V
+    ground GND = 0V
+  }
+
+  synth {
+    seed = 42
+    objective = minimize_power
+  }
+}

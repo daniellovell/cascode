@@ -112,7 +112,7 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
   output OUT : analog
   fill {{
     net t : analog
-    NMOS M1 = new Level1_NMOS(InputPair) {{
+    NMOS M1 = new NMOS_Level1(InputPair) {{
       .B--GND
       .D--OUT
       .G--OUT
@@ -154,8 +154,8 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
-  device ""level1_nmos""
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
   params {{
     W = primSize.W
     L = primSize.L
@@ -186,7 +186,7 @@ circuit Leaf(size InputPair) {{
   fill {{
     net t : analog
     // Explicit W should override size-pack W
-    NMOS M1 = new Level1_NMOS(size(W=3u, L=InputPair.L, M=InputPair.M)) {{
+    NMOS M1 = new NMOS_Level1(size(W=3u, L=InputPair.L, M=InputPair.M)) {{
       .B--GND
       .D--OUT
       .G--OUT
@@ -240,7 +240,7 @@ circuit Leaf(size InputPair) {{
   output OUT : analog
   fill {{
     net t : analog
-    NMOS M1 = new Level1_NMOS(InputPair) {{
+    NMOS M1 = new NMOS_Level1(InputPair) {{
       .B--GND
       .D--OUT
       .G--OUT
@@ -269,7 +269,7 @@ circuit Top(size Params = size(W=2u, L=180n, W=3u)) {{
   ground GND
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(Params) {{
+    NMOS M1 = new NMOS_Level1(Params) {{
       .B--GND
       .D--OUT
       .G--OUT

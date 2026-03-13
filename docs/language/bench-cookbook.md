@@ -11,7 +11,7 @@ emitted testbench.
 ## Quick references
 
 - Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
-- Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas)
+- Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas), [`SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas), [`DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
 
@@ -41,6 +41,8 @@ transfer function and spectrum post-processing:
 TransferFunction H = transfer(ac, IN, OUT)
 GainSpectrum G = db20(H.Mag())
 Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+Frequency f10 = G.Range(to=1MHz, from=100Hz).ValueAt(f=10kHz)
+Time tclk = period(f=1MHz)
 ```
 
 Reference implementations live in [`lib/std/bench/TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas):
@@ -221,7 +223,7 @@ to that measurement. Numeric constraints on spectrums and waveforms are evaluate
 every sample in the selected band must satisfy the bound:
 
 ```cascode
-measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+measurement ForwardGain(Frequency from, Frequency to) : dB {
   SParameterMatrix S = sparam(sp)
   return db20(S.S(2, 1).Mag()).From(from).To(to)
 }
@@ -230,7 +232,7 @@ measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
 ```cascode
 constraints {
   numeric {
-    c_forward_gain_spectrum = sparam_bench::ForwardGainSpectrum(from=100kHz, to=10MHz) >= 10dB
+    c_forward_gain = sparam_bench::ForwardGain(from=100kHz, to=10MHz) >= 10dB
   }
 }
 ```
@@ -304,6 +306,8 @@ Reference interfaces:
 - [`lib/std/amp/SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas) (Diff in, analog out)
 - [`lib/std/amp/FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas) (Diff in, Diff out)
 - [`lib/std/amp/SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas) (analog in, analog out)
+- [`lib/std/filters/SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas)
+- [`lib/std/filters/DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 
 ## Workflow: authoring and debugging benches
 

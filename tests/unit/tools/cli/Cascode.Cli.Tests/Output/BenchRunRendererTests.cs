@@ -65,9 +65,9 @@ public sealed class BenchRunRendererTests
                                 Id = "c_bw",
                                 Metric = "LowpassBandwidth",
                                 Operator = ">=",
-                                Expected = 1,
+                                Expected = 1_000,
                                 Unit = "Hz",
-                                Actual = 10,
+                                Actual = 1_200,
                                 ActualUnit = "Hz",
                                 Passed = true,
                             },
@@ -83,6 +83,7 @@ public sealed class BenchRunRendererTests
         BenchRunRenderer.Render(summary, verbose: false, output);
 
         Assert.Contains("Compliance: 1/1 (100% PASS)", output.Lines);
+        Assert.Contains("  c_bw: LowpassBandwidth >= 1 kHz (actual 1.2 kHz)", output.Lines);
     }
 
     private sealed class CaptureCliOutput : ICliOutput

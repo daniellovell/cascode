@@ -10,6 +10,7 @@ namespace Cascode.Cli.IntegrationTests;
 public sealed class PdkCharRunContextSelectionTests
 {
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task PdkCharRun_UsesDbContexts_ForSectionSelection()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();

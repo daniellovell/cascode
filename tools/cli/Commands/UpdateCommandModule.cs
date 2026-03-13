@@ -6,9 +6,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Cascode.Cli.Output;
+using Cascode.Cli.Services;
 
 namespace Cascode.Cli.Commands;
 
@@ -16,10 +15,15 @@ internal sealed class UpdateCommandModule : ICommandModule
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
     private readonly CliOutputProvider _output;
+    private readonly IGitHubReleaseClient _releaseClient;
 
     public UpdateCommandModule(CliOutputProvider output)
+        : this(output, new GitHubReleaseClient()) { }
+
+    internal UpdateCommandModule(CliOutputProvider output, IGitHubReleaseClient releaseClient)
     {
         _output = output ?? throw new ArgumentNullException(nameof(output));
+        _releaseClient = releaseClient ?? throw new ArgumentNullException(nameof(releaseClient));
     }
 
     public void Register(CommandRegistry registry)
@@ -67,7 +71,7 @@ internal sealed class UpdateCommandModule : ICommandModule
             "Checking for updates...",
             updateStatus =>
             {
-                var target = ResolveUpdateTarget(output, currentVersion);
+                var target = ResolveUpdateTarget(output, _releaseClient, currentVersion);
                 if (target is null)
                     return CommandResult.Failure;
 
@@ -89,16 +93,20 @@ internal sealed class UpdateCommandModule : ICommandModule
     }
 
     private record struct UpdateTarget(
-        GitHubAsset Asset,
+        GitHubReleaseAsset Asset,
         string AssetName,
         Version LatestVersion,
         bool IsWindows,
         bool AlreadyCurrent
     );
 
-    private static UpdateTarget? ResolveUpdateTarget(ICliOutput output, Version currentVersion)
+    private static UpdateTarget? ResolveUpdateTarget(
+        ICliOutput output,
+        IGitHubReleaseClient releaseClient,
+        Version currentVersion
+    )
     {
-        var release = FetchLatestRelease();
+        var release = releaseClient.FetchLatestRelease();
         if (release is null)
         {
             output.Error("Failed to fetch latest release from GitHub.");
@@ -115,7 +123,7 @@ internal sealed class UpdateCommandModule : ICommandModule
         if (currentVersion >= latestVersion)
             return new UpdateTarget(default!, "", latestVersion, false, AlreadyCurrent: true);
 
-        var rid = GetRuntimeIdentifier();
+        var rid = RuntimeIdentifier.CurrentRid();
         if (rid is null)
         {
             output.Error("Unsupported platform. Cannot determine download target.");
@@ -211,45 +219,6 @@ internal sealed class UpdateCommandModule : ICommandModule
         return Version.TryParse(numeric, out var v) ? v : null;
     }
 
-    private static string? GetRuntimeIdentifier()
-    {
-        string os;
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            os = "win";
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            os = "linux";
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            os = "osx";
-        else
-            return null;
-
-        var arch = RuntimeInformation.OSArchitecture switch
-        {
-            Architecture.X64 => "x64",
-            Architecture.Arm64 => "arm64",
-            _ => null,
-        };
-
-        return arch is null ? null : $"{os}-{arch}";
-    }
-
-    private static GitHubRelease? FetchLatestRelease()
-    {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            "https://api.github.com/repos/daniellovell/cascode/releases/latest"
-        );
-        request.Headers.Add("User-Agent", "cascode-cli");
-        request.Headers.Add("Accept", "application/vnd.github+json");
-
-        using var response = Http.Send(request);
-        if (!response.IsSuccessStatusCode)
-            return null;
-
-        using var stream = response.Content.ReadAsStream();
-        return JsonSerializer.Deserialize<GitHubRelease>(stream);
-    }
-
     private static void DownloadFile(string url, string destination)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -316,23 +285,5 @@ internal sealed class UpdateCommandModule : ICommandModule
                 | UnixFileMode.OtherRead
                 | UnixFileMode.OtherExecute
         );
-    }
-
-    private sealed record GitHubRelease
-    {
-        [JsonPropertyName("tag_name")]
-        public string TagName { get; init; } = "";
-
-        [JsonPropertyName("assets")]
-        public GitHubAsset[]? Assets { get; init; }
-    }
-
-    private sealed record GitHubAsset
-    {
-        [JsonPropertyName("name")]
-        public string Name { get; init; } = "";
-
-        [JsonPropertyName("browser_download_url")]
-        public string BrowserDownloadUrl { get; init; } = "";
     }
 }

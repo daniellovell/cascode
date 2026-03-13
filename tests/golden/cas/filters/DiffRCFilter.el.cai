@@ -1,43 +1,55 @@
-VERSION 4.0
+// Linked golden for complete-document contract enforcement.
+// Exercise this file with `cascode emit` and `cascode erc` regressions to verify
+// that linked `.cai` artifacts retain `implements`, the referenced interface, and declared terminals.
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+VERSION 4.1
+
+bundle Diff {
+  N : analog
+  P : analog
+}
+
+interface DifferentialPassiveFilter {
+  ground GND
+  input IN.N : analog
+  input IN.P : analog
+  output OUT.N : analog
+  output OUT.P : analog
+}
+
+primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"
   params {
     C = primSize.C
   }
 }
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-
-circuit DiffRCFilter implements DifferentialFilter {
+circuit DiffRCFilter implements DifferentialPassiveFilter {
   level EL
-  supply VDD
   ground GND
-  input IN_P : analog
-  input IN_N : analog
-  output OUT.P : analog
+  input IN.N : analog
+  input IN.P : analog
   output OUT.N : analog
+  output OUT.P : analog
   fill {
-    Resistor R_P = new Ideal_Resistor(size(R=10k)) {
-      .P--IN_P
-      .N--OUT.P
-    }
-    Resistor R_N = new Ideal_Resistor(size(R=10k)) {
-      .P--IN_N
+    Capacitor C_DIFF = new CapacitorIdeal(size(C=1p)) {
       .N--OUT.N
-    }
-    Capacitor C_DIFF = new Ideal_Capacitor(size(C=1p)) {
       .P--OUT.P
-      .N--OUT.N
     }
-  }
-  harness {
-    supply VDD = 1.8V
+    Resistor R_N = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.N
+      .P--IN.N
+    }
+    Resistor R_P = new ResistorIdeal(size(R=10k)) {
+      .N--OUT.P
+      .P--IN.P
+    }
   }
 }

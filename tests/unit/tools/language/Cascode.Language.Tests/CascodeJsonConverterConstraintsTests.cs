@@ -182,7 +182,7 @@ public class CascodeJsonConverterConstraintsTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["G"] = "IN",
