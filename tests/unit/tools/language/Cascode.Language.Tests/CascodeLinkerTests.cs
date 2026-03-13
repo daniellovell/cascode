@@ -455,8 +455,8 @@ public sealed class CascodeLinkerTests
         var helperPath = Path.Combine(workspaceRoot, "bench_helpers.cas");
         File.WriteAllText(
             helperPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.bench
 
@@ -469,8 +469,8 @@ public sealed class CascodeLinkerTests
         var benchPath = Path.Combine(workspaceRoot, "bench_defs.cas");
         File.WriteAllText(
             benchPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.bench
 
@@ -497,8 +497,8 @@ public sealed class CascodeLinkerTests
         var traitPath = Path.Combine(workspaceRoot, "filter_interface.cas");
         File.WriteAllText(
             traitPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.filter
             include lib.test.bench
@@ -520,8 +520,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(workspaceRoot, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.test.filter.HelperFilter
 
@@ -567,8 +567,8 @@ public sealed class CascodeLinkerTests
         var helperPath = Path.Combine(workspaceRoot, "bench_helpers.cas");
         File.WriteAllText(
             helperPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.helpers
 
@@ -727,5 +727,141 @@ public sealed class CascodeLinkerTests
         );
 
         Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void LinkFile_AllowsKickHarnessPrimitiveWithoutPrimitiveDefinition()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-kick-primitive");
+        var workspaceRoot = cascodeHome.Path;
+        var outDir = Path.Combine(workspaceRoot, "out");
+
+        var entryPath = Path.Combine(workspaceRoot, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            bench PssBench {
+              resp OUT : analog
+
+              fill {
+                net gnd : ground
+                GND g = new GND() { .GND--gnd }
+                Kick kick = new Kick(ic=1) {
+                  .P--OUT
+                  .N--gnd
+                }
+                Impedor loadZ = new Impedor(Z=50Ohm) {
+                  .P--OUT
+                  .N--gnd
+                }
+              }
+
+              analysis {
+                PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7)
+              }
+
+              measurements {
+                measurement Freq : Hz { return 1Hz }
+              }
+            }
+
+            circuit Top {
+              level EL
+              output OUT : analog
+
+              constraints {
+                numeric {
+                  c_freq = pss::Freq >= 0Hz
+                }
+              }
+
+              benches {
+                bind PssBench as pss {
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              fill { }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            workspaceRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+    }
+
+    [Fact]
+    public void LinkFile_RejectsLegacyImpulseHarnessPrimitive()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-legacy-impulse-primitive");
+        var workspaceRoot = cascodeHome.Path;
+        var outDir = Path.Combine(workspaceRoot, "out");
+
+        var entryPath = Path.Combine(workspaceRoot, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 4.1
+
+            bench PssBench {
+              resp OUT : analog
+
+              fill {
+                net gnd : ground
+                GND g = new GND() { .GND--gnd }
+                Impulse impulse = new Impulse(ic=1) {
+                  .P--OUT
+                  .N--gnd
+                }
+              }
+
+              analysis {
+                PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7)
+              }
+
+              measurements {
+                measurement Freq : Hz { return 1Hz }
+              }
+            }
+
+            circuit Top {
+              level EL
+              output OUT : analog
+
+              constraints {
+                numeric {
+                  c_freq = pss::Freq >= 0Hz
+                }
+              }
+
+              benches {
+                bind PssBench as pss {
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              fill { }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            workspaceRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+
+        var diag = string.Join("\n", result.Diagnostics.Select(d => d.Message));
+        Assert.False(result.Success);
+        Assert.Contains("Impulse", diag, StringComparison.Ordinal);
     }
 }
