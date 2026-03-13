@@ -31,6 +31,7 @@ internal static class BenchHarnessElementCompiler
                 && !type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
                 && !type.Equals("Port", StringComparison.OrdinalIgnoreCase)
                 && !type.Equals("Impedance", StringComparison.OrdinalIgnoreCase)
+                && !type.Equals("Kick", StringComparison.OrdinalIgnoreCase)
             )
             {
                 continue;

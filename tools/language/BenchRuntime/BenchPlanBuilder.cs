@@ -54,8 +54,9 @@ public static class BenchPlanBuilder
 
         var dutSubcktName = SpiceEmitter.GetDefaultVariantName(circuit);
 
-        // Convert invocation args to BenchValue dictionary for use in expression evaluation.
-        var benchParams = ConvertInvocationArgsToBenchParams(invocationArgs);
+        // Convert explicit invocation args first, then backfill any declared defaults so
+        // inherited analyses can rely on bench parameters even when the caller omits them.
+        var explicitBenchParams = ConvertInvocationArgsToBenchParams(invocationArgs);
 
         // Used for evaluating analysis params and harness instance arguments.
         var evalRunner = new BenchMeasurementRunner(
@@ -70,6 +71,8 @@ public static class BenchPlanBuilder
             harnessCompilation.Constraints,
             dutNodeKeyByPinRef: terminalCompilation.DutNodeKeyByPinRef
         );
+
+        var benchParams = ApplyDefaultBenchParams(bench, explicitBenchParams, evalRunner);
 
         var analyses = BenchAnalysisCompiler.Compile(
             bench,
@@ -144,6 +147,33 @@ public static class BenchPlanBuilder
             var value = BenchQuantity.Parse(arg.Value);
             result[arg.Name] = value;
         }
+        return result;
+    }
+
+    private static IReadOnlyDictionary<string, BenchValue> ApplyDefaultBenchParams(
+        BenchDefinition bench,
+        IReadOnlyDictionary<string, BenchValue> explicitBenchParams,
+        BenchMeasurementRunner evalRunner
+    )
+    {
+        var result = new Dictionary<string, BenchValue>(
+            explicitBenchParams,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var parameter in bench.Parameters)
+        {
+            if (result.ContainsKey(parameter.Name) || parameter.Default is null)
+            {
+                continue;
+            }
+
+            result[parameter.Name] = evalRunner.EvaluateExpressionForPlan(
+                parameter.Default,
+                result
+            );
+        }
+
         return result;
     }
 }

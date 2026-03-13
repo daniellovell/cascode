@@ -2965,6 +2965,14 @@ public sealed class BenchMeasurementRunner
             );
         }
 
+        return ResolveResistiveImpedanceOhm(impedance, functionName);
+    }
+
+    private static double ResolveResistiveImpedanceOhm(
+        BenchImpedanceParallel impedance,
+        string functionName
+    )
+    {
         var invResistanceSum = 0.0;
         foreach (var element in impedance.Elements)
         {
@@ -3394,6 +3402,13 @@ public sealed class BenchMeasurementRunner
         bool leftOnLhs
     )
     {
+        if (op == "/" && leftOnLhs && TryAsImpedance(other, out var divisor))
+        {
+            var numeratorOhm = ResolveResistiveImpedanceOhm(z, "impedance division");
+            var denominatorOhm = ResolveResistiveImpedanceOhm(divisor, "impedance division");
+            return new BenchNumber(BenchNumericKind.Scalar, numeratorOhm / denominatorOhm);
+        }
+
         if (other is not BenchNumber n || n.Kind != BenchNumericKind.Scalar)
         {
             throw new InvalidOperationException(

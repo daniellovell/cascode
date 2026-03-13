@@ -2079,7 +2079,7 @@ public static class BenchSemanticChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        "thd second argument must be an Int.",
+                        "thd second argument must be an integer scalar.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -2355,6 +2355,9 @@ public static class BenchSemanticChecker
                 ["fguess"] = MeasurementTypeKind.Frequency,
                 ["tstab"] = MeasurementTypeKind.Time,
                 ["harmonics"] = MeasurementTypeKind.Scalar,
+                ["iterations"] = MeasurementTypeKind.Scalar,
+                ["steady_coef"] = MeasurementTypeKind.Scalar,
+                ["uic"] = MeasurementTypeKind.Scalar,
             },
             BenchValueType.NoiseAnalysis => new Dictionary<string, MeasurementTypeKind>
             {
@@ -2418,6 +2421,57 @@ public static class BenchSemanticChecker
             )
             {
                 ValidateSpNoiseFlag(analysis, expr, actual, diagnostics);
+            }
+            if (analysis.Type == BenchValueType.PSSAnalysis)
+            {
+                ValidatePssOptionDomains(analysis, name, expr, actual, diagnostics);
+            }
+        }
+    }
+
+    private static void ValidatePssOptionDomains(
+        AnalysisDeclaration analysis,
+        string name,
+        MeasurementExpr expr,
+        MeasurementType actual,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (actual.Kind != MeasurementTypeKind.Scalar)
+        {
+            return;
+        }
+
+        if (name.Equals("uic", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryResolveConstantInt(expr, out var flag) && flag is not 0 and not 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.uic' must be 0 or 1, got {flag}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+            return;
+        }
+
+        if (name.Equals("iterations", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryResolveConstantInt(expr, out var iterations) && iterations < 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.iterations' must be >= 1, got {iterations}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
             }
         }
     }

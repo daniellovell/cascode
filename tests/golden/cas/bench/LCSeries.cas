@@ -1,0 +1,48 @@
+VERSION 4.0
+
+include lib.std
+
+
+circuit LCSeries {
+  level EL
+
+  input IN : analog
+  output OUT : analog
+  ground GND
+
+  env {
+    InputCommonModeRange = 0V
+    OutputCommonModeRange = 0V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 1MOhm
+  }
+
+  fill {
+    Inductor L1 = new InductorIdeal(size(L=1u)) {
+      .P--IN
+      .N--OUT
+    }
+    Capacitor C1 = new CapacitorIdeal(size(C=15.9154943092p)) {
+      .P--OUT
+      .N--GND
+    }
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {
+      .P--OUT
+      .N--GND
+    }
+  }
+
+  benches {
+    bind SEToSEPSS as pss_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      c_fundamental_frequency_min = pss_bench(guess_freq=100MHz)::FundamentalFrequency >= 99.999MHz
+      c_fundamental_frequency_max = pss_bench(guess_freq=100MHz)::FundamentalFrequency <= 100.01MHz
+    }
+  }
+}

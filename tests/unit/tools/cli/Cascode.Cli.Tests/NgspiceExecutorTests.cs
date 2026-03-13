@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Runtime.InteropServices;
 using Cascode.Cli.Services;
 using Xunit;
 
@@ -55,5 +56,67 @@ public sealed class NgspiceExecutorTests
             }
             catch { }
         }
+    }
+
+    [Fact]
+    public void RunProcess_WithLargeStderr_DoesNotDeadlockAndCapturesBothStreams()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var executablePath = CreateHeavyStderrEmitter(tempDir.FullName);
+
+            var result = NgspiceExecutor.RunProcess(
+                executablePath,
+                tempDir.FullName,
+                Array.Empty<string>()
+            );
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("stdout:done", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("stderr:line", result.Stderr, StringComparison.Ordinal);
+            Assert.True(result.Stderr.Length > 128 * 1024, "stderr should be large enough.");
+        }
+        finally
+        {
+            try
+            {
+                tempDir.Delete(recursive: true);
+            }
+            catch { }
+        }
+    }
+
+    private static string CreateHeavyStderrEmitter(string directory)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var batPath = Path.Combine(directory, "emit-heavy-stderr.cmd");
+            File.WriteAllText(
+                batPath,
+                "@echo off\r\n"
+                    + "for /L %%i in (1,1,50000) do @>&2 echo stderr:line %%i\r\n"
+                    + "echo stdout:done\r\n"
+            );
+            return batPath;
+        }
+
+        var shPath = Path.Combine(directory, "emit-heavy-stderr.sh");
+        File.WriteAllText(
+            shPath,
+            "#!/bin/sh\n"
+                + "i=0\n"
+                + "while [ \"$i\" -lt 50000 ]\n"
+                + "do\n"
+                + "  echo \"stderr:line $i\" 1>&2\n"
+                + "  i=$((i + 1))\n"
+                + "done\n"
+                + "echo \"stdout:done\"\n"
+        );
+        File.SetUnixFileMode(
+            shPath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+        );
+        return shPath;
     }
 }

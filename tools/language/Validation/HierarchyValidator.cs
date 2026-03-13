@@ -102,6 +102,8 @@ public static class HierarchyValidator
             return;
         }
 
+        var availableSizeNames = BuildAvailableSizeNames(circuit);
+
         foreach (var instance in circuit.Fill.Instances)
         {
             // HIER-001: Validate instance type exists
@@ -120,7 +122,13 @@ public static class HierarchyValidator
             ValidateInstanceParameters(instance, targetCircuit, circuit.Name, result);
 
             // HIER-007: Validate required size packs
-            ValidateInstanceSizes(instance, targetCircuit, circuit.Name, result);
+            ValidateInstanceSizes(
+                instance,
+                targetCircuit,
+                circuit.Name,
+                availableSizeNames,
+                result
+            );
 
             // HIER-003: Validate port coverage (bindings + attach)
             var portAnalysis = new PortCoverageAnalysis(circuit, traits, result);
@@ -147,7 +155,7 @@ public static class HierarchyValidator
             }
 
             // Required parameter must be provided
-            if (!instance.Params.ContainsKey(param.Name))
+            if (!InstanceArgumentResolver.HasParameterAssignment(instance, param.Name))
             {
                 result.AddError(
                     "HIER-002",
@@ -166,6 +174,7 @@ public static class HierarchyValidator
         InstanceDeclaration instance,
         Circuit targetCircuit,
         string parentCircuitName,
+        HashSet<string> availableSizeNames,
         ValidationResult result
     )
     {
@@ -177,16 +186,34 @@ public static class HierarchyValidator
                 continue;
             }
 
-            if (!instance.Sizes.ContainsKey(size.Name))
+            if (
+                !InstanceArgumentResolver.HasSizeAssignment(instance, size.Name, availableSizeNames)
+            )
             {
                 result.AddError(
                     "HIER-007",
                     $"Instance '{instance.Id}' missing required size pack '{size.Name}'",
                     $"circuit {parentCircuitName}, instance {instance.Id} : {instance.Type}",
-                    $"Add '{size.Name}=size(k=v, ...)' to the instance constructor arguments"
+                    $"Add '{size.Name}=size(k=v, ...)' or '{size.Name}=OtherSize' to the instance constructor arguments"
                 );
             }
         }
+    }
+
+    private static HashSet<string> BuildAvailableSizeNames(Circuit circuit)
+    {
+        var names = circuit.Sizes.Select(size => size.Name).ToHashSet(StringComparer.Ordinal);
+        if (circuit.Fill?.Sizes is null)
+        {
+            return names;
+        }
+
+        foreach (var size in circuit.Fill.Sizes)
+        {
+            names.Add(size.Name);
+        }
+
+        return names;
     }
 
     /// <summary>
