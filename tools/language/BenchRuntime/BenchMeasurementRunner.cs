@@ -2714,12 +2714,32 @@ public sealed class BenchMeasurementRunner
     {
         var args = BindFunctionCallArguments(call, locals, new[] { "waveform" });
         var waveform = RequireWaveform(args["waveform"], "mean");
-        if (waveform.Values.Length == 0)
+        if (
+            waveform.Values.Length < 2
+            || waveform.TimePointsS.Length < 2
+            || waveform.TimePointsS.Length != waveform.Values.Length
+        )
         {
-            throw new InvalidOperationException("mean: waveform has no samples.");
+            throw new InvalidOperationException(
+                "mean: waveform must contain >=2 aligned time/value samples."
+            );
         }
 
-        var mean = waveform.Values.Average();
+        var duration = WaveformDurationS(waveform, "mean");
+        var area = 0.0;
+        for (var i = 1; i < waveform.TimePointsS.Length; i++)
+        {
+            var dt = waveform.TimePointsS[i] - waveform.TimePointsS[i - 1];
+            if (dt <= 0 || !double.IsFinite(dt))
+            {
+                throw new InvalidOperationException(
+                    "mean: waveform time points must be strictly increasing."
+                );
+            }
+            area += 0.5 * (waveform.Values[i - 1] + waveform.Values[i]) * dt;
+        }
+
+        var mean = area / duration;
         return new BenchNumber(waveform.ValueKind, mean);
     }
 
