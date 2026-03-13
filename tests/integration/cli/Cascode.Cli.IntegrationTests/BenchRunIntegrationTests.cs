@@ -314,6 +314,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
         var combinedResultsPath = Path.Combine(_outputDir, "SingleResistor_results.json");
         Assert.True(File.Exists(combinedResultsPath), "combined results not found");
+
+        await VerifyAsync(cascodePath, combinedResultsPath);
     }
 
     [Fact]
