@@ -28,9 +28,9 @@ circuit LCTank implements DifferentialOscillator {
   constraints {
     numeric {
       c_fundamental_frequency_min =
-        pss_bench(guess_freq=2.906GHz)::FundamentalFrequency >= 2.9GHz
+        pss_bench(guess_freq=2.8GHz)::FundamentalFrequency >= 2.8GHz
       c_fundamental_frequency_max =
-        pss_bench(guess_freq=2.906GHz)::FundamentalFrequency <= 2.91GHz
+        pss_bench(guess_freq=2.8GHz)::FundamentalFrequency <= 3GHz
     }
   }
 

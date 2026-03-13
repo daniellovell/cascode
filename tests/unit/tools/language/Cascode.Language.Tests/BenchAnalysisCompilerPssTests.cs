@@ -66,6 +66,50 @@ bench DiffPss(Frequency guess_freq = 1GHz) {{
     }
 
     [Fact]
+    public void Compile_PssAnalysis_UsesConfiguredOptionalParametersAndDefaults()
+    {
+        var configuredCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ConfiguredPss {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(
+      fguess=1GHz,
+      tstab=2ns,
+      harmonics=9,
+      iterations=1000,
+      steady_coef=0.1,
+      uic=1)
+  }}
+}}
+";
+
+        var configured = CompileSingle(configuredCascode, "ConfiguredPss", "OUT", "out");
+        Assert.Equal(1000, configured.Iterations);
+        Assert.Equal(0.1, Assert.IsType<double>(configured.SteadyCoef), precision: 15);
+        Assert.True(configured.UseInitialConditions);
+
+        var defaultCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench DefaultPss {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=2ns, harmonics=9)
+  }}
+}}
+";
+
+        var defaults = CompileSingle(defaultCascode, "DefaultPss", "OUT", "out");
+        Assert.Equal(50, defaults.Iterations);
+        Assert.Equal(1e-3, Assert.IsType<double>(defaults.SteadyCoef), precision: 15);
+        Assert.False(defaults.UseInitialConditions);
+    }
+
+    [Fact]
     public void Compile_PssAnalysis_RequiresRespTerminal()
     {
         var cascode =
@@ -106,6 +150,39 @@ bench MissingResp {{
             BenchAnalysisCompiler.Compile(bench, evalRunner, EmptyNetlist())
         );
         Assert.Contains("resp terminal", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static BenchPlanAnalysis CompileSingle(
+        string cascode,
+        string benchName,
+        string terminalName,
+        string nodeName
+    )
+    {
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == benchName);
+        var evalRunner = new BenchMeasurementRunner(
+            bench,
+            functions: new Dictionary<string, FunctionDefinition>(StringComparer.OrdinalIgnoreCase),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                [terminalName] = new BenchTerminalRef(terminalName, new[] { nodeName }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        return Assert.Single(BenchAnalysisCompiler.Compile(bench, evalRunner, EmptyNetlist()));
     }
 
     private static BenchNetlist EmptyNetlist()
