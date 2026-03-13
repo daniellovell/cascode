@@ -8,7 +8,7 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
   analysis {
     PSSAnalysis pss = new PSSAnalysis(
       fguess=guess_freq,
-      tstab=1000 * period(guess_freq),
+      tstab=100 * period(guess_freq),
       harmonics=20)
   }
 

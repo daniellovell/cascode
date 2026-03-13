@@ -2422,6 +2422,57 @@ public static class BenchSemanticChecker
             {
                 ValidateSpNoiseFlag(analysis, expr, actual, diagnostics);
             }
+            if (analysis.Type == BenchValueType.PSSAnalysis)
+            {
+                ValidatePssOptionDomains(analysis, name, expr, actual, diagnostics);
+            }
+        }
+    }
+
+    private static void ValidatePssOptionDomains(
+        AnalysisDeclaration analysis,
+        string name,
+        MeasurementExpr expr,
+        MeasurementType actual,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (actual.Kind != MeasurementTypeKind.Scalar)
+        {
+            return;
+        }
+
+        if (name.Equals("uic", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryResolveConstantInt(expr, out var flag) && flag is not 0 and not 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.uic' must be 0 or 1, got {flag}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+            return;
+        }
+
+        if (name.Equals("iterations", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryResolveConstantInt(expr, out var iterations) && iterations < 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.iterations' must be >= 1, got {iterations}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
         }
     }
 

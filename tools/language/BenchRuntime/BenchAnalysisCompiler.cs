@@ -405,8 +405,10 @@ internal static class BenchAnalysisCompiler
         if (
             value is null
             || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
             || value.Value < 1
             || value.Value != Math.Round(value.Value)
+            || value.Value > int.MaxValue
         )
         {
             throw new InvalidOperationException(
@@ -414,7 +416,7 @@ internal static class BenchAnalysisCompiler
             );
         }
 
-        return (int)value.Value;
+        return checked((int)value.Value);
     }
 
     private static double EvaluateOptionalPositiveScalarParam(
@@ -463,8 +465,9 @@ internal static class BenchAnalysisCompiler
         if (
             value is null
             || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
             || value.Value != Math.Round(value.Value)
-            || (int)value.Value is not 0 and not 1
+            || value.Value is not 0 and not 1
         )
         {
             throw new InvalidOperationException(
@@ -472,7 +475,7 @@ internal static class BenchAnalysisCompiler
             );
         }
 
-        return (int)value.Value == 1;
+        return value.Value == 1;
     }
 
     private static string? FindNoiseInputSource(BenchNetlist netlist)

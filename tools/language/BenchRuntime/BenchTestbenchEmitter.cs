@@ -734,6 +734,12 @@ public static class BenchTestbenchEmitter
                 ?? GetParam(element, "IC")
                 ?? GetParam(element, "initial")
                 ?? GetFirstParam(element);
+            if (ic is null)
+            {
+                throw new InvalidOperationException(
+                    $"Kick harness element '{element.Id}' requires parameter 'ic'."
+                );
+            }
             EmitKick(sb, element.Id, p, n, ic, backend);
             return;
         }
@@ -764,7 +770,7 @@ public static class BenchTestbenchEmitter
         string id,
         string p,
         string n,
-        BenchValue? ic,
+        BenchValue ic,
         BenchBackendType backend
     )
     {
