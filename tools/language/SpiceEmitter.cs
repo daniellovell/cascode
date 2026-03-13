@@ -533,7 +533,10 @@ public static class SpiceEmitter
         );
         var paramBindings = argumentBindings.Parameters;
         var sizeBindings = argumentBindings.Sizes;
-        var context = new ExpressionContext(paramBindings, sizeBindings);
+        var context = new ExpressionContext(
+            BuildLookupParameters(parentParams, paramBindings),
+            BuildLookupSizes(parentSizes, sizeBindings)
+        );
 
         var resolvedParams = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var param in circuit.Parameters)
@@ -1077,8 +1080,10 @@ public static class SpiceEmitter
         );
         var paramBindings = argumentBindings.Parameters;
         var sizeBindings = argumentBindings.Sizes;
+        var lookupParamBindings = BuildLookupParameters(parentParamBindings, paramBindings);
+        var lookupSizeBindings = BuildLookupSizes(parentSizeBindings, sizeBindings);
 
-        var expressionContext = new ExpressionContext(paramBindings, sizeBindings);
+        var expressionContext = new ExpressionContext(lookupParamBindings, lookupSizeBindings);
 
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
@@ -1141,8 +1146,8 @@ public static class SpiceEmitter
                         nestedCircuit,
                         currentPath,
                         netSubstitutions,
-                        paramBindings,
-                        sizeBindings,
+                        lookupParamBindings,
+                        lookupSizeBindings,
                         circuitsByName,
                         resolution,
                         deviceModelMap,
@@ -1162,14 +1167,42 @@ public static class SpiceEmitter
                         netSubstitutions,
                         internalNets,
                         resolution,
-                        paramBindings,
-                        sizeBindings,
+                        lookupParamBindings,
+                        lookupSizeBindings,
                         variantMap,
                         writer
                     );
                 }
             }
         }
+    }
+
+    private static Dictionary<string, string> BuildLookupParameters(
+        IReadOnlyDictionary<string, string> parentParameters,
+        IReadOnlyDictionary<string, string> localParameters
+    )
+    {
+        var lookup = new Dictionary<string, string>(parentParameters, StringComparer.Ordinal);
+        foreach (var (name, expression) in localParameters)
+        {
+            lookup[name] = expression;
+        }
+
+        return lookup;
+    }
+
+    private static Dictionary<string, SizePack> BuildLookupSizes(
+        IReadOnlyDictionary<string, SizePack> parentSizes,
+        IReadOnlyDictionary<string, SizePack> localSizes
+    )
+    {
+        var lookup = new Dictionary<string, SizePack>(parentSizes, StringComparer.Ordinal);
+        foreach (var (name, pack) in localSizes)
+        {
+            lookup[name] = pack;
+        }
+
+        return lookup;
     }
 
     /// <summary>

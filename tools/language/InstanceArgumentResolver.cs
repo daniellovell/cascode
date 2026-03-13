@@ -21,16 +21,6 @@ internal static class InstanceArgumentResolver
     {
         var resolved = new ResolvedInstanceArguments();
 
-        foreach (var (name, value) in parentParameterBindings)
-        {
-            resolved.Parameters[name] = value;
-        }
-
-        foreach (var (name, pack) in parentSizeBindings)
-        {
-            resolved.Sizes[name] = pack;
-        }
-
         foreach (var param in circuit.Parameters)
         {
             var expr = ToExpression(param.Default);
@@ -113,10 +103,14 @@ internal static class InstanceArgumentResolver
         return instance.Params.ContainsKey(parameterName);
     }
 
-    public static bool HasSizeAssignment(InstanceDeclaration instance, string sizeName)
+    public static bool HasSizeAssignment(
+        InstanceDeclaration instance,
+        string sizeName,
+        IReadOnlySet<string> availableSizeNames
+    )
     {
         return instance.Sizes.ContainsKey(sizeName)
-            || TryGetForwardedReference(instance, sizeName, out _);
+            || TryGetForwardedReference(instance, sizeName, availableSizeNames, out _);
     }
 
     private static bool TryResolveForwardedParameter(
@@ -169,12 +163,35 @@ internal static class InstanceArgumentResolver
     private static bool TryGetForwardedReference(
         InstanceDeclaration instance,
         string argumentName,
+        IReadOnlySet<string> availableSizeNames,
         out string referenceName
     )
     {
         referenceName = string.Empty;
-        return instance.Params.TryGetValue(argumentName, out var value)
-            && ParamValueParser.TryGetIdentifierReference(value, out referenceName);
+        if (!instance.Params.TryGetValue(argumentName, out var value))
+        {
+            return false;
+        }
+
+        if (!ParamValueParser.TryGetIdentifierReference(value, out var candidate))
+        {
+            return false;
+        }
+
+        // Size alias forwarding only accepts bare identifiers (e.g. Core=Pack),
+        // not member expressions like Pack.W.
+        if (candidate.Contains('.', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!availableSizeNames.Contains(candidate))
+        {
+            return false;
+        }
+
+        referenceName = candidate;
+        return true;
     }
 
     private static SizePack CloneSizePack(SizePack pack)

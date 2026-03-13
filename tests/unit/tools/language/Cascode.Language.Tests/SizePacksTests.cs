@@ -324,6 +324,228 @@ circuit Inverter(size NmosSize, size PmosSize) {{
     }
 
     [Fact]
+    public void HierarchyAndEmitter_FailsOnMissingOrWrongKindForwardedSize()
+    {
+        static void AssertHierarchyValidationFailsWithMissingForwardedSize(
+            string cascode,
+            string fileName
+        )
+        {
+            var parse = CascodeReader.TryParse(cascode, fileName);
+            Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+            var doc = parse.Document!;
+            var validation = HierarchyValidator.Validate(doc);
+            Assert.False(validation.IsValid);
+
+            var errors = validation.GetErrors().ToList();
+            Assert.Contains(errors, e => e.Code == "HIER-007");
+        }
+
+        var missingForwardedSizeCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Buffer buf = new Buffer(NmosSize=Missing) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var wrongKindForwardedSizeCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(real width = 2u) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Buffer buf = new Buffer(NmosSize=width) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var dottedForwardedSizeCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(size Pack = size(W=2u, L=180n, M=1)) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Buffer buf = new Buffer(NmosSize=Pack.W) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        AssertHierarchyValidationFailsWithMissingForwardedSize(
+            missingForwardedSizeCascode,
+            "missing_forwarded_size.cas"
+        );
+        AssertHierarchyValidationFailsWithMissingForwardedSize(
+            wrongKindForwardedSizeCascode,
+            "wrong_kind_forwarded_size.cas"
+        );
+        AssertHierarchyValidationFailsWithMissingForwardedSize(
+            dottedForwardedSizeCascode,
+            "dotted_forwarded_size.cas"
+        );
+    }
+
+    [Fact]
     public void EmitDesign_ResolveNamedScalarParameterReferencesAcrossHierarchy()
     {
         var cascode =

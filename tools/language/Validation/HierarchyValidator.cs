@@ -102,6 +102,8 @@ public static class HierarchyValidator
             return;
         }
 
+        var availableSizeNames = BuildAvailableSizeNames(circuit);
+
         foreach (var instance in circuit.Fill.Instances)
         {
             // HIER-001: Validate instance type exists
@@ -120,7 +122,13 @@ public static class HierarchyValidator
             ValidateInstanceParameters(instance, targetCircuit, circuit.Name, result);
 
             // HIER-007: Validate required size packs
-            ValidateInstanceSizes(instance, targetCircuit, circuit.Name, result);
+            ValidateInstanceSizes(
+                instance,
+                targetCircuit,
+                circuit.Name,
+                availableSizeNames,
+                result
+            );
 
             // HIER-003: Validate port coverage (bindings + attach)
             var portAnalysis = new PortCoverageAnalysis(circuit, traits, result);
@@ -166,6 +174,7 @@ public static class HierarchyValidator
         InstanceDeclaration instance,
         Circuit targetCircuit,
         string parentCircuitName,
+        HashSet<string> availableSizeNames,
         ValidationResult result
     )
     {
@@ -177,7 +186,9 @@ public static class HierarchyValidator
                 continue;
             }
 
-            if (!InstanceArgumentResolver.HasSizeAssignment(instance, size.Name))
+            if (
+                !InstanceArgumentResolver.HasSizeAssignment(instance, size.Name, availableSizeNames)
+            )
             {
                 result.AddError(
                     "HIER-007",
@@ -187,6 +198,22 @@ public static class HierarchyValidator
                 );
             }
         }
+    }
+
+    private static HashSet<string> BuildAvailableSizeNames(Circuit circuit)
+    {
+        var names = circuit.Sizes.Select(size => size.Name).ToHashSet(StringComparer.Ordinal);
+        if (circuit.Fill?.Sizes is null)
+        {
+            return names;
+        }
+
+        foreach (var size in circuit.Fill.Sizes)
+        {
+            names.Add(size.Name);
+        }
+
+        return names;
     }
 
     /// <summary>
