@@ -85,8 +85,9 @@ internal static class VerifyReportRenderer
 
         console.WriteLine();
         ComplianceReportRenderer.RenderComplianceTable(circuit.Compliance, console);
+        ComplianceReportRenderer.RenderUncheckedConstraints(circuit.Compliance, console);
         console.MarkupLine(
-            $"[grey]Result:[/] {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
+            $"[grey]Result:[/] {Markup.Escape(FormatCircuitResultSummary(circuit.Compliance))}"
         );
     }
 
@@ -128,9 +129,7 @@ internal static class VerifyReportRenderer
         writeLine($"Circuit: {circuit.CircuitName}");
         WriteBenchAndArtifactInfoPlain(circuit, writeLine, indent: string.Empty);
         ComplianceReportRenderer.WriteCompliancePlain(writeLine, circuit.Compliance);
-        writeLine(
-            $"Result: {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
-        );
+        writeLine($"Result: {FormatCircuitResultSummary(circuit.Compliance)}");
     }
 
     private static void RenderPlainCircuit(VerifyCircuitReport circuit, Action<string> writeLine)
@@ -141,9 +140,7 @@ internal static class VerifyReportRenderer
             line => writeLine($"  {line}"),
             circuit.Compliance
         );
-        writeLine(
-            $"  Result: {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
-        );
+        writeLine($"  Result: {FormatCircuitResultSummary(circuit.Compliance)}");
         writeLine(string.Empty);
     }
 
@@ -190,5 +187,13 @@ internal static class VerifyReportRenderer
     {
         var passPercentage = total > 0 ? (int)Math.Round(100.0 * passed / total) : 0;
         return $"{passed}/{total} ({passPercentage}% PASS)";
+    }
+
+    private static string FormatCircuitResultSummary(ComplianceReport compliance)
+    {
+        var summary = $"{compliance.PassedCount}/{compliance.TotalCount} constraints satisfied";
+        return compliance.UncheckedCount > 0
+            ? $"{summary} ({compliance.UncheckedCount} unchecked)"
+            : summary;
     }
 }
