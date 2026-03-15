@@ -8,30 +8,6 @@ namespace Cascode.Cli.Services;
 
 internal static class BenchRunHelpers
 {
-    public static Circuit GetSingleElCircuit(CascodeDocument doc)
-    {
-        // Prefer EL-level circuit with applicable benches (for hierarchical files with multiple circuits)
-        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
-        if (elCircuits.Count == 0)
-        {
-            throw new InvalidOperationException("No EL-level circuits found in Cascode document.");
-        }
-
-        return elCircuits.FirstOrDefault(c => ResolveBenchBindings(doc, c).Count > 0)
-            ?? elCircuits[0];
-    }
-
-    /// <summary>
-    /// Returns all EL-level circuits that have benches, ordered by dependency (leaves first).
-    /// </summary>
-    public static IReadOnlyList<Circuit> GetElCircuitsWithBenches(CascodeDocument doc)
-    {
-        return SpiceEmitter
-            .OrderByDependency(doc)
-            .Where(c => c.Level == CascodeLevel.EL && ResolveBenchBindings(doc, c).Count > 0)
-            .ToList();
-    }
-
     public static string ResolveOutputDir(
         string? outputDir,
         string circuitName,
