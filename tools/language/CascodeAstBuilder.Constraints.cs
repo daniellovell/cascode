@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Cascode.Language;
 
@@ -483,16 +482,6 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>Tuple of numeric value and unit.</returns>
     private static (string Value, string Unit) ParseQuantity(string quantity)
     {
-        // Match patterns like "50MHz", "30dB", "60deg", "1.8V"
-        var match = QuantityPattern().Match(quantity);
-        if (match.Success)
-        {
-            return (match.Groups[1].Value, match.Groups[2].Value);
-        }
-        return (quantity, string.Empty);
+        return QuantityLiteral.SplitValueAndUnit(quantity);
     }
-
-    /// <summary>Regex used to parse quantity value/unit pairs.</summary>
-    [GeneratedRegex(@"^(-?[0-9][0-9.eE+-]*[fpnumkMGT]?)([A-Za-z]+)$")]
-    private static partial Regex QuantityPattern();
 }

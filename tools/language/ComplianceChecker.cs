@@ -408,48 +408,6 @@ public static class ComplianceChecker
 
     private static double ParseValue(string valueStr, string unit)
     {
-        // Parse numeric value with unit multipliers
-        // Examples: "100M" -> 100e6, "1.5k" -> 1.5e3, "500u" -> 500e-6
-        valueStr = valueStr.Trim();
-
-        // Extract numeric part and multiplier suffix
-        var multiplier = 1.0;
-        var numericPart = valueStr;
-
-        if (valueStr.Length > 0 && char.IsLetter(valueStr[^1]))
-        {
-            var suffix = valueStr[^1];
-            numericPart = valueStr[..^1];
-
-            multiplier = suffix switch
-            {
-                'k' or 'K' => 1e3,
-                'M' => 1e6,
-                'm' => 1e-3,
-                'G' or 'g' => 1e9,
-                'T' or 't' => 1e12,
-                'u' or 'U' => 1e-6,
-                'n' or 'N' => 1e-9,
-                'p' or 'P' => 1e-12,
-                'f' or 'F' => 1e-15,
-                _ => throw new FormatException(
-                    $"Unrecognized unit suffix '{suffix}' in value: {valueStr}"
-                ),
-            };
-        }
-
-        if (
-            !double.TryParse(
-                numericPart,
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var value
-            )
-        )
-        {
-            throw new FormatException($"Invalid numeric value: {valueStr}");
-        }
-
-        return value * multiplier;
+        return QuantityLiteral.ParseMagnitude(valueStr.Trim(), unit);
     }
 }

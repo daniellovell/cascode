@@ -1,10 +1,8 @@
 VERSION 4.1
 
-// TLC2272A stress pin using the datasheet metrics Cascode can express today:
+// TLC2272A stress pin using the relevant datasheet metrics:
 // gain, GBW, phase margin, CMRR, PSRR, quiescent power, spot/input-referred noise,
 // integrated low-frequency input noise, and output swing.
-// Spot noise is enforced in the dedicated integration test because numeric constraints
-// do not yet accept noise-density thresholds such as nV/rtHz.
 // Slew rate, offset, bias current, settling time, and VICR are intentionally omitted
 // because the current standard benches do not support them.
 
@@ -55,6 +53,7 @@ circuit TLC2272A_Sky130 implements SingleEndedOpAmp {
       c_cmrr = cmrr_bench::CMRR at net::OUT >= 70dB
       c_psrr = psrr_bench::PSRR at net::OUT >= 80dB
       c_pwr = vdd_pwr::QuiescentPower <= 15mW
+      c_spot_noise = noise_bench::InputReferredNoise at net::OUT <= 9nV/rtHz
       c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 300nVrms
       c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 4.5Vpp
     }
