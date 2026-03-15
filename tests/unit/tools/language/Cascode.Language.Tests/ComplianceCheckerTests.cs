@@ -93,6 +93,47 @@ public class ComplianceCheckerTests
     }
 
     [Fact]
+    public void Check_NoiseDensityThreshold_PassingMeasurement_Passes()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_noise",
+            "InputReferredNoise",
+            "OUT",
+            "<=",
+            "9n",
+            "V/rtHz"
+        );
+        var results = CreateResultsWithMeasurement("InputReferredNoise", 8.5e-9, "V/rtHz", "OUT");
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Passed);
+        Assert.InRange(result.Expected, 8.999999999999999e-9, 9.000000000000001e-9);
+    }
+
+    [Fact]
+    public void Check_NoiseDensityThreshold_FailingMeasurement_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_noise",
+            "InputReferredNoise",
+            "OUT",
+            "<=",
+            "9n",
+            "V/rtHz"
+        );
+        var results = CreateResultsWithMeasurement("InputReferredNoise", 9.5e-9, "V/rtHz", "OUT");
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.ConstraintViolation, result.FailureReason);
+        Assert.Equal(9.5e-9, result.Actual);
+    }
+
+    [Fact]
     public void Check_ValuesArray_AllPass_Passes()
     {
         var circuit = CreateCircuitWithConstraint(

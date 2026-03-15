@@ -23,27 +23,35 @@ internal sealed class CharacterizationCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("char", "Characterization commands", ShowCharUsage)
+            new DelegateCliCommand(
+                "char",
+                "Characterization commands",
+                ShowCharUsage,
+                helpCategory: CommandHelpCategory.Characterization
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "char gen",
                 "Generate characterization testbench",
-                CharacterizationGenerateCommand
+                CharacterizationGenerateCommand,
+                helpCategory: CommandHelpCategory.Characterization
             )
         );
         registry.Register(
             new DelegateCliCommand(
                 "char read",
                 "Read characterization results",
-                CharacterizationReadCommand
+                CharacterizationReadCommand,
+                helpCategory: CommandHelpCategory.Characterization
             )
         );
         registry.Register(
             new DelegateCliCommand(
                 "char export",
                 "Export derived metrics (e.g., gm/Id)",
-                CharacterizationExportCommand
+                CharacterizationExportCommand,
+                helpCategory: CommandHelpCategory.Characterization
             )
         );
     }
