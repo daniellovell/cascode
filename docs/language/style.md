@@ -28,9 +28,12 @@ names.
 
 ## File organization
 
-- Put reusable benches in `lib/std/bench/**`.
-- Put reusable interfaces and connector interfaces near the primitives they describe (often `lib/std/prim/**`).
-- Prefer small, single-purpose golden fixtures in `tests/golden/cas/**` that exercise a specific feature.
+- Put reusable benches in [lib/std/bench](../../lib/std/bench).
+- Put reusable interfaces and connector interfaces beside the domain they describe. In the current
+  standard library, connector definitions live under [lib/std/amp](../../lib/std/amp), notably
+  [lib/std/amp/AmpCommon.cas](../../lib/std/amp/AmpCommon.cas).
+- Prefer small, single-purpose golden fixtures in [tests/golden/cas](../../tests/golden/cas) that
+  exercise a specific feature.
 
 ## Includes
 
@@ -55,4 +58,5 @@ Bench bodies should be small, typed, and explicit:
 - Prefer `constraints.*` and `env.*` for configuration rather than hard-coded sweep bounds where feasible.
 - Keep measurement bodies short; decompose into helpers if a measurement becomes non-trivial.
 
-For examples, see `docs/language/bench-cookbook.md` and the standard benches under `lib/std/bench/**`.
+For examples, see [docs/language/bench-cookbook.md](./bench-cookbook.md) and the standard benches
+under [lib/std/bench](../../lib/std/bench).

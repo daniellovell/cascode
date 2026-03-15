@@ -24,15 +24,14 @@ notably `link`, `emit`, and `erc`, should be able to validate the surviving
 interface contract without relying on out-of-band context.
 
 Render-only topology fixtures that are not valid complete documents do not
-belong in this tree. Keep those under `tests/golden/render/` so the `.cai`
-files in `tests/golden/cas/` remain valid linked artifacts.
+belong in this tree. Keep those under [tests/golden/render](../render) so the `.cai`
+files in [tests/golden/cas](./) remain valid linked artifacts.
 
 These snapshots are useful downstream fixtures, but they are not a substitute
 for source-flow regressions. Behavior that depends on linking, inherited bench
 bindings, or interface contract enforcement should also be covered from `.cas`
 inputs so the link step itself remains under test.
 
-The v0 implementation validates Cascode for the OTA motif in code (see
-`OtaCompilerTests`) and compares compiler output to these snapshots.
-
+These snapshots are consumed by tests across the repo, but they are not a substitute for source-flow
+regressions that exercise linking from `.cas` inputs.
 

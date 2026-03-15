@@ -27,7 +27,8 @@ Includes are resolved during linking. In default mode, the output is self-contai
 remaining `include` directives. In include-pruned bench mode (`--no-link-benches`), bench
 definitions are omitted and represented via deterministic include rewrites.
 
-Linking also applies namespace inheritance rules for library lookups: a file in `lib.std.bench` can
+Linking also applies namespace inheritance rules for library lookups: a file in
+[lib/std/bench](../../lib/std/bench) can
 resolve symbols from `lib.std` and `lib` without requiring explicit includes for those parent
 namespaces. Explicit `include` directives are still the primary way to communicate dependencies.
 
@@ -78,7 +79,8 @@ bundle Diff {
 ```
 
 Bundles are used as terminal types on circuits and interfaces (for example, `input IN : Diff`). They
-are also used as bench terminals (for example, `stim IN : Diff`).
+are also used as bench terminals (for example, `stim IN : Diff`), as shown in
+[tests/golden/cas/bench/RcLowpass.el.cai](../../tests/golden/cas/bench/RcLowpass.el.cai).
 
 ### 2.3.2 Directionality and Roles
 
@@ -169,7 +171,9 @@ Cascode uses three elaboration levels:
 - EL (electrical level): emission-ready; device choices and numeric values are sufficient for SPICE.
 
 SPICE emission requires EL-level circuits. The toolchain’s compilation stages are structured around
-linking (dependency resolution), synthesis (HL/ML → EL), and emission.
+linking (dependency resolution), synthesis (HL/ML → EL), and emission. The synthesis and physical
+design stages described later in this chapter are forward-looking stage contracts rather than
+currently shipped CLI commands.
 
 ---
 
@@ -411,7 +415,7 @@ Size packs (`size(...)`) support computed expressions (for example, `size(S.W, S
 The language also supports passive device categories (`Resistor`, `Capacitor`, `Inductor`, `Diode`)
 through the same primitive and device instantiation mechanism. A common pattern is to define
 “ideal” primitives for use in small circuits and testbenches (for example,
-`tests/golden/cas/bench/RcLowpass.el.cai`).
+[tests/golden/cas/bench/RcLowpass.el.cai](../../tests/golden/cas/bench/RcLowpass.el.cai)).
 
 The standard library also includes finite-Q reactive primitives: `CapacitorQ` and
 `InductorQ`. These accept `Q` and `freq` in addition to the reactive value (`C` or `L`). On
@@ -489,7 +493,7 @@ before EL emission; the emitter rejects unresolved bias values.
 
 `env { ... }` provides inputs to benches and analysis configuration. It is the right place to record
 values such as `SourceImpedance`, `LoadImpedance`, and common-mode ranges that are consumed by standard
-benches (for example, transfer and noise benches in `lib/std/bench`).
+benches (for example, transfer and noise benches in [lib/std/bench](../../lib/std/bench)).
 
 `harness { ... }` provides emission-time configuration such as supply values, applied biases, and
 explicit sweep points. In general, `env` describes what the bench assumes and `harness` describes what
