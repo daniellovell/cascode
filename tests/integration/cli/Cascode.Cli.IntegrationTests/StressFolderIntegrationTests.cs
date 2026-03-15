@@ -223,6 +223,11 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
+    public async Task SST12LN01_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("SST12LN01_Sky130.cas", "SST12LN01_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
     public async Task TLC2272A_Sky130_AllConstraintsPass()
     {
         await RunConstraintCheckForCas("TLC2272A_Sky130.cas", "TLC2272A_Sky130");

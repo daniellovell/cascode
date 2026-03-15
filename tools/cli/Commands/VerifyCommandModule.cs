@@ -22,27 +22,6 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         Circuit Circuit
     );
 
-    private sealed record VerifyCircuitResult(
-        string CircuitName,
-        IReadOnlyList<string> Benches,
-        IReadOnlyList<VerifyArtifactEntry> Artifacts,
-        ComplianceReport Compliance
-    );
-
-    private sealed record VerifyGlobalSummary(
-        int ArtifactCount,
-        int TotalCircuits,
-        int PassedCircuits,
-        int FailedCircuits,
-        int TotalConstraints,
-        int PassedConstraints
-    );
-
-    private sealed record VerifySummary(
-        IReadOnlyList<VerifyCircuitResult> Circuits,
-        VerifyGlobalSummary Global
-    );
-
     private readonly ShellState _state;
     private readonly CliOutputProvider _output;
 
@@ -248,7 +227,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             output.Warning("No numeric constraints found in resolved circuits.");
         }
 
-        RenderVerifyReport(output, summary);
+        VerifyReportRenderer.Render(output, summary);
         return summary.Global.FailedCircuits == 0 ? CommandResult.Success : CommandResult.Failure;
     }
 
@@ -279,7 +258,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         );
     }
 
-    private static VerifySummary BuildVerifySummary(IReadOnlyList<VerifyArtifactEntry> artifacts)
+    private static VerifyReport BuildVerifySummary(IReadOnlyList<VerifyArtifactEntry> artifacts)
     {
         var circuits = artifacts
             .GroupBy(a => a.Circuit.Name, StringComparer.OrdinalIgnoreCase)
@@ -300,7 +279,12 @@ internal sealed partial class VerifyCommandModule : ICommandModule
                     combinedResults,
                     ConstraintEvaluationMode.AllDeclared
                 );
-                return new VerifyCircuitResult(group.Key, benches, orderedArtifacts, compliance);
+                return new VerifyCircuitReport(
+                    group.Key,
+                    benches,
+                    orderedArtifacts.Select(a => a.Input.Path).ToArray(),
+                    compliance
+                );
             })
             .OrderBy(c => c.CircuitName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -308,7 +292,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         var passedCircuits = circuits.Count(c => c.Compliance.FailedCount == 0);
         var totalConstraints = circuits.Sum(c => c.Compliance.TotalCount);
         var passedConstraints = circuits.Sum(c => c.Compliance.PassedCount);
-        var global = new VerifyGlobalSummary(
+        var global = new VerifyGlobalReport(
             ArtifactCount: artifacts.Count,
             TotalCircuits: circuits.Length,
             PassedCircuits: passedCircuits,
@@ -316,7 +300,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             TotalConstraints: totalConstraints,
             PassedConstraints: passedConstraints
         );
-        return new VerifySummary(circuits, global);
+        return new VerifyReport(circuits, global);
     }
 
     private static BenchResult CombineResults(
@@ -337,104 +321,6 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         }
 
         return BenchResultParser.CreateCombinedResults(circuitName, benches, mergedMeasurements);
-    }
-
-    private static void RenderVerifyReport(ICliOutput output, VerifySummary summary)
-    {
-        RenderVerifyPlain(summary, output.WriteLine);
-    }
-
-    private static void RenderVerifyPlain(VerifySummary summary, Action<string> writeLine)
-    {
-        if (summary.Circuits.Count == 1)
-        {
-            RenderVerifyPlainSingle(summary.Circuits[0], writeLine);
-            return;
-        }
-
-        writeLine($"Artifacts: {summary.Global.ArtifactCount}");
-        writeLine($"Circuits: {summary.Global.TotalCircuits}");
-        writeLine("Circuit Compliance:");
-        foreach (var circuit in summary.Circuits)
-        {
-            var status = circuit.Compliance.FailedCount == 0 ? "PASS" : "FAIL";
-            writeLine(
-                $"  {circuit.CircuitName}: {status} ({ComplianceReportRenderer.FormatComplianceSummary(circuit.Compliance)})"
-            );
-        }
-
-        writeLine(
-            $"Global Compliance: {FormatComplianceSummary(summary.Global.PassedConstraints, summary.Global.TotalConstraints)}"
-        );
-        writeLine(
-            $"Global Result: {summary.Global.PassedCircuits}/{summary.Global.TotalCircuits} circuits compliant"
-        );
-        writeLine(string.Empty);
-
-        foreach (var circuit in summary.Circuits)
-        {
-            RenderVerifyPlainCircuit(circuit, writeLine);
-        }
-    }
-
-    private static void RenderVerifyPlainSingle(
-        VerifyCircuitResult circuit,
-        Action<string> writeLine
-    )
-    {
-        writeLine($"Circuit: {circuit.CircuitName}");
-        WriteBenchAndArtifactInfo(circuit, writeLine, indent: string.Empty);
-        ComplianceReportRenderer.WriteCompliancePlain(writeLine, circuit.Compliance);
-        writeLine(
-            $"Result: {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
-        );
-    }
-
-    private static void RenderVerifyPlainCircuit(
-        VerifyCircuitResult circuit,
-        Action<string> writeLine
-    )
-    {
-        writeLine($"=== {circuit.CircuitName} ===");
-        WriteBenchAndArtifactInfo(circuit, writeLine, indent: "  ");
-        ComplianceReportRenderer.WriteCompliancePlain(
-            line => writeLine($"  {line}"),
-            circuit.Compliance
-        );
-        writeLine(
-            $"  Result: {circuit.Compliance.PassedCount}/{circuit.Compliance.TotalCount} constraints satisfied"
-        );
-        writeLine(string.Empty);
-    }
-
-    private static void WriteBenchAndArtifactInfo(
-        VerifyCircuitResult circuit,
-        Action<string> writeLine,
-        string indent
-    )
-    {
-        if (circuit.Benches.Count > 0)
-        {
-            writeLine($"{indent}Benches: {string.Join(", ", circuit.Benches)}");
-        }
-
-        if (circuit.Artifacts.Count == 1)
-        {
-            writeLine($"{indent}Artifact: {circuit.Artifacts[0].Input.Path}");
-            return;
-        }
-
-        writeLine($"{indent}Artifacts: {circuit.Artifacts.Count}");
-        foreach (var artifact in circuit.Artifacts)
-        {
-            writeLine($"{indent}  - {artifact.Input.Path}");
-        }
-    }
-
-    private static string FormatComplianceSummary(int passed, int total)
-    {
-        var passPercentage = total > 0 ? (int)Math.Round(100.0 * passed / total) : 0;
-        return $"{passed}/{total} ({passPercentage}% PASS)";
     }
 
     private BenchRunService.MultiCircuitBenchRunResult RunBenchPipeline(

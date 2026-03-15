@@ -96,7 +96,8 @@ internal sealed class InstallCommandModule : ICommandModule
         }
 
         var installer = _installers["ngspice"];
-        var result = installer.Install(new SimulatorInstallOptions(force, fromSource));
+        Action<string>? log = json ? null : output.WriteErrorLine;
+        var result = installer.Install(new SimulatorInstallOptions(force, fromSource, log));
         if (json)
         {
             output.WriteLine(
