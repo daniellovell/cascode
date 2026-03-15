@@ -64,7 +64,8 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             new DelegateCliCommand(
                 "verify",
                 "Verify constraint compliance from bench results",
-                VerifyCommand
+                VerifyCommand,
+                helpCategory: CommandHelpCategory.Bench
             )
         );
     }

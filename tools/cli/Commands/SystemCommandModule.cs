@@ -30,6 +30,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 path: "help",
                 description: "Show this message",
                 handler: ShowHelp,
+                helpCategory: CommandHelpCategory.Shell,
                 aliases: HelpAliases
             )
         );
@@ -40,6 +41,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 description: "Show CLI version",
                 handler: ShowVersion,
                 hidden: true,
+                helpCategory: CommandHelpCategory.Shell,
                 aliases: VersionAliases
             )
         );
@@ -48,7 +50,8 @@ internal sealed class SystemCommandModule : ICommandModule
             new DelegateCliCommand(
                 path: "home",
                 description: "Return to dashboard layout",
-                handler: Home
+                handler: Home,
+                helpCategory: CommandHelpCategory.Shell
             )
         );
 
@@ -57,7 +60,8 @@ internal sealed class SystemCommandModule : ICommandModule
                 path: "log",
                 description: "Scroll the log history",
                 handler: Log,
-                hidden: true
+                hidden: true,
+                helpCategory: CommandHelpCategory.Shell
             )
         );
 
@@ -66,6 +70,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 path: "quit",
                 description: "Exit the CLI",
                 handler: Quit,
+                helpCategory: CommandHelpCategory.Shell,
                 aliases: ExitAliases
             )
         );
@@ -73,20 +78,7 @@ internal sealed class SystemCommandModule : ICommandModule
 
     private CommandResult ShowHelp(string[] args)
     {
-        var output = _output.Get();
-        output.WriteLine("Commands:");
-        var commands = _registry!.GetCanonicalCommands();
-        var array = System.Linq.Enumerable.ToArray(commands);
-        var width =
-            array.Length == 0 ? 0 : System.Linq.Enumerable.Max(array, c => c.DisplayPath.Length);
-        foreach (var command in array)
-        {
-            var padded = width > 0 ? command.DisplayPath.PadRight(width) : command.DisplayPath;
-            var description = string.IsNullOrEmpty(command.Description)
-                ? string.Empty
-                : $"  {command.Description}";
-            output.WriteLine($"  {padded}{description}");
-        }
+        HelpRenderer.RenderRootHelp(_output.Get(), _registry!.GetCanonicalCommands());
         return CommandResult.Success;
     }
 

@@ -19,7 +19,12 @@ internal sealed class LinkCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("link", "Link Cascode source (resolve includes)", LinkCommand)
+            new DelegateCliCommand(
+                "link",
+                "Link Cascode source (resolve includes)",
+                LinkCommand,
+                helpCategory: CommandHelpCategory.Design
+            )
         );
     }
 

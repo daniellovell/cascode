@@ -74,71 +74,121 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         _registry = registry;
 
-        registry.Register(new DelegateCliCommand("pdk", "Manage PDK workspace", ShowPdkUsage));
-        registry.Register(new DelegateCliCommand("pdk scan", "Scan workspace for decks", PdkScan));
         registry.Register(
-            new DelegateCliCommand("pdk devices", "List discovered devices", PdkDevices)
+            new DelegateCliCommand(
+                "pdk",
+                "Manage PDK workspace",
+                ShowPdkUsage,
+                helpCategory: CommandHelpCategory.Pdk
+            )
         );
         registry.Register(
-            new DelegateCliCommand("pdk device", "Inspect a specific device", PdkDevice)
+            new DelegateCliCommand(
+                "pdk scan",
+                "Scan workspace for decks",
+                PdkScan,
+                helpCategory: CommandHelpCategory.Pdk
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk devices",
+                "List discovered devices",
+                PdkDevices,
+                helpCategory: CommandHelpCategory.Pdk
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk device",
+                "Inspect a specific device",
+                PdkDevice,
+                helpCategory: CommandHelpCategory.Pdk
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "pdk set-dir",
                 "Set or clear the default PDK workspace",
-                PdkSetDir
+                PdkSetDir,
+                helpCategory: CommandHelpCategory.Pdk
             )
         );
         registry.Register(
             new DelegateCliCommand(
                 "pdk match",
                 "Device↔Model coverage and ambiguity summary",
-                PdkMatch
+                PdkMatch,
+                helpCategory: CommandHelpCategory.Pdk
             )
         );
 
         // PDK emit
         registry.Register(
-            new DelegateCliCommand("pdk emit", "Emit derived PDK artifacts", ShowPdkEmitUsage)
+            new DelegateCliCommand(
+                "pdk emit",
+                "Emit derived PDK artifacts",
+                ShowPdkEmitUsage,
+                helpCategory: CommandHelpCategory.Pdk
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "pdk emit primitives",
                 "Generate a Cascode primitive library from pdk.db",
-                PdkEmitPrimitivesCommand
+                PdkEmitPrimitivesCommand,
+                helpCategory: CommandHelpCategory.Pdk
             )
         );
 
         // PDK characterization
         registry.Register(
-            new DelegateCliCommand("pdk char", "PDK characterization commands", ShowPdkCharUsage)
+            new DelegateCliCommand(
+                "pdk char",
+                "PDK characterization commands",
+                ShowPdkCharUsage,
+                helpCategory: CommandHelpCategory.PdkCharacterization
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "pdk char help",
                 "Show PDK characterization help",
                 ShowPdkCharUsage,
-                hidden: true
+                hidden: true,
+                helpCategory: CommandHelpCategory.PdkCharacterization
             )
         );
         registry.Register(
             new DelegateCliCommand(
                 "pdk char config",
                 "Configure batch characterization",
-                PdkCharConfigCommand
+                PdkCharConfigCommand,
+                helpCategory: CommandHelpCategory.PdkCharacterization
             )
         );
         registry.Register(
-            new DelegateCliCommand("pdk char run", "Characterize devices", PdkCharRunCommand)
+            new DelegateCliCommand(
+                "pdk char run",
+                "Characterize devices",
+                PdkCharRunCommand,
+                helpCategory: CommandHelpCategory.PdkCharacterization
+            )
         );
         registry.Register(
-            new DelegateCliCommand("pdk char read", "View characterized LUTs", PdkCharReadCommand)
+            new DelegateCliCommand(
+                "pdk char read",
+                "View characterized LUTs",
+                PdkCharReadCommand,
+                helpCategory: CommandHelpCategory.PdkCharacterization
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "pdk char status",
                 "Show characterization coverage",
-                PdkCharStatusCommand
+                PdkCharStatusCommand,
+                helpCategory: CommandHelpCategory.PdkCharacterization
             )
         );
     }
