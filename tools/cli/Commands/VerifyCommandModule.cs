@@ -73,6 +73,14 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
+        if (runContext.VerifiableCircuits.Count == 0 && !HasDirectArtifactInput(parsed))
+        {
+            output.Error(
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations."
+            );
+            return CommandResult.Failure;
+        }
+
         var jsonOptions = new JsonSerializerOptions
         {
             NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
@@ -97,7 +105,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             );
         }
 
-        if (NeedsBenchRun(runContext.CascodePath, inputs, out var runReason))
+        if (NeedsBenchRun(runContext.ResolvedCascodePath, inputs, out var runReason))
         {
             return RunThenVerify(parsed, runContext, output, jsonOptions, runReason);
         }
@@ -150,7 +158,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         try
         {
             var outputDirHint = ResolveBenchOutputDirectoryHint(parsed);
-            benchRunResult = RunBenchPipeline(runContext.CascodePath, outputDirHint, output);
+            benchRunResult = RunBenchPipeline(runContext.InputPath, outputDirHint, output);
             output.Info("Bench pipeline completed. Rendering verification report.");
         }
         catch (Exception ex)
@@ -236,7 +244,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         string requestedCircuitName
     )
     {
-        var circuit = runContext.ElCircuits.FirstOrDefault(c =>
+        var circuit = runContext.AllElCircuits.FirstOrDefault(c =>
             c.Name.Equals(requestedCircuitName, StringComparison.OrdinalIgnoreCase)
         );
         if (circuit is not null)
@@ -250,7 +258,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         var available = string.Join(
             ", ",
             runContext
-                .ElCircuits.Select(c => c.Name)
+                .AllElCircuits.Select(c => c.Name)
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
         );
         throw new InvalidOperationException(
@@ -365,6 +373,27 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         {
             localFactory?.Dispose();
         }
+    }
+
+    private static bool HasDirectArtifactInput(ParsedVerifyArgs parsed)
+    {
+        if (!string.IsNullOrWhiteSpace(parsed.TracePath))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(parsed.ResultsPath))
+        {
+            return false;
+        }
+
+        var full = System.IO.Path.GetFullPath(parsed.ResultsPath);
+        if (System.IO.Directory.Exists(full) || LooksLikeDirectory(full))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static void ShowUsage(ICliOutput output)
