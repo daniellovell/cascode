@@ -86,6 +86,7 @@ internal static class HelpRenderer
     private static IReadOnlyList<HelpSection> BuildSections(IEnumerable<CommandDescriptor> commands)
     {
         var lookup = commands
+            .Where(c => !c.Hidden && !c.IsAlias)
             .GroupBy(c => c.HelpCategory)
             .ToDictionary(g => g.Key, g => g.ToArray());
         var sections = new List<HelpSection>();
@@ -269,6 +270,19 @@ internal static class HelpColorExtensions
 {
     public static string ToMarkup(this Color color)
     {
-        return $"{color.R:X2}{color.G:X2}{color.B:X2}";
+        var value = color.ToString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            value = color.ToHex();
+        }
+
+        return value.StartsWith('#') ? value
+            : IsHex(value) ? $"#{value}"
+            : value;
+    }
+
+    private static bool IsHex(string value)
+    {
+        return value.Length == 6 && value.All(Uri.IsHexDigit);
     }
 }

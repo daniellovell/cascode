@@ -41,7 +41,7 @@ internal sealed class CliHost
         var output = new CliOutputProvider(_state, () => _isInteractive);
 
         new Commands.SystemCommandModule(_state, output).Register(_commands);
-        new Commands.PdkCommandModule(
+        var pdkModule = new Commands.PdkCommandModule(
             _state,
             _scanner,
             _config,
@@ -49,7 +49,10 @@ internal sealed class CliHost
             _initialWorkspaceRoot,
             () => _isInteractive,
             output
-        ).Register(_commands);
+        );
+        pdkModule.Register(_commands);
+        new Commands.PdkEmitCommandModule(pdkModule).Register(_commands);
+        new Commands.PdkCharacterizationCommandModule(pdkModule).Register(_commands);
         new Commands.CharacterizationCommandModule(_state, output).Register(_commands);
         new Commands.BenchCommandModule(_state, output).Register(_commands);
         new Commands.LinkCommandModule(_state, output).Register(_commands);

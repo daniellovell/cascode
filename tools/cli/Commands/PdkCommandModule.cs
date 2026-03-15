@@ -15,7 +15,10 @@ using Spectre.Console.Rendering;
 
 namespace Cascode.Cli.Commands;
 
-internal sealed class PdkCommandModule : ICommandModule
+internal sealed class PdkCommandModule
+    : ICommandModule,
+        IPdkEmitCommandHandlers,
+        IPdkCharacterizationCommandHandlers
 {
     private readonly ShellState _state;
     private readonly WorkspaceScanner _scanner;
@@ -122,76 +125,27 @@ internal sealed class PdkCommandModule : ICommandModule
                 helpCategory: CommandHelpCategory.Pdk
             )
         );
-
-        // PDK emit
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk emit",
-                "Emit derived PDK artifacts",
-                ShowPdkEmitUsage,
-                helpCategory: CommandHelpCategory.Pdk
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk emit primitives",
-                "Generate a Cascode primitive library from pdk.db",
-                PdkEmitPrimitivesCommand,
-                helpCategory: CommandHelpCategory.Pdk
-            )
-        );
-
-        // PDK characterization
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk char",
-                "PDK characterization commands",
-                ShowPdkCharUsage,
-                helpCategory: CommandHelpCategory.PdkCharacterization
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk char help",
-                "Show PDK characterization help",
-                ShowPdkCharUsage,
-                hidden: true,
-                helpCategory: CommandHelpCategory.PdkCharacterization
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk char config",
-                "Configure batch characterization",
-                PdkCharConfigCommand,
-                helpCategory: CommandHelpCategory.PdkCharacterization
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk char run",
-                "Characterize devices",
-                PdkCharRunCommand,
-                helpCategory: CommandHelpCategory.PdkCharacterization
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk char read",
-                "View characterized LUTs",
-                PdkCharReadCommand,
-                helpCategory: CommandHelpCategory.PdkCharacterization
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "pdk char status",
-                "Show characterization coverage",
-                PdkCharStatusCommand,
-                helpCategory: CommandHelpCategory.PdkCharacterization
-            )
-        );
     }
+
+    CommandResult IPdkEmitCommandHandlers.ShowPdkEmitUsage(string[] args) => ShowPdkEmitUsage(args);
+
+    CommandResult IPdkEmitCommandHandlers.PdkEmitPrimitivesCommand(string[] args) =>
+        PdkEmitPrimitivesCommand(args);
+
+    CommandResult IPdkCharacterizationCommandHandlers.ShowPdkCharUsage(string[] args) =>
+        ShowPdkCharUsage(args);
+
+    CommandResult IPdkCharacterizationCommandHandlers.PdkCharConfigCommand(string[] args) =>
+        PdkCharConfigCommand(args);
+
+    CommandResult IPdkCharacterizationCommandHandlers.PdkCharRunCommand(string[] args) =>
+        PdkCharRunCommand(args);
+
+    CommandResult IPdkCharacterizationCommandHandlers.PdkCharReadCommand(string[] args) =>
+        PdkCharReadCommand(args);
+
+    CommandResult IPdkCharacterizationCommandHandlers.PdkCharStatusCommand(string[] args) =>
+        PdkCharStatusCommand(args);
 
     private CommandResult ShowPdkUsage(string[] args)
     {

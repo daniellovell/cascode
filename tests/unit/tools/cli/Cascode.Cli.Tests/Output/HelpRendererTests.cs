@@ -1,5 +1,6 @@
 using System.Linq;
 using Cascode.Cli.Output;
+using Spectre.Console;
 
 namespace Cascode.Cli.Tests.Output;
 
@@ -51,5 +52,57 @@ public sealed class HelpRendererTests
             lines,
             line => line.Contains("pdk scan") && line.Contains("Scan workspace for decks")
         );
+    }
+
+    [Fact]
+    public void BuildPlainLines_FiltersHiddenAndAliasCommandsFromInput()
+    {
+        static CommandResult Handle(string[] args) => CommandResult.Success;
+
+        var help = new CommandDescriptor(
+            "help",
+            "Show this message",
+            Handle,
+            CommandHelpCategory.Shell
+        );
+        var alias = new CommandDescriptor(
+            "--help",
+            "Show this message",
+            Handle,
+            CommandHelpCategory.Shell,
+            hidden: true,
+            isAlias: true,
+            canonical: help
+        );
+        var hidden = new CommandDescriptor(
+            "pdk char help",
+            "Show PDK characterization help",
+            Handle,
+            CommandHelpCategory.PdkCharacterization,
+            hidden: true
+        );
+        var visible = new CommandDescriptor(
+            "pdk scan",
+            "Scan workspace for decks",
+            Handle,
+            CommandHelpCategory.Pdk
+        );
+
+        var lines = HelpRenderer.BuildPlainLines(new[] { help, alias, hidden, visible }).ToList();
+
+        Assert.Equal(1, lines.Count(line => line.Contains("Show this message")));
+        Assert.DoesNotContain(lines, line => line.Contains("pdk char help"));
+        Assert.Contains(
+            lines,
+            line => line.Contains("pdk scan") && line.Contains("Scan workspace for decks")
+        );
+    }
+
+    [Fact]
+    public void ToMarkup_PrefixesHexColorsWithHash()
+    {
+        var markup = new Color(0x12, 0x34, 0x56).ToMarkup();
+
+        Assert.Equal("#123456", markup);
     }
 }
