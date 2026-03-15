@@ -1,4 +1,4 @@
-## Workspace Library Architecture
+# Workspace Library Architecture
 
 Status: current as of 2026-03-15. Scope: [tools/workspace](../../tools/workspace).
 
