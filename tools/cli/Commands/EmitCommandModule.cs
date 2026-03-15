@@ -46,7 +46,12 @@ internal sealed class EmitCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("emit", "Emit SPICE netlist from Cascode EL", EmitCommand)
+            new DelegateCliCommand(
+                "emit",
+                "Emit SPICE netlist from Cascode EL",
+                EmitCommand,
+                helpCategory: CommandHelpCategory.Design
+            )
         );
     }
 

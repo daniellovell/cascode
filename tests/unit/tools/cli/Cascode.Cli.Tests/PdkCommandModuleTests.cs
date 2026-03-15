@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Cascode.Cli.Commands;
+using Cascode.Cli.Output;
 using Cascode.Workspace;
 using Xunit;
 
@@ -68,5 +71,70 @@ public sealed class PdkCommandModuleTests
         var result = DeviceFilterEvaluator.Matches(device, options);
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public void PdkModules_RegisterEmitAndCharacterizationCommandsWithExpectedCategories()
+    {
+        var workspaceRoot = Path.Combine(Path.GetTempPath(), "cascode-cli-tests");
+        var state = new ShellState(workspaceRoot);
+        var output = new CliOutputProvider(state, () => false);
+        var registry = new CommandRegistry();
+        var emitHandlers = new PdkEmitCommandHandlersImpl(state, () => false, output);
+        var characterizationHandlers = new PdkCharacterizationCommandHandlersImpl(
+            state,
+            () => false,
+            output
+        );
+        var pdkModule = new PdkCommandModule(
+            state,
+            new WorkspaceScanner(),
+            new CliConfig(),
+            new CliConfigStorage(),
+            workspaceRoot,
+            () => false,
+            output,
+            emitHandlers,
+            characterizationHandlers
+        );
+
+        pdkModule.Register(registry);
+        new PdkEmitCommandModule(pdkModule).Register(registry);
+        new PdkCharacterizationCommandModule(pdkModule).Register(registry);
+
+        var commands = registry.GetCanonicalCommands().ToDictionary(command => command.DisplayPath);
+
+        Assert.Equal(CommandHelpCategory.Pdk, commands["pdk"].HelpCategory);
+        Assert.Equal(CommandHelpCategory.Pdk, commands["pdk emit"].HelpCategory);
+        Assert.Equal(CommandHelpCategory.Pdk, commands["pdk emit primitives"].HelpCategory);
+        Assert.Equal(CommandHelpCategory.PdkCharacterization, commands["pdk char"].HelpCategory);
+        Assert.Equal(
+            CommandHelpCategory.PdkCharacterization,
+            commands["pdk char config"].HelpCategory
+        );
+        Assert.Equal(
+            CommandHelpCategory.PdkCharacterization,
+            commands["pdk char run"].HelpCategory
+        );
+        Assert.Equal(
+            CommandHelpCategory.PdkCharacterization,
+            commands["pdk char read"].HelpCategory
+        );
+        Assert.Equal(
+            CommandHelpCategory.PdkCharacterization,
+            commands["pdk char status"].HelpCategory
+        );
+        Assert.DoesNotContain(commands.Keys, path => path == "pdk char help");
+
+        var resolved = registry.TryResolve(
+            new[] { "pdk", "char", "help" },
+            out var descriptor,
+            out _,
+            out _
+        );
+
+        Assert.True(resolved);
+        Assert.NotNull(descriptor);
+        Assert.True(descriptor!.Hidden);
     }
 }

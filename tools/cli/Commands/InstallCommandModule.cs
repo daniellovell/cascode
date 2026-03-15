@@ -34,13 +34,19 @@ internal sealed class InstallCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("install", "Install simulator prerequisites", ShowUsage)
+            new DelegateCliCommand(
+                "install",
+                "Install simulator prerequisites",
+                ShowUsage,
+                helpCategory: CommandHelpCategory.Environment
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "install ngspice",
                 $"Install ngspice {NgspiceInstallLayout.Version} under CASCODE_HOME",
-                InstallNgspice
+                InstallNgspice,
+                helpCategory: CommandHelpCategory.Environment
             )
         );
     }

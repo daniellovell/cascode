@@ -9,6 +9,7 @@ internal interface ICliCommand
 {
     string Path { get; }
     string Description { get; }
+    CommandHelpCategory HelpCategory { get; }
     bool Hidden { get; }
     IReadOnlyList<string> Aliases { get; }
     CommandHandler Handler { get; }
