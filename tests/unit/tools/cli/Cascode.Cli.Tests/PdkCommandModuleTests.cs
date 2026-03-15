@@ -80,6 +80,12 @@ public sealed class PdkCommandModuleTests
         var state = new ShellState(workspaceRoot);
         var output = new CliOutputProvider(state, () => false);
         var registry = new CommandRegistry();
+        var emitHandlers = new PdkEmitCommandHandlersImpl(state, () => false, output);
+        var characterizationHandlers = new PdkCharacterizationCommandHandlersImpl(
+            state,
+            () => false,
+            output
+        );
         var pdkModule = new PdkCommandModule(
             state,
             new WorkspaceScanner(),
@@ -87,7 +93,9 @@ public sealed class PdkCommandModuleTests
             new CliConfigStorage(),
             workspaceRoot,
             () => false,
-            output
+            output,
+            emitHandlers,
+            characterizationHandlers
         );
 
         pdkModule.Register(registry);
