@@ -4,8 +4,17 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Language;
 
+/// <summary>
+/// Parses Cascode quantity literals into their numeric and unit components.
+/// Keeps language-layer quantity handling consistent across parsing and compliance checks.
+/// </summary>
 internal static partial class QuantityLiteral
 {
+    /// <summary>
+    /// Splits a quantity literal such as <c>20MHz</c> or <c>9nV/rtHz</c> into value and unit parts.
+    /// </summary>
+    /// <param name="raw">Raw quantity literal text.</param>
+    /// <returns>The numeric prefix and unit suffix.</returns>
     public static (string Value, string Unit) SplitValueAndUnit(string raw)
     {
         var match = QuantityPattern().Match(raw);
@@ -17,6 +26,15 @@ internal static partial class QuantityLiteral
         return (raw, string.Empty);
     }
 
+    /// <summary>
+    /// Converts a split quantity literal into its numeric magnitude.
+    /// </summary>
+    /// <param name="value">Numeric literal text, including any SI prefix suffix.</param>
+    /// <param name="unit">Unit suffix associated with the literal.</param>
+    /// <returns>The numeric magnitude expressed in base units.</returns>
+    /// <exception cref="FormatException">
+    /// Thrown when the numeric portion uses an unsupported SI suffix or cannot be parsed.
+    /// </exception>
     public static double ParseMagnitude(string value, string unit)
     {
         value = value.Trim();
