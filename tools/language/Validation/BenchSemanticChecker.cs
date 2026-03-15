@@ -2480,6 +2480,14 @@ public static class BenchSemanticChecker
 
         public static MeasurementType FromQuantity(string raw)
         {
+            if (raw.EndsWith("/rtHz", StringComparison.OrdinalIgnoreCase))
+            {
+                return NoiseSpectralDensity();
+            }
+            if (raw.EndsWith("rms", StringComparison.OrdinalIgnoreCase))
+            {
+                return IntegratedNoise();
+            }
             if (raw.EndsWith("dB", StringComparison.OrdinalIgnoreCase))
             {
                 return VoltageRatio();
@@ -2518,14 +2526,6 @@ public static class BenchSemanticChecker
             if (raw.EndsWith("s", StringComparison.OrdinalIgnoreCase))
             {
                 return Time();
-            }
-            if (raw.EndsWith("/rtHz", StringComparison.OrdinalIgnoreCase))
-            {
-                return NoiseSpectralDensity();
-            }
-            if (raw.EndsWith("rms", StringComparison.OrdinalIgnoreCase))
-            {
-                return IntegratedNoise();
             }
 
             return Scalar();

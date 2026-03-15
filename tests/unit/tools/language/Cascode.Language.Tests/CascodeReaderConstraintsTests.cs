@@ -1,3 +1,4 @@
+using System.Linq;
 using Cascode.Language;
 
 namespace Cascode.Language.Tests;
@@ -123,6 +124,42 @@ circuit Test {{
         );
         Assert.Contains(
             "c_neg = some_bench::SomeMetric <= -0.5",
+            rendered,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void TryParse_NumericConstraints_NoiseDensityThresholds_ParseAndRoundTrip()
+    {
+        var content =
+            $@"VERSION {CascodeVersion.Current}
+circuit SpotNoiseConstraintRepro {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  constraints {{
+    numeric {{
+      c_noise = noise_bench::InputReferredNoise at net::OUT <= 9nV/rtHz
+    }}
+  }}
+}}
+";
+        var result = CascodeReader.TryParse(content);
+
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.Document);
+
+        var constraint = Assert.Single(result.Document.Circuits[0].Constraints!.Numeric);
+        Assert.Equal("9n", constraint.Value);
+        Assert.Equal("V/rtHz", constraint.Unit);
+
+        using var writer = new StringWriter();
+        CascodeWriter.Write(result.Document, writer);
+        var rendered = writer.ToString();
+        Assert.Contains(
+            "c_noise = noise_bench::InputReferredNoise at net::OUT <= 9nV/rtHz",
             rendered,
             StringComparison.Ordinal
         );
