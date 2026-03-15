@@ -122,7 +122,7 @@ public static class ComplianceChecker
                 Unit = constraint.Unit,
                 Operator = constraint.Op,
                 ExpectedRaw = constraint.Value,
-                Expected = ParseValue(constraint.Value, constraint.Unit),
+                Expected = ParseValue(constraint.Value),
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
@@ -133,7 +133,7 @@ public static class ComplianceChecker
             };
         }
 
-        var expected = ParseValue(constraint.Value, constraint.Unit);
+        var expected = ParseValue(constraint.Value);
         var measurement = matchingMeasurement.Value.Value;
         if (!string.IsNullOrWhiteSpace(measurement.Error))
         {
@@ -406,8 +406,8 @@ public static class ComplianceChecker
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
-    private static double ParseValue(string valueStr, string unit)
+    private static double ParseValue(string valueStr)
     {
-        return QuantityLiteral.ParseMagnitude(valueStr.Trim(), unit);
+        return QuantityLiteral.ParseMagnitude(valueStr.Trim());
     }
 }

@@ -29,13 +29,14 @@ internal static partial class QuantityLiteral
     /// <summary>
     /// Converts a split quantity literal into its numeric magnitude.
     /// </summary>
-    /// <param name="value">Numeric literal text, including any SI prefix suffix.</param>
-    /// <param name="unit">Unit suffix associated with the literal.</param>
+    /// <param name="value">
+    /// Numeric literal text, including an SI prefix suffix supported by the Cascode lexer.
+    /// </param>
     /// <returns>The numeric magnitude expressed in base units.</returns>
     /// <exception cref="FormatException">
     /// Thrown when the numeric portion uses an unsupported SI suffix or cannot be parsed.
     /// </exception>
-    public static double ParseMagnitude(string value, string unit)
+    public static double ParseMagnitude(string value)
     {
         value = value.Trim();
 
@@ -47,15 +48,15 @@ internal static partial class QuantityLiteral
             numericPart = value[..^1];
             multiplier = suffix switch
             {
-                'k' or 'K' => 1e3,
+                'k' => 1e3,
                 'M' => 1e6,
                 'm' => 1e-3,
-                'G' or 'g' => 1e9,
-                'T' or 't' => 1e12,
-                'u' or 'U' => 1e-6,
-                'n' or 'N' => 1e-9,
-                'p' or 'P' => 1e-12,
-                'f' or 'F' => 1e-15,
+                'G' => 1e9,
+                'T' => 1e12,
+                'u' => 1e-6,
+                'n' => 1e-9,
+                'p' => 1e-12,
+                'f' => 1e-15,
                 _ => throw new FormatException(
                     $"Unrecognized unit suffix '{suffix}' in value: {value}"
                 ),
