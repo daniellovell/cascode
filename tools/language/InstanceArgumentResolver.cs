@@ -57,10 +57,7 @@ internal static class InstanceArgumentResolver
         var declaredParameterNames = circuit
             .Parameters.Select(p => p.Name)
             .ToHashSet(StringComparer.Ordinal);
-        var declaredSizeNames = circuit
-            .Sizes.Select(s => s.Name)
-            .Concat(circuit.Fill?.Sizes.Select(s => s.Name) ?? [])
-            .ToHashSet(StringComparer.Ordinal);
+        var declaredSizeNames = circuit.Sizes.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
 
         foreach (var (name, paramValue) in instance.Params)
         {

@@ -2081,6 +2081,18 @@ public class BenchRunService
             );
             var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
             currents = NgspiceWrdataPssParser.Parse(iWrdataPath, sourceNames);
+            if (currents.TimePoints.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' produced no current waveform points."
+                );
+            }
+            if (currents.TimePoints.Length != nodes.TimePoints.Length)
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' current waveform length ({currents.TimePoints.Length}) does not match node waveform length ({nodes.TimePoints.Length})."
+                );
+            }
         }
 
         return new BenchMeasurementRunner.AnalysisContext(

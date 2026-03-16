@@ -16,6 +16,7 @@ namespace Cascode.Language.Validation;
 /// - HIER-005: Duplicate circuit name
 /// - HIER-006: Unknown instance in attach statement
 /// - HIER-007: Missing required size pack (no default, not provided at instantiation)
+/// - HIER-008: Unknown constructor argument (not declared as a parameter or size on the target circuit)
 /// </remarks>
 public static class HierarchyValidator
 {
@@ -130,6 +131,9 @@ public static class HierarchyValidator
                 result
             );
 
+            // HIER-008: Reject constructor arguments not declared on the target circuit.
+            ValidateDeclaredInstanceArguments(instance, targetCircuit, circuit.Name, result);
+
             // HIER-003: Validate port coverage (bindings + attach)
             var portAnalysis = new PortCoverageAnalysis(circuit, traits, result);
             portAnalysis.ValidateInstancePortCoverage(instance, targetCircuit);
@@ -200,9 +204,42 @@ public static class HierarchyValidator
         }
     }
 
+    private static void ValidateDeclaredInstanceArguments(
+        InstanceDeclaration instance,
+        Circuit targetCircuit,
+        string parentCircuitName,
+        ValidationResult result
+    )
+    {
+        var declaredNames = targetCircuit
+            .Parameters.Select(p => p.Name)
+            .Concat(targetCircuit.Sizes.Select(s => s.Name))
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (
+            var name in instance
+                .Params.Keys.Concat(instance.Sizes.Keys)
+                .Distinct(StringComparer.Ordinal)
+        )
+        {
+            if (declaredNames.Contains(name))
+            {
+                continue;
+            }
+
+            result.AddError(
+                "HIER-008",
+                $"Instance '{instance.Id}' passes unknown constructor argument '{name}' to circuit '{targetCircuit.Name}'",
+                $"circuit {parentCircuitName}, instance {instance.Id} : {instance.Type}",
+                $"Declare '{name}' as a circuit parameter/size or remove it from the instance constructor"
+            );
+        }
+    }
+
     private static HashSet<string> BuildAvailableSizeNames(Circuit circuit)
     {
-        return GetDeclaredSizes(circuit)
+        return circuit
+            .Sizes.Concat(circuit.Fill?.Sizes ?? [])
             .Select(size => size.Name)
             .ToHashSet(StringComparer.Ordinal);
     }
@@ -210,16 +247,6 @@ public static class HierarchyValidator
     private static IEnumerable<SizeDeclaration> GetDeclaredSizes(Circuit circuit)
     {
         foreach (var size in circuit.Sizes)
-        {
-            yield return size;
-        }
-
-        if (circuit.Fill?.Sizes is null)
-        {
-            yield break;
-        }
-
-        foreach (var size in circuit.Fill.Sizes)
         {
             yield return size;
         }

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Cascode.Language;
 using Cascode.Language.Validation;
 
@@ -314,17 +315,77 @@ circuit Inverter(size NmosSize, size PmosSize) {{
         SpiceEmitter.EmitDesign(top, writer, document: doc);
         var spice = writer.ToString();
 
-        Assert.Contains("Mbuf__stage__MP", spice);
-        Assert.Contains("Mbuf__stage__MN", spice);
-        Assert.Contains("W=4u", spice);
-        Assert.Contains("W=2u", spice);
-        Assert.Contains("L=180n", spice);
-        Assert.Contains("m=3", spice);
-        Assert.Contains("m=2", spice);
+        AssertSpiceInstanceHasParams(spice, "Mbuf__stage__MP", "W=4u", "L=180n", "m=3");
+        AssertSpiceInstanceHasParams(spice, "Mbuf__stage__MN", "W=2u", "L=180n", "m=2");
     }
 
     [Fact]
-    public void HierarchyAndEmitter_ResolveForwardedFillScopedSizeAlias()
+    public void HierarchyAndEmitter_UsesFillScopedSizeWithLocalDefault()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    Child child = new Child() {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Child {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    size LocalFillSize = size(W=2u, L=180n, M=3)
+    NMOS MN = new NMOS_Level1(LocalFillSize) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "fill_scoped_size_alias.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.True(
+            validation.IsValid,
+            string.Join(", ", validation.GetErrors().Select(e => e.Message))
+        );
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        AssertSpiceInstanceHasParams(spice, "Mchild__MN", "W=2u", "L=180n", "m=3");
+    }
+
+    [Fact]
+    public void HierarchyValidator_RejectsForwardingIntoFillScopedSizeDeclaration()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -361,76 +422,7 @@ circuit Child {{
   ground GND
   output OUT : analog
   fill {{
-    NMOS MN = new NMOS_Level1(LocalFillSize) {{
-      .B--GND
-      .D--OUT
-      .G--OUT
-      .S--GND
-    }}
-  }}
-}}
-";
-
-        var parse = CascodeReader.TryParse(cascode, "fill_scoped_size_alias.cas");
-        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
-
-        var doc = parse.Document!;
-        var child = doc.Circuits.Single(c => c.Name == "Child");
-        child.Fill!.Sizes.Add(new SizeDeclaration { Name = "LocalFillSize" });
-
-        var validation = HierarchyValidator.Validate(doc);
-        Assert.True(
-            validation.IsValid,
-            string.Join(", ", validation.GetErrors().Select(e => e.Message))
-        );
-
-        var top = doc.Circuits.Single(c => c.Name == "Top");
-        using var writer = new StringWriter();
-        SpiceEmitter.EmitDesign(top, writer, document: doc);
-        var spice = writer.ToString();
-
-        Assert.Contains("Mchild__MN", spice);
-        Assert.Contains("W=2u", spice);
-        Assert.Contains("L=180n", spice);
-        Assert.Contains("m=3", spice);
-    }
-
-    [Fact]
-    public void HierarchyValidator_ReportsMissingRequiredFillScopedSizePack()
-    {
-        var cascode =
-            $@"VERSION {CascodeVersion.Current}
-
-primitive NMOS NMOS_Level1(size primSize) {{
-  device ""nmos_level1""
-  params {{
-    W = primSize.W
-    L = primSize.L
-    m = primSize.M
-  }}
-}}
-
-circuit Top {{
-  level EL
-  supply VDD
-  ground GND
-  output OUT : analog
-  fill {{
-    Child child = new Child() {{
-      .VDD--VDD
-      .GND--GND
-      .OUT--OUT
-    }}
-  }}
-}}
-
-circuit Child {{
-  level EL
-  inline
-  supply VDD
-  ground GND
-  output OUT : analog
-  fill {{
+    size LocalFillSize = size(W=1u, L=180n, M=1)
     NMOS MN = new NMOS_Level1(LocalFillSize) {{
       .B--GND
       .D--OUT
@@ -445,9 +437,6 @@ circuit Child {{
         Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
 
         var doc = parse.Document!;
-        var child = doc.Circuits.Single(c => c.Name == "Child");
-        child.Fill!.Sizes.Add(new SizeDeclaration { Name = "LocalFillSize" });
-
         var validation = HierarchyValidator.Validate(doc);
         Assert.False(validation.IsValid);
 
@@ -455,7 +444,7 @@ circuit Child {{
         Assert.Contains(
             errors,
             e =>
-                e.Code == "HIER-007"
+                e.Code == "HIER-008"
                 && e.Message.Contains("LocalFillSize", System.StringComparison.Ordinal)
         );
     }
@@ -766,8 +755,36 @@ circuit Configurable(real width, int mult, bool enabled) {{
         SpiceEmitter.EmitDesign(top, writer, document: doc);
         var spice = writer.ToString();
 
-        Assert.Contains("Xstage__cfg", spice);
-        Assert.Contains("Configurable_enabled_true_mult_3_width_2u", spice);
+        AssertSpiceLineMatches(
+            spice,
+            @"^Xstage__cfg\b.*\bConfigurable_enabled_true_mult_3_width_2u\b.*$"
+        );
+    }
+
+    private static void AssertSpiceLineMatches(string spice, string pattern)
+    {
+        var regex = new Regex(pattern, RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        Assert.Matches(regex, spice);
+    }
+
+    private static void AssertSpiceInstanceHasParams(
+        string spice,
+        string instanceName,
+        params string[] requiredTokens
+    )
+    {
+        var escapedName = Regex.Escape(instanceName);
+        var regex = new Regex(
+            $@"(?m)^{escapedName}\b[^\n]*(?:\n\+[^\n]*)*",
+            RegexOptions.CultureInvariant
+        );
+        var match = regex.Match(spice);
+        Assert.True(match.Success, $"Expected instance '{instanceName}' in emitted SPICE.");
+        var instanceBlock = match.Value;
+        foreach (var token in requiredTokens)
+        {
+            Assert.Contains(token, instanceBlock, System.StringComparison.Ordinal);
+        }
     }
 
     [Fact]

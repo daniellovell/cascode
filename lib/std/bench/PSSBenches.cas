@@ -58,6 +58,25 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
 bench SEOscPSS extends AbstractOutputPSS {
   resp OUT : analog
 
+  measurements {
+    override measurement OutputPower : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(1GOhm)
+      return harmonic_power(vout, loadImp)
+    }
+    override measurement OutputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(1GOhm)
+      return harmonic_power(vout, loadImp, k)
+    }
+    override measurement DrainEfficiency(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(1GOhm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      return pout / dcPower
+    }
+  }
+
   override analysis {
     PSSAnalysis pss = new PSSAnalysis(
       guess_frequency=guess_frequency,
@@ -84,6 +103,25 @@ bench SEOscPSS extends AbstractOutputPSS {
 
 bench DiffOscPSS extends AbstractOutputPSS {
   resp OUT : Diff
+
+  measurements {
+    override measurement OutputPower : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(1GOhm)
+      return harmonic_power(vout, loadImp)
+    }
+    override measurement OutputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(1GOhm)
+      return harmonic_power(vout, loadImp, k)
+    }
+    override measurement DrainEfficiency(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(1GOhm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      return pout / dcPower
+    }
+  }
 
   override analysis {
     PSSAnalysis pss = new PSSAnalysis(
@@ -169,6 +207,22 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
   resp OUT : Diff
 
   measurements {
+    override measurement OutputPower : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(100Ohm)
+      return harmonic_power(vout, loadImp)
+    }
+    override measurement OutputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(100Ohm)
+      return harmonic_power(vout, loadImp, k)
+    }
+    override measurement DrainEfficiency(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(100Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      return pout / dcPower
+    }
     measurement InputPower : W {
       VoltageWaveform vinP = voltage(pss, IN.P)
       VoltageWaveform vinN = voltage(pss, IN.N)
@@ -189,14 +243,14 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
     }
     measurement Gain : dB {
       VoltageWaveform vout = voltage(pss, OUT)
-      Impedance loadImp = get_load_impedance(50Ohm)
+      Impedance loadImp = get_load_impedance(100Ohm)
       Scalar pout = harmonic_power(vout, loadImp)
       Scalar pin = InputPower()
       return db10(pout / pin)
     }
     measurement PAE(Scalar dcPower) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
-      Impedance loadImp = get_load_impedance(50Ohm)
+      Impedance loadImp = get_load_impedance(100Ohm)
       Scalar pout = harmonic_power(vout, loadImp)
       Scalar pin = InputPower()
       return (pout - pin) / dcPower

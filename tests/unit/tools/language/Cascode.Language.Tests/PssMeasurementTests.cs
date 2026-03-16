@@ -73,6 +73,209 @@ public sealed class PssMeasurementTests
     }
 
     [Fact]
+    public void Pss_SeoOscOutputPower_UsesHarnessDefaultLoadWhenEnvMissing()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("pss-seosc-output-power");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit SeoOscTop {
+              level EL
+              output OUT : analog
+              ground GND
+
+              constraints {
+                numeric {
+                  c_out = pss_bench::OutputPower >= 0W
+                }
+              }
+
+              benches {
+                bind SEOscPSS as pss_bench {
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              harness {
+                ground GND = 0V
+              }
+
+              fill { }
+            }
+            """
+        );
+
+        var link = CascodeLinker.LinkFile(entryPath, outDir, repoRoot);
+        Assert.True(
+            link.Success,
+            string.Join(Environment.NewLine, link.Diagnostics.Select(d => d.Message))
+        );
+        using var reader = File.OpenText(link.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, link.LinkedCasPath!);
+        var bench = linked.BenchDefinitions.Single(b => b.Name == "SEOscPSS");
+
+        const double periodS = 1e-6;
+        const int samples = 2001;
+        var t = new double[samples];
+        var vout = new double[samples];
+        for (var n = 0; n < samples; n++)
+        {
+            var tn = periodS * n / (samples - 1);
+            var phase = 2.0 * Math.PI * tn / periodS;
+            t[n] = tn;
+            vout[n] = 2.0 * Math.Sin(phase);
+        }
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: linked.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: periodS,
+                    Pss: new PssDataset(
+                        TimePoints: t,
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUT"] = vout,
+                        }
+                    )
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements: []
+        );
+
+        var values = runner.RunMetrics(new[] { "OutputPower" });
+        Assert.Equal(2e-9, values["OutputPower"].Value, precision: 12);
+    }
+
+    [Fact]
+    public void Pss_DiffToDiffOutputPower_UsesHarnessDefaultLoadWhenEnvMissing()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("pss-d2d-output-power");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit DiffToDiffTop {
+              level EL
+              input IN : Diff
+              output OUT : Diff
+              ground GND
+
+              constraints {
+                numeric {
+                  c_out = pss_bench::OutputPower >= 0W
+                }
+              }
+
+              benches {
+                bind DiffToDiffPSS as pss_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              harness {
+                ground GND = 0V
+              }
+
+              fill { }
+            }
+            """
+        );
+
+        var link = CascodeLinker.LinkFile(entryPath, outDir, repoRoot);
+        Assert.True(
+            link.Success,
+            string.Join(Environment.NewLine, link.Diagnostics.Select(d => d.Message))
+        );
+        using var reader = File.OpenText(link.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, link.LinkedCasPath!);
+        var bench = linked.BenchDefinitions.Single(b => b.Name == "DiffToDiffPSS");
+
+        const double periodS = 1e-6;
+        const int samples = 2001;
+        var t = new double[samples];
+        var voutP = new double[samples];
+        var voutN = new double[samples];
+        for (var n = 0; n < samples; n++)
+        {
+            var tn = periodS * n / (samples - 1);
+            var phase = 2.0 * Math.PI * tn / periodS;
+            t[n] = tn;
+            voutP[n] = 2.0 * Math.Sin(phase);
+            voutN[n] = 0.0;
+        }
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: linked.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: periodS,
+                    Pss: new PssDataset(
+                        TimePoints: t,
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUTP"] = voutP,
+                            ["OUTN"] = voutN,
+                        }
+                    )
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUTP", "OUTN" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements: []
+        );
+
+        var values = runner.RunMetrics(new[] { "OutputPower" });
+        Assert.Equal(0.02, values["OutputPower"].Value, precision: 9);
+    }
+
+    [Fact]
     public void Pss_ComputeDurationPowerAndThd()
     {
         var cascode =
