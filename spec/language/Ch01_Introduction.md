@@ -78,7 +78,8 @@ instance bindings use `.Terminal--Net`.
 
 ### A minimal bench and binding
 
-The following is excerpted and simplified from `tests/golden/cas/bench/RcLowpass.el.cai`.
+The following is excerpted and simplified from
+[tests/golden/cas/bench/RcLowpass.el.cai](../../tests/golden/cas/bench/RcLowpass.el.cai).
 
 ```cascode
 bench DiffToSELowpass {
@@ -171,7 +172,8 @@ connector is part of the source, is expanded deterministically, and is visible t
 
 Cascode’s long-horizon toolchain separates dependency resolution, synthesis, physical realization,
 and verification into explicit stages. The precise algorithms for synthesis and place-and-route are
-out of scope for this specification, but the contracts between stages are in scope.
+out of scope for this specification, and the `syn` and `par` stages described below are interface
+contracts rather than current CLI commands.
 
 ### Linking (`cascode link`)
 

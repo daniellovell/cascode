@@ -21,9 +21,7 @@ public static class BenchCompiler
 
         var plans = new List<BenchPlan>();
 
-        foreach (
-            var circuit in document.Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
-        )
+        foreach (var circuit in BenchVerificationTargets.CollectVerifiableCircuits(document))
         {
             var invocations = BenchInvocationPlanner.CollectInvocations(document, circuit);
             foreach (var invocation in invocations)

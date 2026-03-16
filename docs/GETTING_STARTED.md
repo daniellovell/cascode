@@ -4,13 +4,15 @@ This guide is a practical entry point to the unified Cascode language and toolch
 what you can do today: describe circuits with explicit connectivity, bind reusable benches, and
 check constraints against simulation results.
 
-For the normative language rules, see `spec/language/README.md`. For practical authoring patterns
-(style, cookbook, troubleshooting), see `docs/language/README.md`.
+For the normative language rules, see [spec/language/README.md](../spec/language/README.md). For
+practical authoring patterns (style, cookbook, troubleshooting), see
+[docs/language/README.md](./language/README.md).
 
 ## Prerequisites
 
 This repository can be exercised either with an installed `cascode` binary or by running the CLI
-from source:
+from source. Running from source requires the .NET 10 SDK because
+[tools/cli/Cascode.Cli.csproj](../tools/cli/Cascode.Cli.csproj) targets `net10.0`:
 
 ```sh
 dotnet run --project tools/cli/Cascode.Cli.csproj -- --help
@@ -32,7 +34,7 @@ cascode install ngspice --from-source
 ## Run a complete example (RC lowpass)
 
 The repo includes a small, self-contained EL example with a declarative bench:
-`tests/golden/cas/bench/RcLowpass.el.cai`.
+[tests/golden/cas/bench/RcLowpass.el.cai](../tests/golden/cas/bench/RcLowpass.el.cai).
 
 To emit simulator netlists:
 
@@ -49,7 +51,7 @@ dotnet run --project tools/cli/Cascode.Cli.csproj -- bench run tests/golden/cas/
 To verify numeric constraints:
 
 ```sh
-cascode verify tests/golden/cas/bench/RcLowpass.el.cai
+dotnet run --project tools/cli/Cascode.Cli.csproj -- verify tests/golden/cas/bench/RcLowpass.el.cai
 ```
 
 `verify` evaluates every declared numeric constraint. If results are missing or older than the
@@ -104,9 +106,9 @@ execution distinct while still allowing a single source file to describe both.
 
 These concepts are expanded in:
 
-- `spec/language/Ch02_Core_Concepts.md`
-- `spec/language/Ch04_Bench_System.md`
-- `docs/language/bench-cookbook.md`
+- [spec/language/Ch02_Core_Concepts.md](../spec/language/Ch02_Core_Concepts.md)
+- [spec/language/Ch04_Bench_System.md](../spec/language/Ch04_Bench_System.md)
+- [docs/language/bench-cookbook.md](./language/bench-cookbook.md)
 
 ## Toolchain pipeline (vision)
 
@@ -117,19 +119,20 @@ Today, the core stages are:
 2. `cascode emit`: emit simulator netlists from EL circuits.
 3. `cascode bench run` and `cascode verify`: execute and check constrained benches.
 
-The long-horizon flow preserves explicit stage boundaries:
+The long-horizon flow preserves explicit stage boundaries, but these stages are roadmap contracts
+rather than current CLI commands:
 
 - `cascode syn` (synthesis) consumes `.hl/.ml.cai` plus guidance (conventionally extracted to
   `<name>.synth.yaml`) and produces `.el.cai`.
 - `cascode par` (place-and-route) consumes `.el.cai` and produces physical layout artifacts.
   Cascode reserves `.cal` for Cascode Layout files; the `.cal` format is specified separately from
-  the language surface described in `spec/language/`.
+  the language surface described in [spec/language](../spec/language).
 
 ## Next steps
 
 If you want to go deeper, the best entry points are:
 
-- `docs/language/style.md` for repository conventions
-- `docs/language/connectors.md` to understand `attach` and connector-driven hierarchy
-- `docs/language/troubleshooting.md` for common errors and diagnostics
-- `spec/language/Ch03_Syntax_Reference.md` for grammar-aligned syntax
+- [docs/language/style.md](./language/style.md) for repository conventions
+- [docs/language/connectors.md](./language/connectors.md) to understand `attach` and connector-driven hierarchy
+- [docs/language/troubleshooting.md](./language/troubleshooting.md) for common errors and diagnostics
+- [spec/language/Ch03_Syntax_Reference.md](../spec/language/Ch03_Syntax_Reference.md) for grammar-aligned syntax

@@ -8,15 +8,14 @@ expected outputs.
 
 Layout (intended)
 
-- `tests/golden/cas/…` — canonical linked Cascode source files used in regressions.
+- [tests/golden/cas](./cas) — canonical linked Cascode source files and snapshots used in regressions.
   - Example: `cas/ota/OTA5TSingleEndedSimplified.cai`.
-- `tests/golden/cas/…` — Cascode text snapshots (`*.cai`) emitted by the
-  compiler for those sources (HL/ML/EL where applicable).
+- [tests/golden/cas](./cas) — Cascode text snapshots (`*.cai`) emitted by the
+  link flow for those sources (HL/ML/EL where applicable).
   - Files are named `{circuit}.{level}.cai` (e.g., `OTA5TSingleEnded.ml.cai`).
   - The `.cai` extension indicates linked Cascode files (default mode is self-contained; include-pruned mode may retain a minimal include set).
 - `tests/golden/results/…` — simulation results (JSON) used to verify constraint compliance.
 
-For the v0 OTA slice the Cascode "golden" already lives under
-`tests/golden/cas/ota/OTA5TSingleEndedSimplified.ml.cai`, and the compiler
-unit test (`OtaCompilerTests`) loads it from disk. Additional motifs/modules
-can now be added following the same pattern.
+For the OTA slice, one representative linked artifact is
+[tests/golden/cas/ota/OTA5TSingleEndedSimplified.ml.cai](./cas/ota/OTA5TSingleEndedSimplified.ml.cai).
+Use the same pattern for additional golden inputs and outputs.

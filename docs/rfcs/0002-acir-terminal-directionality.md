@@ -1,12 +1,16 @@
 # RFC: ACIR Terminal Directionality
 
-Status: Active
+Status: Historical
 Authors: Daniel Lovell
 Created: 2026-01-27
 Last Updated: 2026-01-27
 Target Version: ACIR 3.0
 
 ---
+
+> Editor's note: this RFC documents an ACIR-era design thread and is retained for historical
+> context. The current source of truth for terminal declarations and interface contracts is
+> [spec/language](../../spec/language/README.md).
 
 ## Abstract
 

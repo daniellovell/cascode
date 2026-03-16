@@ -20,7 +20,7 @@ emitted testbench.
 Bench `fill {}` blocks and binding bodies may instantiate a small set of harness primitives that the
 bench runtime emits as backend elements (see [Chapter 4, Section 4.3.2](../../spec/language/Ch04_Bench_System.md#432-harness-primitives)):
 
-- `GND`, `VDC`, `VAC`, `VSIN`, `Kick`, `Impedor` / `Impedance`
+- `GND`, `VDC`, `VAC`, `VSIN`, `Kick`, `Impedor` / `Impedance`, `Port`
 
 Prefer these primitives over backend-specific netlist syntax.
 

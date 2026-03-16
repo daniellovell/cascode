@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cascode.Cli.Output;
+using Cascode.Cli.Services;
 using Cascode.Language;
+using Cascode.Language.BenchRuntime;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Cascode.Cli.Commands;
 
@@ -24,7 +27,12 @@ internal sealed partial class VerifyCommandModule
 
     private sealed record VerifyInput(VerifyInputKind Kind, string Path);
 
-    private sealed record VerifyRunContext(string CascodePath, IReadOnlyList<Circuit> ElCircuits);
+    private sealed record VerifyRunContext(
+        string InputPath,
+        string ResolvedCascodePath,
+        IReadOnlyList<Circuit> AllElCircuits,
+        IReadOnlyList<Circuit> VerifiableCircuits
+    );
 
     private static string? ResolveBenchOutputDirectoryHint(ParsedVerifyArgs parsed)
     {
@@ -60,61 +68,52 @@ internal sealed partial class VerifyCommandModule
             return false;
         }
 
-        var cascodePath = Path.GetFullPath(parsed.CascodePath);
-        if (!File.Exists(cascodePath))
+        var inputPath = Path.GetFullPath(parsed.CascodePath);
+        if (!File.Exists(inputPath))
         {
-            output.Error($"Cascode file '{cascodePath}' not found.");
+            output.Error($"Cascode file '{inputPath}' not found.");
             return false;
         }
 
-        if (!TryReadCascodeDocument(cascodePath, output, out var doc))
-        {
-            return false;
-        }
-
-        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
-        if (elCircuits.Count == 0)
-        {
-            output.Error("No EL-level circuits found in Cascode document.");
-            return false;
-        }
-
-        context = new VerifyRunContext(cascodePath, elCircuits);
-        return true;
-    }
-
-    private static bool TryReadCascodeDocument(
-        string cascodePath,
-        ICliOutput output,
-        out CascodeDocument document
-    )
-    {
-        document = null!;
-        CascodeReadResult readResult;
-        using (var reader = File.OpenText(cascodePath))
-        {
-            readResult = CascodeReader.TryRead(reader, cascodePath);
-        }
-
-        if (!readResult.Success)
-        {
-            foreach (
-                var diag in readResult.Diagnostics.Where(d =>
-                    d.Severity == DiagnosticSeverity.Error
-                )
+        var inputDir = Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory();
+        var loadLogger = _state.LoggerFactory?.CreateLogger("CascodeLinker") ?? NullLogger.Instance;
+        var linkArtifactsDir = Path.Combine(inputDir, "build", "link", "verify");
+        if (
+            !CascodeLoadLinkService.TryLoadAndLinkIfNeeded(
+                inputPath,
+                _state.WorkspaceRoot,
+                linkArtifactsDir,
+                loadLogger,
+                out var loaded,
+                out var diagnostics
             )
+        )
+        {
+            foreach (var diag in diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
             {
                 output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
             return false;
         }
 
-        document = readResult.Document!;
+        var elCircuits = loaded.Document.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
+        if (elCircuits.Count == 0)
+        {
+            output.Error("No EL-level circuits found in Cascode document.");
+            return false;
+        }
+
+        context = new VerifyRunContext(
+            inputPath,
+            loaded.ResolvedPath,
+            elCircuits,
+            BenchVerificationTargets.CollectVerifiableCircuits(loaded.Document)
+        );
         return true;
     }
 
     private static bool NeedsBenchRun(
-        string cascodePath,
+        string resolvedCascodePath,
         IReadOnlyList<VerifyInput> inputs,
         out string reason
     )
@@ -133,7 +132,9 @@ internal sealed partial class VerifyCommandModule
                 return true;
             }
 
-            if (File.GetLastWriteTimeUtc(cascodePath) > File.GetLastWriteTimeUtc(input.Path))
+            if (
+                File.GetLastWriteTimeUtc(resolvedCascodePath) > File.GetLastWriteTimeUtc(input.Path)
+            )
             {
                 reason =
                     $"{InputKindLabel(input.Kind)} file '{input.Path}' is older than the Cascode source";
@@ -159,7 +160,7 @@ internal sealed partial class VerifyCommandModule
             TryResolveExplicitInput(
                 parsed.ResultsPath,
                 parsed.TracePath,
-                runContext.ElCircuits,
+                runContext.VerifiableCircuits,
                 out inputs,
                 out resolutionNote
             )
@@ -174,7 +175,7 @@ internal sealed partial class VerifyCommandModule
             if (
                 TryResolveCanonicalFromRootDirectory(
                     preferredFull,
-                    runContext.ElCircuits,
+                    runContext.VerifiableCircuits,
                     explicitDirectory: true,
                     out inputs,
                     out var preferredResolution
@@ -192,7 +193,7 @@ internal sealed partial class VerifyCommandModule
     private static bool TryResolveExplicitInput(
         string? resultsPath,
         string? tracePath,
-        IReadOnlyList<Circuit> circuits,
+        IReadOnlyList<Circuit> verifiableCircuits,
         out IReadOnlyList<VerifyInput> inputs,
         out string resolutionNote
     )
@@ -215,7 +216,7 @@ internal sealed partial class VerifyCommandModule
         {
             return TryResolveCanonicalFromRootDirectory(
                 full,
-                circuits,
+                verifiableCircuits,
                 explicitDirectory: true,
                 out inputs,
                 out resolutionNote
@@ -233,12 +234,12 @@ internal sealed partial class VerifyCommandModule
     )
     {
         var sourceDir =
-            Path.GetDirectoryName(Path.GetFullPath(runContext.CascodePath))
+            Path.GetDirectoryName(Path.GetFullPath(runContext.InputPath))
             ?? Directory.GetCurrentDirectory();
         var benchRoot = Path.Combine(sourceDir, "build", "bench");
         return TryResolveCanonicalFromRootDirectory(
             benchRoot,
-            runContext.ElCircuits,
+            runContext.VerifiableCircuits,
             explicitDirectory: false,
             out inputs,
             out resolutionNote
@@ -255,6 +256,13 @@ internal sealed partial class VerifyCommandModule
     {
         inputs = Array.Empty<VerifyInput>();
         resolutionNote = string.Empty;
+        if (circuits.Count == 0)
+        {
+            resolutionNote =
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations.";
+            return false;
+        }
+
         if (!Directory.Exists(rootDirectory))
         {
             resolutionNote = explicitDirectory

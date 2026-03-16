@@ -312,12 +312,14 @@ public class BenchRunService
             $"load+link: done ({loadStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
         );
         var updatedArgs = args with { CascodePath = loaded.ResolvedPath };
-        var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(loaded.Document);
-        return (loaded.Document, updatedArgs, allCircuitsWithBenches);
+        var verifiableCircuits = BenchVerificationTargets.CollectVerifiableCircuits(
+            loaded.Document
+        );
+        return (loaded.Document, updatedArgs, verifiableCircuits);
     }
 
     /// <summary>
-    /// Runs benches for all EL circuits with benches, in dependency order (leaves first).
+    /// Runs benches for all verifiable EL circuits, in dependency order (leaves first).
     /// Optionally filtered to a single circuit via CircuitFilter.
     /// </summary>
     public MultiCircuitBenchRunResult RunAll(
@@ -328,7 +330,7 @@ public class BenchRunService
     {
         var timing = new BenchRunTimingCollector();
         var paths = ResolveInputAndOutputPaths(args);
-        var (doc, updatedArgs, allCircuitsWithBenches) = PerformLoadAndLink(
+        var (doc, updatedArgs, verifiableCircuits) = PerformLoadAndLink(
             workspaceRoot,
             args,
             paths,
@@ -336,14 +338,16 @@ public class BenchRunService
         );
         args = updatedArgs;
 
-        if (allCircuitsWithBenches.Count == 0)
+        if (verifiableCircuits.Count == 0)
         {
-            _logger.LogError("No EL-level circuits with benches found in Cascode document.");
+            _logger.LogError(
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations."
+            );
             return BuildEmptyResult(args, timing);
         }
 
         var filterResult = ValidateCircuitFilterOrReturnError(
-            allCircuitsWithBenches,
+            verifiableCircuits,
             args.CircuitFilter,
             args.Backend,
             args.OutputDir ?? string.Empty,
