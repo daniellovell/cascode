@@ -206,22 +206,9 @@ public static class RenderBlockValidator
             nets.Add(port.Name);
         }
 
-        foreach (var device in circuit.Fill?.Devices ?? Enumerable.Empty<DeviceDeclaration>())
+        foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
         {
             foreach (var (_, netName) in device.Bindings)
-            {
-                nets.Add(netName);
-            }
-        }
-
-        foreach (var instance in circuit.Fill?.Instances ?? Enumerable.Empty<InstanceDeclaration>())
-        {
-            if (!IsPrimitiveLikeInstance(instance))
-            {
-                continue;
-            }
-
-            foreach (var (_, netName) in instance.Bindings)
             {
                 nets.Add(netName);
             }
@@ -235,33 +222,13 @@ public static class RenderBlockValidator
     )
     {
         var devices = new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
-        foreach (var device in circuit.Fill?.Devices ?? Enumerable.Empty<DeviceDeclaration>())
+        foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
         {
             devices[device.Id] = device;
         }
 
-        foreach (var instance in circuit.Fill?.Instances ?? Enumerable.Empty<InstanceDeclaration>())
-        {
-            if (!IsPrimitiveLikeInstance(instance))
-            {
-                continue;
-            }
-
-            devices[instance.Id] = new DeviceDeclaration
-            {
-                DeviceType = instance.DeclaredType!,
-                Id = instance.Id,
-                Primitive = instance.Type,
-                Bindings = instance.Bindings,
-            };
-        }
-
         return devices;
     }
-
-    private static bool IsPrimitiveLikeInstance(InstanceDeclaration instance) =>
-        instance.DeclaredType is "NMOS" or "PMOS" or "Resistor" or "Capacitor" or "Inductor"
-            or "Diode";
 
     /// <summary>
     /// Validate a render placement and return it if it is valid; otherwise record a validation message and return null.

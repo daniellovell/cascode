@@ -190,9 +190,9 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         }
 
         // Collect PDK devices directly in this circuit
-        if (circuit.Fill?.Devices is not null)
+        if (circuit.Fill is not null)
         {
-            foreach (var device in circuit.Fill.Devices)
+            foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
             {
                 if (
                     primitivesByName is not null
@@ -226,7 +226,8 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         {
             foreach (var instance in circuit.Fill.Instances)
             {
-                if (circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+                var referenceName = InstanceTargetResolver.GetReferenceName(instance.Type);
+                if (circuitsByName.TryGetValue(referenceName, out var targetCircuit))
                 {
                     CollectPdkDevicesFromCircuit(
                         targetCircuit,

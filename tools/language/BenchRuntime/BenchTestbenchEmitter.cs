@@ -500,8 +500,7 @@ public static class BenchTestbenchEmitter
 
         var device =
             fill.Devices.FirstOrDefault(d => d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase))
-            ?? fill
-                .Instances.Where(i =>
+            ?? fill.Instances.Where(i =>
                     i.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
                     && i.DeclaredType is "NMOS" or "PMOS"
                 )

@@ -91,12 +91,14 @@ internal static partial class SchematicLayoutProjection
         Circuit circuit,
         RenderBlock? render,
         CoarseGridResult placement,
-        RoutingResult routing
+        RoutingResult routing,
+        IReadOnlyDictionary<string, DeviceDeclaration>? devicesById = null
     )
     {
         var renderByName =
             render?.Entities.ToDictionary(entity => entity.Name, StringComparer.Ordinal)
             ?? new Dictionary<string, RenderEntity>(StringComparer.Ordinal);
+        devicesById ??= BuildDeviceLookup(circuit);
 
         // Group routing terminal positions by device for centroid-based positioning
         var terminalsByDevice = routing
@@ -113,7 +115,8 @@ internal static partial class SchematicLayoutProjection
                     entry.Value,
                     placement,
                     renderByName,
-                    terminalsByDevice
+                    terminalsByDevice,
+                    devicesById
                 )
             )
             .ToArray();
@@ -182,9 +185,11 @@ internal static partial class SchematicLayoutProjection
     public static RenderCacheInfo BuildRenderCache(
         Circuit circuit,
         CoarseGridResult placement,
-        RoutingResult routing
+        RoutingResult routing,
+        IReadOnlyDictionary<string, DeviceDeclaration>? devicesById = null
     )
     {
+        devicesById ??= BuildDeviceLookup(circuit);
         var terminals = new Dictionary<string, IReadOnlyDictionary<string, PointValue>>(
             StringComparer.Ordinal
         );
@@ -216,7 +221,7 @@ internal static partial class SchematicLayoutProjection
         var bboxes = new Dictionary<string, BboxValue>(StringComparer.Ordinal);
         foreach (var (deviceId, cell) in placement.DevicePlacements)
         {
-            var device = circuit.Fill?.Devices.FirstOrDefault(d => d.Id == deviceId);
+            devicesById.TryGetValue(deviceId, out var device);
             var type = device?.DeviceType.ToLowerInvariant() ?? "unknown";
 
             PointValue position;
@@ -565,10 +570,11 @@ internal static partial class SchematicLayoutProjection
         GridCell cell,
         CoarseGridResult placement,
         IReadOnlyDictionary<string, RenderEntity> renderByName,
-        IReadOnlyDictionary<string, TerminalPosition[]> terminalsByDevice
+        IReadOnlyDictionary<string, TerminalPosition[]> terminalsByDevice,
+        IReadOnlyDictionary<string, DeviceDeclaration> devicesById
     )
     {
-        var device = circuit.Fill?.Devices.FirstOrDefault(d => d.Id == deviceId);
+        devicesById.TryGetValue(deviceId, out var device);
         var type = device?.DeviceType.ToLowerInvariant() ?? "unknown";
 
         var defaultOrientation = BuildDefaultDeviceOrientation(type, deviceId, cell, placement);
@@ -706,6 +712,13 @@ internal static partial class SchematicLayoutProjection
             "bottom" => new OrientationValue { Rotate = 90, MirrorX = false },
             _ => new OrientationValue { Rotate = 0, MirrorX = false },
         };
+    }
+
+    private static IReadOnlyDictionary<string, DeviceDeclaration> BuildDeviceLookup(Circuit circuit)
+    {
+        return PrimitiveInstanceAdapter
+            .EnumerateDevices(circuit.Fill)
+            .ToDictionary(device => device.Id, StringComparer.Ordinal);
     }
 
     /// <summary>

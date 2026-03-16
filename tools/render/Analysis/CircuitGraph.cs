@@ -97,9 +97,9 @@ public sealed class CircuitGraph
     /// </summary>
     public static CircuitGraph Build(Circuit circuit)
     {
-        var devices =
-            circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
-            ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
+        var devices = PrimitiveInstanceAdapter
+            .EnumerateDevices(circuit.Fill)
+            .ToDictionary(d => d.Id, StringComparer.Ordinal);
         var internalNets =
             circuit.Fill?.Nets.Select(n => n.Id).ToHashSet(StringComparer.Ordinal)
             ?? new HashSet<string>(StringComparer.Ordinal);

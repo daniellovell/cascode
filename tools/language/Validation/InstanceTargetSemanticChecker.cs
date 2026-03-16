@@ -13,7 +13,10 @@ internal static class InstanceTargetSemanticChecker
 
         var circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
         var partsByName = document.Parts.ToDictionary(p => p.Name, StringComparer.Ordinal);
-        var primitivesByName = document.Primitives.ToDictionary(p => p.Name, StringComparer.Ordinal);
+        var primitivesByName = document.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.Ordinal
+        );
 
         foreach (var circuit in document.Circuits)
         {

@@ -140,10 +140,7 @@ public sealed class UnifiedInstantiationSemanticTests
     {
         var document = new CascodeDocument
         {
-            Traits =
-            [
-                new TraitDefinition { Name = "SingleEndedOpAmp" },
-            ],
+            Traits = [new TraitDefinition { Name = "SingleEndedOpAmp" }],
             Circuits =
             [
                 new Circuit
@@ -202,7 +199,15 @@ public sealed class UnifiedInstantiationSemanticTests
                     Level = CascodeLevel.EL,
                     Fill = new FillBlock
                     {
-                        Instances = [new InstanceDeclaration { Id = "x1", DeclaredType = "Foo", Type = "Foo" }],
+                        Instances =
+                        [
+                            new InstanceDeclaration
+                            {
+                                Id = "x1",
+                                DeclaredType = "Foo",
+                                Type = "Foo",
+                            },
+                        ],
                     },
                 },
             ],

@@ -52,14 +52,20 @@ public static class CircuitFlattener
             internalNets.Add(net.Id);
         }
 
-        foreach (var device in circuit.Fill.Devices)
+        foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
         {
             devices[device.Id] = device;
         }
 
         foreach (var instance in circuit.Fill.Instances)
         {
-            if (!circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+            if (PrimitiveInstanceAdapter.TryCreateDeviceDeclaration(instance, out _))
+            {
+                continue;
+            }
+
+            var referenceName = GetReferenceName(instance.Type);
+            if (!circuitsByName.TryGetValue(referenceName, out var targetCircuit))
             {
                 continue;
             }
@@ -94,7 +100,7 @@ public static class CircuitFlattener
                 groups.Add(
                     new InlineInstanceGroup(
                         string.Join('.', new[] { instance.Id }),
-                        instance.Type,
+                        targetCircuit.Name,
                         expandedDeviceIds
                     )
                 );
@@ -177,10 +183,12 @@ public static class CircuitFlattener
 
         var deviceIdsInThisInstance = new List<string>();
 
-        if (inlineCircuit.Fill?.Devices is not null)
+        if (inlineCircuit.Fill is not null)
         {
             foreach (
-                var device in inlineCircuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal)
+                var device in PrimitiveInstanceAdapter
+                    .EnumerateDevices(inlineCircuit.Fill)
+                    .OrderBy(d => d.Id, StringComparer.Ordinal)
             )
             {
                 var flattenedId = $"{prefix}.{device.Id}";
@@ -204,7 +212,13 @@ public static class CircuitFlattener
                 )
             )
             {
-                if (!circuitsByName.TryGetValue(nested.Type, out var nestedCircuit))
+                if (PrimitiveInstanceAdapter.TryCreateDeviceDeclaration(nested, out _))
+                {
+                    continue;
+                }
+
+                var nestedReferenceName = GetReferenceName(nested.Type);
+                if (!circuitsByName.TryGetValue(nestedReferenceName, out var nestedCircuit))
                 {
                     continue;
                 }
@@ -359,5 +373,11 @@ public static class CircuitFlattener
         }
 
         return netName;
+    }
+
+    private static string GetReferenceName(string typeName)
+    {
+        var lastDot = typeName.LastIndexOf('.');
+        return lastDot >= 0 ? typeName[(lastDot + 1)..] : typeName;
     }
 }

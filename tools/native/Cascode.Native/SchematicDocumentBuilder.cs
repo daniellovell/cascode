@@ -62,12 +62,14 @@ internal static class SchematicDocumentBuilder
                 circuit,
                 effectiveRender,
                 render.Placement,
-                render.Routing
+                render.Routing,
+                render.Graph.Devices
             ),
             RenderCache = SchematicLayoutProjection.BuildRenderCache(
                 circuit,
                 render.Placement,
-                render.Routing
+                render.Routing,
+                render.Graph.Devices
             ),
             SymbolCatalog = SchematicLayoutProjection.BuildSymbolCatalog(structural),
             Diagnostics = render
