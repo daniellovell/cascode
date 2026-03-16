@@ -83,7 +83,7 @@ bench PssBuiltinsBench {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1MHz, tstab=10us, harmonics=5)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=5)
   }}
 
   measurements {{
@@ -236,7 +236,7 @@ bench PssBuiltinTypeErrors {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1MHz, tstab=10us, harmonics=3)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=3)
   }}
 
   measurements {{
@@ -410,7 +410,7 @@ bench PssCurrentMissing {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1MHz, tstab=10us, harmonics=3)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=3)
   }}
 
   measurements {{

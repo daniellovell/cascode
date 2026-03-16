@@ -250,16 +250,16 @@ internal static class BenchAnalysisCompiler
 
             if (a.Type == BenchValueType.PSSAnalysis)
             {
-                if (!a.Parameters.TryGetValue("fguess", out var fguessExpr))
+                if (!a.Parameters.TryGetValue("guess_frequency", out var guessFrequencyExpr))
                 {
                     throw new InvalidOperationException(
-                        $"PSSAnalysis '{a.Name}' missing required parameter 'fguess'."
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'guess_frequency'."
                     );
                 }
-                if (!a.Parameters.TryGetValue("tstab", out var tstabExpr))
+                if (!a.Parameters.TryGetValue("stabilization_time", out var stabilizationTimeExpr))
                 {
                     throw new InvalidOperationException(
-                        $"PSSAnalysis '{a.Name}' missing required parameter 'tstab'."
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'stabilization_time'."
                     );
                 }
                 if (!a.Parameters.TryGetValue("harmonics", out var harmonicsExpr))
@@ -269,34 +269,36 @@ internal static class BenchAnalysisCompiler
                     );
                 }
 
-                var fguessV =
-                    evalRunner.EvaluateExpressionForPlan(fguessExpr, benchParams) as BenchNumber;
-                var tstabV =
-                    evalRunner.EvaluateExpressionForPlan(tstabExpr, benchParams) as BenchNumber;
+                var guessFrequencyV =
+                    evalRunner.EvaluateExpressionForPlan(guessFrequencyExpr, benchParams)
+                    as BenchNumber;
+                var stabilizationTimeV =
+                    evalRunner.EvaluateExpressionForPlan(stabilizationTimeExpr, benchParams)
+                    as BenchNumber;
                 var harmonicsV =
                     evalRunner.EvaluateExpressionForPlan(harmonicsExpr, benchParams) as BenchNumber;
 
                 if (
-                    fguessV is null
-                    || fguessV.Kind != BenchNumericKind.FrequencyHz
-                    || !double.IsFinite(fguessV.Value)
-                    || fguessV.Value <= 0
+                    guessFrequencyV is null
+                    || guessFrequencyV.Kind != BenchNumericKind.FrequencyHz
+                    || !double.IsFinite(guessFrequencyV.Value)
+                    || guessFrequencyV.Value <= 0
                 )
                 {
                     throw new InvalidOperationException(
-                        $"PSSAnalysis '{a.Name}.fguess' expects a finite positive 'Frequency'."
+                        $"PSSAnalysis '{a.Name}.guess_frequency' expects a finite positive 'Frequency'."
                     );
                 }
 
                 if (
-                    tstabV is null
-                    || tstabV.Kind != BenchNumericKind.TimeS
-                    || !double.IsFinite(tstabV.Value)
-                    || tstabV.Value < 0
+                    stabilizationTimeV is null
+                    || stabilizationTimeV.Kind != BenchNumericKind.TimeS
+                    || !double.IsFinite(stabilizationTimeV.Value)
+                    || stabilizationTimeV.Value < 0
                 )
                 {
                     throw new InvalidOperationException(
-                        $"PSSAnalysis '{a.Name}.tstab' expects a finite non-negative 'Time'."
+                        $"PSSAnalysis '{a.Name}.stabilization_time' expects a finite non-negative 'Time'."
                     );
                 }
 
@@ -352,8 +354,8 @@ internal static class BenchAnalysisCompiler
                         0,
                         0,
                         0,
-                        FguessHz: fguessV.Value,
-                        TstabS: tstabV.Value,
+                        GuessFrequencyHz: guessFrequencyV.Value,
+                        TstabS: stabilizationTimeV.Value,
                         Harmonics: checked((int)harmonicsV.Value),
                         OscNode: outputTerminal.LeafNodes[0],
                         Iterations: iterations,

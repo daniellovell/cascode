@@ -26,8 +26,8 @@ PSS benches follow the `TranBenches` harness pattern: explicit `VSIN` sources an
 ```cascode
 analysis {
   PSSAnalysis pss = new PSSAnalysis(
-    fguess=1GHz,
-    tstab=10ns,
+    guess_frequency=1GHz,
+    stabilization_time=10ns,
     harmonics=10)
 }
 ```
@@ -36,8 +36,8 @@ analysis {
 
 | Parameter | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `fguess` | `Frequency` | yes | — | Initial frequency estimate for the PSS solver |
-| `tstab` | `Time` | yes | — | Stabilization time before shooting iterations begin |
+| `guess_frequency` | `Frequency` | yes | — | Initial frequency estimate for the PSS solver |
+| `stabilization_time` | `Time` | yes | — | Stabilization time before shooting iterations begin |
 | `harmonics` | integer | yes | — | Number of harmonics to resolve in the output |
 
 Arguments may use expressions over `constraints`, `env`, and bench parameters, consistent with other analysis types.
@@ -50,9 +50,9 @@ For single-ended outputs, the oscillating node is the net connected to `OUT`. Fo
 
 ### 1.4 Simulation Semantics
 
-The PSS solver performs a transient stabilization for `tstab` seconds, then applies a shooting method to converge on the periodic steady-state waveform at (or near) `fguess`. The result is a time-domain waveform spanning exactly one solved period, available for all circuit node voltages.
+The PSS solver performs a transient stabilization for `stabilization_time` seconds, then applies a shooting method to converge on the periodic steady-state waveform at (or near) `guess_frequency`. The result is a time-domain waveform spanning exactly one solved period, available for all circuit node voltages.
 
-For driven circuits (where a `VSIN` source provides the excitation), the solver converges to the exact drive frequency. For autonomous oscillators (no external drive), the solver finds the natural oscillation frequency, which may differ from `fguess`.
+For driven circuits (where a `VSIN` source provides the excitation), the solver converges to the exact drive frequency. For autonomous oscillators (no external drive), the solver finds the natural oscillation frequency, which may differ from `guess_frequency`.
 
 ### 1.5 Harness Topology
 
@@ -188,16 +188,16 @@ PSS benches are organized in an abstract hierarchy that separates measurement de
 
 ### 3.1 AbstractOutputPSS
 
-The base abstract bench declares the output terminal, the analysis, and output-side measurements. It is parameterized by `guess_freq`, analogous to `stim_freq` in `AbstractTran`.
+The base abstract bench declares the output terminal, the analysis, and output-side measurements. It is parameterized by `guess_frequency`, analogous to `stim_freq` in `AbstractTran`.
 
 ```cascode
-abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
+abstract bench AbstractOutputPSS(Frequency guess_frequency = 1GHz) {
   abstract resp OUT
 
   analysis {
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=guess_freq,
-      tstab=10ns,
+      guess_frequency=guess_frequency,
+      stabilization_time=10ns,
       harmonics=10)
   }
 
@@ -332,7 +332,7 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_frequency, phase=0deg) {
       .N--gnd
     }
 
@@ -379,10 +379,10 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_frequency, phase=0deg) {
       .N--gnd
     }
-    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_frequency, phase=180deg) {
       .N--gnd
     }
 
@@ -462,9 +462,9 @@ Constraints reference measurements through the bind name:
 ```cascode
 constraints {
   numeric {
-    c_osc_freq = pss_bench(guess_freq=2.4GHz)::FundamentalFrequency >= 2.3GHz
-    c_output_pwr = pss_bench(guess_freq=2.4GHz)::OutputPower >= 10mW
-    c_pae = pss_bench(guess_freq=2.4GHz)::PAE >= 0.3
+    c_osc_freq = pss_bench(guess_frequency=2.4GHz)::FundamentalFrequency >= 2.3GHz
+    c_output_pwr = pss_bench(guess_frequency=2.4GHz)::OutputPower >= 10mW
+    c_pae = pss_bench(guess_frequency=2.4GHz)::PAE >= 0.3
   }
 }
 ```
@@ -557,9 +557,9 @@ Four built-in functions are added to the function registry:
 
 | Condition | Error |
 | --- | --- |
-| Missing required parameter (`fguess`, `tstab`, `harmonics`) | `PSSAnalysis '{name}' missing required parameter '{param}'` |
-| `fguess` is not a `Frequency` | `PSSAnalysis '{name}.fguess' expects 'Frequency' but got '{type}'` |
-| `tstab` is not a `Time` | `PSSAnalysis '{name}.tstab' expects 'Time' but got '{type}'` |
+| Missing required parameter (`guess_frequency`, `stabilization_time`, `harmonics`) | `PSSAnalysis '{name}' missing required parameter '{param}'` |
+| `guess_frequency` is not a `Frequency` | `PSSAnalysis '{name}.guess_frequency' expects 'Frequency' but got '{type}'` |
+| `stabilization_time` is not a `Time` | `PSSAnalysis '{name}.stabilization_time' expects 'Time' but got '{type}'` |
 | `voltage(pss, ...)` first argument is not a `PSSAnalysis` | Same error as for other analysis types |
 | No `resp` terminal for oscillating node resolution | `PSSAnalysis requires at least one resp terminal` |
 | `harmonic_power` first argument is not a `VoltageWaveform` | `harmonic_power first argument must be a VoltageWaveform` |
@@ -584,7 +584,7 @@ Declaration typing note: measurement signatures and local declarations currently
 
 1. Add `PSSAnalysis` to the grammar, AST, and semantic validation. Extend `voltage()` and `current()` type dispatch to handle `PSSAnalysis` (returning `VoltageWaveform` / `CurrentWaveform`).
 2. Add the `duration`, `mean`, `harmonic_power`, and `thd` built-ins to the semantic checker and measurement runner (waveform time span, DC-component averaging, DFT, power/distortion computation).
-3. Extend `BenchPlanAnalysis` with PSS-specific fields (`FguessHz`, `TstabS`, `Harmonics`, `OscNode`) and add compilation in `BenchAnalysisCompiler`.
+3. Extend `BenchPlanAnalysis` with PSS-specific fields (`GuessFrequencyHz`, `TstabS`, `Harmonics`, `OscNode`) and add compilation in `BenchAnalysisCompiler`.
 4. Extend `BenchTestbenchEmitter` to emit the ngspice `pss` command and `wrdata` extraction for terminal node voltages and source branch currents.
 5. Extend `BenchMeasurementRunner` to evaluate `voltage` / `current` for PSS analysis contexts (parse PSS wrdata, return waveform values).
 6. Add `PSSBenches.cas` to the standard library with the bench hierarchy described in Section 3.

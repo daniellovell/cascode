@@ -2430,8 +2430,8 @@ public static class BenchSemanticChecker
             },
             BenchValueType.PSSAnalysis => new Dictionary<string, MeasurementTypeKind>
             {
-                ["fguess"] = MeasurementTypeKind.Frequency,
-                ["tstab"] = MeasurementTypeKind.Time,
+                ["guess_frequency"] = MeasurementTypeKind.Frequency,
+                ["stabilization_time"] = MeasurementTypeKind.Time,
                 ["harmonics"] = MeasurementTypeKind.Scalar,
                 ["iterations"] = MeasurementTypeKind.Scalar,
                 ["steady_coef"] = MeasurementTypeKind.Scalar,
@@ -2454,7 +2454,7 @@ public static class BenchSemanticChecker
 
         var required =
             analysis.Type == BenchValueType.PSSAnalysis
-                ? new[] { "fguess", "tstab", "harmonics" }
+                ? new[] { "guess_frequency", "stabilization_time", "harmonics" }
                 : Array.Empty<string>();
         foreach (var name in required)
         {

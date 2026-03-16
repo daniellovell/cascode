@@ -142,7 +142,7 @@ PSS benches run a `PSSAnalysis`, read one solved period as a waveform, and deriv
 
 ```cascode
 analysis {
-  PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=10ns, harmonics=10)
+  PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=10ns, harmonics=10)
 }
 
 measurement OutputPower : W {

@@ -30,8 +30,8 @@ bench PssBench {
 
   analysis {
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=2.4GHz,
-      tstab=10ns,
+      guess_frequency=2.4GHz,
+      stabilization_time=10ns,
       harmonics=7,
       iterations=1000,
       steady_coef=0.1,
@@ -101,7 +101,7 @@ bench PssBench {
   }
 
   analysis {
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=5ns, harmonics=5)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=5ns, harmonics=5)
   }
 
   measurements {
@@ -172,7 +172,7 @@ bench PssBench {
   }
 
   analysis {
-    PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7, uic=1)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=2.4GHz, stabilization_time=10ns, harmonics=7, uic=1)
   }
 
   measurements {
@@ -229,7 +229,7 @@ bench PssBench {
   }
 
   analysis {
-    PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7, uic=1)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=2.4GHz, stabilization_time=10ns, harmonics=7, uic=1)
   }
 
   measurements {

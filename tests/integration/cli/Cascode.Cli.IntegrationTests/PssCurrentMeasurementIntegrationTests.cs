@@ -76,7 +76,7 @@ public sealed class PssCurrentMeasurementIntegrationTests : IDisposable
               }
 
               analysis {
-                PSSAnalysis pss = new PSSAnalysis(fguess=1MHz, tstab=20us, harmonics=5)
+                PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=20us, harmonics=5)
               }
 
               measurements {
@@ -197,8 +197,8 @@ public sealed class PssCurrentMeasurementIntegrationTests : IDisposable
 
               constraints {
                 numeric {
-                  c_pin_min = pss_bench(guess_freq=1MHz)::InputPower >= 2mW
-                  c_pin_max = pss_bench(guess_freq=1MHz)::InputPower <= 2.5mW
+                  c_pin_min = pss_bench(guess_frequency=1MHz)::InputPower >= 2mW
+                  c_pin_max = pss_bench(guess_frequency=1MHz)::InputPower <= 2.5mW
                 }
               }
 

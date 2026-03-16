@@ -16,7 +16,7 @@ bench MissingPssParams {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz)
   }}
 
   measurements {{
@@ -33,7 +33,11 @@ bench MissingPssParams {{
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Message.Contains("missing required parameter 'tstab'", StringComparison.Ordinal)
+            d =>
+                d.Message.Contains(
+                    "missing required parameter 'stabilization_time'",
+                    StringComparison.Ordinal
+                )
         );
         Assert.Contains(
             result.Diagnostics,
@@ -56,8 +60,8 @@ bench BadPssTypes {{
 
   analysis {{
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=1V,
-      tstab=1Hz,
+      guess_frequency=1V,
+      stabilization_time=1Hz,
       harmonics=1ns,
       iterations=1Hz,
       steady_coef=1ns,
@@ -78,9 +82,9 @@ bench BadPssTypes {{
         Assert.False(result.Success);
 
         var joined = string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message));
-        Assert.Contains("pss.fguess", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.guess_frequency", joined, StringComparison.Ordinal);
         Assert.Contains("expects 'Frequency'", joined, StringComparison.Ordinal);
-        Assert.Contains("pss.tstab", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.stabilization_time", joined, StringComparison.Ordinal);
         Assert.Contains("expects 'Time'", joined, StringComparison.Ordinal);
         Assert.Contains("pss.harmonics", joined, StringComparison.Ordinal);
         Assert.Contains("expects 'Scalar'", joined, StringComparison.Ordinal);
@@ -99,7 +103,7 @@ bench BadPssHarmonics {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=0.5)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=0.5)
   }}
 
   measurements {{
@@ -132,7 +136,7 @@ bench BadPssUic {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, uic=2)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, uic=2)
   }}
 
   measurements {{
@@ -166,7 +170,7 @@ bench BadPssUicNonInt {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, uic=0.5)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, uic=0.5)
   }}
 
   measurements {{
@@ -199,7 +203,7 @@ bench BadPssIterations {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, iterations=0)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, iterations=0)
   }}
 
   measurements {{
@@ -232,7 +236,7 @@ bench BadPssIterationsNonInt {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, iterations=0.5)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, iterations=0.5)
   }}
 
   measurements {{
@@ -265,7 +269,7 @@ bench BadPssSteadyCoef {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, steady_coef=-0.1)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, steady_coef=-0.1)
   }}
 
   measurements {{
@@ -298,7 +302,7 @@ bench PssStartStopTime {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3)
   }}
 
   measurements {{
@@ -330,7 +334,7 @@ bench PssStartStopFrequencyMismatch {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3)
   }}
 
   measurements {{
@@ -362,7 +366,7 @@ bench MissingPssResp {{
   stim IN : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3)
   }}
 
   measurements {{

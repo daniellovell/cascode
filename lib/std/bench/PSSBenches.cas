@@ -2,13 +2,13 @@ VERSION 4.1
 
 library lib.std.bench
 
-abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
+abstract bench AbstractOutputPSS(Frequency guess_frequency = 1GHz) {
   abstract resp OUT
 
   analysis {
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=guess_freq,
-      tstab=100 * period(guess_freq),
+      guess_frequency=guess_frequency,
+      stabilization_time=100 * period(guess_frequency),
       harmonics=20)
   }
 
@@ -60,8 +60,8 @@ bench SEOscPSS extends AbstractOutputPSS {
 
   override analysis {
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=guess_freq,
-      tstab=1000 * period(guess_freq),
+      guess_frequency=guess_frequency,
+      stabilization_time=1000 * period(guess_frequency),
       harmonics=20,
       iterations=1000,
       steady_coef=0.1,
@@ -89,8 +89,8 @@ bench DiffOscPSS extends AbstractOutputPSS {
 
   override analysis {
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=guess_freq,
-      tstab=1000 * period(guess_freq),
+      guess_frequency=guess_frequency,
+      stabilization_time=1000 * period(guess_frequency),
       harmonics=20,
       iterations=1000,
       steady_coef=0.1,
@@ -153,7 +153,7 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=guess_frequency, phase=0deg) {
       .N--gnd
     }
 
@@ -212,10 +212,10 @@ bench DiffToDiffPSS extends AbstractInputOutputPSS {
 
     GND _ = new GND() { .GND--gnd }
 
-    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=0deg) {
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_frequency, phase=0deg) {
       .N--gnd
     }
-    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=guess_frequency, phase=180deg) {
       .N--gnd
     }
 

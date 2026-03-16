@@ -475,10 +475,10 @@ public static class BenchTestbenchEmitter
         foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.PSSAnalysis))
         {
             pssIndex++;
-            var fguessHz =
-                a.FguessHz
+            var guessFrequencyHz =
+                a.GuessFrequencyHz
                 ?? throw new InvalidOperationException(
-                    $"PSSAnalysis '{a.Name}' missing FguessHz in plan."
+                    $"PSSAnalysis '{a.Name}' missing GuessFrequencyHz in plan."
                 );
             var tstabS =
                 a.TstabS
@@ -496,12 +496,12 @@ public static class BenchTestbenchEmitter
                     $"PSSAnalysis '{a.Name}' missing OscNode in plan."
                 );
 
-            var fguess = SiValue.FormatForBackend(fguessHz, backend);
-            var tstab = SiValue.FormatForBackend(tstabS, backend);
+            var guessFrequency = SiValue.FormatForBackend(guessFrequencyHz, backend);
+            var stabilizationTime = SiValue.FormatForBackend(tstabS, backend);
             var steadyCoef = FormatUnitlessScalar(a.SteadyCoef);
             var uicSuffix = a.UseInitialConditions ? " uic" : string.Empty;
             sb.AppendLine(
-                $"pss {fguess} {tstab} {oscNode} 1000 {harmonics} {a.Iterations} {steadyCoef}{uicSuffix}"
+                $"pss {guessFrequency} {stabilizationTime} {oscNode} 1000 {harmonics} {a.Iterations} {steadyCoef}{uicSuffix}"
             );
             sb.AppendLine($"setplot pss{pssIndex}");
 

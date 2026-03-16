@@ -328,7 +328,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
-            new[] { new MetricCallArg("guess_freq", "100MHz") }
+            new[] { new MetricCallArg("guess_frequency", "100MHz") }
         );
         var resultsPath = Path.Combine(_outputDir, $"LCSeries_{instanceName}_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
@@ -363,7 +363,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
-            new[] { new MetricCallArg("guess_freq", "2.8GHz") }
+            new[] { new MetricCallArg("guess_frequency", "2.8GHz") }
         );
         var resultsPath = Path.Combine(_outputDir, $"LCTank_{instanceName}_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");
@@ -400,7 +400,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
-            new[] { new MetricCallArg("guess_freq", "2.7GHz") }
+            new[] { new MetricCallArg("guess_frequency", "2.7GHz") }
         );
         var resultsPath = Path.Combine(_outputDir, $"LCOsc_Sky130_{instanceName}_results.json");
         Assert.True(File.Exists(resultsPath), "results.json not found");

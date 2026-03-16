@@ -16,7 +16,7 @@ public sealed class StdlibBenchInputAmplitudeTests
     {
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
-            new[] { new MetricCallArg("guess_freq", "1MHz") }
+            new[] { new MetricCallArg("guess_frequency", "1MHz") }
         );
         var tb = EmitLinkedTestbench(
             $$"""
@@ -39,7 +39,7 @@ public sealed class StdlibBenchInputAmplitudeTests
 
               constraints {
                 numeric {
-                  c_pin = pss_bench(guess_freq=1MHz)::InputPower >= 0W
+                  c_pin = pss_bench(guess_frequency=1MHz)::InputPower >= 0W
                 }
               }
 

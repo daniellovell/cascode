@@ -18,11 +18,11 @@ public sealed class BenchAnalysisCompilerPssTests
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-bench DiffPss(Frequency guess_freq = 1GHz) {{
+bench DiffPss(Frequency guess_frequency = 1GHz) {{
   resp OUT : Diff
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=guess_freq, tstab=12ns, harmonics=7)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=guess_frequency, stabilization_time=12ns, harmonics=7)
   }}
 }}
 ";
@@ -56,13 +56,13 @@ bench DiffPss(Frequency guess_freq = 1GHz) {{
             EmptyNetlist(),
             new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
             {
-                ["guess_freq"] = new BenchNumber(BenchNumericKind.FrequencyHz, 2.4e9),
+                ["guess_frequency"] = new BenchNumber(BenchNumericKind.FrequencyHz, 2.4e9),
             }
         );
 
         var pss = Assert.Single(analyses);
         Assert.Equal(BenchValueType.PSSAnalysis, pss.Type);
-        Assert.Equal(2.4e9, Assert.IsType<double>(pss.FguessHz));
+        Assert.Equal(2.4e9, Assert.IsType<double>(pss.GuessFrequencyHz));
         Assert.Equal(12e-9, Assert.IsType<double>(pss.TstabS), precision: 15);
         Assert.Equal(7, pss.Harmonics);
         Assert.Equal("out_p", pss.OscNode);
@@ -79,8 +79,8 @@ bench ConfiguredPss {{
 
   analysis {{
     PSSAnalysis pss = new PSSAnalysis(
-      fguess=1GHz,
-      tstab=2ns,
+      guess_frequency=1GHz,
+      stabilization_time=2ns,
       harmonics=9,
       iterations=1000,
       steady_coef=0.1,
@@ -101,7 +101,7 @@ bench DefaultPss {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=2ns, harmonics=9)
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=2ns, harmonics=9)
   }}
 }}
 ";
@@ -129,8 +129,8 @@ bench DefaultPss {{
                     Name = "pss",
                     Parameters = new Dictionary<string, MeasurementExpr>(StringComparer.Ordinal)
                     {
-                        ["fguess"] = new MeasurementQuantity("1GHz"),
-                        ["tstab"] = new MeasurementQuantity("1ns"),
+                        ["guess_frequency"] = new MeasurementQuantity("1GHz"),
+                        ["stabilization_time"] = new MeasurementQuantity("1ns"),
                         ["harmonics"] = new MeasurementNumber("3"),
                     },
                 },

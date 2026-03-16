@@ -759,7 +759,7 @@ public sealed class CascodeLinkerTests
               }
 
               analysis {
-                PSSAnalysis pss = new PSSAnalysis(fguess=2.4GHz, tstab=10ns, harmonics=7)
+                PSSAnalysis pss = new PSSAnalysis(guess_frequency=2.4GHz, stabilization_time=10ns, harmonics=7)
               }
 
               measurements {
