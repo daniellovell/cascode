@@ -27,7 +27,7 @@ internal static class SchematicConstraintResolver
         bool allowRelaxation
     )
     {
-        var diagnostics = new List<string>();
+        var diagnostics = new List<RenderDiagnostic>();
         var attach = new AttachResolver(document).Resolve();
         var resolution = attach.CircuitResults.GetValueOrDefault(circuit.Name);
         var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
@@ -110,7 +110,7 @@ internal static class SchematicConstraintResolver
         RenderBlock? render,
         IReadOnlyDictionary<string, PointValue> anchors,
         bool allowRelaxation,
-        List<string> diagnostics
+        List<RenderDiagnostic> diagnostics
     )
     {
         if (render is null)
@@ -131,7 +131,15 @@ internal static class SchematicConstraintResolver
             var point = EvaluatePoint(entity.Place.Point, anchors, previous: null);
             if (point is null)
             {
-                diagnostics.Add($"Could not resolve placement point for '{entity.Name}'.");
+                diagnostics.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-AUTO-PLACE-POINT-UNRESOLVED",
+                        Message = $"Could not resolve placement point for '{entity.Name}'.",
+                        EntityRefs = new RenderDiagnosticEntityRefs { DeviceId = entity.Name },
+                    }
+                );
                 continue;
             }
 
@@ -171,7 +179,7 @@ internal static class SchematicConstraintResolver
         RenderBlock? render,
         IReadOnlyDictionary<string, PointValue> anchors,
         bool allowRelaxation,
-        List<string> diagnostics
+        List<RenderDiagnostic> diagnostics
     )
     {
         if (render is null)
@@ -201,7 +209,15 @@ internal static class SchematicConstraintResolver
             }
             catch (InvalidOperationException ex)
             {
-                diagnostics.Add(ex.Message);
+                diagnostics.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-AUTO-NET-SEGMENT-UNRESOLVED",
+                        Message = ex.Message,
+                        EntityRefs = new RenderDiagnosticEntityRefs { NetName = entity.Name },
+                    }
+                );
                 continue;
             }
 

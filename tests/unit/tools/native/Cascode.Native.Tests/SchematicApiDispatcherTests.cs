@@ -419,6 +419,83 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void ApplyOperations_SetPortSide_WritesRenderPortSide()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-side-1",
+                        ["type"] = "setPortSide",
+                        ["port"] = "IN",
+                        ["side"] = "top",
+                    }
+                ),
+            }
+        );
+
+        var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
+        var portEntry = Assert.Single(circuit.Render!.Entities, entry => entry.Name == "IN");
+        Assert.Equal(RenderPortSide.Top, portEntry.Side);
+    }
+
+    [Fact]
+    public void ApplyOperations_SetPortSide_RejectsAutoForManualRender()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildManualSourceWithOverlappingPorts(),
+            }
+        );
+
+        var ex = Assert.Throws<ApiException>(() =>
+            Dispatch(
+                session.State,
+                "schematic.applyOperations",
+                new JsonObject
+                {
+                    ["documentId"] = "doc1",
+                    ["baseRevision"] = 1,
+                    ["operations"] = new JsonArray(
+                        new JsonObject
+                        {
+                            ["opId"] = "op-side-2",
+                            ["type"] = "setPortSide",
+                            ["port"] = "IN",
+                            ["side"] = "auto",
+                        }
+                    ),
+                }
+            )
+        );
+
+        Assert.Equal("CASAPI-INVALID-REQUEST", ex.Code);
+        Assert.Contains("explicit port side", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RenderSchematic_ThrowsApiExceptionWhenSelectedCircuitIsMissing()
     {
         using var session = ApiSession.Create();
@@ -486,8 +563,15 @@ public sealed class SchematicApiDispatcherTests
 
         var diagnostic = document.GetProperty("diagnostics").EnumerateArray().First();
         Assert.Equal("warning", diagnostic.GetProperty("severity").GetString());
-        Assert.Equal("CASAPI-RENDER-DIAGNOSTIC", diagnostic.GetProperty("code").GetString());
+        Assert.Equal("CASRENDER-MANUAL-PORT-OVERLAP", diagnostic.GetProperty("code").GetString());
         Assert.True(diagnostic.TryGetProperty("message", out _));
+        Assert.Equal(
+            "IN",
+            diagnostic.GetProperty("entityRefs").GetProperty("portName").GetString()
+        );
+        var point = diagnostic.GetProperty("geometry").GetProperty("point");
+        Assert.Equal(0, point.GetProperty("x").GetDouble());
+        Assert.Equal(0, point.GetProperty("y").GetDouble());
     }
 
     [Fact]

@@ -59,5 +59,5 @@ internal sealed class RenderComputation
 {
     public required CoarseGridResult Placement { get; init; }
     public required RoutingResult Routing { get; init; }
-    public required IReadOnlyList<string> Diagnostics { get; init; }
+    public required IReadOnlyList<Cascode.Render.Layout.RenderDiagnostic> Diagnostics { get; init; }
 }

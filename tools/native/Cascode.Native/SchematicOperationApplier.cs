@@ -29,6 +29,9 @@ internal static class SchematicOperationApplier
             case "movePort":
                 ApplyMovePort(state, operation, changed);
                 return;
+            case "setPortSide":
+                ApplySetPortSide(state, operation, changed);
+                return;
             case "setNetSegments":
                 ApplySetNetSegments(state, operation, changed);
                 return;
@@ -262,6 +265,33 @@ internal static class SchematicOperationApplier
             Point = CanonicalizePoint(state, circuit, portName, op, x, y),
             Strength = RenderConstraintStrength.Hard,
         };
+        changed.Add(portName);
+    }
+
+    /// <summary>
+    /// Updates the explicit side declaration for the specified port.
+    /// </summary>
+    private static void ApplySetPortSide(
+        DocumentState state,
+        JsonElement op,
+        HashSet<string> changed
+    )
+    {
+        var portName = op.RequireString("port");
+        var sideValue = op.RequireString("side");
+        var side = ParsePortSide(sideValue);
+        var circuit = FindCircuit(state);
+
+        if (circuit.Render?.Mode == RenderLayoutMode.Manual && side == RenderPortSide.Auto)
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                "Manual render requires an explicit port side (left/right/top/bottom)."
+            );
+        }
+
+        var entry = UpsertRenderEntity(circuit, portName, RenderEntityKind.Port);
+        entry.Side = side;
         changed.Add(portName);
     }
 
@@ -682,6 +712,22 @@ internal static class SchematicOperationApplier
     private static bool IsSemanticAnchor(string anchor)
     {
         return !anchor.StartsWith("canvas ", StringComparison.Ordinal);
+    }
+
+    private static RenderPortSide ParsePortSide(string sideValue)
+    {
+        return sideValue.ToLowerInvariant() switch
+        {
+            "left" => RenderPortSide.Left,
+            "right" => RenderPortSide.Right,
+            "top" => RenderPortSide.Top,
+            "bottom" => RenderPortSide.Bottom,
+            "auto" => RenderPortSide.Auto,
+            _ => throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Invalid port side '{sideValue}'."
+            ),
+        };
     }
 
     /// <summary>

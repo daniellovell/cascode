@@ -63,14 +63,69 @@ internal static class SchematicDocumentBuilder
                 render.Routing
             ),
             SymbolCatalog = SchematicLayoutProjection.BuildSymbolCatalog(structural),
-            Diagnostics = render
-                .Diagnostics.Select(message => new ApiDiagnostic
+            Diagnostics = render.Diagnostics.Select(MapDiagnostic).ToArray(),
+        };
+    }
+
+    private static ApiDiagnostic MapDiagnostic(Cascode.Render.Layout.RenderDiagnostic diagnostic)
+    {
+        return new ApiDiagnostic
+        {
+            Severity = diagnostic.Severity switch
+            {
+                Cascode.Render.Layout.RenderDiagnosticSeverity.Info => "info",
+                Cascode.Render.Layout.RenderDiagnosticSeverity.Error => "error",
+                _ => "warning",
+            },
+            Code = string.IsNullOrWhiteSpace(diagnostic.Code)
+                ? "CASAPI-RENDER-DIAGNOSTIC"
+                : diagnostic.Code,
+            Message = diagnostic.Message,
+            EntityRefs = diagnostic.EntityRefs is null
+                ? null
+                : new ApiDiagnosticEntityRefs
                 {
-                    Severity = "warning",
-                    Code = "CASAPI-RENDER-DIAGNOSTIC",
-                    Message = message,
-                })
-                .ToArray(),
+                    DeviceId = diagnostic.EntityRefs.DeviceId,
+                    PortName = diagnostic.EntityRefs.PortName,
+                    NetName = diagnostic.EntityRefs.NetName,
+                    SegmentIndex = diagnostic.EntityRefs.SegmentIndex,
+                },
+            Geometry = diagnostic.Geometry is null
+                ? null
+                : new ApiDiagnosticGeometry
+                {
+                    Point = diagnostic.Geometry.Point is null
+                        ? null
+                        : new PointValue
+                        {
+                            X = diagnostic.Geometry.Point.Value.X,
+                            Y = diagnostic.Geometry.Point.Value.Y,
+                        },
+                    Segment = diagnostic.Geometry.Segment is null
+                        ? null
+                        : new SegmentValue
+                        {
+                            From = new PointValue
+                            {
+                                X = diagnostic.Geometry.Segment.Value.From.X,
+                                Y = diagnostic.Geometry.Segment.Value.From.Y,
+                            },
+                            To = new PointValue
+                            {
+                                X = diagnostic.Geometry.Segment.Value.To.X,
+                                Y = diagnostic.Geometry.Segment.Value.To.Y,
+                            },
+                        },
+                    Bbox = diagnostic.Geometry.Bbox is null
+                        ? null
+                        : new BboxValue
+                        {
+                            X = diagnostic.Geometry.Bbox.Value.X,
+                            Y = diagnostic.Geometry.Bbox.Value.Y,
+                            Width = diagnostic.Geometry.Bbox.Value.Width,
+                            Height = diagnostic.Geometry.Bbox.Value.Height,
+                        },
+                },
         };
     }
 

@@ -10,7 +10,7 @@ public sealed class ExactSchematicResult
 {
     public required CoarseGridResult Placement { get; init; }
     public required RoutingResult Routing { get; init; }
-    public required IReadOnlyList<string> Diagnostics { get; init; }
+    public required IReadOnlyList<RenderDiagnostic> Diagnostics { get; init; }
 }
 
 public readonly record struct RenderUnitPoint(int X, int Y);
@@ -369,12 +369,13 @@ public static class ExactSchematicResolver
         return terminals;
     }
 
-    private static IReadOnlyList<string> DetectOverlapDiagnostics(
+    private static IReadOnlyList<RenderDiagnostic> DetectOverlapDiagnostics(
         IEnumerable<DevicePlacement> devices,
         IEnumerable<PortPlacement> ports
     )
     {
-        var diagnostics = new List<string>();
+        _ = devices;
+        var diagnostics = new List<RenderDiagnostic>();
         var portList = ports.ToList();
         foreach (var port in portList)
         {
@@ -384,7 +385,18 @@ public static class ExactSchematicResolver
             if (collisions > 0)
             {
                 diagnostics.Add(
-                    $"Port '{port.PortName}' overlaps another explicit port placement."
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-MANUAL-PORT-OVERLAP",
+                        Message =
+                            $"Port '{port.PortName}' overlaps another explicit port placement.",
+                        EntityRefs = new RenderDiagnosticEntityRefs { PortName = port.PortName },
+                        Geometry = new RenderDiagnosticGeometry
+                        {
+                            Point = new RenderDiagnosticPoint(port.Position.X, port.Position.Y),
+                        },
+                    }
                 );
             }
         }

@@ -172,5 +172,5 @@ internal sealed class RenderComputationState
     public required Cascode.Render.Analysis.CircuitGraph Graph { get; init; }
     public required Cascode.Render.Placement.CoarseGridResult Placement { get; init; }
     public required Cascode.Render.Routing.RoutingResult Routing { get; init; }
-    public required IReadOnlyList<string> Diagnostics { get; init; }
+    public required IReadOnlyList<Cascode.Render.Layout.RenderDiagnostic> Diagnostics { get; init; }
 }

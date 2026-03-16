@@ -2,8 +2,8 @@
 
 This handoff is for the next agent continuing work related to manual schematic mode across two repositories:
 
-- `cascode-cheetah` at `/Users/daniellovell/dev/cascode-cheetah`
-- `prometheus-panther` at `/Users/daniellovell/dev/prometheus-panther`
+- `cascode-lynx` at `~/Projects/cascode-lynx`
+- `prometheus-lynx` at `~/Projects/prometheus-lynx`
 
 The user asked for the full plan to be implemented without editing the attached plan file itself. The work requested by that plan is functionally complete. This document explains:
 
@@ -13,6 +13,21 @@ The user asked for the full plan to be implemented without editing the attached 
 - what was verified
 - what was not fully verified because of local environment issues
 - what a follow-on agent should do next, if anything
+
+## 0. 2026-03-15 Closure Update
+
+This handoff is now aligned with the shipped manual-mode contract:
+
+- structured render diagnostics are propagated as structured native diagnostics (`severity`, `code`, `entityRefs`, `geometry`)
+- native editor operations now include explicit port-side editing via `setPortSide`
+- Designer supports end-to-end manual geometry authoring for:
+  - device place + orientation (`moveDevice`, `rotateDevice`, `mirrorDevice`)
+  - port place + side (`movePort`, `setPortSide`)
+  - net geometry (`setNetSegments`)
+- RFC alignment:
+  - `docs/rfcs/0006-schematic-document-and-editor-api.md` is now explicitly marked historical/superseded
+  - `docs/rfcs/0012-manual-schematic-mode-and-editor-contract.md` is the active contract
+  - `docs/examples/manual-mode-canonical.cas` is the canonical manual-mode example
 
 ## 1. Feature Goal
 
@@ -57,7 +72,7 @@ There is still follow-up verification work that was not completed only because t
 
 ## 3. High-Level Result
 
-### In `cascode-cheetah`
+### In `cascode-lynx`
 
 This repository now supports:
 
@@ -133,7 +148,7 @@ These are not optional. They were explicitly clarified with the user.
 - no silent fallbacks
 - no backwards-compat readers for old shapes
 
-## 5. `cascode-cheetah` Work Already Completed
+## 5. `cascode-lynx` Work Already Completed
 
 ### Key language changes
 
@@ -311,7 +326,7 @@ Result:
 - `5` test files passed
 - `62` tests passed
 
-### Verified earlier in `cascode-cheetah`
+### Verified earlier in `cascode-lynx`
 
 Before switching to Designer work, the Cascode-side implementation and associated tests were completed and passing during the earlier phase of the session. That included:
 
@@ -412,7 +427,7 @@ Do not touch them unless the user later asks you to.
 
 There are uncommitted changes in both repositories corresponding to this feature work.
 
-### `cascode-cheetah`
+### `cascode-lynx`
 
 Relevant modified/new files include:
 
@@ -453,7 +468,7 @@ If the user asks for continuation rather than a new feature, the next sensible s
 
 ## 13. Exact Commands Worth Re-Running
 
-### In `cascode-cheetah`
+### In `cascode-lynx`
 
 If needed:
 
