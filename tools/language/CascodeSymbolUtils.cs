@@ -11,6 +11,7 @@ internal static class CascodeSymbolUtils
         || ContainsKeywordDecl(content, "bench", name)
         || ContainsKeywordDecl(content, "function", name)
         || ContainsPrimitiveDecl(content, name)
+        || ContainsKeywordDecl(content, "part", name)
         || ContainsKeywordDecl(content, "circuit", name);
 
     public static bool ContainsPrimitiveDecl(string content, string name) =>

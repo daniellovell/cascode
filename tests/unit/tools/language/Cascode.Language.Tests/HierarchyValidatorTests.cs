@@ -210,6 +210,78 @@ public class HierarchyValidatorTests
     }
 
     [Fact]
+    public void Validate_InstanceReferencingPart_UsesPartParametersAndPorts()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Parts = new List<PartDefinition>
+            {
+                new PartDefinition
+                {
+                    Name = "ChipRes",
+                    Parameters = new List<CircuitParameter>
+                    {
+                        new CircuitParameter { Name = "R", Type = "real" },
+                    },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "P",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "N",
+                            Type = "analog",
+                        },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = CascodeLevel.EL,
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "r1",
+                                Type = "ChipRes",
+                                Bindings = new Dictionary<string, string> { ["P"] = "IN" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = HierarchyValidator.Validate(doc);
+
+        Assert.False(result.IsValid);
+        Assert.DoesNotContain(result.GetErrors(), e => e.Code == "HIER-001");
+        Assert.Contains(result.GetErrors(), e => e.Code == "HIER-002");
+        Assert.Contains(result.GetErrors(), e => e.Code == "HIER-003");
+    }
+
+    [Fact]
     public void Validate_UnboundPort_ReturnsHIER003()
     {
         var doc = new CascodeDocument

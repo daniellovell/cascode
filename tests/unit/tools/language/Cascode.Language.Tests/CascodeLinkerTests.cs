@@ -127,6 +127,77 @@ public sealed class CascodeLinkerTests
     }
 
     [Fact]
+    public void LinkFile_ResolvesIncludedPartDefinitions_AndRetainsThemInLinkedOutput()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-parts");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        var partPath = Path.Combine(cascodeHome.Path, "parts.cas");
+        File.WriteAllText(
+            partPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            part ChipRes(real R) {
+              io P : analog
+              io N : analog
+
+              params { R = R }
+
+              catalog {
+                entry _0603 {
+                  pins {
+                    P1 = P
+                    P2 = N
+                  }
+                }
+              }
+            }
+            """
+        );
+
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include parts
+
+            circuit TopLevel {
+              level EL
+              input IN : analog
+              output OUT : analog
+
+              fill {
+                ChipRes r1 = new ChipRes[_0603](R=1k) {
+                  .P--IN
+                  .N--OUT
+                }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(entryPath, outDir, cascodeHome.Path);
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+
+        Assert.Contains(linked.Parts, part => part.Name == "ChipRes");
+        var linkedText = File.ReadAllText(result.LinkedCasPath!);
+        Assert.Contains("new ChipRes[_0603](R=1k)", linkedText, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            diagnostic =>
+                diagnostic.Message.Contains(
+                    "Unresolved circuit reference 'ChipRes'",
+                    StringComparison.Ordinal
+                )
+        );
+    }
+
+    [Fact]
     public void LinkFile_ResolvesBenchBaseAcrossIncludedFiles()
     {
         var tmp = Path.Combine(

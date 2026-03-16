@@ -34,13 +34,21 @@ internal sealed class PortCoverageAnalysis
 
     public void ValidateInstancePortCoverage(
         InstanceDeclaration instance,
+        IReadOnlyList<PortDeclaration> targetPorts
+    )
+    {
+        ValidatePorts(instance, targetPorts);
+    }
+
+    public void ValidateInstancePortCoverage(
+        InstanceDeclaration instance,
         TraitDefinition targetTrait
     )
     {
-        ValidateInstancePortCoverage(instance, targetTrait.Ports);
+        ValidatePorts(instance, targetTrait.Ports);
     }
 
-    private void ValidateInstancePortCoverage(
+    private void ValidatePorts(
         InstanceDeclaration instance,
         IReadOnlyList<PortDeclaration> targetPorts
     )

@@ -43,6 +43,7 @@ public static class BundleDesugarer
             c => c,
             StringComparer.Ordinal
         );
+        var partsByName = document.Parts.ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
         var traitsByName = document.Traits.ToDictionary(
             t => t.Name,
             t => t,
@@ -60,9 +61,10 @@ public static class BundleDesugarer
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
             BenchDefinitions = document.BenchDefinitions,
             Primitives = document.Primitives,
+            Parts = document.Parts,
             Circuits = document
                 .Circuits.Select(c =>
-                    DesugarCircuit(c, bundlesByName, circuitsByName, traitsByName)
+                    DesugarCircuit(c, bundlesByName, circuitsByName, partsByName, traitsByName)
                 )
                 .ToList(),
         };
@@ -186,6 +188,7 @@ public static class BundleDesugarer
         Circuit circuit,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName
     )
     {
@@ -214,7 +217,13 @@ public static class BundleDesugarer
             Grounds = circuit.Grounds,
             Ports = ExpandPorts(circuit.Ports, bundlesByName),
             Slot = circuit.Slot is not null
-                ? DesugarSlotBlock(circuit.Slot, bundlesByName, circuitsByName, traitsByName)
+                ? DesugarSlotBlock(
+                    circuit.Slot,
+                    bundlesByName,
+                    circuitsByName,
+                    partsByName,
+                    traitsByName
+                )
                 : null,
             Fill = circuit.Fill is not null
                 ? DesugarFillBlock(
@@ -222,6 +231,7 @@ public static class BundleDesugarer
                     portTypes,
                     bundlesByName,
                     circuitsByName,
+                    partsByName,
                     traitsByName,
                     instanceTypes
                 )
@@ -327,6 +337,7 @@ public static class BundleDesugarer
         SlotBlock slot,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName
     )
     {
@@ -340,7 +351,7 @@ public static class BundleDesugarer
             Nets = slot.Nets,
             Instances = slot
                 .Instances.Select(i =>
-                    DesugarInstance(i, bundlesByName, circuitsByName, traitsByName)
+                    DesugarInstance(i, bundlesByName, circuitsByName, partsByName, traitsByName)
                 )
                 .ToList(),
             Connections = slot.Connections,
@@ -355,6 +366,7 @@ public static class BundleDesugarer
         IReadOnlyDictionary<string, string> portTypes,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName,
         IReadOnlyDictionary<string, string> instanceTypes
     )
@@ -363,7 +375,13 @@ public static class BundleDesugarer
         var desugaredInstances = fill
             .Instances.Select(i =>
             {
-                var desugared = DesugarInstance(i, bundlesByName, circuitsByName, traitsByName);
+                var desugared = DesugarInstance(
+                    i,
+                    bundlesByName,
+                    circuitsByName,
+                    partsByName,
+                    traitsByName
+                );
                 // Expand instance-level connects if any
                 if (desugared.Connects.Count > 0)
                 {
@@ -375,6 +393,7 @@ public static class BundleDesugarer
                         Bindings = desugared.Bindings,
                         Params = desugared.Params,
                         Sizes = desugared.Sizes,
+                        Selection = desugared.Selection,
                         Connects = ExpandConnections(
                             desugared.Connects,
                             portTypes,
@@ -412,12 +431,18 @@ public static class BundleDesugarer
         InstanceDeclaration instance,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName
     )
     {
         var expandedBindings = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        var childPortTypes = ResolvePortTypes(instance.Type, circuitsByName, traitsByName);
+        var childPortTypes = InstanceTargetResolver.ResolvePortTypes(
+            instance.Type,
+            circuitsByName,
+            partsByName,
+            traitsByName
+        );
 
         foreach (var (port, net) in instance.Bindings)
         {
@@ -460,31 +485,9 @@ public static class BundleDesugarer
             Bindings = expandedBindings,
             Params = instance.Params,
             Sizes = instance.Sizes,
+            Selection = instance.Selection,
             Connects = instance.Connects, // Preserve for later expansion
         };
-    }
-
-    private static IReadOnlyDictionary<string, string>? ResolvePortTypes(
-        string instanceType,
-        IReadOnlyDictionary<string, Circuit> circuitsByName,
-        IReadOnlyDictionary<string, TraitDefinition> traitsByName
-    )
-    {
-        if (circuitsByName.TryGetValue(instanceType, out var childCircuit))
-        {
-            return childCircuit.Ports.ToDictionary(
-                p => p.Name,
-                p => p.Type,
-                StringComparer.Ordinal
-            );
-        }
-
-        if (traitsByName.TryGetValue(instanceType, out var trait))
-        {
-            return trait.Ports.ToDictionary(p => p.Name, p => p.Type, StringComparer.Ordinal);
-        }
-
-        return null;
     }
 
     /// <summary>

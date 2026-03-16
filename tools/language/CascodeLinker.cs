@@ -295,6 +295,17 @@ public static class CascodeLinker
             );
 
             progress |= ResolveMissing(
+                "part",
+                required.Parts,
+                name => includedDocs.Any(d => d.Document.Parts.Any(p => p.Name == name)),
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "part", name),
+                TryAddDoc,
+                TryRead,
+                candidates,
+                parsedPaths
+            );
+
+            progress |= ResolveMissing(
                 "circuit",
                 required.Circuits,
                 name => includedDocs.Any(d => d.Document.Circuits.Any(c => c.Name == name)),
@@ -375,6 +386,7 @@ public static class CascodeLinker
         public HashSet<string> Benches { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Functions { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Primitives { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Parts { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Circuits { get; } = new(StringComparer.Ordinal);
     }
 
@@ -400,6 +412,7 @@ public static class CascodeLinker
         Bench,
         Function,
         Primitive,
+        Part,
         Circuit,
     }
 
@@ -505,6 +518,7 @@ public static class CascodeLinker
                 .BenchDefinitions.Where(b => allowed.Contains(b.Name))
                 .ToList(),
             Primitives = source.Primitives.Where(p => allowed.Contains(p.Name)).ToList(),
+            Parts = source.Parts.Where(p => allowed.Contains(p.Name)).ToList(),
             Circuits = source.Circuits.Where(c => allowed.Contains(c.Name)).ToList(),
         };
     }
@@ -596,9 +610,25 @@ public static class CascodeLinker
                     {
                         required.Traits.Add(inst.Type);
                     }
+                    else if (IsPrimitiveInstance(inst))
+                    {
+                        required.Primitives.Add(inst.Type);
+                    }
                     else
                     {
-                        required.Circuits.Add(inst.Type);
+                        if (doc.Parts.Any(part => part.Name == inst.Type))
+                        {
+                            required.Parts.Add(inst.Type);
+                        }
+                        else if (doc.Circuits.Any(circuit => circuit.Name == inst.Type))
+                        {
+                            required.Circuits.Add(inst.Type);
+                        }
+                        else
+                        {
+                            required.Parts.Add(inst.Type);
+                            required.Circuits.Add(inst.Type);
+                        }
                     }
                 }
 
@@ -671,6 +701,24 @@ public static class CascodeLinker
         foreach (var fn in doc.Functions)
         {
             CollectFunctionReferencesFromStatements(fn.Body, required);
+        }
+
+        foreach (var part in doc.Parts)
+        {
+            if (!string.IsNullOrWhiteSpace(part.BasePart))
+            {
+                required.Parts.Add(part.BasePart);
+            }
+
+            foreach (var implemented in part.Implements)
+            {
+                required.Traits.Add(implemented);
+            }
+
+            foreach (var port in part.Ports)
+            {
+                AddBundleIfNeeded(port.Type, required);
+            }
         }
     }
 
@@ -895,6 +943,17 @@ public static class CascodeLinker
             || typeName.Equals("Impedor", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool IsPrimitiveInstance(InstanceDeclaration instance) =>
+        instance.DeclaredType is not null
+        && (
+            instance.DeclaredType.Equals("NMOS", StringComparison.OrdinalIgnoreCase)
+            || instance.DeclaredType.Equals("PMOS", StringComparison.OrdinalIgnoreCase)
+            || instance.DeclaredType.Equals("Resistor", StringComparison.OrdinalIgnoreCase)
+            || instance.DeclaredType.Equals("Capacitor", StringComparison.OrdinalIgnoreCase)
+            || instance.DeclaredType.Equals("Inductor", StringComparison.OrdinalIgnoreCase)
+            || instance.DeclaredType.Equals("Diode", StringComparison.OrdinalIgnoreCase)
+        );
+
     private static bool ResolveMissing(
         string kind,
         HashSet<string> required,
@@ -951,6 +1010,7 @@ public static class CascodeLinker
                     "bench" => read.Document.BenchDefinitions.Any(b => b.Name == name),
                     "function" => read.Document.Functions.Any(f => f.Name == name),
                     "primitive" => read.Document.Primitives.Any(p => p.Name == name),
+                    "part" => read.Document.Parts.Any(p => p.Name == name),
                     "circuit" => read.Document.Circuits.Any(c => c.Name == name),
                     _ => false,
                 };
@@ -979,6 +1039,11 @@ public static class CascodeLinker
         LinkIncludePolicy includePolicy
     )
     {
+        bool HasPart(string name) =>
+            includedDocs.Any(d => d.Document.Parts.Any(p => p.Name == name));
+        bool HasCircuit(string name) =>
+            includedDocs.Any(d => d.Document.Circuits.Any(c => c.Name == name));
+
         void AddMissing(string kind, IEnumerable<string> names, Func<string, bool> resolved)
         {
             foreach (
@@ -1028,10 +1093,11 @@ public static class CascodeLinker
             name => includedDocs.Any(d => d.Document.Primitives.Any(p => p.Name == name))
         );
         AddMissing(
-            "circuit",
-            required.Circuits,
-            name => includedDocs.Any(d => d.Document.Circuits.Any(c => c.Name == name))
+            "part",
+            required.Parts.Where(name => !required.Circuits.Contains(name)),
+            name => HasPart(name) || HasCircuit(name)
         );
+        AddMissing("circuit", required.Circuits, name => HasCircuit(name) || HasPart(name));
     }
 
     private static bool TryBuildIncludeSuggestion(
@@ -1246,6 +1312,7 @@ public static class CascodeLinker
         public HashSet<string> Benches { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Functions { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Primitives { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Parts { get; } = new(StringComparer.Ordinal);
         public HashSet<string> Circuits { get; } = new(StringComparer.Ordinal);
     }
 
@@ -1316,6 +1383,12 @@ public static class CascodeLinker
             d => d.Document.Primitives,
             d => d.Name
         );
+        var partSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.Parts,
+            d => d.Name
+        );
         var circuitSources = BuildSymbolSources(
             includedDocs,
             workspaceRoot,
@@ -1357,6 +1430,7 @@ public static class CascodeLinker
                 traitSources,
                 benchSources,
                 functionSources,
+                partSources,
                 circuitSources
             );
             if (symbol.Kind is SymbolKind.Trait or SymbolKind.Circuit)
@@ -1380,6 +1454,7 @@ public static class CascodeLinker
                     benchSources,
                     functionSources,
                     primitiveSources,
+                    partSources,
                     circuitSources,
                     out var includePath
                 )
@@ -1412,6 +1487,7 @@ public static class CascodeLinker
             Traits = entryDoc.Traits,
             BenchDefinitions = new List<BenchDefinition>(),
             Primitives = entryDoc.Primitives,
+            Parts = entryDoc.Parts,
             Circuits = entryDoc.Circuits,
         };
     }
@@ -1544,6 +1620,7 @@ public static class CascodeLinker
         symbols.Benches.UnionWith(document.BenchDefinitions.Select(b => b.Name));
         symbols.Functions.UnionWith(document.Functions.Select(f => f.Name));
         symbols.Primitives.UnionWith(document.Primitives.Select(p => p.Name));
+        symbols.Parts.UnionWith(document.Parts.Select(p => p.Name));
         symbols.Circuits.UnionWith(document.Circuits.Select(c => c.Name));
         return symbols;
     }
@@ -1556,6 +1633,7 @@ public static class CascodeLinker
             SymbolKind.Bench => symbols.Benches.Contains(name),
             SymbolKind.Function => symbols.Functions.Contains(name),
             SymbolKind.Primitive => symbols.Primitives.Contains(name),
+            SymbolKind.Part => symbols.Parts.Contains(name),
             SymbolKind.Circuit => symbols.Circuits.Contains(name),
             _ => false,
         };
@@ -1590,6 +1668,11 @@ public static class CascodeLinker
             queue.Enqueue((SymbolKind.Primitive, name));
         }
 
+        foreach (var name in required.Parts)
+        {
+            queue.Enqueue((SymbolKind.Part, name));
+        }
+
         foreach (var name in required.Circuits)
         {
             queue.Enqueue((SymbolKind.Circuit, name));
@@ -1602,6 +1685,7 @@ public static class CascodeLinker
         IReadOnlyDictionary<string, SymbolSource<TraitDefinition>> traitSources,
         IReadOnlyDictionary<string, SymbolSource<BenchDefinition>> benchSources,
         IReadOnlyDictionary<string, SymbolSource<FunctionDefinition>> functionSources,
+        IReadOnlyDictionary<string, SymbolSource<PartDefinition>> partSources,
         IReadOnlyDictionary<string, SymbolSource<Circuit>> circuitSources
     )
     {
@@ -1626,10 +1710,24 @@ public static class CascodeLinker
                     temp.Functions.Add(function.Definition);
                 }
                 break;
+            case SymbolKind.Part:
+                if (partSources.TryGetValue(name, out var part))
+                {
+                    temp.Parts.Add(part.Definition);
+                }
+                else if (circuitSources.TryGetValue(name, out var partFallbackCircuit))
+                {
+                    temp.Circuits.Add(partFallbackCircuit.Definition);
+                }
+                break;
             case SymbolKind.Circuit:
                 if (circuitSources.TryGetValue(name, out var circuit))
                 {
                     temp.Circuits.Add(circuit.Definition);
+                }
+                else if (partSources.TryGetValue(name, out var circuitFallbackPart))
+                {
+                    temp.Parts.Add(circuitFallbackPart.Definition);
                 }
                 break;
         }
@@ -1647,6 +1745,7 @@ public static class CascodeLinker
         IReadOnlyDictionary<string, SymbolSource<BenchDefinition>> benchSources,
         IReadOnlyDictionary<string, SymbolSource<FunctionDefinition>> functionSources,
         IReadOnlyDictionary<string, SymbolSource<PrimitiveDefinition>> primitiveSources,
+        IReadOnlyDictionary<string, SymbolSource<PartDefinition>> partSources,
         IReadOnlyDictionary<string, SymbolSource<Circuit>> circuitSources,
         out string includePath
     )
@@ -1669,8 +1768,17 @@ public static class CascodeLinker
             case SymbolKind.Primitive when primitiveSources.TryGetValue(name, out var primitive):
                 includePath = primitive.IncludePath;
                 return true;
+            case SymbolKind.Part when partSources.TryGetValue(name, out var part):
+                includePath = part.IncludePath;
+                return true;
+            case SymbolKind.Part when circuitSources.TryGetValue(name, out var partFallbackCircuit):
+                includePath = partFallbackCircuit.IncludePath;
+                return true;
             case SymbolKind.Circuit when circuitSources.TryGetValue(name, out var circuit):
                 includePath = circuit.IncludePath;
+                return true;
+            case SymbolKind.Circuit when partSources.TryGetValue(name, out var circuitFallbackPart):
+                includePath = circuitFallbackPart.IncludePath;
                 return true;
             default:
                 return false;
@@ -1691,6 +1799,7 @@ public static class CascodeLinker
         var benches = new Dictionary<string, BenchDefinition>(StringComparer.Ordinal);
         var functions = new Dictionary<string, FunctionDefinition>(StringComparer.Ordinal);
         var primitives = new Dictionary<string, PrimitiveDefinition>(StringComparer.Ordinal);
+        var parts = new Dictionary<string, PartDefinition>(StringComparer.Ordinal);
         var circuits = new Dictionary<string, Circuit>(StringComparer.Ordinal);
 
         foreach (var doc in docs)
@@ -1775,6 +1884,22 @@ public static class CascodeLinker
                 }
             }
 
+            foreach (var part in doc.Parts)
+            {
+                if (!parts.TryAdd(part.Name, part))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS1011: Duplicate part '{part.Name}' while linking.",
+                            DiagnosticSeverity.Error,
+                            "<link>",
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+
             foreach (var c in doc.Circuits)
             {
                 if (!circuits.TryAdd(c.Name, c))
@@ -1807,6 +1932,7 @@ public static class CascodeLinker
             Traits = traits.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList(),
             BenchDefinitions = benches.Values.OrderBy(b => b.Name, StringComparer.Ordinal).ToList(),
             Primitives = primitives.Values.OrderBy(p => p.Name, StringComparer.Ordinal).ToList(),
+            Parts = parts.Values.OrderBy(p => p.Name, StringComparer.Ordinal).ToList(),
             Circuits = circuits.Values.OrderBy(c => c.Name, StringComparer.Ordinal).ToList(),
         };
     }
@@ -1929,6 +2055,7 @@ public static class CascodeLinker
             Traits = doc.Traits,
             BenchDefinitions = doc.BenchDefinitions,
             Primitives = doc.Primitives,
+            Parts = doc.Parts,
             Circuits = updatedCircuits,
         };
 

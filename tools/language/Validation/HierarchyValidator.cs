@@ -55,6 +55,7 @@ public static class HierarchyValidator
                 circuitsByName[circuit.Name] = circuit;
             }
         }
+        var partsByName = doc.Parts.ToDictionary(p => p.Name, StringComparer.Ordinal);
         var traitsByName = doc.Traits.ToDictionary(t => t.Name, StringComparer.Ordinal);
 
         // Validate each circuit's hierarchy
@@ -64,6 +65,7 @@ public static class HierarchyValidator
             ValidateCircuitInstances(
                 circuit,
                 circuitsByName,
+                partsByName,
                 traitsByName,
                 doc.Traits,
                 instanceIds,
@@ -100,6 +102,7 @@ public static class HierarchyValidator
     private static void ValidateCircuitInstances(
         Circuit circuit,
         Dictionary<string, Circuit> circuitsByName,
+        Dictionary<string, PartDefinition> partsByName,
         Dictionary<string, TraitDefinition> traitsByName,
         List<TraitDefinition> traits,
         HashSet<string> instanceIds,
@@ -132,7 +135,14 @@ public static class HierarchyValidator
             }
 
             // HIER-001: Validate instance type exists
-            if (!circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+            if (
+                !InstanceTargetResolver.TryResolveConcreteTarget(
+                    instance.Type,
+                    circuitsByName,
+                    partsByName,
+                    out var target
+                )
+            )
             {
                 result.AddError(
                     "HIER-001",
@@ -144,13 +154,13 @@ public static class HierarchyValidator
             }
 
             // HIER-002: Validate required parameters
-            ValidateInstanceParameters(instance, targetCircuit, circuit.Name, result);
+            ValidateInstanceParameters(instance, target.Parameters, circuit.Name, result);
 
             // HIER-007: Validate required size packs
-            ValidateInstanceSizes(instance, targetCircuit, circuit.Name, result);
+            ValidateInstanceSizes(instance, target.Sizes, circuit.Name, result);
 
             // HIER-003: Validate port coverage (bindings + attach)
-            portAnalysis.ValidateInstancePortCoverage(instance, targetCircuit);
+            portAnalysis.ValidateInstancePortCoverage(instance, target.Ports);
         }
     }
 
@@ -159,12 +169,12 @@ public static class HierarchyValidator
     /// </summary>
     private static void ValidateInstanceParameters(
         InstanceDeclaration instance,
-        Circuit targetCircuit,
+        IReadOnlyList<CircuitParameter> parameters,
         string parentCircuitName,
         ValidationResult result
     )
     {
-        foreach (var param in targetCircuit.Parameters)
+        foreach (var param in parameters)
         {
             // Skip if parameter has a default value
             if (param.Default is not null)
@@ -190,12 +200,12 @@ public static class HierarchyValidator
     /// </summary>
     private static void ValidateInstanceSizes(
         InstanceDeclaration instance,
-        Circuit targetCircuit,
+        IReadOnlyList<SizeDeclaration> sizes,
         string parentCircuitName,
         ValidationResult result
     )
     {
-        foreach (var size in targetCircuit.Sizes)
+        foreach (var size in sizes)
         {
             // Skip if size pack has a default value
             if (size.Default is not null)
@@ -421,7 +431,7 @@ public static class HierarchyValidator
                         graph[circuit.Name].Add(instance.Type);
                     }
                 }
-                else
+                else if (circuitsByName.ContainsKey(instance.Type))
                 {
                     graph[circuit.Name].Add(instance.Type);
                 }
