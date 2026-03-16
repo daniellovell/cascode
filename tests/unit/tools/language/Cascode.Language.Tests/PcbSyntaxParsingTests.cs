@@ -5,7 +5,7 @@ using Cascode.TestSupport;
 
 namespace Cascode.Language.Tests;
 
-public sealed class Rfc0005SyntaxParsingTests
+public sealed class PcbSyntaxParsingTests
 {
     [Fact]
     public void SyntaxOnlyParse_PcbInterfacesFile_RetainsMetricsBlocks()
