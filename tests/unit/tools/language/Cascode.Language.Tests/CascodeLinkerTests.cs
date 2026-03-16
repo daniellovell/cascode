@@ -517,6 +517,48 @@ public sealed class CascodeLinkerTests
     }
 
     [Fact]
+    public void LinkFile_ResolvesLocalPrimitive_WhenDeclaredTypeUsesConcretePrimitiveName()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-local-primitive");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
+
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            primitive nfet_01v8(size primSize) implements NMOS {
+              device "nfet_01v8"
+              params {
+                W = primSize.W
+                L = primSize.L
+                m = primSize.M
+              }
+            }
+
+            circuit LocalPrimitiveCtor {
+              level EL
+              input IN : analog
+              output OUT : analog
+              ground GND
+
+              fill {
+                nfet_01v8 M1 = new nfet_01v8(size(W=1u, L=180n, M=1)) { .D--OUT, .G--IN, .S--GND, .B--GND }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(entryPath, outDir, cascodeHome.Path);
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+        Assert.Contains(linked.Primitives, primitive => primitive.Name == "nfet_01v8");
+    }
+
+    [Fact]
     public void LinkFile_WithBenchPruning_ResolvesCrossFileBenchHelperFunctionIncludes()
     {
         using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-bench-helper-fn");

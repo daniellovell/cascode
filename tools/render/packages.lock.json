@@ -71,7 +71,7 @@
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )",
-          "Cascode.Bench": "[0.6.0, )",
+          "Cascode.Bench": "[0.7.3, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       }

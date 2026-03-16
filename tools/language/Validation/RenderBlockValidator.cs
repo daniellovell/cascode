@@ -260,8 +260,13 @@ public static class RenderBlockValidator
     }
 
     private static bool IsPrimitiveLikeInstance(InstanceDeclaration instance) =>
-        instance.DeclaredType is "NMOS" or "PMOS" or "Resistor" or "Capacitor" or "Inductor"
-            or "Diode";
+        instance.DeclaredType
+            is "NMOS"
+                or "PMOS"
+                or "Resistor"
+                or "Capacitor"
+                or "Inductor"
+                or "Diode";
 
     /// <summary>
     /// Validate a render placement and return it if it is valid; otherwise record a validation message and return null.

@@ -216,7 +216,9 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
             .Circuits.SelectMany(circuit =>
                 (circuit.Fill?.Instances ?? new List<InstanceDeclaration>())
                     .Where(instance => instance.DeclaredType is "NMOS" or "PMOS")
-                    .Select(instance => $"{circuit.Name}:{instance.Id}:{FormatInstanceSize(instance)}")
+                    .Select(instance =>
+                        $"{circuit.Name}:{instance.Id}:{FormatInstanceSize(instance)}"
+                    )
             )
             .OrderBy(snapshot => snapshot, StringComparer.Ordinal)
             .ToArray();

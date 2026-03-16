@@ -560,6 +560,14 @@ public static class CascodeLinker
 
     private static void CollectRequiredSymbols(CascodeDocument doc, RequiredSymbols required)
     {
+        var localPrimitiveNames = doc
+            .Primitives.Select(primitive => primitive.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var localPartNames = doc.Parts.Select(part => part.Name).ToHashSet(StringComparer.Ordinal);
+        var localCircuitNames = doc
+            .Circuits.Select(circuit => circuit.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
         // Ports/terminals referencing bundle types
         foreach (var c in doc.Circuits)
         {
@@ -610,17 +618,21 @@ public static class CascodeLinker
                     {
                         required.Traits.Add(inst.Type);
                     }
+                    else if (localPrimitiveNames.Contains(inst.Type))
+                    {
+                        required.Primitives.Add(inst.Type);
+                    }
                     else if (IsPrimitiveInstance(inst))
                     {
                         required.Primitives.Add(inst.Type);
                     }
                     else
                     {
-                        if (doc.Parts.Any(part => part.Name == inst.Type))
+                        if (localPartNames.Contains(inst.Type))
                         {
                             required.Parts.Add(inst.Type);
                         }
-                        else if (doc.Circuits.Any(circuit => circuit.Name == inst.Type))
+                        else if (localCircuitNames.Contains(inst.Type))
                         {
                             required.Circuits.Add(inst.Type);
                         }
