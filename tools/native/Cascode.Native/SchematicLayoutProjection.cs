@@ -43,8 +43,9 @@ internal static partial class SchematicLayoutProjection
             })
             .ToArray();
 
-        var ports = circuit
-            .Ports.OrderBy(port => port.Name, StringComparer.Ordinal)
+        var ports = CircuitPortExpander
+            .Expand(circuit)
+            .OrderBy(port => port.Name, StringComparer.Ordinal)
             .Select(port => new StructuralPort
             {
                 Name = port.Name,
@@ -740,6 +741,16 @@ internal static partial class SchematicLayoutProjection
     private static string InferPortSide(Circuit circuit, string portName)
     {
         var port = circuit.Ports.FirstOrDefault(p => p.Name == portName);
+        if (port is null)
+        {
+            var separator = portName.IndexOf('.');
+            if (separator > 0)
+            {
+                var parentPortName = portName[..separator];
+                port = circuit.Ports.FirstOrDefault(p => p.Name == parentPortName);
+            }
+        }
+
         if (port is null)
         {
             return "auto";

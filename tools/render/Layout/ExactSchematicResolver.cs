@@ -216,7 +216,7 @@ public static class ExactSchematicResolver
         anchors["canvas origin"] = new RenderUnitPoint(0, 0);
 
         var unresolved = new Dictionary<string, RenderEntity>(StringComparer.Ordinal);
-        foreach (var port in circuit.Ports)
+        foreach (var port in CircuitPortExpander.Expand(circuit))
         {
             if (!renderByName.TryGetValue(port.Name, out var entry) || entry.Place is null)
             {
@@ -307,7 +307,10 @@ public static class ExactSchematicResolver
     {
         var result = new Dictionary<string, List<WireSegment>>(StringComparer.Ordinal);
         foreach (
-            var netName in graph.NetConnections.Keys.OrderBy(name => name, StringComparer.Ordinal)
+            var netName in graph
+                .NetConnections.Where(entry => entry.Value.Count > 0)
+                .Select(entry => entry.Key)
+                .OrderBy(name => name, StringComparer.Ordinal)
         )
         {
             if (!renderByName.TryGetValue(netName, out var entry) || entry.Segments.Count == 0)

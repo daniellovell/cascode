@@ -355,7 +355,7 @@ internal static class SchematicConstraintResolver
             };
         }
 
-        foreach (var port in circuit.Ports)
+        foreach (var port in CircuitPortExpander.Expand(circuit))
         {
             if (!map.ContainsKey(port.Name))
             {

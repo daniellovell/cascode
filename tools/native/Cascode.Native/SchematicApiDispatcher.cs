@@ -214,9 +214,10 @@ internal static class SchematicApiDispatcher
 
         if (mode != RenderSchematicMode.RespectDocument && persist)
         {
+            var circuit = FindCircuit(state);
             var updated = CopyCircuitWithRender(
-                FindCircuit(state),
-                BuildPersistedRender(FindCircuit(state).Render, mode)
+                circuit,
+                BuildPersistedRender(state, circuit, mode)
             );
             state.Document = ReplaceCircuit(state.Document, updated);
             state.SourceText = SerializeSource(state.Document);
@@ -251,6 +252,11 @@ internal static class SchematicApiDispatcher
         var operations = root.TryGetProperty("operations", out var operationsEl)
             ? operationsEl.EnumerateArray().ToArray()
             : Array.Empty<JsonElement>();
+
+        if (operations.Length > 0)
+        {
+            EnsureManualSnapshotIfNeeded(state);
+        }
 
         foreach (var operation in operations)
         {
@@ -856,26 +862,39 @@ internal static class SchematicApiDispatcher
         };
     }
 
-    private static RenderBlock? BuildPersistedRender(RenderBlock? render, RenderSchematicMode mode)
+    private static void EnsureManualSnapshotIfNeeded(DocumentState state)
+    {
+        var circuit = FindCircuit(state);
+        if (circuit.Render?.Mode == RenderLayoutMode.Manual)
+        {
+            return;
+        }
+
+        circuit.Render = ManualRenderSnapshotBuilder.Build(state, circuit);
+    }
+
+    private static RenderBlock? BuildPersistedRender(
+        DocumentState state,
+        Circuit circuit,
+        RenderSchematicMode mode
+    )
     {
         return mode switch
         {
-            RenderSchematicMode.Manual when render is null => new RenderBlock
+            RenderSchematicMode.Manual when circuit.Render?.Mode != RenderLayoutMode.Manual =>
+                ManualRenderSnapshotBuilder.Build(state, circuit),
+            RenderSchematicMode.Manual when circuit.Render is not null => new RenderBlock
             {
                 Mode = RenderLayoutMode.Manual,
+                Entities = circuit.Render.Entities.ToList(),
             },
-            RenderSchematicMode.Manual when render is not null => new RenderBlock
-            {
-                Mode = RenderLayoutMode.Manual,
-                Entities = render.Entities.ToList(),
-            },
-            RenderSchematicMode.Auto when render is not null => new RenderBlock
+            RenderSchematicMode.Auto when circuit.Render is not null => new RenderBlock
             {
                 Mode = RenderLayoutMode.Auto,
-                Entities = render.Entities.ToList(),
+                Entities = circuit.Render.Entities.ToList(),
             },
             RenderSchematicMode.Auto => null,
-            _ => render,
+            _ => circuit.Render,
         };
     }
 

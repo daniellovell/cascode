@@ -83,6 +83,128 @@ circuit ManualArbitrary {{
         Assert.Contains("disconnected terminal geometry", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Resolve_ManualSnapshotStyleSegments_AllowMixedAnchorAndAbsRouting()
+    {
+        var circuit = ParseCircuit(
+            $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit SnapshotMixed {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  fill {{
+    net n1 : analog
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--n1
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--n1
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 4 hard
+      side left
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      seg ref R2.N ref OUT
+    }}
+    R1 place abs 4 4 hard
+    R2 place abs 12 4 hard
+    n1 {{
+      seg ref R1.N abs 8 4
+      seg abs 8 4 ref R2.P
+    }}
+  }}
+}}
+"
+        );
+        var graph = CircuitGraph.Build(circuit);
+
+        var result = ExactSchematicResolver.Resolve(circuit, graph, circuit.Render!);
+
+        Assert.Single(result.Routing.SegmentsByNet["IN"]);
+        Assert.Single(result.Routing.SegmentsByNet["OUT"]);
+        Assert.Equal(2, result.Routing.SegmentsByNet["n1"].Count);
+    }
+
+    [Fact]
+    public void Resolve_ManualRender_WithIncludeDefinedDiffLeafPorts_RoutesExpandedPorts()
+    {
+        var circuit = ParseCircuit(
+            $@"VERSION {CascodeVersion.Current}
+include lib.std
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit SnapshotDiff {{
+  level EL
+  input IN : Diff
+  output OUT : analog
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN.P
+      .N--OUT
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN.N
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN.P {{
+      place abs 0 2 hard
+      side left
+      seg ref IN.P ref R1.P
+    }}
+    IN.N {{
+      place abs 0 6 hard
+      side left
+      seg ref IN.N ref R2.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      seg ref R1.N abs 12 4
+      seg ref R2.N abs 12 4
+      seg abs 12 4 ref OUT
+    }}
+    R1 place abs 4 2 hard
+    R2 place abs 4 6 hard
+  }}
+}}
+"
+        );
+        var graph = CircuitGraph.Build(circuit);
+
+        var result = ExactSchematicResolver.Resolve(circuit, graph, circuit.Render!);
+
+        Assert.Single(result.Routing.SegmentsByNet["IN.P"]);
+        Assert.Single(result.Routing.SegmentsByNet["IN.N"]);
+        Assert.Equal(3, result.Routing.SegmentsByNet["OUT"].Count);
+        Assert.Contains(result.Routing.Junctions, point => point.X == 120 && point.Y == 40);
+    }
+
     private static Circuit ParseCircuit(string source)
     {
         var read = CascodeReader.TryParse(source, "exact-render.cas");

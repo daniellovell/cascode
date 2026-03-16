@@ -150,6 +150,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 
 - `@cascode/native` and all `editors/node/platform-packages/*/package.json` versions must match the git tag (`vX.Y.Z`) on release.
 - Keep `editors/node/package.json` optional dependency versions in lockstep with that same version.
+- `editors/node/package-lock.json` is intentionally maintained; when optional platform package versions change, sync and commit this lockfile too.
 - The release workflow enforces this in `version-check`; do not bypass by editing workflow logic.
 - If a new platform package is added, update all of:
   - `editors/node/platform-packages/<name>/package.json`
@@ -161,6 +162,11 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - Cross‑layer deps; IO in language core; UI outside CLI.
 - God files/classes; silent behavior changes; “temporary” duplication.
 - Flags that preserve old/new paths indefinitely.
+
+## Lockfile Triage
+- Treat RID-specific changes in `tools/*/packages.lock.json` (for example `net10.0/linux-x64`, `osx-arm64`) as suspect by default; they are usually host-specific restore/publish artifacts, not source-of-truth dependency intent.
+- Before staging any `packages.lock.json` diff, check repo history and project config for prior policy. This repo explicitly removed RID-specific lockfile sections to keep restores cross-platform.
+- `dotnet publish -r <rid>` may regenerate RID sections in non-native project lockfiles; do not commit those sections unless the user explicitly confirms a repo policy change.
 
 ## When Unsure
 - Stop and write a design doc; prefer smaller patches; delete over deprecate.

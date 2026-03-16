@@ -286,4 +286,126 @@ circuit ManualIncomplete {{
                 && d.Message.Contains("Manual render requires an explicit place for device 'M1'")
         );
     }
+
+    [Fact]
+    public void Parse_ManualRender_WithAnchoredSnapshotStyleSegments_HasNoDiagnostics()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit SnapshotStyle {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  fill {{
+    net n1 : analog
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--n1
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--n1
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 4 hard
+      side left
+      route ortho hard
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      route ortho hard
+      seg ref R2.N ref OUT
+    }}
+    R1 {{
+      place abs 4 4 hard
+      orient 0
+    }}
+    R2 {{
+      place abs 12 4 hard
+      orient 0
+    }}
+    n1 {{
+      route ortho hard
+      seg ref R1.N abs 8 4
+      seg abs 8 4 ref R2.P
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "snapshot-style.cas");
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
+    }
+
+    [Fact]
+    public void Parse_ManualRender_WithIncludeDefinedDiffLeafPorts_HasNoDiagnostics()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+include lib.std
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit SnapshotDiff {{
+  level EL
+  input IN : Diff
+  output OUT : analog
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN.P
+      .N--OUT
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN.N
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN.P {{
+      place abs 0 2 hard
+      side left
+      seg ref IN.P ref R1.P
+    }}
+    IN.N {{
+      place abs 0 6 hard
+      side left
+      seg ref IN.N ref R2.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      seg ref R1.N abs 12 4
+      seg ref R2.N abs 12 4
+      seg abs 12 4 ref OUT
+    }}
+    R1 place abs 4 2 hard
+    R2 place abs 4 6 hard
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "snapshot-diff.cas");
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
+    }
 }

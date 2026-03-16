@@ -59,7 +59,10 @@ public static class RenderBlockValidator
         var devicesByName =
             circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
             ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
-        var ports = circuit.Ports.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+        var ports = CircuitPortExpander
+            .Expand(circuit)
+            .Select(port => port.Name)
+            .ToHashSet(StringComparer.Ordinal);
         var nets = BuildNetSet(circuit);
 
         var entities = new List<RenderEntity>(circuit.Render.Entities.Count);
@@ -198,7 +201,7 @@ public static class RenderBlockValidator
     /// Builds a set of all net identifiers referenced by the given circuit.
     /// </summary>
     /// <param name="circuit">The circuit to extract net identifiers from.</param>
-    /// <returns>A set containing net IDs declared in circuit.Fill.Nets, supply names, ground names, port names, and net names from device bindings.</returns>
+    /// <returns>A set containing net IDs declared in circuit.Fill.Nets, supply names, ground names, and net names from device bindings.</returns>
     private static IReadOnlySet<string> BuildNetSet(Circuit circuit)
     {
         var nets = new HashSet<string>(StringComparer.Ordinal);
@@ -216,11 +219,6 @@ public static class RenderBlockValidator
         foreach (var ground in circuit.Grounds)
         {
             nets.Add(ground);
-        }
-
-        foreach (var port in circuit.Ports)
-        {
-            nets.Add(port.Name);
         }
 
         foreach (var device in circuit.Fill?.Devices ?? Enumerable.Empty<DeviceDeclaration>())

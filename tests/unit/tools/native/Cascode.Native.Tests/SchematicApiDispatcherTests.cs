@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cascode.Language;
+using Cascode.Language.Validation;
 using Cascode.Native;
 
 namespace Cascode.Native.Tests;
@@ -8,7 +9,157 @@ namespace Cascode.Native.Tests;
 public sealed class SchematicApiDispatcherTests
 {
     [Fact]
-    public void ApplyOperations_UpdatesRenderAndPreservesUntouchedEntries()
+    public void RenderSchematic_PersistManualOnDiffInputDocument_SnapshotsCompleteManualRender()
+    {
+        using var session = ApiSession.Create();
+        session.State.StdlibRoot = GetStdlibRoot();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject { ["documentId"] = "diff-doc", ["text"] = BuildDiffSnapshotSource() }
+        );
+
+        var rendered = Dispatch(
+            session.State,
+            "render.schematic",
+            new JsonObject
+            {
+                ["documentId"] = "diff-doc",
+                ["mode"] = "manual",
+                ["persist"] = true,
+            }
+        );
+
+        Assert.Equal(
+            "manual",
+            rendered
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+
+        var circuit = ParseCircuit(
+            rendered.RootElement.GetProperty("sourceText").GetString()!,
+            "DiffSnapshot"
+        );
+        AssertManualRenderHasNoCompletenessErrors(circuit);
+        AssertEntityHasManualDevicePlacement(circuit, "M_TAIL");
+        AssertEntityHasManualNetSegments(circuit, "IN.P");
+        AssertEntityHasManualNetSegments(circuit, "IN.N");
+    }
+
+    [Fact]
+    public void ApplyOperations_FirstMutationOnDiffInputDocument_SnapshotsCompleteManualRender()
+    {
+        using var session = ApiSession.Create();
+        session.State.StdlibRoot = GetStdlibRoot();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject { ["documentId"] = "diff-doc", ["text"] = BuildDiffSnapshotSource() }
+        );
+        var tailPosition = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M_TAIL")
+            .GetProperty("position");
+
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "diff-doc",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-tail-1",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "M_TAIL",
+                        ["x"] = (int)Math.Round(tailPosition.GetProperty("x").GetDouble()),
+                        ["y"] = (int)Math.Round(tailPosition.GetProperty("y").GetDouble()),
+                    }
+                ),
+            }
+        );
+
+        Assert.Equal(
+            "manual",
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+
+        var circuit = ParseCircuit(
+            applied.RootElement.GetProperty("sourceText").GetString()!,
+            "DiffSnapshot"
+        );
+        AssertManualRenderHasNoCompletenessErrors(circuit);
+        AssertEntityHasManualDevicePlacement(circuit, "M_TAIL");
+        AssertEntityHasManualNetSegments(circuit, "IN.P");
+        AssertEntityHasManualNetSegments(circuit, "IN.N");
+    }
+
+    [Fact]
+    public void ApplyOperations_FirstMutationOnAutoDocument_SnapshotsCompleteManualRender()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var m1Position = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M1")
+            .GetProperty("position");
+
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "M1",
+                        ["x"] = (int)Math.Round(m1Position.GetProperty("x").GetDouble()),
+                        ["y"] = (int)Math.Round(m1Position.GetProperty("y").GetDouble()),
+                    }
+                ),
+            }
+        );
+
+        Assert.Equal(
+            "manual",
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+
+        var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
+        AssertCompleteManualRender(circuit);
+    }
+
+    [Fact]
+    public void ApplyOperations_UpdatesRenderAndPinsUntouchedEntriesOnFirstMutation()
     {
         using var session = ApiSession.Create();
         var opened = Dispatch(
@@ -54,13 +205,14 @@ public sealed class SchematicApiDispatcherTests
         );
         var sourceText = applyMove.RootElement.GetProperty("sourceText").GetString()!;
         var circuit = ParseCircuit(sourceText);
+        Assert.Equal(RenderLayoutMode.Manual, circuit.Render!.Mode);
         var m1 = Assert.Single(circuit.Render!.Entities, entry => entry.Name == "M1");
         Assert.IsType<RenderAbsPoint>(m1.Place!.Point);
         Assert.Equal(RenderConstraintStrength.Hard, m1.Place.Strength);
 
         var m2 = Assert.Single(circuit.Render.Entities, entry => entry.Name == "M2");
         Assert.NotNull(m2.Place);
-        Assert.Equal(RenderConstraintStrength.Hint, m2.Place!.Strength);
+        Assert.Equal(RenderConstraintStrength.Hard, m2.Place!.Strength);
     }
 
     [Fact]
@@ -575,6 +727,44 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void RenderSchematic_PersistManualOnAutoDocument_SnapshotsCompleteManualRender()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        var rendered = Dispatch(
+            session.State,
+            "render.schematic",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["mode"] = "manual",
+                ["persist"] = true,
+            }
+        );
+
+        Assert.Equal(
+            "manual",
+            rendered
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+
+        var circuit = ParseCircuit(rendered.RootElement.GetProperty("sourceText").GetString()!);
+        AssertCompleteManualRender(circuit);
+    }
+
+    [Fact]
     public void ApplyOperations_SetNetSegments_RewritesRenderSegments()
     {
         using var session = ApiSession.Create();
@@ -604,13 +794,13 @@ public sealed class SchematicApiDispatcherTests
                         ["segments"] = new JsonArray(
                             new JsonObject
                             {
-                                ["from"] = new JsonObject { ["x"] = 0, ["y"] = 0 },
-                                ["to"] = new JsonObject { ["x"] = 5, ["y"] = 5 },
+                                ["from"] = new JsonObject { ["x"] = 8, ["y"] = 3 },
+                                ["to"] = new JsonObject { ["x"] = 8, ["y"] = 8 },
                             },
                             new JsonObject
                             {
-                                ["from"] = new JsonObject { ["x"] = 5, ["y"] = 5 },
-                                ["to"] = new JsonObject { ["x"] = 10, ["y"] = 5 },
+                                ["from"] = new JsonObject { ["x"] = 8, ["y"] = 3 },
+                                ["to"] = new JsonObject { ["x"] = 14, ["y"] = 3 },
                             }
                         ),
                     }
@@ -629,14 +819,84 @@ public sealed class SchematicApiDispatcherTests
         return JsonDocument.Parse(response);
     }
 
-    private static Circuit ParseCircuit(string sourceText)
+    private static Circuit ParseCircuit(string sourceText, string circuitName = "Amp")
     {
         var read = CascodeReader.TryParse(sourceText, "<native-test>");
         Assert.True(
             read.Success,
             string.Join(Environment.NewLine, read.Diagnostics.Select(d => d.Message))
         );
-        return read.Document!.Circuits.Single(circuit => circuit.Name == "Amp");
+        return read.Document!.Circuits.Single(circuit => circuit.Name == circuitName);
+    }
+
+    private static void AssertManualRenderHasNoCompletenessErrors(Circuit circuit)
+    {
+        var validation = RenderBlockValidator.Validate(circuit);
+        Assert.DoesNotContain(
+            validation.Messages,
+            message => message.Text.Contains("Manual render requires", StringComparison.Ordinal)
+        );
+    }
+
+    private static void AssertCompleteManualRender(Circuit circuit)
+    {
+        Assert.NotNull(circuit.Render);
+        Assert.Equal(RenderLayoutMode.Manual, circuit.Render!.Mode);
+
+        AssertEntityHasManualDevicePlacement(circuit, "M1");
+        AssertEntityHasManualDevicePlacement(circuit, "M2");
+        AssertEntityHasManualPortPlacement(circuit, "IN");
+        AssertEntityHasManualPortPlacement(circuit, "OUT");
+        AssertEntityHasManualNetSegments(circuit, "GND");
+        AssertEntityHasManualNetSegments(circuit, "n1");
+    }
+
+    private static void AssertEntityHasManualDevicePlacement(Circuit circuit, string name)
+    {
+        var entity = Assert.Single(circuit.Render!.Entities, entry => entry.Name == name);
+        Assert.Equal(RenderEntityKind.Device, entity.Kind);
+        Assert.NotNull(entity.Place);
+        Assert.True(
+            entity.Place!.Point is RenderAbsPoint or RenderRefPoint,
+            $"Expected {name} placement point to be abs/ref but found {entity.Place.Point.GetType().Name}."
+        );
+        Assert.Equal(RenderConstraintStrength.Hard, entity.Place.Strength);
+        Assert.NotNull(entity.Orientation);
+    }
+
+    private static void AssertEntityHasManualPortPlacement(Circuit circuit, string name)
+    {
+        var entity = Assert.Single(circuit.Render!.Entities, entry => entry.Name == name);
+        Assert.Equal(RenderEntityKind.Port, entity.Kind);
+        Assert.NotNull(entity.Place);
+        Assert.IsType<RenderAbsPoint>(entity.Place!.Point);
+        Assert.Equal(RenderConstraintStrength.Hard, entity.Place.Strength);
+        Assert.NotNull(entity.Side);
+        Assert.NotEqual(RenderPortSide.Auto, entity.Side!.Value);
+    }
+
+    private static void AssertEntityHasManualNetSegments(Circuit circuit, string name)
+    {
+        var entity = Assert.Single(circuit.Render!.Entities, entry => entry.Name == name);
+        Assert.True(
+            entity.Kind is RenderEntityKind.Net or RenderEntityKind.Port,
+            $"Expected {name} entity kind to be net/port but found {entity.Kind}."
+        );
+        Assert.NotEmpty(entity.Segments);
+        Assert.All(
+            entity.Segments,
+            segment =>
+            {
+                Assert.True(
+                    segment.From is RenderAbsPoint or RenderRefPoint,
+                    $"Expected {name} segment.From to be abs/ref but found {segment.From.GetType().Name}."
+                );
+                Assert.True(
+                    segment.To is RenderAbsPoint or RenderRefPoint,
+                    $"Expected {name} segment.To to be abs/ref but found {segment.To.GetType().Name}."
+                );
+            }
+        );
     }
 
     private static string BuildSampleSource(bool withRenderBlock)
@@ -790,6 +1050,80 @@ circuit ManualNative {{
   }}
 }}
 ";
+    }
+
+    private static string BuildDiffSnapshotSource()
+    {
+        return $@"VERSION {CascodeVersion.Current}
+include lib.std
+
+primitive PMOS PMOS_Level1(size primSize) {{
+  device ""pmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit DiffSnapshot {{
+  level EL
+  supply VDD
+  input IN : Diff
+  output OUT : analog
+  input VBP_TAIL : bias
+  fill {{
+    net tail_node : analog
+
+    PMOS M_TAIL = new PMOS_Level1(size(W=40u, L=500n, M=2)) {{
+      .B--VDD
+      .D--tail_node
+      .G--VBP_TAIL
+      .S--VDD
+    }}
+
+    PMOS M_INP = new PMOS_Level1(size(W=50u, L=500n, M=2)) {{
+      .B--VDD
+      .D--OUT
+      .G--IN.P
+      .S--tail_node
+    }}
+
+    PMOS M_INM = new PMOS_Level1(size(W=50u, L=500n, M=2)) {{
+      .B--VDD
+      .D--OUT
+      .G--IN.N
+      .S--tail_node
+    }}
+  }}
+}}
+";
+    }
+
+    private static string GetStdlibRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            var candidate = Path.Combine(current.FullName, "lib", "std");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new InvalidOperationException("Could not locate lib/std from test base directory.");
     }
 
     private sealed class ApiSession : IDisposable
