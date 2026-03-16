@@ -39,8 +39,20 @@ analysis {
 | `guess_frequency` | `Frequency` | yes | — | Initial frequency estimate for the PSS solver |
 | `stabilization_time` | `Time` | yes | — | Stabilization time before shooting iterations begin |
 | `harmonics` | integer | yes | — | Number of harmonics to resolve in the output |
+| `options` | `PSSOptions` | no | `new PSSOptions()` | Solver-only controls (`psspoints`, `iterations`, `steady_coeff`, `uic`) |
 
 Arguments may use expressions over `constraints`, `env`, and bench parameters, consistent with other analysis types.
+
+`PSSOptions` fields:
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `psspoints` | integer | `1000` | Number of points per solved period written by ngspice PSS |
+| `iterations` | integer | `50` | Maximum shooting iterations (`sciter`) |
+| `steady_coeff` | scalar | `1e-3` | Convergence steady-state coefficient |
+| `uic` | integer flag (`0`/`1`) | `0` | Use initial conditions during PSS solve (`uic`) |
+
+`uic` is a scalar solver flag, not a voltage quantity. It is distinct from element initial-condition parameters such as `Kick(ic=1V)`, where `ic` is a voltage.
 
 ### 1.3 Oscillating Node
 

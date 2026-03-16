@@ -172,6 +172,9 @@ public sealed record MeasurementCall(string Name, IReadOnlyList<MeasurementCallA
 
 public sealed record MeasurementCallArg(string? Name, MeasurementExpr Value);
 
+public sealed record MeasurementNew(string TypeName, IReadOnlyList<MeasurementCallArg> Args)
+    : MeasurementExpr;
+
 public sealed record BenchMeasurementRefArg(string? Name, string Text, MeasurementExpr Expr);
 
 public sealed record MeasurementMethodCall(

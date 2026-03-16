@@ -942,6 +942,8 @@ public static partial class CascodeWriter
                 $"({FormatMeasurementExpr(b.Left)} {b.Op} {FormatMeasurementExpr(b.Right)})",
             MeasurementCall c =>
                 $"{c.Name}({string.Join(", ", c.Args.Select(FormatMeasurementArg))})",
+            MeasurementNew n =>
+                $"new {n.TypeName}({string.Join(", ", n.Args.Select(FormatMeasurementArg))})",
             MeasurementMethodCall m =>
                 $"{FormatMeasurementExpr(m.Receiver)}.{m.Method}({string.Join(", ", m.Args.Select(FormatMeasurementArg))})",
             MeasurementConditional c =>

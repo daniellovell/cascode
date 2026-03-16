@@ -488,6 +488,16 @@ public sealed class BenchDependencyGraph
                     }
                 }
                 yield break;
+
+            case MeasurementNew constructor:
+                foreach (var a in constructor.Args)
+                {
+                    foreach (var nested in EnumerateBenchMeasurementRefs(a.Value))
+                    {
+                        yield return nested;
+                    }
+                }
+                yield break;
         }
     }
 

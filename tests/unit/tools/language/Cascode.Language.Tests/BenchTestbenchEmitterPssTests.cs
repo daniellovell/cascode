@@ -33,9 +33,7 @@ bench PssBench {
       guess_frequency=2.4GHz,
       stabilization_time=10ns,
       harmonics=7,
-      iterations=1000,
-      steady_coef=0.1,
-      uic=1)
+      options=new PSSOptions(psspoints=256, iterations=1000, steady_coeff=0.1, uic=1))
   }
 
   measurements {
@@ -67,7 +65,7 @@ circuit Top {
 
         var tb = EmitTestbench(cascode, instanceName: "pss");
         Assert.Contains(
-            "pss 2.4G 10n OUT 1000 7 1000 0.1 uic",
+            "pss 2.4G 10n OUT 256 7 1000 0.1 uic",
             tb,
             StringComparison.OrdinalIgnoreCase
         );
@@ -172,7 +170,11 @@ bench PssBench {
   }
 
   analysis {
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=2.4GHz, stabilization_time=10ns, harmonics=7, uic=1)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=2.4GHz,
+      stabilization_time=10ns,
+      harmonics=7,
+      options=new PSSOptions(uic=1))
   }
 
   measurements {
@@ -229,7 +231,11 @@ bench PssBench {
   }
 
   analysis {
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=2.4GHz, stabilization_time=10ns, harmonics=7, uic=1)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=2.4GHz,
+      stabilization_time=10ns,
+      harmonics=7,
+      options=new PSSOptions(uic=1))
   }
 
   measurements {

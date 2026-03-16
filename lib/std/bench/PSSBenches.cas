@@ -63,9 +63,7 @@ bench SEOscPSS extends AbstractOutputPSS {
       guess_frequency=guess_frequency,
       stabilization_time=1000 * period(guess_frequency),
       harmonics=20,
-      iterations=1000,
-      steady_coef=0.1,
-      uic=1)
+      options=new PSSOptions(iterations=1000, steady_coeff=0.1, uic=1))
   }
 
   fill {
@@ -92,9 +90,7 @@ bench DiffOscPSS extends AbstractOutputPSS {
       guess_frequency=guess_frequency,
       stabilization_time=1000 * period(guess_frequency),
       harmonics=20,
-      iterations=1000,
-      steady_coef=0.1,
-      uic=1)
+      options=new PSSOptions(iterations=1000, steady_coeff=0.1, uic=1))
   }
 
   fill {

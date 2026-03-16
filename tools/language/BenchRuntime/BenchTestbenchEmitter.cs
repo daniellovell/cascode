@@ -498,10 +498,11 @@ public static class BenchTestbenchEmitter
 
             var guessFrequency = SiValue.FormatForBackend(guessFrequencyHz, backend);
             var stabilizationTime = SiValue.FormatForBackend(tstabS, backend);
-            var steadyCoef = FormatUnitlessScalar(a.SteadyCoef);
-            var uicSuffix = a.UseInitialConditions ? " uic" : string.Empty;
+            var pssOptions = a.PssOptions ?? new PssAnalysisOptions();
+            var steadyCoeff = FormatUnitlessScalar(pssOptions.SteadyCoeff);
+            var uicSuffix = pssOptions.UseInitialConditions ? " uic" : string.Empty;
             sb.AppendLine(
-                $"pss {guessFrequency} {stabilizationTime} {oscNode} 1000 {harmonics} {a.Iterations} {steadyCoef}{uicSuffix}"
+                $"pss {guessFrequency} {stabilizationTime} {oscNode} {pssOptions.PssPoints} {harmonics} {pssOptions.Iterations} {steadyCoeff}{uicSuffix}"
             );
             sb.AppendLine($"setplot pss{pssIndex}");
 

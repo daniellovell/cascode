@@ -946,6 +946,11 @@ analysisParam
 conditionalExpr
     : ifExpr
     | measurementExpr
+    | analysisNewExpr
+    ;
+
+analysisNewExpr
+    : NEW_KW idPart LPAREN measurementArgList? RPAREN
     ;
 
 ifExpr

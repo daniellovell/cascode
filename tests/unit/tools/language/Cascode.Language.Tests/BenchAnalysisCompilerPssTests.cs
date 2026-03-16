@@ -82,17 +82,21 @@ bench ConfiguredPss {{
       guess_frequency=1GHz,
       stabilization_time=2ns,
       harmonics=9,
-      iterations=1000,
-      steady_coef=0.1,
-      uic=1)
+      options=new PSSOptions(
+        psspoints=1024,
+        iterations=1000,
+        steady_coeff=0.1,
+        uic=1))
   }}
 }}
 ";
 
         var configured = CompileSingle(configuredCascode, "ConfiguredPss", "OUT", "out");
-        Assert.Equal(1000, configured.Iterations);
-        Assert.Equal(0.1, Assert.IsType<double>(configured.SteadyCoef), precision: 15);
-        Assert.True(configured.UseInitialConditions);
+        var configuredOptions = Assert.IsType<PssAnalysisOptions>(configured.PssOptions);
+        Assert.Equal(1024, configuredOptions.PssPoints);
+        Assert.Equal(1000, configuredOptions.Iterations);
+        Assert.Equal(0.1, configuredOptions.SteadyCoeff, precision: 15);
+        Assert.True(configuredOptions.UseInitialConditions);
 
         var defaultCascode =
             $@"VERSION {CascodeVersion.Current}
@@ -107,9 +111,11 @@ bench DefaultPss {{
 ";
 
         var defaults = CompileSingle(defaultCascode, "DefaultPss", "OUT", "out");
-        Assert.Equal(50, defaults.Iterations);
-        Assert.Equal(1e-3, Assert.IsType<double>(defaults.SteadyCoef), precision: 15);
-        Assert.False(defaults.UseInitialConditions);
+        var defaultOptions = Assert.IsType<PssAnalysisOptions>(defaults.PssOptions);
+        Assert.Equal(1000, defaultOptions.PssPoints);
+        Assert.Equal(50, defaultOptions.Iterations);
+        Assert.Equal(1e-3, defaultOptions.SteadyCoeff, precision: 15);
+        Assert.False(defaultOptions.UseInitialConditions);
     }
 
     [Fact]

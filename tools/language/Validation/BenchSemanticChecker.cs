@@ -819,6 +819,19 @@ public static class BenchSemanticChecker
                     scope
                 );
                 break;
+            case MeasurementNew constructor:
+                foreach (var arg in constructor.Args)
+                {
+                    CollectDeps(
+                        arg.Value,
+                        measurementNames,
+                        functionNames,
+                        calledMeasurements,
+                        calledFunctions,
+                        scope
+                    );
+                }
+                break;
         }
     }
 
@@ -1063,6 +1076,9 @@ public static class BenchSemanticChecker
 
             case MeasurementCall call:
                 return InferCallType(call, scope, measurementTypes, benchesByName);
+
+            case MeasurementNew:
+                return MeasurementType.Scalar();
 
             case MeasurementMethodCall m:
                 return InferMethodCallType(m, scope, measurementTypes, benchesByName);
@@ -1765,6 +1781,19 @@ public static class BenchSemanticChecker
                     diagnostics
                 );
                 return;
+            case MeasurementNew constructor:
+                foreach (var arg in constructor.Args)
+                {
+                    ValidateBuiltinCalls(
+                        bench,
+                        arg.Value,
+                        scope,
+                        measurementTypes,
+                        benchesByName,
+                        diagnostics
+                    );
+                }
+                return;
         }
     }
 
@@ -2433,9 +2462,6 @@ public static class BenchSemanticChecker
                 ["guess_frequency"] = MeasurementTypeKind.Frequency,
                 ["stabilization_time"] = MeasurementTypeKind.Time,
                 ["harmonics"] = MeasurementTypeKind.Scalar,
-                ["iterations"] = MeasurementTypeKind.Scalar,
-                ["steady_coef"] = MeasurementTypeKind.Scalar,
-                ["uic"] = MeasurementTypeKind.Scalar,
             },
             BenchValueType.NoiseAnalysis => new Dictionary<string, MeasurementTypeKind>
             {
@@ -2490,6 +2516,36 @@ public static class BenchSemanticChecker
 
         foreach (var (name, expr) in analysis.Parameters)
         {
+            if (analysis.Type == BenchValueType.PSSAnalysis)
+            {
+                if (name.Equals("options", StringComparison.OrdinalIgnoreCase))
+                {
+                    ValidatePssOptions(
+                        analysis,
+                        expr,
+                        scope,
+                        measurementTypes,
+                        benchesByName,
+                        diagnostics
+                    );
+                    continue;
+                }
+
+                if (!expected.ContainsKey(name))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS2006: Analysis parameter '{analysis.Name}.{name}' is not supported for PSSAnalysis. Use '{analysis.Name}.options' for solver settings.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                    continue;
+                }
+            }
+
             if (!expected.TryGetValue(name, out var expectedKind))
             {
                 continue;
@@ -2536,7 +2592,11 @@ public static class BenchSemanticChecker
             return;
         }
 
-        if (name.Equals("uic", StringComparison.OrdinalIgnoreCase))
+        var optionName = name.Contains('.', StringComparison.Ordinal)
+            ? name[(name.LastIndexOf('.') + 1)..]
+            : name;
+
+        if (optionName.Equals("uic", StringComparison.OrdinalIgnoreCase))
         {
             if (TryResolveConstantScalar(expr, out var uicValue))
             {
@@ -2544,7 +2604,7 @@ public static class BenchSemanticChecker
                 {
                     diagnostics.Add(
                         new Diagnostic(
-                            $"CAS2006: Analysis parameter '{analysis.Name}.uic' must be 0 or 1, got {uicValue.ToString(CultureInfo.InvariantCulture)}.",
+                            $"CAS2006: Analysis parameter '{analysis.Name}.{name}' must be 0 or 1, got {uicValue.ToString(CultureInfo.InvariantCulture)}.",
                             DiagnosticSeverity.Error,
                             "<bench>",
                             1,
@@ -2556,7 +2616,7 @@ public static class BenchSemanticChecker
             return;
         }
 
-        if (name.Equals("iterations", StringComparison.OrdinalIgnoreCase))
+        if (optionName.Equals("iterations", StringComparison.OrdinalIgnoreCase))
         {
             if (TryResolveConstantScalar(expr, out var iterationsValue))
             {
@@ -2564,7 +2624,7 @@ public static class BenchSemanticChecker
                 {
                     diagnostics.Add(
                         new Diagnostic(
-                            $"CAS2006: Analysis parameter '{analysis.Name}.iterations' must be an integer >= 1, got {iterationsValue.ToString(CultureInfo.InvariantCulture)}.",
+                            $"CAS2006: Analysis parameter '{analysis.Name}.{name}' must be an integer >= 1, got {iterationsValue.ToString(CultureInfo.InvariantCulture)}.",
                             DiagnosticSeverity.Error,
                             "<bench>",
                             1,
@@ -2576,13 +2636,33 @@ public static class BenchSemanticChecker
             return;
         }
 
-        if (name.Equals("steady_coef", StringComparison.OrdinalIgnoreCase))
+        if (optionName.Equals("psspoints", StringComparison.OrdinalIgnoreCase))
         {
-            if (TryResolveConstantScalar(expr, out var steadyCoefValue) && steadyCoefValue < 0)
+            if (TryResolveConstantScalar(expr, out var psspointsValue))
+            {
+                if (psspointsValue != Math.Round(psspointsValue) || psspointsValue < 1)
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS2006: Analysis parameter '{analysis.Name}.{name}' must be an integer >= 1, got {psspointsValue.ToString(CultureInfo.InvariantCulture)}.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+            return;
+        }
+
+        if (optionName.Equals("steady_coeff", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryResolveConstantScalar(expr, out var steadyCoefValue) && steadyCoefValue <= 0)
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS2006: Analysis parameter '{analysis.Name}.steady_coef' must be >= 0, got {steadyCoefValue.ToString(CultureInfo.InvariantCulture)}.",
+                        $"CAS2006: Analysis parameter '{analysis.Name}.{name}' must be > 0, got {steadyCoefValue.ToString(CultureInfo.InvariantCulture)}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -2593,7 +2673,7 @@ public static class BenchSemanticChecker
             return;
         }
 
-        if (name.Equals("harmonics", StringComparison.OrdinalIgnoreCase))
+        if (optionName.Equals("harmonics", StringComparison.OrdinalIgnoreCase))
         {
             if (
                 TryResolveConstantScalar(expr, out var harmonics)
@@ -2610,6 +2690,106 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+        }
+    }
+
+    private static void ValidatePssOptions(
+        AnalysisDeclaration analysis,
+        MeasurementExpr expr,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (expr is not MeasurementNew constructor)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2006: Analysis parameter '{analysis.Name}.options' expects 'new PSSOptions(...)'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        if (!constructor.TypeName.Equals("PSSOptions", StringComparison.Ordinal))
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2006: Analysis parameter '{analysis.Name}.options' expects 'new PSSOptions(...)', got 'new {constructor.TypeName}(...)'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        var expected = new Dictionary<string, MeasurementTypeKind>(StringComparer.Ordinal)
+        {
+            ["psspoints"] = MeasurementTypeKind.Scalar,
+            ["iterations"] = MeasurementTypeKind.Scalar,
+            ["steady_coeff"] = MeasurementTypeKind.Scalar,
+            ["uic"] = MeasurementTypeKind.Scalar,
+        };
+
+        foreach (var option in constructor.Args)
+        {
+            if (string.IsNullOrWhiteSpace(option.Name))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.options' requires named arguments.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            if (!expected.TryGetValue(option.Name, out var expectedKind))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.options.{option.Name}' is not supported.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            var actual = InferExprType(option.Value, scope, measurementTypes, benchesByName);
+            if (actual.Kind != expectedKind)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2006: Analysis parameter '{analysis.Name}.options.{option.Name}' expects '{expectedKind}' but got '{actual}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            ValidatePssOptionDomains(
+                analysis,
+                $"options.{option.Name}",
+                option.Value,
+                actual,
+                diagnostics
+            );
         }
     }
 

@@ -476,6 +476,11 @@ public sealed class BenchMeasurementRunner
 
             case MeasurementCall call:
                 return EvaluateCall(call, locals);
+
+            case MeasurementNew n:
+                throw new InvalidOperationException(
+                    $"Object construction expression 'new {n.TypeName}(...)' is not evaluable in measurement runtime."
+                );
         }
 
         throw new InvalidOperationException($"Unhandled expression: {expr.GetType().Name}");

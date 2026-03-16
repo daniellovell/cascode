@@ -854,6 +854,12 @@ public static class CascodeLinker
                     CollectFunctionReferencesFromExpr(arg.Expr, required, excludedNames);
                 }
                 break;
+            case MeasurementNew constructor:
+                foreach (var arg in constructor.Args)
+                {
+                    CollectFunctionReferencesFromExpr(arg.Value, required, excludedNames);
+                }
+                break;
         }
     }
 

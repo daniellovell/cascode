@@ -63,9 +63,11 @@ bench BadPssTypes {{
       guess_frequency=1V,
       stabilization_time=1Hz,
       harmonics=1ns,
-      iterations=1Hz,
-      steady_coef=1ns,
-      uic=1V)
+      options=new PSSOptions(
+        psspoints=1Hz,
+        iterations=1Hz,
+        steady_coeff=1ns,
+        uic=1V))
   }}
 
   measurements {{
@@ -88,9 +90,10 @@ bench BadPssTypes {{
         Assert.Contains("expects 'Time'", joined, StringComparison.Ordinal);
         Assert.Contains("pss.harmonics", joined, StringComparison.Ordinal);
         Assert.Contains("expects 'Scalar'", joined, StringComparison.Ordinal);
-        Assert.Contains("pss.iterations", joined, StringComparison.Ordinal);
-        Assert.Contains("pss.steady_coef", joined, StringComparison.Ordinal);
-        Assert.Contains("pss.uic", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.options.psspoints", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.options.iterations", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.options.steady_coeff", joined, StringComparison.Ordinal);
+        Assert.Contains("pss.options.uic", joined, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -136,7 +139,11 @@ bench BadPssUic {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, uic=2)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      options=new PSSOptions(uic=2))
   }}
 
   measurements {{
@@ -154,7 +161,7 @@ bench BadPssUic {{
         Assert.Contains(
             result.Diagnostics,
             d =>
-                d.Message.Contains("pss.uic", StringComparison.Ordinal)
+                d.Message.Contains("pss.options.uic", StringComparison.Ordinal)
                 && d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
                 && d.Message.Contains("2", StringComparison.Ordinal)
         );
@@ -170,7 +177,11 @@ bench BadPssUicNonInt {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, uic=0.5)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      options=new PSSOptions(uic=0.5))
   }}
 
   measurements {{
@@ -188,7 +199,7 @@ bench BadPssUicNonInt {{
         Assert.Contains(
             result.Diagnostics,
             d =>
-                d.Message.Contains("pss.uic", StringComparison.Ordinal)
+                d.Message.Contains("pss.options.uic", StringComparison.Ordinal)
                 && d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
         );
     }
@@ -203,7 +214,11 @@ bench BadPssIterations {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, iterations=0)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      options=new PSSOptions(iterations=0))
   }}
 
   measurements {{
@@ -221,7 +236,7 @@ bench BadPssIterations {{
         Assert.Contains(
             result.Diagnostics,
             d =>
-                d.Message.Contains("pss.iterations", StringComparison.Ordinal)
+                d.Message.Contains("pss.options.iterations", StringComparison.Ordinal)
                 && d.Message.Contains(">= 1", StringComparison.Ordinal)
         );
     }
@@ -236,7 +251,11 @@ bench BadPssIterationsNonInt {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, iterations=0.5)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      options=new PSSOptions(iterations=0.5))
   }}
 
   measurements {{
@@ -254,13 +273,13 @@ bench BadPssIterationsNonInt {{
         Assert.Contains(
             result.Diagnostics,
             d =>
-                d.Message.Contains("pss.iterations", StringComparison.Ordinal)
+                d.Message.Contains("pss.options.iterations", StringComparison.Ordinal)
                 && d.Message.Contains("integer >= 1", StringComparison.Ordinal)
         );
     }
 
     [Fact]
-    public void PssAnalysis_SteadyCoefMustBeNonNegative()
+    public void PssAnalysis_SteadyCoeffMustBePositive()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -269,7 +288,11 @@ bench BadPssSteadyCoef {{
   resp OUT : analog
 
   analysis {{
-    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=1ns, harmonics=3, steady_coef=-0.1)
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      options=new PSSOptions(steady_coeff=-0.1))
   }}
 
   measurements {{
@@ -287,8 +310,45 @@ bench BadPssSteadyCoef {{
         Assert.Contains(
             result.Diagnostics,
             d =>
-                d.Message.Contains("pss.steady_coef", StringComparison.Ordinal)
-                && d.Message.Contains(">= 0", StringComparison.Ordinal)
+                d.Message.Contains("pss.options.steady_coeff", StringComparison.Ordinal)
+                && d.Message.Contains("> 0", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_SteadyCoeffRejectsZero()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadPssSteadyCoeffZero {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      options=new PSSOptions(steady_coeff=0))
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "bad_pss_steady_coeff_zero.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.options.steady_coeff", StringComparison.Ordinal)
+                && d.Message.Contains("> 0", StringComparison.Ordinal)
         );
     }
 
@@ -385,6 +445,43 @@ bench MissingPssResp {{
             d =>
                 d.Message.Contains("PSSAnalysis 'pss'", StringComparison.Ordinal)
                 && d.Message.Contains("resp terminal", StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_RejectsLegacyTopLevelSolverParameters()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench LegacyPssFields {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(
+      guess_frequency=1GHz,
+      stabilization_time=1ns,
+      harmonics=3,
+      iterations=1000)
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "legacy_pss_fields.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.iterations", StringComparison.Ordinal)
+                && d.Message.Contains("options", StringComparison.OrdinalIgnoreCase)
         );
     }
 }

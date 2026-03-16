@@ -324,27 +324,7 @@ internal static class BenchAnalysisCompiler
                     );
                 }
 
-                var iterations = EvaluateOptionalPositiveIntegerParam(
-                    a,
-                    "iterations",
-                    50,
-                    evalRunner,
-                    benchParams
-                );
-                var steadyCoef = EvaluateOptionalPositiveScalarParam(
-                    a,
-                    "steady_coef",
-                    1e-3,
-                    evalRunner,
-                    benchParams
-                );
-                var useInitialConditions = EvaluateOptionalBinaryFlagParam(
-                    a,
-                    "uic",
-                    defaultValue: false,
-                    evalRunner,
-                    benchParams
-                );
+                var pssOptions = CompilePssOptions(a, evalRunner, benchParams);
 
                 analyses.Add(
                     new BenchPlanAnalysis(
@@ -358,9 +338,7 @@ internal static class BenchAnalysisCompiler
                         TstabS: stabilizationTimeV.Value,
                         Harmonics: checked((int)harmonicsV.Value),
                         OscNode: outputTerminal.LeafNodes[0],
-                        Iterations: iterations,
-                        SteadyCoef: steadyCoef,
-                        UseInitialConditions: useInitialConditions
+                        PssOptions: pssOptions
                     )
                 );
             }
@@ -400,6 +378,88 @@ internal static class BenchAnalysisCompiler
             ?? throw new InvalidOperationException(
                 $"PSSAnalysis terminal '{output.Name}' did not resolve to a terminal."
             );
+    }
+
+    private static PssAnalysisOptions CompilePssOptions(
+        AnalysisDeclaration analysis,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue("options", out var expression))
+        {
+            return new PssAnalysisOptions();
+        }
+
+        if (expression is not MeasurementNew constructor)
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.options' expects 'new PSSOptions(...)'."
+            );
+        }
+
+        if (!constructor.TypeName.Equals("PSSOptions", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.options' expects 'new PSSOptions(...)', got 'new {constructor.TypeName}(...)'."
+            );
+        }
+
+        var argsByName = new Dictionary<string, MeasurementExpr>(StringComparer.Ordinal);
+        foreach (var arg in constructor.Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Name))
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{analysis.Name}.options' requires named arguments."
+                );
+            }
+
+            argsByName[arg.Name] = arg.Value;
+        }
+
+        var optionsDecl = new AnalysisDeclaration
+        {
+            Type = analysis.Type,
+            Name = $"{analysis.Name}.options",
+            Parameters = argsByName,
+        };
+
+        var pssPoints = EvaluateOptionalPositiveIntegerParam(
+            optionsDecl,
+            "psspoints",
+            1000,
+            evalRunner,
+            benchParams
+        );
+        var iterations = EvaluateOptionalPositiveIntegerParam(
+            optionsDecl,
+            "iterations",
+            50,
+            evalRunner,
+            benchParams
+        );
+        var steadyCoeff = EvaluateOptionalPositiveScalarParam(
+            optionsDecl,
+            "steady_coeff",
+            1e-3,
+            evalRunner,
+            benchParams
+        );
+        var useInitialConditions = EvaluateOptionalBinaryFlagParam(
+            optionsDecl,
+            "uic",
+            defaultValue: false,
+            evalRunner,
+            benchParams
+        );
+
+        return new PssAnalysisOptions(
+            PssPoints: pssPoints,
+            Iterations: iterations,
+            SteadyCoeff: steadyCoeff,
+            UseInitialConditions: useInitialConditions
+        );
     }
 
     private static int EvaluateOptionalPositiveIntegerParam(
