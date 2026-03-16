@@ -113,8 +113,8 @@ public class CascodeJsonConverterRoundTripTests
         Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         var roundTripped = result.Document!;
 
-        var originalConstraint = original.Circuits[0].Constraints!.Numeric[0];
-        var roundTrippedConstraint = roundTripped.Circuits[0].Constraints!.Numeric[0];
+        var originalConstraint = original.Circuits[0].Constraints!.Bench[0];
+        var roundTrippedConstraint = roundTripped.Circuits[0].Constraints!.Bench[0];
 
         Assert.Equal(originalConstraint.Id, roundTrippedConstraint.Id);
         Assert.Equal(originalConstraint.Bench, roundTrippedConstraint.Bench);
@@ -290,9 +290,9 @@ public class CascodeJsonConverterRoundTripTests
                     Fill = new FillBlock { Devices = [] },
                     Constraints = new ConstraintsBlock
                     {
-                        Numeric =
+                        Bench =
                         [
-                            new NumericConstraint
+                            new MetricConstraint
                             {
                                 Id = "c_gbw",
                                 Bench = "transfer_bench",

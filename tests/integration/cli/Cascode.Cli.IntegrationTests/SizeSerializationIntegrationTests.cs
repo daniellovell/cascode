@@ -30,7 +30,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
         var sourceText =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS NMOS_Level1(size primSize) {{
+primitive NMOS_Level1(size primSize) implements NMOS {{
   device ""nmos_level1""
   params {{
     W = primSize.W
@@ -125,7 +125,7 @@ circuit WriterRoundTrip(size InputPair = size(W=2u, L=180n, M=1), size Tail = si
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS NMOS_Level1(size primSize) {{
+primitive NMOS_Level1(size primSize) implements NMOS {{
   device ""nmos_level1""
   params {{
     W = primSize.W

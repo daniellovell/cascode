@@ -1,6 +1,6 @@
 VERSION 5.0
 
-primitive PMOS PMOS_Level1(size primSize) {
+primitive PMOS_Level1(size primSize) implements PMOS {
   device "pmos_level1"
   params {
     W = primSize.W

@@ -1,6 +1,6 @@
 VERSION 5.0
 
-primitive NMOS NMOS_Level1(size primSize) {
+primitive NMOS_Level1(size primSize) implements NMOS {
   device "nmos_level1"
   params {
     W = primSize.W
@@ -9,7 +9,7 @@ primitive NMOS NMOS_Level1(size primSize) {
   }
 }
 
-primitive PMOS PMOS_Level1(size primSize) {
+primitive PMOS_Level1(size primSize) implements PMOS {
   device "pmos_level1"
   params {
     W = primSize.W
@@ -62,13 +62,13 @@ circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 100MHz  // assumed target metric for the gain response
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB  // assumed target metric for the gain response
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg  // assumed target metric for the phase response
       c_pwr = vdd_pwr::QuiescentPower <= 500uW
     }
-    tech {
+    physical {
       t_lmin : L >= 180nm on *  // tech rule for minimum length
     }
   }

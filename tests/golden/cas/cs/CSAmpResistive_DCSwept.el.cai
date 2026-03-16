@@ -1,13 +1,13 @@
 VERSION 5.0
 
-primitive Resistor ResistorIdeal(size primSize) {
+primitive ResistorIdeal(size primSize) implements Resistor {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive NMOS NMOS_Level1(size primSize) {
+primitive NMOS_Level1(size primSize) implements NMOS {
   device "nmos_level1"
   params {
     W = primSize.W
@@ -36,7 +36,7 @@ circuit CSAmpResistive_DCSwept implements SingleEndedAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_out_bias = dc_bias::OutputDCBias at net::OUT >= 0.4V
       c_power = vdd_pwr::QuiescentPower <= 500uW
     }

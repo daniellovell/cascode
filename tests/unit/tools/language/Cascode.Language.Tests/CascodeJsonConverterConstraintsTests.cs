@@ -8,7 +8,7 @@ namespace Cascode.Language.Tests;
 public class CascodeJsonConverterConstraintsTests
 {
     [Fact]
-    public void ToJson_SerializesNumericConstraints()
+    public void ToJson_SerializesBenchConstraints()
     {
         var doc = CreateCircuitWithConstraints();
 
@@ -16,18 +16,18 @@ public class CascodeJsonConverterConstraintsTests
 
         var parsed = JsonDocument.Parse(json);
         var constraints = parsed.RootElement.GetProperty("constraints");
-        var numeric = constraints.GetProperty("numeric");
-        Assert.Single(numeric.EnumerateArray());
-        Assert.Equal("c_gbw", numeric[0].GetProperty("id").GetString());
-        Assert.Equal("transfer_bench", numeric[0].GetProperty("bench").GetString());
-        Assert.Equal("net::OUT", numeric[0].GetProperty("node").GetString());
-        Assert.Equal(">=", numeric[0].GetProperty("op").GetString());
-        Assert.Equal(20000000, numeric[0].GetProperty("value").GetDouble());
-        Assert.Equal("Hz", numeric[0].GetProperty("unit").GetString());
+        var bench = constraints.GetProperty("bench");
+        Assert.Single(bench.EnumerateArray());
+        Assert.Equal("c_gbw", bench[0].GetProperty("id").GetString());
+        Assert.Equal("transfer_bench", bench[0].GetProperty("bench").GetString());
+        Assert.Equal("net::OUT", bench[0].GetProperty("node").GetString());
+        Assert.Equal(">=", bench[0].GetProperty("op").GetString());
+        Assert.Equal(20000000, bench[0].GetProperty("value").GetDouble());
+        Assert.Equal("Hz", bench[0].GetProperty("unit").GetString());
     }
 
     [Fact]
-    public void FromJson_WithNumericConstraints_ParsesCorrectly()
+    public void FromJson_WithBenchConstraints_ParsesCorrectly()
     {
         var json =
             $@"{{
@@ -39,7 +39,7 @@ public class CascodeJsonConverterConstraintsTests
             ""nets"": [],
             ""components"": [],
             ""constraints"": {{
-                ""numeric"": [{{
+                ""bench"": [{{
                     ""id"": ""c_gbw"",
                     ""bench"": ""transfer_bench"",
                     ""metric"": ""GainBandwidth"",
@@ -48,7 +48,8 @@ public class CascodeJsonConverterConstraintsTests
                     ""value"": 20000000,
                     ""unit"": ""Hz""
                 }}],
-                ""tech"": []
+                ""spec"": [],
+                ""physical"": []
             }},
             ""benchDefinitions"": []
         }}";
@@ -57,7 +58,7 @@ public class CascodeJsonConverterConstraintsTests
         Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         var doc = result.Document!;
 
-        var constraint = doc.Circuits[0].Constraints!.Numeric[0];
+        var constraint = doc.Circuits[0].Constraints!.Bench[0];
         Assert.Equal("c_gbw", constraint.Id);
         Assert.Equal("transfer_bench", constraint.Bench);
         Assert.Equal("GainBandwidth", constraint.Metric);
@@ -68,7 +69,7 @@ public class CascodeJsonConverterConstraintsTests
     }
 
     [Fact]
-    public void ToJson_SerializesTechConstraints()
+    public void ToJson_SerializesPhysicalConstraints()
     {
         var doc = CreateCircuitWithAllConstraintTypes();
 
@@ -76,19 +77,19 @@ public class CascodeJsonConverterConstraintsTests
 
         var parsed = JsonDocument.Parse(json);
         var constraints = parsed.RootElement.GetProperty("constraints");
-        var tech = constraints.GetProperty("tech");
-        Assert.Single(tech.EnumerateArray());
-        var techConstraint = tech[0];
-        Assert.Equal("t_lmin", techConstraint.GetProperty("id").GetString());
-        Assert.Equal("L", techConstraint.GetProperty("metric").GetString());
-        Assert.Equal(">=", techConstraint.GetProperty("op").GetString());
-        Assert.Equal(180e-9, techConstraint.GetProperty("value").GetDouble(), precision: 15);
-        Assert.Equal("m", techConstraint.GetProperty("unit").GetString());
-        Assert.Equal("*", techConstraint.GetProperty("scope").GetString());
+        var physical = constraints.GetProperty("physical");
+        Assert.Single(physical.EnumerateArray());
+        var physicalConstraint = physical[0];
+        Assert.Equal("t_lmin", physicalConstraint.GetProperty("id").GetString());
+        Assert.Equal("L", physicalConstraint.GetProperty("metric").GetString());
+        Assert.Equal(">=", physicalConstraint.GetProperty("op").GetString());
+        Assert.Equal(180e-9, physicalConstraint.GetProperty("value").GetDouble(), precision: 15);
+        Assert.Equal("m", physicalConstraint.GetProperty("unit").GetString());
+        Assert.Equal("*", physicalConstraint.GetProperty("scope").GetString());
     }
 
     [Fact]
-    public void FromJson_WithTechConstraints_ParsesCorrectly()
+    public void FromJson_WithPhysicalConstraints_ParsesCorrectly()
     {
         var json =
             $@"{{
@@ -100,8 +101,9 @@ public class CascodeJsonConverterConstraintsTests
             ""nets"": [],
             ""components"": [],
             ""constraints"": {{
-                ""numeric"": [],
-                ""tech"": [{{
+                ""bench"": [],
+                ""spec"": [],
+                ""physical"": [{{
                     ""id"": ""t_lmin"",
                     ""metric"": ""L"",
                     ""op"": "">="",
@@ -117,7 +119,7 @@ public class CascodeJsonConverterConstraintsTests
         Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         var doc = result.Document!;
 
-        var constraint = doc.Circuits[0].Constraints!.Tech[0];
+        var constraint = doc.Circuits[0].Constraints!.Physical[0];
         Assert.Equal("t_lmin", constraint.Id);
         Assert.Equal("L", constraint.Param);
         Assert.Equal(">=", constraint.Op);
@@ -137,11 +139,11 @@ public class CascodeJsonConverterConstraintsTests
         var roundTripped = result.Document!;
 
         var constraints = roundTripped.Circuits[0].Constraints!;
-        Assert.Single(constraints.Numeric);
-        Assert.Equal("c_gbw", constraints.Numeric[0].Id);
+        Assert.Single(constraints.Bench);
+        Assert.Equal("c_gbw", constraints.Bench[0].Id);
 
-        Assert.Single(constraints.Tech);
-        Assert.Equal("t_lmin", constraints.Tech[0].Id);
+        Assert.Single(constraints.Physical);
+        Assert.Equal("t_lmin", constraints.Physical[0].Id);
     }
 
     private static CascodeDocument CreateCircuitWithConstraints()
@@ -204,9 +206,9 @@ public class CascodeJsonConverterConstraintsTests
                     },
                     Constraints = new ConstraintsBlock
                     {
-                        Numeric =
+                        Bench =
                         [
-                            new NumericConstraint
+                            new MetricConstraint
                             {
                                 Id = "c_gbw",
                                 Bench = "transfer_bench",
@@ -249,9 +251,9 @@ public class CascodeJsonConverterConstraintsTests
                     Fill = new FillBlock { Devices = [] },
                     Constraints = new ConstraintsBlock
                     {
-                        Numeric =
+                        Bench =
                         [
-                            new NumericConstraint
+                            new MetricConstraint
                             {
                                 Id = "c_gbw",
                                 Bench = "transfer_bench",
@@ -262,9 +264,9 @@ public class CascodeJsonConverterConstraintsTests
                                 Unit = "Hz",
                             },
                         ],
-                        Tech =
+                        Physical =
                         [
-                            new TechConstraint
+                            new PhysicalConstraint
                             {
                                 Id = "t_lmin",
                                 Param = "L",

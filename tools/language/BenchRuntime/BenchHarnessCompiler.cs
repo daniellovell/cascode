@@ -449,12 +449,12 @@ internal static class BenchHarnessCompiler
     )
     {
         var constraints = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
-        if (circuit.Constraints?.Numeric is null)
+        if (circuit.Constraints?.Bench is null)
         {
             return constraints;
         }
 
-        foreach (var c in circuit.Constraints.Numeric)
+        foreach (var c in circuit.Constraints.Bench)
         {
             if (!c.Bench.Equals(bindingName, StringComparison.OrdinalIgnoreCase))
             {

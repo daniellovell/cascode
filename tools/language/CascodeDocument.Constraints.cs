@@ -9,20 +9,20 @@ namespace Cascode.Language;
 /// </summary>
 public sealed class ConstraintsBlock
 {
-    /// <summary>Numeric constraints.</summary>
-    public List<NumericConstraint> Numeric { get; init; } = new();
+    /// <summary>Bench-backed metric constraints.</summary>
+    public List<MetricConstraint> Bench { get; init; } = new();
 
-    /// <summary>Technology constraints.</summary>
-    public List<TechConstraint> Tech { get; init; } = new();
+    /// <summary>Declared/spec metric constraints.</summary>
+    public List<MetricConstraint> Spec { get; init; } = new();
 
-    /// <summary>Graph constraints.</summary>
-    public List<GraphConstraint> Graph { get; init; } = new();
+    /// <summary>Physical constraints.</summary>
+    public List<PhysicalConstraint> Physical { get; init; } = new();
 }
 
 /// <summary>
-/// Numeric constraint expressing an inequality over a circuit metric with explicit units.
+/// Metric constraint expressing an inequality over a circuit metric with explicit units.
 /// </summary>
-public sealed class NumericConstraint
+public sealed class MetricConstraint
 {
     /// <summary>Unique identifier for this constraint (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;
@@ -70,7 +70,7 @@ public sealed class NumericConstraint
     public string Unit { get; init; } = string.Empty;
 }
 
-/// <summary>Named argument for a metric invocation within a numeric constraint.</summary>
+/// <summary>Named argument for a metric invocation within a metric constraint.</summary>
 public sealed record MetricCallArg(string Name, string Value);
 
 /// <summary>
@@ -88,9 +88,9 @@ public sealed class NodeRef
 }
 
 /// <summary>
-/// Technology constraint expressing limits on device parameters.
+/// Physical constraint expressing limits on device parameters.
 /// </summary>
-public sealed class TechConstraint
+public sealed class PhysicalConstraint
 {
     /// <summary>Unique identifier for this constraint (e.g., "t_lmin").</summary>
     public string Id { get; init; } = string.Empty;
@@ -111,24 +111,7 @@ public sealed class TechConstraint
     public string Scope { get; init; } = string.Empty;
 }
 
-/// <summary>
-/// Graph constraint expressing structural properties of the circuit graph.
-/// </summary>
-public sealed class GraphConstraint
-{
-    /// <summary>Unique identifier for this constraint (e.g., "g_card_tail").</summary>
-    public string Id { get; init; } = string.Empty;
-
-    /// <summary>Constraint rule expression (e.g., "cardinality", "path_exists", "fanout").</summary>
-    public string Rule { get; init; } = string.Empty;
-
-    /// <summary>Additional key-value properties for the rule (e.g., selector, bounds, endpoints).</summary>
-    public Dictionary<string, string> Properties { get; init; } = new();
-}
-
-/// <summary>
-/// Harness block.
-/// </summary>
+/// <summary>Harness block.</summary>
 public sealed class HarnessBlock
 {
     public List<GroundValue> Grounds { get; init; } = new();

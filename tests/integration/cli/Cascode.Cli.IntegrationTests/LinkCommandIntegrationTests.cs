@@ -66,7 +66,7 @@ public sealed class LinkCommandIntegrationTests : IDisposable
               }
 
               constraints {
-                numeric {
+                bench {
                   c_gbw = transfer_bench::GainBandwidth >= 1MHz
                   c_power = vdd_pwr::QuiescentPower <= 1mW
                 }

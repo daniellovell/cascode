@@ -3,7 +3,7 @@ VERSION 5.0
 library lib.pdk.sky130.capacitors
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor cap_mim_m3_1(size primSize) {
+primitive cap_mim_m3_1(size primSize) implements Capacitor {
   device "cap_mim_m3_1"
   params {
     C = primSize.C
@@ -11,7 +11,7 @@ primitive Capacitor cap_mim_m3_1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor cap_mim_m3_2(size primSize) {
+primitive cap_mim_m3_2(size primSize) implements Capacitor {
   device "cap_mim_m3_2"
   params {
     C = primSize.C
@@ -19,7 +19,7 @@ primitive Capacitor cap_mim_m3_2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcl1d(size primSize) {
+primitive mcl1d(size primSize) implements Capacitor {
   device "mcl1d"
   params {
     C = primSize.C
@@ -27,7 +27,7 @@ primitive Capacitor mcl1d(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcl1f(size primSize) {
+primitive mcl1f(size primSize) implements Capacitor {
   device "mcl1f"
   params {
     C = primSize.C
@@ -35,7 +35,7 @@ primitive Capacitor mcl1f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcl1p1(size primSize) {
+primitive mcl1p1(size primSize) implements Capacitor {
   device "mcl1p1"
   params {
     C = primSize.C
@@ -43,7 +43,7 @@ primitive Capacitor mcl1p1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm1d(size primSize) {
+primitive mcm1d(size primSize) implements Capacitor {
   device "mcm1d"
   params {
     C = primSize.C
@@ -51,7 +51,7 @@ primitive Capacitor mcm1d(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm1f(size primSize) {
+primitive mcm1f(size primSize) implements Capacitor {
   device "mcm1f"
   params {
     C = primSize.C
@@ -59,7 +59,7 @@ primitive Capacitor mcm1f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm1l1(size primSize) {
+primitive mcm1l1(size primSize) implements Capacitor {
   device "mcm1l1"
   params {
     C = primSize.C
@@ -67,7 +67,7 @@ primitive Capacitor mcm1l1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm1p1(size primSize) {
+primitive mcm1p1(size primSize) implements Capacitor {
   device "mcm1p1"
   params {
     C = primSize.C
@@ -75,7 +75,7 @@ primitive Capacitor mcm1p1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm2d(size primSize) {
+primitive mcm2d(size primSize) implements Capacitor {
   device "mcm2d"
   params {
     C = primSize.C
@@ -83,7 +83,7 @@ primitive Capacitor mcm2d(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm2f(size primSize) {
+primitive mcm2f(size primSize) implements Capacitor {
   device "mcm2f"
   params {
     C = primSize.C
@@ -91,7 +91,7 @@ primitive Capacitor mcm2f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm2l1(size primSize) {
+primitive mcm2l1(size primSize) implements Capacitor {
   device "mcm2l1"
   params {
     C = primSize.C
@@ -99,7 +99,7 @@ primitive Capacitor mcm2l1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm2m1(size primSize) {
+primitive mcm2m1(size primSize) implements Capacitor {
   device "mcm2m1"
   params {
     C = primSize.C
@@ -107,7 +107,7 @@ primitive Capacitor mcm2m1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm2p1(size primSize) {
+primitive mcm2p1(size primSize) implements Capacitor {
   device "mcm2p1"
   params {
     C = primSize.C
@@ -115,7 +115,7 @@ primitive Capacitor mcm2p1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm3d(size primSize) {
+primitive mcm3d(size primSize) implements Capacitor {
   device "mcm3d"
   params {
     C = primSize.C
@@ -123,7 +123,7 @@ primitive Capacitor mcm3d(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm3f(size primSize) {
+primitive mcm3f(size primSize) implements Capacitor {
   device "mcm3f"
   params {
     C = primSize.C
@@ -131,7 +131,7 @@ primitive Capacitor mcm3f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm3l1(size primSize) {
+primitive mcm3l1(size primSize) implements Capacitor {
   device "mcm3l1"
   params {
     C = primSize.C
@@ -139,7 +139,7 @@ primitive Capacitor mcm3l1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm3m1(size primSize) {
+primitive mcm3m1(size primSize) implements Capacitor {
   device "mcm3m1"
   params {
     C = primSize.C
@@ -147,7 +147,7 @@ primitive Capacitor mcm3m1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm3m2(size primSize) {
+primitive mcm3m2(size primSize) implements Capacitor {
   device "mcm3m2"
   params {
     C = primSize.C
@@ -155,7 +155,7 @@ primitive Capacitor mcm3m2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm3p1(size primSize) {
+primitive mcm3p1(size primSize) implements Capacitor {
   device "mcm3p1"
   params {
     C = primSize.C
@@ -163,7 +163,7 @@ primitive Capacitor mcm3p1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4d(size primSize) {
+primitive mcm4d(size primSize) implements Capacitor {
   device "mcm4d"
   params {
     C = primSize.C
@@ -171,7 +171,7 @@ primitive Capacitor mcm4d(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4f(size primSize) {
+primitive mcm4f(size primSize) implements Capacitor {
   device "mcm4f"
   params {
     C = primSize.C
@@ -179,7 +179,7 @@ primitive Capacitor mcm4f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4l1(size primSize) {
+primitive mcm4l1(size primSize) implements Capacitor {
   device "mcm4l1"
   params {
     C = primSize.C
@@ -187,7 +187,7 @@ primitive Capacitor mcm4l1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4m1(size primSize) {
+primitive mcm4m1(size primSize) implements Capacitor {
   device "mcm4m1"
   params {
     C = primSize.C
@@ -195,7 +195,7 @@ primitive Capacitor mcm4m1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4m2(size primSize) {
+primitive mcm4m2(size primSize) implements Capacitor {
   device "mcm4m2"
   params {
     C = primSize.C
@@ -203,7 +203,7 @@ primitive Capacitor mcm4m2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4m3(size primSize) {
+primitive mcm4m3(size primSize) implements Capacitor {
   device "mcm4m3"
   params {
     C = primSize.C
@@ -211,7 +211,7 @@ primitive Capacitor mcm4m3(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm4p1(size primSize) {
+primitive mcm4p1(size primSize) implements Capacitor {
   device "mcm4p1"
   params {
     C = primSize.C
@@ -219,7 +219,7 @@ primitive Capacitor mcm4p1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5d(size primSize) {
+primitive mcm5d(size primSize) implements Capacitor {
   device "mcm5d"
   params {
     C = primSize.C
@@ -227,7 +227,7 @@ primitive Capacitor mcm5d(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5f(size primSize) {
+primitive mcm5f(size primSize) implements Capacitor {
   device "mcm5f"
   params {
     C = primSize.C
@@ -235,7 +235,7 @@ primitive Capacitor mcm5f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5l1(size primSize) {
+primitive mcm5l1(size primSize) implements Capacitor {
   device "mcm5l1"
   params {
     C = primSize.C
@@ -243,7 +243,7 @@ primitive Capacitor mcm5l1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5m1(size primSize) {
+primitive mcm5m1(size primSize) implements Capacitor {
   device "mcm5m1"
   params {
     C = primSize.C
@@ -251,7 +251,7 @@ primitive Capacitor mcm5m1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5m2(size primSize) {
+primitive mcm5m2(size primSize) implements Capacitor {
   device "mcm5m2"
   params {
     C = primSize.C
@@ -259,7 +259,7 @@ primitive Capacitor mcm5m2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5m3(size primSize) {
+primitive mcm5m3(size primSize) implements Capacitor {
   device "mcm5m3"
   params {
     C = primSize.C
@@ -267,7 +267,7 @@ primitive Capacitor mcm5m3(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5m4(size primSize) {
+primitive mcm5m4(size primSize) implements Capacitor {
   device "mcm5m4"
   params {
     C = primSize.C
@@ -275,7 +275,7 @@ primitive Capacitor mcm5m4(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcm5p1(size primSize) {
+primitive mcm5p1(size primSize) implements Capacitor {
   device "mcm5p1"
   params {
     C = primSize.C
@@ -283,7 +283,7 @@ primitive Capacitor mcm5p1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcp1f(size primSize) {
+primitive mcp1f(size primSize) implements Capacitor {
   device "mcp1f"
   params {
     C = primSize.C
@@ -291,7 +291,7 @@ primitive Capacitor mcp1f(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdld(size primSize) {
+primitive mcrdld(size primSize) implements Capacitor {
   device "mcrdld"
   params {
     C = primSize.C
@@ -299,7 +299,7 @@ primitive Capacitor mcrdld(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlf(size primSize) {
+primitive mcrdlf(size primSize) implements Capacitor {
   device "mcrdlf"
   params {
     C = primSize.C
@@ -307,7 +307,7 @@ primitive Capacitor mcrdlf(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdll1(size primSize) {
+primitive mcrdll1(size primSize) implements Capacitor {
   device "mcrdll1"
   params {
     C = primSize.C
@@ -315,7 +315,7 @@ primitive Capacitor mcrdll1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlm1(size primSize) {
+primitive mcrdlm1(size primSize) implements Capacitor {
   device "mcrdlm1"
   params {
     C = primSize.C
@@ -323,7 +323,7 @@ primitive Capacitor mcrdlm1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlm2(size primSize) {
+primitive mcrdlm2(size primSize) implements Capacitor {
   device "mcrdlm2"
   params {
     C = primSize.C
@@ -331,7 +331,7 @@ primitive Capacitor mcrdlm2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlm3(size primSize) {
+primitive mcrdlm3(size primSize) implements Capacitor {
   device "mcrdlm3"
   params {
     C = primSize.C
@@ -339,7 +339,7 @@ primitive Capacitor mcrdlm3(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlm4(size primSize) {
+primitive mcrdlm4(size primSize) implements Capacitor {
   device "mcrdlm4"
   params {
     C = primSize.C
@@ -347,7 +347,7 @@ primitive Capacitor mcrdlm4(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlm5(size primSize) {
+primitive mcrdlm5(size primSize) implements Capacitor {
   device "mcrdlm5"
   params {
     C = primSize.C
@@ -355,7 +355,7 @@ primitive Capacitor mcrdlm5(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Capacitor mcrdlp1(size primSize) {
+primitive mcrdlp1(size primSize) implements Capacitor {
   device "mcrdlp1"
   params {
     C = primSize.C

@@ -391,7 +391,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         // until the backend exists.
         foreach (
             var circuit in doc.Circuits.Where(c =>
-                c.Level == CascodeLevel.EL && !c.Inline && c.Constraints?.Numeric?.Count > 0
+                c.Level == CascodeLevel.EL && !c.Inline && c.Constraints?.Bench?.Count > 0
             )
         )
         {

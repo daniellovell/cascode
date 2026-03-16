@@ -110,7 +110,7 @@ public sealed class NgspiceWrdataSpParserTests
               input P2 : analog
 
               constraints {
-                numeric {
+                bench {
                   c_dummy = sp::Dummy >= 0V
                 }
               }

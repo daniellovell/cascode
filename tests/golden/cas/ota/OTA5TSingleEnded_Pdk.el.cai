@@ -1,6 +1,6 @@
 VERSION 5.0
 
-primitive NMOS nfet_01v8(size primSize) {
+primitive nfet_01v8(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_01v8"
   params {
     w = primSize.W
@@ -9,7 +9,7 @@ primitive NMOS nfet_01v8(size primSize) {
   }
 }
 
-primitive PMOS pfet_01v8(size primSize) {
+primitive pfet_01v8(size primSize) implements PMOS {
   device "sky130_fd_pr__pfet_01v8"
   params {
     w = primSize.W
@@ -64,12 +64,12 @@ circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 1MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 20dB
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
     }
-    tech {
+    physical {
       t_lmin : L >= 180nm on *
     }
   }

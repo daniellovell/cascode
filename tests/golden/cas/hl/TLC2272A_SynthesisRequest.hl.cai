@@ -29,7 +29,7 @@ circuit TLC2272A_SynthesisRequest implements SingleEndedOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 83.5dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 2MHz
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg

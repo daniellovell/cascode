@@ -23,7 +23,7 @@ circuit RSeriesQ implements SingleEndedPassiveFilter {
   }
 
   constraints {
-    numeric {
+    bench {
       c_s11 = sparam_bench::S11(f=1MHz) == -6.02059991328dB
       c_input_return_loss = sparam_bench::InputReturnLoss(f=1MHz) == 6.02059991328dB
       c_s21 = sparam_bench::S21(f=1MHz) == -6.02059991328dB

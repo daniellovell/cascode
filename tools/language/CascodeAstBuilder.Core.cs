@@ -386,8 +386,21 @@ internal sealed partial class CascodeAstBuilder
     /// <summary>Builds a primitive definition from its parse context.</summary>
     private PrimitiveDefinition BuildPrimitive(CascodeParser.PrimitiveDefContext ctx)
     {
-        var kind = ctx.DEVICE_TYPE().GetText();
         var name = ctx.name.Text;
+        var implementedKinds = ctx.implementsClause()
+            .interfaceList()
+            .idPart()
+            .Select(part => part.GetText())
+            .ToList();
+        if (implementedKinds.Count != 1)
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"Primitive '{name}' must implement exactly one physical interface."
+            );
+        }
+        var kind = implementedKinds.FirstOrDefault() ?? string.Empty;
 
         var sizeParam = string.Empty;
         if (ctx.paramList() != null)

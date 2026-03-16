@@ -40,7 +40,7 @@ public sealed class BenchBindingScopedBiasTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_pwr = vdd_pwr::QuiescentPower <= 1mW
                 }
               }
@@ -103,7 +103,7 @@ public sealed class BenchBindingScopedBiasTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_pwr = vdd_pwr::QuiescentPower <= 1mW
                 }
               }
@@ -169,7 +169,7 @@ public sealed class BenchBindingScopedBiasTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_bias = dc_bias::OutputDCBias <= 1V
                 }
               }
@@ -236,7 +236,7 @@ public sealed class BenchBindingScopedBiasTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_bias = dc_bias::OutputDCBias <= 1V
                 }
               }
@@ -296,7 +296,7 @@ public sealed class BenchBindingScopedBiasTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_pwr = vdd_pwr::QuiescentPower <= 1mW
                 }
               }

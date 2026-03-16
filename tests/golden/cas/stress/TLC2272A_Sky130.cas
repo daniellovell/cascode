@@ -46,7 +46,7 @@ circuit TLC2272A_Sky130 implements SingleEndedOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 83.5dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 2MHz
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
@@ -117,7 +117,7 @@ circuit LowNoiseFrontEnd implements SingleEndedOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 72dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_cmrr = cmrr_bench::CMRR at net::OUT >= 75dB
@@ -176,7 +176,7 @@ circuit OutputStage implements SingleEndedAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain_min = transfer_bench::PassbandGain at net::OUT >= 15dB
       c_gain_max = transfer_bench::PassbandGain at net::OUT <= 22dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz

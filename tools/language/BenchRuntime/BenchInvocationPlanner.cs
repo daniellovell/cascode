@@ -14,7 +14,7 @@ public sealed record BenchInvocationPlan(
 public static class BenchInvocationPlanner
 {
     /// <summary>
-    /// Collects the bench invocations required to satisfy a circuit's numeric constraints.
+    /// Collects the bench invocations required to satisfy a circuit's bench constraints.
     /// </summary>
     /// <remarks>
     /// Planner resolution intentionally shares <see cref="BenchBindingResolver"/> with the
@@ -76,12 +76,12 @@ public static class BenchInvocationPlanner
         );
 
         var roots = new Dictionary<string, BenchInvocationPlan>(StringComparer.OrdinalIgnoreCase);
-        if (circuit.Constraints?.Numeric is not { Count: > 0 })
+        if (circuit.Constraints?.Bench is not { Count: > 0 })
         {
             return roots;
         }
 
-        foreach (var constraint in circuit.Constraints.Numeric)
+        foreach (var constraint in circuit.Constraints.Bench)
         {
             if (!bindingsByName.TryGetValue(constraint.BenchBase, out var binding))
             {
@@ -107,11 +107,11 @@ public static class BenchInvocationPlanner
     /// Computes additional bench invocation plans required by dependency resolution for the given circuit constraints.
     /// </summary>
     /// <param name="document">The CascodeDocument containing bench definitions used to resolve bench aliases.</param>
-    /// <param name="circuit">The Circuit whose numeric constraints drive dependency graph construction.</param>
+    /// <param name="circuit">The Circuit whose bench constraints drive dependency graph construction.</param>
     /// <param name="bindings">The available bench bindings to map binding aliases to concrete bench configurations.</param>
     /// <param name="rootsByInstance">Existing root invocation plans keyed by bench instance name; instances present here are excluded from dependency results.</param>
     /// <returns>
-    /// A list of BenchInvocationPlan objects for dependency-driven bench invocations; each plan uses a resolved binding, the target instance name, and invocation arguments derived from the dependency graph. Returns an empty list if no numeric constraints exist or if dependency graph construction fails.
+    /// A list of BenchInvocationPlan objects for dependency-driven bench invocations; each plan uses a resolved binding, the target instance name, and invocation arguments derived from the dependency graph. Returns an empty list if no bench constraints exist or if dependency graph construction fails.
     /// </returns>
     private static IReadOnlyList<BenchInvocationPlan> CollectDependencyInvocations(
         CascodeDocument document,
@@ -120,7 +120,7 @@ public static class BenchInvocationPlanner
         IReadOnlyDictionary<string, BenchInvocationPlan> rootsByInstance
     )
     {
-        if (circuit.Constraints?.Numeric is not { Count: > 0 })
+        if (circuit.Constraints?.Bench is not { Count: > 0 })
         {
             return Array.Empty<BenchInvocationPlan>();
         }
@@ -167,7 +167,7 @@ public static class BenchInvocationPlanner
         if (
             !BenchDependencyGraph.TryBuild(
                 circuit,
-                circuit.Constraints.Numeric,
+                circuit.Constraints.Bench,
                 benchByAlias,
                 exportsByAlias,
                 out var graph,

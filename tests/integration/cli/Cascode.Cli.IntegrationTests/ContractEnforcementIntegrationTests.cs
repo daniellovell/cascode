@@ -221,14 +221,14 @@ public sealed class ContractEnforcementIntegrationTests : IDisposable
               N : analog
             }
 
-            primitive Capacitor CapacitorIdeal(size primSize) {
+            primitive CapacitorIdeal(size primSize) implements Capacitor {
               device "capacitor"
               params {
                 C = primSize.C
               }
             }
 
-            primitive Resistor ResistorIdeal(size primSize) {
+            primitive ResistorIdeal(size primSize) implements Resistor {
               device "resistor"
               params {
                 R = primSize.R

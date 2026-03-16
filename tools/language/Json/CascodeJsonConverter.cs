@@ -513,15 +513,18 @@ public static class CascodeJsonConverter
         if (constraints == null)
             return null;
 
-        var hasContent = constraints.Numeric.Count > 0 || constraints.Tech.Count > 0;
+        var hasContent =
+            constraints.Bench.Count > 0
+            || constraints.Spec.Count > 0
+            || constraints.Physical.Count > 0;
 
         if (!hasContent)
             return null;
 
         return new CascodeJsonConstraints
         {
-            Numeric = constraints
-                .Numeric.Select(c => new CascodeJsonNumericConstraint
+            Bench = constraints
+                .Bench.Select(c => new CascodeJsonMetricConstraint
                 {
                     Id = c.Id,
                     Bench = c.Bench,
@@ -532,8 +535,20 @@ public static class CascodeJsonConverter
                     Unit = c.Unit,
                 })
                 .ToList(),
-            Tech = constraints
-                .Tech.Select(c => new CascodeJsonTechConstraint
+            Spec = constraints
+                .Spec.Select(c => new CascodeJsonMetricConstraint
+                {
+                    Id = c.Id,
+                    Bench = c.Bench,
+                    Metric = c.Metric,
+                    Node = c.Node?.ToString(),
+                    Op = c.Op,
+                    Value = ParseConstraintValue(c.Value),
+                    Unit = c.Unit,
+                })
+                .ToList(),
+            Physical = constraints
+                .Physical.Select(c => new CascodeJsonPhysicalConstraint
                 {
                     Id = c.Id,
                     Metric = c.Param,
@@ -857,8 +872,8 @@ public static class CascodeJsonConverter
 
         return new ConstraintsBlock
         {
-            Numeric = constraints
-                .Numeric.Select(c => new NumericConstraint
+            Bench = constraints
+                .Bench.Select(c => new MetricConstraint
                 {
                     Id = c.Id,
                     Bench = c.Bench,
@@ -869,8 +884,20 @@ public static class CascodeJsonConverter
                     Unit = c.Unit,
                 })
                 .ToList(),
-            Tech = constraints
-                .Tech.Select(c => new TechConstraint
+            Spec = constraints
+                .Spec.Select(c => new MetricConstraint
+                {
+                    Id = c.Id,
+                    Bench = c.Bench,
+                    Metric = c.Metric,
+                    Node = ParseNodeRef(c.Node),
+                    Op = c.Op,
+                    Value = FormatSIValue(c.Value, c.Unit),
+                    Unit = c.Unit,
+                })
+                .ToList(),
+            Physical = constraints
+                .Physical.Select(c => new PhysicalConstraint
                 {
                     Id = c.Id,
                     Param = c.Metric,

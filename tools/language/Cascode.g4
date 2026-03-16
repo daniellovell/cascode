@@ -143,7 +143,7 @@ terminalType
 // ----------------------------------------------------------------------------
 
 primitiveDef
-    : PRIMITIVE_KW DEVICE_TYPE name=IDENT LPAREN paramList? RPAREN LBRACE primitiveBody RBRACE
+    : PRIMITIVE_KW name=IDENT LPAREN paramList? RPAREN implementsClause LBRACE primitiveBody RBRACE
     ;
 
 partDef
@@ -413,7 +413,6 @@ fillStatement
     | SIZE_KW sizeName=IDENT EQ sizeExpr                            # FillSizeDecl
     | fillInstanceDecl                                              # FillInstanceStatement
     | someInstanceDecl                                              # FillSomeInstanceStatement
-    | deviceDecl                                                    # FillDeviceDecl
     | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
     | pinRef WIRE_OP pinRef                                         # FillConnectDecl
     | repeatStatement                                               # FillRepeat
@@ -454,11 +453,11 @@ fillInstanceDecl
     ;
 
 someInstanceDecl
-    : SOME_KW instanceId=IDENT COLON requiredType=idPart bindingBlock?
+    : SOME_KW instanceId=scopedId COLON requiredType=idPart bindingBlock?
     ;
 
 instanceDecl
-    : declaredType=idPart instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName
+    : declaredType=idPart instanceId=scopedId EQ NEW_KW instanceType=instanceTypeName
       (LBRACK selectionArgList? RBRACK)?
       (LPAREN argList? RPAREN)?
       bindingBlock?
@@ -497,13 +496,8 @@ selectionArg
     : (idPart EQ)? idPart
     ;
 
-deviceDecl
-    : DEVICE_TYPE deviceId EQ NEW_KW primitiveName=IDENT LPAREN sizeArg RPAREN bindingBlock
-    ;
-
-sizeArg
-    : IDENT
-    | sizeExpr
+scopedId
+    : idPart (DOT idPart)*
     ;
 
 bindingBlock
@@ -516,11 +510,6 @@ bindingList
 
 binding
     : (DOT | BIND_DOT) pinRef WIRE_OP pinRef
-    ;
-
-// Device ID can contain keywords as parts (e.g., load.M where "load" is a keyword).
-deviceId
-    : idPart (DOT idPart)*
     ;
 
 // Rule for identifiers that may also be keywords.
@@ -667,7 +656,6 @@ idPart
     | PHASE_TYPE
     | SCALAR_TYPE
     | S_PARAMETER_MATRIX_TYPE
-    | DEVICE_TYPE
     ;
 
 // Pin references can contain keywords as parts (e.g., load.D).
@@ -791,13 +779,9 @@ signedThreshold
     ;
 
 constraintSection
-    : NUMERIC_KW LBRACE numericConstraint* RBRACE                   # NumericSection
-    | TECH_KW LBRACE techConstraint* RBRACE                         # TechSection
-    | BENCH_KW LBRACE numericConstraint* RBRACE                     # BenchSection
+    : BENCH_KW LBRACE numericConstraint* RBRACE                     # BenchSection
     | SPEC_KW LBRACE numericConstraint* RBRACE                      # SpecSection
     | PHYSICAL_KW LBRACE techConstraint* RBRACE                     # PhysicalSection
-    | GRAPH_KW LBRACE graphConstraint* RBRACE                       # GraphSection
-    | numericConstraint                                             # NumericConstraintDirect
     ;
 
 // id = MetricRef at Node >= ValueUnit
@@ -1451,15 +1435,6 @@ TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
 SP_ANALYSIS_TYPE    : 'SPAnalysis' ;
-
-DEVICE_TYPE
-    : 'NMOS'
-    | 'PMOS'
-    | 'Resistor'
-    | 'Capacitor'
-    | 'Inductor'
-    | 'Diode'
-    ;
 
 COMPARISON_OP
     : '>=' | '<=' | '==' | '>' | '<'

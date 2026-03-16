@@ -52,7 +52,7 @@ circuit OTA5T_Hierarchical implements SingleEndedOpAmp {
     attach cm to dp via CurrentMirrorLike::DiffPairLike
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
@@ -66,7 +66,7 @@ circuit OTA5T_Hierarchical implements SingleEndedOpAmp {
   }
 
 }
-primitive NMOS NMOS_Level1(size primSize) {
+primitive NMOS_Level1(size primSize) implements NMOS {
   // Instantiate a level1 NMOS model which populates
   // the size parameters with the size tuple given
   device "nmos_level1"
@@ -77,7 +77,7 @@ primitive NMOS NMOS_Level1(size primSize) {
   }
 }
 
-primitive PMOS PMOS_Level1(size primSize) {
+primitive PMOS_Level1(size primSize) implements PMOS {
   // Instantiate a level1 PMOS model which populates
   // the size parameters with the size tuple given
   device "pmos_level1"

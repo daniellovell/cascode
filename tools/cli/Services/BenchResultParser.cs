@@ -97,11 +97,11 @@ internal static partial class BenchResultParser
     {
         var results = new BenchResult { Circuit = circuit.Name, Bench = benchName };
         var nodeByMetric = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        if (circuit.Constraints?.Numeric != null)
+        if (circuit.Constraints?.Bench != null)
         {
             foreach (
                 var group in circuit
-                    .Constraints.Numeric.Where(c =>
+                    .Constraints.Bench.Where(c =>
                         string.Equals(c.Bench, benchName, StringComparison.OrdinalIgnoreCase)
                     )
                     .GroupBy(c => c.Metric, StringComparer.OrdinalIgnoreCase)
