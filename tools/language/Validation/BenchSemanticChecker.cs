@@ -2015,11 +2015,14 @@ public static class BenchSemanticChecker
                 measurementTypes,
                 benchesByName
             );
-            if (impedanceType.Kind != MeasurementTypeKind.Impedance)
+            if (
+                impedanceType.Kind != MeasurementTypeKind.Impedance
+                && impedanceType.Kind != MeasurementTypeKind.CurrentWaveform
+            )
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        "harmonic_power second argument must be an Impedance.",
+                        "harmonic_power second argument must be an Impedance or CurrentWaveform.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,

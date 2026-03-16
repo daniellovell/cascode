@@ -48,37 +48,9 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
   abstract resp OUT
 
   measurements {
-    measurement InputPower : W {
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance sourceImp = get_source_impedance(50Ohm)
-      return harmonic_power(vin, sourceImp)
-    }
-    measurement InputPowerHarmonic(Scalar k) : W {
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance sourceImp = get_source_impedance(50Ohm)
-      return harmonic_power(vin, sourceImp, k)
-    }
-    measurement Gain : dB {
-      VoltageWaveform vout = voltage(pss, OUT)
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance loadImp = get_load_impedance(50Ohm)
-      Impedance sourceImp = get_source_impedance(50Ohm)
-      Scalar pout = harmonic_power(vout, loadImp)
-      Scalar pin = harmonic_power(vin, sourceImp)
-      return db10(pout / pin)
-    }
     measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       return thd(vout, harmonics)
-    }
-    measurement PAE(Scalar dcPower) : Scalar {
-      VoltageWaveform vout = voltage(pss, OUT)
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance loadImp = get_load_impedance(50Ohm)
-      Impedance sourceImp = get_source_impedance(50Ohm)
-      Scalar pout = harmonic_power(vout, loadImp)
-      Scalar pin = harmonic_power(vin, sourceImp)
-      return (pout - pin) / dcPower
     }
   }
 }
@@ -149,6 +121,33 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
   stim IN : analog
   resp OUT : analog
 
+  measurements {
+    measurement InputPower : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      CurrentWaveform iin = current(pss, harness.vin.P)
+      return harmonic_power(vin, iin)
+    }
+    measurement InputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      CurrentWaveform iin = current(pss, harness.vin.P)
+      return harmonic_power(vin, iin, k)
+    }
+    measurement Gain : dB {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = InputPower()
+      return db10(pout / pin)
+    }
+    measurement PAE(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = InputPower()
+      return (pout - pin) / dcPower
+    }
+  }
+
   fill {
     net gnd : ground
 
@@ -172,6 +171,41 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
 bench DiffToDiffPSS extends AbstractInputOutputPSS {
   stim IN : Diff
   resp OUT : Diff
+
+  measurements {
+    measurement InputPower : W {
+      VoltageWaveform vinP = voltage(pss, IN.P)
+      VoltageWaveform vinN = voltage(pss, IN.N)
+      CurrentWaveform iinP = current(pss, harness.inP.P)
+      CurrentWaveform iinN = current(pss, harness.inN.P)
+      Scalar pinP = harmonic_power(vinP, iinP)
+      Scalar pinN = harmonic_power(vinN, iinN)
+      return pinP + pinN
+    }
+    measurement InputPowerHarmonic(Scalar k) : W {
+      VoltageWaveform vinP = voltage(pss, IN.P)
+      VoltageWaveform vinN = voltage(pss, IN.N)
+      CurrentWaveform iinP = current(pss, harness.inP.P)
+      CurrentWaveform iinN = current(pss, harness.inN.P)
+      Scalar pinP = harmonic_power(vinP, iinP, k)
+      Scalar pinN = harmonic_power(vinN, iinN, k)
+      return pinP + pinN
+    }
+    measurement Gain : dB {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = InputPower()
+      return db10(pout / pin)
+    }
+    measurement PAE(Scalar dcPower) : Scalar {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = get_load_impedance(50Ohm)
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = InputPower()
+      return (pout - pin) / dcPower
+    }
+  }
 
   fill {
     net gnd : ground

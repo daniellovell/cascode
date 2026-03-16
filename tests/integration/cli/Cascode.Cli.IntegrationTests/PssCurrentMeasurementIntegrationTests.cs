@@ -53,6 +53,7 @@ public sealed class PssCurrentMeasurementIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_PssCurrentMeasurement_WritesCurrentWrdataAndEvaluatesMeasurement()
     {
+        ClearOutputDirectory();
         await File.WriteAllTextAsync(
             _cascodePath,
             $$"""
@@ -162,6 +163,95 @@ public sealed class PssCurrentMeasurementIntegrationTests : IDisposable
         await RunCliAsync("verify", _cascodePath, resultsPath);
     }
 
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_StdlibPssInputPower_UsesDeliveredPowerUnderMismatch()
+    {
+        ClearOutputDirectory();
+        await File.WriteAllTextAsync(
+            _cascodePath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit DeliveredPowerTop {
+              level EL
+              input IN : analog
+              output OUT : analog
+              ground GND
+
+              env {
+                InputAmplitude = 1V
+                InputCommonModeRange = 0V
+                SourceImpedance = 50Ohm
+                LoadImpedance = 1kOhm
+              }
+
+              benches {
+                bind SEToSEPSS as pss_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              constraints {
+                numeric {
+                  c_pin_min = pss_bench(guess_freq=1MHz)::InputPower >= 2mW
+                  c_pin_max = pss_bench(guess_freq=1MHz)::InputPower <= 2.5mW
+                }
+              }
+
+              harness {
+                ground GND = 0V
+              }
+
+              fill {
+                Resistor RLINK = new ResistorIdeal(size(R=100m)) {
+                  .P--IN
+                  .N--OUT
+                }
+                Resistor ROUT = new ResistorIdeal(size(R=100)) {
+                  .P--OUT
+                  .N--GND
+                }
+              }
+            }
+            """
+        );
+
+        await RunCliAsync("bench", "run", _cascodePath, "-o", _outputDir);
+
+        var resultPaths = Directory.GetFiles(_outputDir, "DeliveredPowerTop*_results.json");
+        Assert.NotEmpty(resultPaths);
+
+        var inputPowers = new System.Collections.Generic.List<double>();
+        foreach (var resultPath in resultPaths)
+        {
+            var results = await ReadBenchResultsAsync(resultPath);
+            if (!results.Measurements.TryGetValue("InputPower", out var inputPower))
+            {
+                continue;
+            }
+
+            Assert.True(
+                string.IsNullOrEmpty(inputPower.Error),
+                "InputPower had error: " + inputPower.Error
+            );
+            Assert.True(inputPower.Value.HasValue, "InputPower value missing");
+            inputPowers.Add(inputPower.Value.Value);
+        }
+
+        Assert.NotEmpty(inputPowers);
+        Assert.All(inputPowers, pin => Assert.InRange(pin, 2.0e-3, 2.5e-3));
+        // With this mismatch, available-power style V^2/(2*50) would be ~4.44mW.
+        // Delivered power should be materially lower and stay below 3mW.
+        Assert.All(
+            inputPowers,
+            pin => Assert.True(pin < 3.0e-3, "InputPower looked like matched-load power.")
+        );
+    }
+
     private async Task RunCliAsync(params string[] args)
     {
         var run = await CliIntegrationTestHelper.RunCliAsync(
@@ -170,6 +260,14 @@ public sealed class PssCurrentMeasurementIntegrationTests : IDisposable
             args
         );
         CliIntegrationTestHelper.AssertSuccess(run, "CLI command failed");
+    }
+
+    private void ClearOutputDirectory()
+    {
+        foreach (var path in Directory.GetFiles(_outputDir))
+        {
+            File.Delete(path);
+        }
     }
 
     private static async Task<BenchResult> ReadBenchResultsAsync(string resultsPath)

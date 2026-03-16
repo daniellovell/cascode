@@ -164,8 +164,10 @@ Reference implementations are in [`lib/std/bench/PSSBenches.cas`](../../lib/std/
   may float and the PSS solver will see incorrect or degenerate operating points.
 - For input/output benches, drive amplitude is resolved by `get_input_amplitude(25mV)`: first
   `env.InputPower`, then `env.InputAmplitude`, then the fallback.
-- `harmonic_power` expects an `Impedance`-typed argument; assign `env.LoadImpedance` /
-  `env.SourceImpedance` to an `Impedance` local before calling it in measurements.
+- For output power, `harmonic_power` uses the `VoltageWaveform + Impedance` form; assign
+  `env.LoadImpedance` to an `Impedance` local before calling it in measurements. For delivered
+  input power under mismatch, use the `VoltageWaveform + CurrentWaveform` form with
+  `current(pss, harness.<source>.P)`.
 - Supply power under drive should be computed from a supply branch current waveform in the binding,
   for example `mean(current(pss, supplyDC.P))`, then forwarded to `SupplyPower`.
 - PSS requires at least one `resp` terminal, so the runtime can resolve the oscillating node.

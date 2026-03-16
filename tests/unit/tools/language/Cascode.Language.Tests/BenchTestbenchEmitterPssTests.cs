@@ -105,9 +105,10 @@ bench PssBench {
   }
 
   measurements {
-    measurement InputCurrentPeriod : s {
+    measurement InputPower : W {
+      VoltageWaveform vin = voltage(pss, IN)
       CurrentWaveform iin = current(pss, harness.vin.P)
-      return duration(iin)
+      return harmonic_power(vin, iin)
     }
   }
 }
@@ -119,7 +120,7 @@ circuit Top {
 
   constraints {
     numeric {
-      c_ip = pss::InputCurrentPeriod >= 0s
+      c_ip = pss::InputPower >= 0W
     }
   }
 

@@ -305,6 +305,101 @@ bench PssBuiltinTypeErrors {{
     }
 
     [Fact]
+    public void Pss_HarmonicPowerSupportsCurrentWaveformOverload()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench HarmonicPowerWaveformOverload {{
+  measurements {{
+    measurement AvailablePower(VoltageWaveform vin, Impedance zs) : W {{
+      return harmonic_power(vin, zs)
+    }}
+
+    measurement DeliveredPower(VoltageWaveform vin, CurrentWaveform iin) : W {{
+      return harmonic_power(vin, iin)
+    }}
+
+    measurement DeliveredSecondHarmonicPower(VoltageWaveform vin, CurrentWaveform iin) : W {{
+      return harmonic_power(vin, iin, 2)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "HarmonicPowerWaveformOverload"
+        );
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        const double periodS = 1e-6;
+        const int samples = 2001;
+        var t = new double[samples];
+        var vin = new double[samples];
+        var iin = new double[samples];
+        for (var n = 0; n < samples; n++)
+        {
+            var tn = periodS * n / (samples - 1);
+            var phase = 2.0 * Math.PI * tn / periodS;
+            t[n] = tn;
+            vin[n] = Math.Sin(phase) + 0.5 * Math.Sin(2.0 * phase);
+            iin[n] = 0.01 * Math.Sin(phase) + 0.004 * Math.Sin(2.0 * phase);
+        }
+
+        var vinWaveform = new BenchWaveform(t, vin, BenchNumericKind.VoltageV);
+        var iinWaveform = new BenchWaveform(t, iin, BenchNumericKind.CurrentA);
+        var zSource = new BenchImpedanceParallel(
+            new[] { new BenchNumber(BenchNumericKind.ImpedanceOhm, 50.0) }
+        );
+
+        var availablePower = runner.RunMetricWithNamedArgs(
+            "AvailablePower",
+            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["vin"] = vinWaveform,
+                ["zs"] = zSource,
+            }
+        );
+        var deliveredPower = runner.RunMetricWithNamedArgs(
+            "DeliveredPower",
+            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["vin"] = vinWaveform,
+                ["iin"] = iinWaveform,
+            }
+        );
+        var deliveredSecondHarmonicPower = runner.RunMetricWithNamedArgs(
+            "DeliveredSecondHarmonicPower",
+            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["vin"] = vinWaveform,
+                ["iin"] = iinWaveform,
+            }
+        );
+
+        Assert.Equal(0.01, availablePower.Value, precision: 4);
+        Assert.Equal(0.005, deliveredPower.Value, precision: 4);
+        Assert.Equal(0.001, deliveredSecondHarmonicPower.Value, precision: 4);
+    }
+
+    [Fact]
     public void Pss_CurrentReportsPssSpecificMissingVectorError()
     {
         var cascode =

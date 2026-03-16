@@ -90,7 +90,7 @@ For differential benches, `env.InputPower` is interpreted as total differential 
 
 When `env.InputPower` is not set, both helpers fall back to `env.InputAmplitude` (an explicit peak voltage), then to the hardcoded fallback (25 mV for both PSS and transient benches).
 
-Note that available power (what the source can deliver into a matched load) differs from delivered power (what actually enters the DUT). The `InputPower` measurement computes delivered power from the terminal voltage waveform, which accounts for impedance mismatch.
+Note that available power (what the source can deliver into a matched load) differs from delivered power (what actually enters the DUT). `env.InputPower` participates only in drive-amplitude resolution; delivered input power is measured from voltage and current waveforms at the DUT input terminal.
 
 ---
 
@@ -135,18 +135,28 @@ Like `duration`, this built-in is general-purpose and applies to any waveform, n
 
 ### 2.4 Harmonic Power
 
-A new `harmonic_power` built-in computes real power at a specific harmonic from a periodic voltage waveform and a known impedance:
+A `harmonic_power` built-in computes real power at a specific harmonic from periodic waveforms:
 
 ```
 harmonic_power(VoltageWaveform, Impedance) → power-valued scalar (W)
 harmonic_power(VoltageWaveform, Impedance, Scalar k) → power-valued scalar (W)
+harmonic_power(VoltageWaveform, CurrentWaveform) → power-valued scalar (W)
+harmonic_power(VoltageWaveform, CurrentWaveform, Scalar k) → power-valued scalar (W)
 ```
 
-The two-argument form defaults to the fundamental ($k = 1$). The fundamental frequency is inferred from the waveform's time span ($f = 1 / (t_{end} - t_{start})$), which is exact for PSS waveforms since they cover precisely one solved period. The built-in extracts the $k$-th harmonic peak phasor $V_k$, then computes:
+The two-argument form defaults to the fundamental ($k = 1$). The fundamental frequency is inferred from the waveform's time span ($f = 1 / (t_{end} - t_{start})$), which is exact for PSS waveforms since they cover precisely one solved period.
+
+For the impedance form, the built-in extracts the $k$-th harmonic peak phasor $V_k$, then computes:
 
 $$P_k = \frac{|V_k|^2}{2\,R}$$
 
-where $R$ is the resistive component of the impedance. This built-in is not PSS-specific — it operates on any `VoltageWaveform`, including those from `TranAnalysis`, though its primary use case is periodic waveforms where the DFT is well-defined.
+where $R$ is the resistive component of the impedance.
+
+For the waveform form, the built-in extracts $V_k$ and $I_k$ and computes delivered power:
+
+$$P_k = \tfrac{1}{2}\,\text{Re}\{V_k\,I_k^*\}$$
+
+The impedance form is used for output-power measurements against known load impedance. The waveform form is used for delivered input-power measurements under mismatch.
 
 ### 2.5 THD
 
@@ -164,7 +174,11 @@ where $V_k$ is the $k$-th harmonic phasor and $N$ is `harmonics`. The impedance 
 
 ### 2.6 Input Power via Voltage and Current
 
-For input power, the measurement can use `voltage(pss, IN)` for the terminal voltage and `current(pss, sourceZ.P)` for the branch current through the source impedance element, computing $P_{in,k} = \tfrac{1}{2}\,\text{Re}\{V_k\,I_k^*\}$ at each harmonic. Alternatively, when the source impedance and drive amplitude are known, input power can be derived from the terminal voltage waveform and impedance alone via `harmonic_power` (see Section 5.3).
+Delivered input power uses the terminal voltage waveform plus the source-branch current waveform at the DUT input:
+
+$$P_{in,k} = \tfrac{1}{2}\,\text{Re}\{V_{IN,k}\,I_{in,k}^*\}$$
+
+In the standard driven benches, this maps directly to `voltage(pss, IN)` and `current(pss, harness.<vsource>.P)`, then `harmonic_power(vin, iin [, k])`.
 
 ---
 
@@ -223,7 +237,7 @@ abstract bench AbstractOutputPSS(Frequency guess_freq = 1GHz) {
 
 ### 3.2 AbstractInputOutputPSS
 
-Extends `AbstractOutputPSS` with an input terminal and input power measurements.
+Extends `AbstractOutputPSS` with an input terminal plus shared input/output metrics that do not depend on a specific source instance name.
 
 ```cascode
 abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
@@ -231,37 +245,9 @@ abstract bench AbstractInputOutputPSS extends AbstractOutputPSS {
   abstract resp OUT
 
   measurements {
-    measurement InputPower : W {
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance sourceImp = env.SourceImpedance
-      return harmonic_power(vin, sourceImp)
-    }
-    measurement InputPowerHarmonic(Scalar k) : W {
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance sourceImp = env.SourceImpedance
-      return harmonic_power(vin, sourceImp, k)
-    }
-    measurement Gain : dB {
-      VoltageWaveform vout = voltage(pss, OUT)
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance loadImp = env.LoadImpedance
-      Impedance sourceImp = env.SourceImpedance
-      Scalar pout = harmonic_power(vout, loadImp)
-      Scalar pin = harmonic_power(vin, sourceImp)
-      return db10(pout / pin)
-    }
     measurement TotalHarmonicDistortion(Scalar harmonics) : Scalar {
       VoltageWaveform vout = voltage(pss, OUT)
       return thd(vout, harmonics)
-    }
-    measurement PAE(Scalar dcPower) : Scalar {
-      VoltageWaveform vout = voltage(pss, OUT)
-      VoltageWaveform vin = voltage(pss, IN)
-      Impedance loadImp = env.LoadImpedance
-      Impedance sourceImp = env.SourceImpedance
-      Scalar pout = harmonic_power(vout, loadImp)
-      Scalar pin = harmonic_power(vin, sourceImp)
-      return (pout - pin) / dcPower
     }
   }
 }
@@ -326,6 +312,21 @@ bench SEToSEPSS extends AbstractInputOutputPSS {
   stim IN : analog
   resp OUT : analog
 
+  measurements {
+    measurement InputPower : W {
+      VoltageWaveform vin = voltage(pss, IN)
+      CurrentWaveform iin = current(pss, harness.vin.P)
+      return harmonic_power(vin, iin)
+    }
+    measurement Gain : dB {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = env.LoadImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = InputPower()
+      return db10(pout / pin)
+    }
+  }
+
   fill {
     net gnd : ground
 
@@ -355,6 +356,23 @@ Anti-phase `VSIN` pair through split source impedances, with ground-referenced d
 bench DiffToDiffPSS extends AbstractInputOutputPSS {
   stim IN : Diff
   resp OUT : Diff
+
+  measurements {
+    measurement InputPower : W {
+      VoltageWaveform vinP = voltage(pss, IN.P)
+      VoltageWaveform vinN = voltage(pss, IN.N)
+      CurrentWaveform iinP = current(pss, harness.inP.P)
+      CurrentWaveform iinN = current(pss, harness.inN.P)
+      return harmonic_power(vinP, iinP) + harmonic_power(vinN, iinN)
+    }
+    measurement Gain : dB {
+      VoltageWaveform vout = voltage(pss, OUT)
+      Impedance loadImp = env.LoadImpedance
+      Scalar pout = harmonic_power(vout, loadImp)
+      Scalar pin = InputPower()
+      return db10(pout / pin)
+    }
+  }
 
   fill {
     net gnd : ground
@@ -469,15 +487,11 @@ The current implementation of `OutputPower` does not require simulator branch-cu
 
 ### 5.3 Input Power
 
-The VSIN source is a known pure sinusoid. Its harmonic decomposition is trivial: $V_{src,1}$ is the declared amplitude (peak) and $V_{src,k} = 0$ for $k > 1$. The current into the DUT at each harmonic is derived from Ohm's law across the source impedance:
-
-$$I_{in,k} = \frac{V_{src,k} - V_{IN,k}}{Z_{source}}$$
-
-The real power delivered to the DUT is:
+The real power delivered to the DUT is computed from the solved voltage and current harmonics at the input terminal:
 
 $$P_{in,k} = \tfrac{1}{2}\,\text{Re}\{V_{IN,k}\,I_{in,k}^*\}$$
 
-This requires only `v(in_node)` from the PSS waveform combined with the source parameters already present in the bench plan.
+For single-ended driven benches, `I_{in,k}` comes from the branch current of `harness.vin.P`. For differential driven benches, delivered input power is the sum of each leg's delivered power using `harness.inP.P` and `harness.inN.P`.
 
 ### 5.4 Supply Power
 
@@ -489,7 +503,11 @@ where $\bar{I}_{DD} = \text{mean}(i_{DD}(t))$ is the arithmetic mean of the extr
 
 ### 5.5 Differential Power
 
-For differential terminals, the voltage used in power calculations is the differential quantity `V(P) - V(N)`. The impedance used is the full differential impedance (not the per-leg shunt value). Concretely, if the fill block uses `DiffToShunt()` to split the load, the power calculation reassembles the differential impedance from the declared `env.LoadImpedance`.
+For differential output-power calculations, the voltage used is the differential quantity `V(P) - V(N)` and the impedance is the full differential impedance (not the per-leg shunt value). Concretely, if the fill block uses `DiffToShunt()` to split the load, the output-power calculation reassembles the differential impedance from the declared `env.LoadImpedance`.
+
+For differential input-power calculations, delivered power is summed per leg using the per-leg voltage and current waveforms:
+
+$$P_{in,k}^{diff} = \tfrac{1}{2}\,\text{Re}\{V_{IN.P,k} I_{inP,k}^*\} + \tfrac{1}{2}\,\text{Re}\{V_{IN.N,k} I_{inN,k}^*\}$$
 
 ### 5.6 Limitations
 
@@ -527,7 +545,8 @@ Four built-in functions are added to the function registry:
 
 - `duration(VoltageWaveform | CurrentWaveform) → Time` — time span of a waveform. For PSS, this is the solved period.
 - `mean(VoltageWaveform | CurrentWaveform) → Voltage | Current` — arithmetic mean of a waveform's sample values (the DC component). Returns a scalar in the waveform's native unit.
-- `harmonic_power(VoltageWaveform, Impedance [, Scalar]) → power-valued scalar (W)` — real power at a specific harmonic from a periodic voltage waveform across a known impedance. Fundamental frequency inferred from waveform time span.
+- `harmonic_power(VoltageWaveform, Impedance [, Scalar]) → power-valued scalar (W)` — matched-load real power from a periodic voltage waveform across a known impedance.
+- `harmonic_power(VoltageWaveform, CurrentWaveform [, Scalar]) → power-valued scalar (W)` — delivered real power from periodic voltage and current waveforms.
 - `thd(VoltageWaveform, Scalar) → Scalar` — total harmonic distortion (voltage-domain) of a periodic waveform. Fundamental frequency inferred from waveform time span.
 
 ---
@@ -544,7 +563,7 @@ Four built-in functions are added to the function registry:
 | `voltage(pss, ...)` first argument is not a `PSSAnalysis` | Same error as for other analysis types |
 | No `resp` terminal for oscillating node resolution | `PSSAnalysis requires at least one resp terminal` |
 | `harmonic_power` first argument is not a `VoltageWaveform` | `harmonic_power first argument must be a VoltageWaveform` |
-| `harmonic_power` second argument is not an `Impedance` | `harmonic_power second argument must be an Impedance` |
+| `harmonic_power` second argument is neither `Impedance` nor `CurrentWaveform` | `harmonic_power second argument must be an Impedance or CurrentWaveform` |
 | `mean` argument is not a `VoltageWaveform` or `CurrentWaveform` | `mean argument must be a VoltageWaveform or CurrentWaveform` |
 | `thd` first argument is not a `VoltageWaveform` | `thd first argument must be a VoltageWaveform` |
 | `thd` second argument is not an integer-valued scalar | `thd second argument must be an integer scalar` |

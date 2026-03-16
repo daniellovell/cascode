@@ -2758,7 +2758,6 @@ public sealed class BenchMeasurementRunner
         );
 
         var waveform = RequireVoltageWaveform(args["waveform"], "harmonic_power");
-        var resistanceOhm = ResolveResistiveImpedanceOhm(args["impedance"], "harmonic_power");
         var harmonicIndex = 1;
         if (args.TryGetValue("k", out var harmonicArg))
         {
@@ -2773,8 +2772,24 @@ public sealed class BenchMeasurementRunner
             harmonicIndex = (int)k.Value;
         }
 
+        var secondArg = args["impedance"];
         var harmonic = ComputeHarmonicPeakPhasor(waveform, harmonicIndex);
-        var powerW = harmonic.Magnitude * harmonic.Magnitude / (2.0 * resistanceOhm);
+        double powerW;
+        if (TryAsImpedance(secondArg, out var impedance))
+        {
+            var resistanceOhm = ResolveResistiveImpedanceOhm(impedance, "harmonic_power");
+            powerW = harmonic.Magnitude * harmonic.Magnitude / (2.0 * resistanceOhm);
+        }
+        else
+        {
+            var currentWaveform = RequireCurrentWaveformAsHarmonicPowerSecondArgument(
+                secondArg,
+                "harmonic_power"
+            );
+            var currentHarmonic = ComputeHarmonicPeakPhasor(currentWaveform, harmonicIndex);
+            powerW = 0.5 * (harmonic * Complex.Conjugate(currentHarmonic)).Real;
+        }
+
         return new BenchNumber(BenchNumericKind.Scalar, powerW);
     }
 
@@ -2951,6 +2966,22 @@ public sealed class BenchMeasurementRunner
         {
             throw new InvalidOperationException(
                 $"{functionName}: first argument must be a VoltageWaveform."
+            );
+        }
+
+        return waveform;
+    }
+
+    private static BenchWaveform RequireCurrentWaveformAsHarmonicPowerSecondArgument(
+        BenchValue value,
+        string functionName
+    )
+    {
+        var waveform = RequireWaveform(value, functionName);
+        if (waveform.ValueKind != BenchNumericKind.CurrentA)
+        {
+            throw new InvalidOperationException(
+                $"{functionName}: second argument must be Impedance or CurrentWaveform."
             );
         }
 
