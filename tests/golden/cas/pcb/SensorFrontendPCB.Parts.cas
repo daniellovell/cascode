@@ -1,0 +1,243 @@
+VERSION 5.0
+
+library tests.golden.cas.pcb.sensor_frontend.parts
+
+include lib.pcb
+include tests.golden.cas.pcb.sensor_frontend.interfaces
+
+part OPA2376 implements DualOpAmp {
+  input A_INP : analog
+  input A_INN : analog
+  output A_OUT : analog
+  input B_INP : analog
+  input B_INN : analog
+  output B_OUT : analog
+  supply VDD
+  ground GND
+
+  corners {
+    Room_3V3_25C { TemperatureC = 25  Supply = 3.3V }
+  }
+
+  catalog {
+    defaults {
+      spice = "OPA2376"
+
+      pins {
+        P1 = A_OUT
+        P2 = A_INN
+        P3 = A_INP
+        P4 = GND
+        P5 = B_INP
+        P6 = B_INN
+        P7 = B_OUT
+        P8 = VDD
+      }
+
+      units {
+        A { pads = (P1, P2, P3) terminals = (A_OUT, A_INN, A_INP) }
+        B { pads = (P5, P6, P7) terminals = (B_INP, B_INN, B_OUT) }
+        Rails { pads = (P4, P8) terminals = (GND, VDD) }
+      }
+
+      metrics {
+        SupplyVoltage min = 2.2V
+        SupplyVoltage max = 5.5V
+        RecommendedLoadCapacitance = 100pF
+
+        at Room_3V3_25C {
+          GBW min = 5.5MHz
+          GBW = 7MHz
+          InputOffsetVoltage max = 25uV
+          CMRR min = 90dB
+          InputBiasCurrent max = 10pA
+          SlewRate min = 2V/us
+          SupplyCurrent max = 950uA
+        }
+      }
+    }
+
+    entry VSSOP8 {
+      mpn = "OPA2376AIDDBVR"
+      footprint = "VSSOP-8"
+      option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
+    }
+
+    entry SOIC8 {
+      mpn = "OPA2376AIDGKR"
+      footprint = "SOIC-8"
+      option { provider = "DigiKey" sku = "296-28004-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-OPA2376AIDGKR" priority = 20 }
+    }
+  }
+}
+
+part ADS1115 implements ADCSubsystem {
+  input AIN0 : analog
+  input AIN1 : analog
+  input AIN2 : analog
+  input AIN3 : analog
+  input ADDR : digital
+  io SDA : digital
+  io SCL : clock
+  output ALERT : digital
+  supply VDD
+  ground GND
+
+  catalog {
+    entry MSOP10 {
+      mpn = "ADS1115IDGSR"
+      footprint = "MSOP-10"
+      option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
+
+      pins {
+        P1 = AIN0
+        P2 = AIN1
+        P3 = AIN2
+        P4 = AIN3
+        P5 = ADDR
+        P6 = SDA
+        P7 = SCL
+        P8 = ALERT
+        P9 = VDD
+        P10 = GND
+      }
+
+      metrics {
+        Resolution = 16bit
+        MaxSampleRate = 860SPS
+        INL = 0.5LSB
+        FullScaleRange = 6.144V
+        SupplyVoltage min = 2.0V
+        SupplyVoltage max = 5.5V
+        SupplyCurrent max = 200uA
+        InputLeakageCurrent max = 10nA
+        InputCapacitance = 14pF
+      }
+    }
+  }
+}
+
+abstract part STM32G0 implements IMicrocontroller {
+  supply VDD
+  supply VDDA
+  ground VSS
+  input NRST : digital
+  input BOOT0 : digital
+
+  catalog {
+    defaults {
+      metrics {
+        SupplyVoltage min = 1.7V
+        SupplyVoltage max = 3.6V
+      }
+    }
+  }
+}
+
+part STM32G031K extends STM32G0 {
+  io PA[0:15] : digital
+  io PB[0:9] : digital
+
+  catalog {
+    defaults {
+      mpn = "STM32G031K{flash.code}{pkg.suffix}"
+      option { provider = "DigiKey" sku = "497-STM32G031K{flash.code}{pkg.suffix}-ND" priority = 10 }
+      option { provider = "Mouser" sku = "511-STM32G031K{flash.code}{pkg.suffix}" priority = 20 }
+
+      pins {
+        P1 = VDD
+        P2 = VDDA
+        P3 = VSS
+        P4 = NRST
+        P5 = BOOT0
+        P6:P21 = PA[0:15]
+        P22:P31 = PB[0:9]
+      }
+
+      metrics {
+        CoreClock = 64MHz
+        SupplyCurrent max = 10mA
+      }
+    }
+
+    variant flash {
+      _8 { code = "8"  metrics { FlashSize = 64kB  RAMSize = 8kB } }
+      B { code = "B"  metrics { FlashSize = 128kB  RAMSize = 16kB } }
+    }
+
+    variant pkg {
+      LQFP32 { footprint = "LQFP-32"  suffix = "T6" }
+      UFQFPN32 { footprint = "UFQFPN-32"  suffix = "U6" }
+    }
+  }
+}
+
+part YageoRC(e96 R) implements Resistor {
+  io P : analog
+  io N : analog
+
+  params { R = R }
+
+  catalog {
+    defaults {
+      mpn = "RC{body.footprint}{grade.code}{R}L"
+
+      pins {
+        P1 = P
+        P2 = N
+      }
+    }
+
+    variant body {
+      _0402 {
+        footprint = "0402"
+        metrics { PowerRating min = 63mW  VoltageRating min = 50V }
+        option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
+      }
+      _0603 {
+        footprint = "0603"
+        metrics { PowerRating min = 100mW  VoltageRating min = 75V }
+        option { provider = "DigiKey" sku = "311-{R}HRCT-ND" priority = 10 }
+      }
+      _0805 {
+        footprint = "0805"
+        metrics { PowerRating min = 125mW  VoltageRating min = 150V }
+        option { provider = "DigiKey" sku = "311-{R}GRCT-ND" priority = 10 }
+      }
+    }
+
+    variant grade {
+      F { code = "FR-07"  metrics { Tolerance max = 1pct } }
+      J { code = "JR-05"  metrics { Tolerance max = 5pct } }
+    }
+  }
+}
+
+part CL05B(e12 C) implements Capacitor {
+  io P : analog
+  io N : analog
+
+  params { C = C }
+
+  catalog {
+    entry _0402 {
+      mpn = "CL05B"
+      footprint = "0402"
+      option { provider = "DigiKey" sku = "1276-{C}-ND" priority = 10 }
+      option { provider = "Mouser" sku = "187-CL05B{C}KO5NNNC" priority = 20 }
+
+      pins {
+        P1 = P
+        P2 = N
+      }
+
+      metrics {
+        Tolerance max = 10pct
+        VoltageRating min = 16V
+      }
+    }
+  }
+}

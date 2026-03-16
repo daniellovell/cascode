@@ -455,6 +455,13 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitFillInstanceStatement([NotNull] CascodeParser.FillInstanceStatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>FillSomeInstanceStatement</c>
+	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillSomeInstanceStatement([NotNull] CascodeParser.FillSomeInstanceStatementContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>FillDeviceDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
 	/// </summary>
@@ -544,6 +551,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitFillInstanceDecl([NotNull] CascodeParser.FillInstanceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.someInstanceDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSomeInstanceDecl([NotNull] CascodeParser.SomeInstanceDeclContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.instanceDecl"/>.
 	/// </summary>

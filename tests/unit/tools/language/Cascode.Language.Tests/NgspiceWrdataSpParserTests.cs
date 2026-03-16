@@ -73,8 +73,8 @@ public sealed class NgspiceWrdataSpParserTests
     [Fact]
     public void Parse_SpVectorOrder_ConsistentWithEmitterWrdataOrder()
     {
-        const string cascode = """
-            VERSION 4.0
+        var cascode = $$"""
+            VERSION {{CascodeVersion.Current}}
 
             bench SBench {
               resp P1 : analog

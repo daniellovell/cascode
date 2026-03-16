@@ -9,9 +9,9 @@ domain, for example:
 - `ota/OTA5TSingleEndedSimplified.ml.cai`
 
 Files are named with the pattern `{circuit}.{level}.cai` where level is one of:
-- `hl` - High Level (slots)
-- `ml` - Mid Level (instances)
-- `el` - Electrical Level (devices)
+- `hl` - High Level (bare synthesis request)
+- `ml` - Mid Level (topology fixed, children may still be `Some` requests)
+- `el` - Electrical Level (fully concrete and emission-ready)
 
 The `.cai` extension indicates these are linked Cascode files. Default link
 mode is self-contained (no `include` statements); include-pruned mode may
@@ -34,5 +34,12 @@ inputs so the link step itself remains under test.
 
 The v0 implementation validates Cascode for the OTA motif in code (see
 `OtaCompilerTests`) and compares compiler output to these snapshots.
+
+Canonical source examples live alongside the linked snapshots. For the PCB
+flow, use these source files as the long-term semantic references:
+
+- `pcb/SensorFrontendPCB.hl.cas`
+- `pcb/SensorFrontendPCB.ml.cas`
+- `pcb/SensorFrontendPCB.el.cas`
 
 

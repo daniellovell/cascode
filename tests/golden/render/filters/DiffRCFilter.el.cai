@@ -2,7 +2,7 @@
 // Exercise this file with render and routing regressions only; it intentionally omits
 // complete-document contract metadata and should not be used by `cascode emit` or `cascode erc` tests.
 
-VERSION 4.1
+VERSION 5.0
 
 primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"

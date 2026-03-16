@@ -61,7 +61,9 @@ Structure is canonical for circuit meaning. Render intent is canonical for user 
 
 ### 5.1 Placement
 
-`render {}` is a circuit member block, syntactically parallel to `fill {}`, `constraints {}`, `harness {}`, and `slot {}`. It is valid inside `circuit` declarations at all elaboration levels (see section 10.1 for level-specific semantics).
+`render {}` is a circuit member block, syntactically parallel to `fill {}`, `constraints {}`,
+`harness {}`, and bare `slot`. It is valid inside `circuit` declarations at all elaboration levels
+(see section 10.1 for level-specific semantics).
 
 ```cascode
 circuit OTA5T {

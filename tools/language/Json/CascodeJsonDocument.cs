@@ -400,6 +400,10 @@ public sealed record CascodeJsonInstance
     [JsonPropertyName("id")]
     public required string Id { get; init; }
 
+    [JsonPropertyName("declaredType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DeclaredType { get; init; }
+
     [JsonPropertyName("type")]
     public required string Type { get; init; }
 

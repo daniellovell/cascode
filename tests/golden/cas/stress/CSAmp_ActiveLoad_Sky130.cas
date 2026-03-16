@@ -1,4 +1,4 @@
-VERSION 4.1
+VERSION 5.0
 
 // Stress test: single-ended common-source amplifier using sky130 devices.
 //

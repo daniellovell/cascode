@@ -13,8 +13,8 @@ public sealed class BenchTestbenchEmitterSParamTests
     [Fact]
     public void EmitAll_EmitsSingleEndedPortSources_WithDefaultImpedance()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench SpBench {
   resp P1 : analog
@@ -81,8 +81,8 @@ circuit Top {
     [Fact]
     public void EmitAll_UsesPortImpedanceOverride_WhenProvided()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench SpBench {
   resp P1 : analog
@@ -149,8 +149,8 @@ circuit Top {
     [Fact]
     public void EmitAll_AppendsNoiseFlag_WhenSpNoiseIsEnabled()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench SpBench {
   resp P1 : analog
@@ -216,8 +216,8 @@ circuit Top {
     [Fact]
     public void EmitAll_DoesNotEmitNoiseWrdata_WhenSpNoiseIsDisabled()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench SpBench {
   resp P1 : analog
@@ -283,8 +283,8 @@ circuit Top {
     [Fact]
     public void EmitAll_Throws_WhenSpNoiseIsNotZeroOrOne()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench SpBench {
   resp P1 : analog
@@ -348,8 +348,8 @@ circuit Top {
     [Fact]
     public void Parse_Fails_WhenSpNoiseIsUnitTyped()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench SpBench {
   resp P1 : analog
@@ -400,8 +400,8 @@ bench SpBench {
     [Fact]
     public void EmitAll_DoesNotEmitPortSources_WhenNoSPAnalysis()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench DcBench {
   resp P1 : analog
@@ -467,8 +467,8 @@ circuit Top {
     [Fact]
     public void EmitAll_ResolvesEnvImpedance_ForPortImpedance()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 function get_source_impedance(Impedance fallback) : Impedance {
   if env.SourceImpedance { return env.SourceImpedance }
@@ -543,8 +543,8 @@ circuit Top {
     [Fact]
     public void EmitAll_ResolvesLoadImpedance_ForPortTwoZ0()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 function get_source_impedance(Impedance fallback) : Impedance {
   if env.SourceImpedance { return env.SourceImpedance }

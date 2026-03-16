@@ -1,4 +1,4 @@
-VERSION 4.1
+VERSION 5.0
 
 // Stress test: fully-differential 5T OTA using generic Level-1 devices (no PDK needed).
 //

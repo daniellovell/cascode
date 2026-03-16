@@ -5,7 +5,7 @@
 | Status | Draft |
 | Authors | Daniel Lovell |
 | Created | 2026-02-06 |
-| Last Updated | 2026-02-17 |
+| Last Updated | 2026-03-15 |
 
 ---
 
@@ -47,12 +47,13 @@ Non-goals:
 1. PCB layout, physical placement, pick-and-place data, or gerber generation. This RFC addresses schematic capture and synthesis intent only. BOM generation is in scope as a first-class emit target alongside SPICE netlists; Cascode replaces KiCad/Altium for schematic capture and does not emit artifacts in their formats.
 2. Defining the complete external parts sync pipeline implementation. This RFC defines language-facing contracts and pointers.
 3. Solving MCU alternate-function/pin-mux firmware configuration in-language.
+4. Board-level layout intent such as board area, component density / assembly constraints, stackup, and dielectric-dependent routing rules. Those concerns belong to the future CAL RFC rather than this schematic-language RFC.
 
 Coverage envelope:
 
 - Tier 1 (this RFC): schematic DSL, part modeling, synthesis intent, bench/spec verification, BOM + SPICE emission.
-- Tier 2 (follow-on): deeper procurement-aware synthesis policy.
-- Tier 3 (follow-on): richer PCB physical-intent handoff to downstream layout flows.
+- Tier 2 (follow-on): deeper procurement-aware synthesis objectives, cost modeling, and availability-aware search.
+- Tier 3 (follow-on): richer PCB physical-intent handoff to downstream layout flows via CAL.
 
 ---
 
@@ -83,7 +84,7 @@ In both IC and PCB design, the schematic symbol -- the pin contract and behavior
 
 Cascode formalizes this with a single mechanism: the `implements` keyword. Circuits already use it (`circuit OTA5T implements SingleEndedOpAmp`). This RFC extends `implements` to both `primitive` and the new `part` construct, making all three declaration kinds conform to the same interface system.
 
-```
+```text
 interface (schematic symbol / pin contract)
     ↑ implements
 primitive (IC backing: PDK device)
@@ -126,6 +127,20 @@ interface Capacitor {
 
 // Inductor, Diode similarly.
 ```
+
+These base `Resistor` and `Capacitor` interfaces capture the dominant two-terminal case shared across IC and PCB flows. Specialized physical parts with extra terminals refine that contract with `extends` rather than widening the baseline interfaces or reintroducing grammar-level component categories. RFC-0005 requires `lib/ic/Interfaces.cas` to define `Resistor3T` and `Capacitor3T` as standard IC-library refinements:
+
+```cascode
+interface Resistor3T extends Resistor {
+  io B : analog
+}
+
+interface Capacitor3T extends Capacitor {
+  io SHIELD : analog
+}
+```
+
+Additional domain libraries can layer their own metric requirements on top of these refined interfaces, but the taxonomy remains library-defined and extensible.
 
 Interfaces that are shared across IC and PCB domains live in `lib/std/`. The `SingleEndedOpAmp` interface already exists at `lib/std/amp/SingleEndedOpAmp.cas`, and bus bundles (`I2C`, `SPI`, `UART`, `SWD`) live under `lib/std/bus/`:
 
@@ -197,7 +212,7 @@ interface DualOpAmp {
 // ADC, MCU, Connector interfaces similarly.
 ```
 
-`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. A source file may include `lib.ic`, `lib.pcb`, or both. When both are included, any ambiguous symbol reference must be fully qualified; unresolved or ambiguous references are hard validation errors.
+`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. The IC library is required to provide `Resistor3T` and `Capacitor3T` so extra passive body/shield terminals have a standard representation in the base library set. A source file may include `lib.ic`, `lib.pcb`, or both. When both are included, any ambiguous symbol reference must be fully qualified; unresolved or ambiguous references are hard validation errors.
 
 Concrete part declarations live in a separate `lib/parts/` tree, organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.res`, etc.). Including `lib.pcb` brings interface definitions into scope without pulling in the entire parts catalog.
 
@@ -237,27 +252,23 @@ The implementation must satisfy the port and metric contracts of all declared in
 
 ### 4.5 The `Some` Keyword
 
-In `slot {}` blocks, the `Some` keyword declares an instance whose type will be inferred or resolved by synthesis. It is only valid in slot blocks; use in `fill` blocks is a grammar-level error.
+In ML `fill {}` blocks, the `Some` keyword declares an existential child request. It is used when
+the topology at the current hierarchy is fixed, but the implementation of a child block remains open
+to synthesis or later refinement.
 
 ```cascode
-slot {
-  Some frontend = new AnalogFrontend() { ... }
-  Some adc = new ADCStage() { ... }
+fill {
+  Some SensorConditioner frontend { ... }
+  Some ADCSubsystem adc { ... }
 }
 ```
 
-When an explicit interface type is known, it should be used instead:
+`Some` always carries an explicit interface name. The source is strongly typed: the request says
+"choose some circuit implementing this interface." There is no constructor on the right-hand side,
+because no concrete implementation has been chosen yet.
 
-```cascode
-slot {
-  SensorConditioner frontend = new WheatstoneAmplifier(...) { ... }
-  ADCSubsystem adc = new ADCStage() { ... }
-}
-```
-
-`Some` directs the solver to infer the interface from the instantiated circuit's own `implements` declaration. A circuit declared as `circuit AnalogFrontend implements SensorConditioner` already states its interface contract; `Some` lets the slot omit the type annotation when the interface is unambiguous from the target.
-
-`Some` is enforced at the grammar level by using separate instance declaration rules for slot and fill blocks.
+HL uses bare `slot` to mark the current circuit as the synthesis target. EL forbids `Some`; all
+children must be concrete by the time the design is emission-ready.
 
 ### 4.6 Selecting by Capability (MCUs with SPI + I2C)
 
@@ -286,14 +297,14 @@ interface HasSPI {
 interface MCURequired extends MicrocontrollerCore, HasI2C, HasSPI { }
 ```
 
-A slot block can then request `MCURequired` directly and constrain its metrics:
+A topology-fixed ML block can then request `MCURequired` directly and constrain its metrics:
 
 ```cascode
-slot {
+fill {
   net i2c_bus : I2C
   net spi_bus : SPI
 
-  MCURequired mcu = new MCURequired() {
+  Some MCURequired mcu {
     .VDD--VDD_3V3
     .GND--GND
     .I2C1--i2c_bus
@@ -326,7 +337,7 @@ A part has two layers of identity:
 
 This RFC uses the term entry deliberately. Variant axes do not introduce a competing notion of identity. They are a compact authoring form that generates entries; after validation, tools expand variants into an explicit entry set.
 
-```
+```text
 abstract? part <Name> (<params>?)
     (extends <Parent> (<parent_args>)?)?
     (implements <Interface>(, <Interface>)*)?
@@ -355,7 +366,7 @@ Three mechanisms address three separate concerns:
 2. Catalog entries (explicit `entry` blocks or generated via `variant` axes): discrete, BOM-resolvable configurations. Selected in square brackets at instantiation.
 3. Part inheritance (`extends`): shared electrical identity and shared entry defaults across related families. Declared at the part level.
 
-Passive `part` declarations use E-series parameters (`e96 R`, `e12 C`, `e24 L`). The series constrains the parameter to values in the named IEC 60063 preferred number set. Continuous `real` parameters remain valid for non-discrete values. `size` remains reserved for primitive geometry.
+Passive `part` declarations use E-series parameters (`e96 R`, `e12 C`, `e24 L`). The series constrains the parameter to values in the named IEC 60063 preferred number set. Continuous `real` parameters remain valid for non-discrete values. In v1, the value model is intentionally narrow: scalar values, bounded min/max ranges, and discrete selections are first-class; tables, interpolation, and richer manufacturer-discretized continuous spaces are deferred. `size` remains reserved for primitive geometry.
 
 Terminal declarations are part identity; catalog entries are the backing. The entry layer is introduced by the `catalog {}` block.
 
@@ -386,12 +397,12 @@ Pin mapping requirements:
 - A pad MUST NOT be mapped to conflicting terminal leaves in the same effective entry.
 - Inherited or defaulted pin maps may be extended or overridden only when the resulting mapping remains complete and conflict-free.
 
-Pin maps support a shorthand for contiguous array terminals:
+Pin maps support slice syntax for contiguous pad and terminal arrays:
 
 ```cascode
 pins {
-  PA[0:15] = P6..P21
-  PB[0:9]  = P22..P31
+  P6:P21 = PA[0:15]
+  P22:P31 = PB[0:9]
 }
 ```
 
@@ -448,7 +459,9 @@ part OPA2376 implements DualOpAmp {
 }
 ```
 
-When a part has more than one entry, fill-block instantiation must select one explicitly (Section 5.7). In slot blocks, selection may be omitted and deferred to synthesis.
+When a part has more than one entry, concrete fill-block instantiation must select one explicitly
+(Section 5.7). Deferred choice is a synthesis concern; it is not expressed as a partially specified
+slot-block instantiation.
 
 For structured search spaces, use `variant <axis> { ... }` blocks. Each axis option may provide sourcing field overrides (`mpn`, `footprint`, `spice`), procurement entries (`option { ... }`), metric overrides (`metrics { ... }`), arbitrary metadata fields (`key = value` pairs accessible via `{axis.key}` in MPN templates), and exclusion directives.
 
@@ -536,6 +549,8 @@ E-series types apply uniformly to resistance, capacitance, and inductance. The s
 
 Tolerance-grade entries may further narrow the available series at resolution time. A part declared with `e96 R` supports values up to E96, but a tolerance-grade entry selecting 5% tolerance may only manufacture E24 values. This series-tolerance interaction is a resolver concern: the language-level type catches the broadest class of errors (non-standard values), while the parts resolver validates that the specific value exists at the selected tolerance grade.
 
+E-series examples illustrate one important class of discrete search space, not a claim that every sourceable part family reduces to IEC preferred numbers. Families such as filters or oscillators may expose manufacturer-discretized continuous parameters that require table lookup or interpolation semantics. RFC-0005 acknowledges that need but defers a general solution to follow-on work.
+
 ### 5.4 Part Inheritance
 
 Parts support `extends` for sharing electrical identity and shared entry defaults. The `abstract` keyword marks a base part that cannot be directly instantiated. Concrete parts inherit terminals, constructor parameters, interface conformance, and the `catalog.defaults` backing layer from their base.
@@ -616,7 +631,7 @@ No language-level expression evaluation is supported inside templates. Placehold
 
 Example resolution:
 
-```
+```text
 Instance: rDiv1 = new YageoRC[body=_0402, grade=F](R=100k)
 
   mpn template: "RC{body.footprint}{grade.code}{R}L"
@@ -802,7 +817,7 @@ part USB_C_Receptacle implements USBConnector {
 
 Parts are instantiated using a three-delimiter syntax that distinguishes selection from constructor parameters from connectivity:
 
-```
+```cascode
 <Interface> <refdes> = new <Part>[<selection>](<params>) { <bindings> }
 ```
 
@@ -835,7 +850,11 @@ fill {
 
 Bare positional `[X]` selects an explicit `entry` by name only. Variant axes always require named form `[axis=option]`, even for single-axis parts. If a part declares both explicit entries and variant axes, positional selection resolves against entry names; a positional argument that does not match any declared entry name is a validation error.
 
-In `fill {}` blocks, selection must be complete — this is the BOM-readiness guarantee. For explicit-entry parts with more than one entry, the entry must be specified. For variant-generated entries, all axes must be explicitly selected. Omitting a required selection in a fill block is a validation error. In `slot {}` blocks, selection may be omitted entirely; omitted axes are deferred to synthesis.
+In `fill {}` blocks, selection must be complete — this is the BOM-readiness guarantee. For
+explicit-entry parts with more than one entry, the entry must be specified. For variant-generated
+entries, all axes must be explicitly selected. Omitting a required selection in a fill block is a
+validation error. At HL, selection is deferred by the absence of structure; at ML, deferred child
+choice is expressed with `Some`, not by partially specified part instantiations.
 
 IC primitive instantiation follows the same pattern — the declared type is the interface, not a reserved keyword:
 
@@ -997,8 +1016,8 @@ When a qualifier requirement is present (e.g., `{ min, max }`), the implementing
 
 Rules:
 
-1. Interface metrics are the minimum required set.
-2. Implementations may expose additional metrics, qualifiers, and corner-scoped variants beyond the required set.
+1. Interface metrics are the minimum required metrics.
+2. Implementations may expose additional metrics, qualifiers, and corner-scoped variants beyond the required metrics.
 3. Missing required metrics are hard validation errors at the `implements` check.
 4. Missing required qualifiers are hard validation errors at the `implements` check. For example, if an interface requires `SupplyVoltage : V { min, max }` and an implementing part provides only `SupplyVoltage min = 2.0V` without a `max` entry, validation fails.
 
@@ -1121,16 +1140,17 @@ This enforcement means the designer explicitly declares the expected verificatio
 
 ### 8.3 Example: Mixed Composition
 
-An HL composition with both simulable and non-simulable sub-blocks uses both `bench` and `spec` blocks:
+An ML composition with both simulable and non-simulable sub-blocks uses both `bench` and `spec`
+blocks:
 
 ```cascode
 circuit SensorBoard {
-  level HL
+  level ML
 
-  slot {
-    SensorConditioner frontend = new AnalogFrontend() { ... }
-    ADCSubsystem adc = new ADCStage() { ... }
-    IMicrocontroller mcu = new Controller() { ... }
+  fill {
+    Some SensorConditioner frontend { ... }
+    Some ADCSubsystem adc { ... }
+    Some IMicrocontroller mcu { ... }
   }
 
   constraints {
@@ -1148,7 +1168,8 @@ circuit SensorBoard {
 }
 ```
 
-The separation makes verification intent visible in the source: the analog frontend will be simulation-verified, while the ADC and MCU are verified against their declared specifications.
+The separation makes verification intent visible in the source: the analog frontend will be
+simulation-verified, while the ADC and MCU are verified against their declared specifications.
 
 ### 8.4 Variant-Constraint Interaction
 
@@ -1156,11 +1177,16 @@ Variant selections determine which declared metric values are visible to constra
 
 For `bench {}` constraints, variant selections affect simulation indirectly through SPICE model selection and component values. The bench-derived metric emerges from simulation, not from declared values. Variant selections primarily determine which model file to load.
 
-When metric values flow between instances (e.g., `load_cap=adc.InputCapacitance`) and the source metric is variant-dependent, the ordering pass must resolve the source instance's variant selections before propagating. In fill blocks this is trivial since variants are fully specified. In slot blocks during synthesis, the synthesizer fixes upstream variants before evaluating downstream metrics.
+When metric values flow between instances (e.g., `load_cap=adc.InputCapacitance`) and the source
+metric is variant-dependent, the ordering pass must resolve the source instance's variant selections
+before propagating. In EL fill blocks this is trivial since variants are fully specified. In ML,
+the synthesizer or refinement pass fixes upstream candidates before evaluating downstream metrics.
 
-Variant selections are discrete decision variables in the synthesis search space. For a `Resistor` slot, the synthesizer enumerates each (part × variant combination) as a distinct candidate with its own metric vector:
+Variant selections are discrete decision variables in the synthesis search space. For a resistor
+request, the synthesizer enumerates each (part × variant combination) as a distinct candidate with
+its own metric vector:
 
-```
+```text
 YageoRC[body=_0402, grade=F](R=?) → PowerRating=63mW,  Tolerance=1pct
 YageoRC[body=_0402, grade=J](R=?) → PowerRating=63mW,  Tolerance=5pct
 YageoRC[body=_0603, grade=F](R=?) → PowerRating=100mW, Tolerance=1pct
@@ -1177,7 +1203,10 @@ The algorithm is a topological sort on the constructor-parameter-to-metric depen
 
 Cycles in this graph are hard validation errors reported at design time. A cycle means two or more instances mutually depend on each other's metrics for construction, which has no well-defined resolution order. The error message identifies the participating instances and the metric references forming the cycle.
 
-In fill blocks, all variant selections are explicit, so metric values are immediately available from declared `metrics {}` blocks. In slot blocks during synthesis, the topological order determines the sequence in which the synthesizer fixes upstream candidates (and their variant selections) before evaluating downstream constructor parameters.
+In EL fill blocks, all variant selections are explicit, so metric values are immediately available
+from declared `metrics {}` blocks. In ML, the topological order determines the sequence in which
+the synthesizer fixes upstream candidates (and their variant selections) before evaluating
+downstream constructor parameters.
 
 ### 8.6 Hierarchical Verification
 
@@ -1217,7 +1246,7 @@ A parts ecosystem for PCB design plays the same role that `pdk.db` plays for PDK
 Interface definitions and part declarations are organized under domain-specific library trees:
 
 - `lib/std/` -- shared constructs: bundles (`Diff`), bus bundles (`I2C`, `SPI`, `UART`, `SWD` under `lib/std/bus/`), shared interfaces (`SingleEndedOpAmp` under `lib/std/amp/`), benches, and primitives.
-- `lib/ic/` -- IC-domain component interfaces (`NMOS`, `PMOS`, `Resistor`, `Capacitor`, `Inductor`, `Diode`).
+- `lib/ic/` -- IC-domain component interfaces (`NMOS`, `PMOS`, `Resistor`, `Resistor3T`, `Capacitor`, `Capacitor3T`, `Inductor`, `Diode`).
 - `lib/pcb/` -- PCB-domain component interfaces (`NMOS`, `Resistor` with metric contracts, `DualOpAmp`, `ADCSubsystem`, `IMicrocontroller`, etc.). Does not contain part declarations.
 - `lib/parts/` -- concrete part declarations organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.mcu`, `lib.parts.res`, `lib.parts.cap`, `lib.parts.power` for regulators and decoupling patterns, `lib.parts.conn` for connectors).
 
@@ -1237,22 +1266,25 @@ Optional:
 - `approved`
 - additional non-lookup-able project metadata as key/value fields
 
-The resolver performs volatile data lookup (availability, lead time, and pricing) on demand using these pointers. Those volatile fields are not required to be checked into source. Any policy data that cannot be reliably looked up (for example, internal approval status or qualification notes) should be stored in source metadata.
+The resolver may enrich options with volatile offer data (availability, lead time, pricing, MOQ, and other provider metadata) on demand using these pointers. Those fields are not required to be checked into source. Any policy data that cannot be reliably looked up (for example, internal approval status or qualification notes) should be stored in source metadata.
 
-This model preserves deterministic fallback order while avoiding mandatory mirrored distributor caches in the language surface.
+Deterministic BOM emission is defined over procurement offers, not only over resolved parts. For a given EL design, requested build quantity, and procurement policy, tools must choose one concrete offer per aggregated BOM line item and record that choice in the emitted BOM. The procurement policy first filters out ineligible offers (for example, provider exclusions, `approved = false`, or offers that cannot satisfy quantity / MOQ), then applies any objective-specific ranking, then breaks ties stably by configured `priority`, provider, and SKU.
 
-When a part uses variant axes to generate entries, procurement options may appear in either shared defaults or inside axis options. Package-specific SKUs naturally live inside the axis option that determines the package (e.g., body size determines the DigiKey suffix). SKUs that depend on multiple axes use template strings in shared defaults that reference axis fields.
+This model separates design identity from procurement identity while preserving deterministic downstream BOM generation. Packaging forms such as cut tape, DigiReel, reel, and tray are procurement-offer attributes, not part-family variant axes, unless they change the physical or electrical identity being designed against. In practice the concrete offer identity is the selected provider/SKU pair; distributors often encode packaging directly in the SKU, so RFC-0005 does not require packaging to be emitted as a separate BOM field.
+
+When a part uses variant axes to generate entries, procurement options may appear in either shared defaults or inside axis options. Footprint-specific SKUs naturally live inside the axis option that determines the physical package or body size. Packaging-specific procurement distinctions are represented by distinct offers/SKUs rather than by a separate variant axis or BOM field. SKUs that depend on multiple axes use template strings in shared defaults that reference axis fields.
 
 ### 9.4 MPN Template Resolution
 
 Parts with variant blocks and constructor parameters may use template strings in the `mpn` and `sku` fields. The BOM resolution pipeline processes these in order:
 
 1. Walk the EL hierarchy. For each part instance, collect: reference designator path, part family, constructor params, selection (explicit entry name, or variant axis selections).
-2. Resolve the effective entry backing. Merge `catalog.defaults` with the selected entry body (for explicit entries) or with the selected variant option bodies (for variant-generated entries). Resolve all `{...}` template references using params and selections. Produce: concrete MPN, footprint, SPICE model ref, resolved procurement options.
-3. Optionally enrich procurement options via provider lookups (availability, lead time, and pricing) at resolution time.
-4. Merge shared metrics with entry/variant metric overrides. All interface-required metrics must resolve.
-5. Aggregate by resolved MPN. Sum quantities. Collect reference designator lists.
-6. Emit BOM as structured JSON alongside SPICE netlists.
+2. Resolve the effective entry backing. Merge `catalog.defaults` with the selected entry body (for explicit entries) or with the selected variant option bodies (for variant-generated entries). Resolve all `{...}` template references using params and selections. Produce: concrete MPN, footprint, SPICE model ref, candidate procurement options.
+3. Merge shared metrics with entry/variant metric overrides. All interface-required metrics must resolve.
+4. Aggregate by resolved MPN. Sum per-board quantities, collect reference designator lists, and derive requested procurement quantity from the build quantity when one is supplied.
+5. Optionally enrich candidate procurement options via provider lookups (availability, lead time, pricing, MOQ, and other provider metadata) for the requested quantity.
+6. Apply the deterministic procurement policy to choose one concrete offer / SKU per aggregated BOM line item.
+7. Emit BOM as structured JSON alongside SPICE netlists.
 
 BOM output is a first-class emit target. The JSON schema for a BOM line item:
 
@@ -1263,11 +1295,17 @@ BOM output is a first-class emit target. The JSON schema for a BOM line item:
       "mpn": "RC0402FR-07100KL",
       "description": "100kΩ 1% 0402 thick film resistor",
       "footprint": "0402",
-      "qty": 4,
+      "qty_per_board": 4,
+      "build_qty": 10,
+      "qty": 40,
       "refdes": ["r1", "r2", "r3", "r4"],
       "value": "100kΩ",
+      "selected_offer": {
+        "provider": "DigiKey",
+        "sku": "311-100KLRDKR-ND"
+      },
       "distributors": [
-        { "provider": "DigiKey", "sku": "311-100KLRCT-ND", "priority": 10 },
+        { "provider": "DigiKey", "sku": "311-100KLRDKR-ND", "priority": 10 },
         { "provider": "Mouser", "sku": "603-RC0402FR-07100KL", "priority": 20 }
       ]
     }
@@ -1275,11 +1313,13 @@ BOM output is a first-class emit target. The JSON schema for a BOM line item:
 }
 ```
 
-Each entry in the `bom` array represents an aggregated line item: instances sharing the same resolved MPN are grouped. The `refdes` array lists all reference designators for the line item. The `distributors` array carries resolved procurement options sorted by priority. The `value` field is a human-readable value string derived from constructor parameters (e.g., resistance, capacitance). Fields not applicable to a given part (e.g., `value` for an MCU) are omitted.
+Each entry in the `bom` array represents an aggregated line item: instances sharing the same resolved MPN are grouped. The `refdes` array lists all reference designators for the line item. The `selected_offer` object records the deterministic procurement outcome used for downstream BOM handoff. The `distributors` array carries the remaining eligible procurement options sorted by policy order. The `value` field is a human-readable value string derived from constructor parameters (e.g., resistance, capacitance). Fields not applicable to a given part (e.g., `value` for an MCU) are omitted.
+
+For example, `YageoRC[body=_0402, grade=F](R=10k)` fixes the electrical and physical design choice, while procurement resolution may choose DigiKey SKU `311-100KLRDKR-ND` for a 10-board build because that offer is the highest-ranked eligible source for the aggregated quantity. The design-level part selection stays unchanged; only the offer-level procurement outcome varies. If a distributor encodes packaging in the SKU, that provider/SKU identity is sufficient to make the BOM deterministic without a separate `packaging` field.
 
 ### 9.5 Passive Resolution
 
-Parameterized passives represent families rather than concrete components. A declaration like `part YageoRC(e96 R) implements Resistor` defines a family whose value domain is constrained to the declared E-series (Section 5.3). Concrete resolution to a sourceable MPN occurs during synthesis or explicit fill-block instantiation. The E-series type ensures that only standard preferred values enter the resolution pipeline. The resolution then considers the validated value, selection (explicit or variant-generated; for example, body size and tolerance grade), and available procurement options. Selection is a discrete decision variable alongside the E-series-constrained value parameter in the synthesis search space.
+Parameterized passives represent families rather than concrete components. A declaration like `part YageoRC(e96 R) implements Resistor` defines a family whose value domain is constrained to the declared E-series (Section 5.3). Concrete resolution to a sourceable MPN occurs during synthesis or explicit fill-block instantiation. The E-series type ensures that only standard preferred values enter the resolution pipeline. The resolution then considers the validated value, selection (explicit or variant-generated; for example, body size and tolerance grade), and available procurement options. Selection is a discrete decision variable alongside the E-series-constrained value parameter in the synthesis search space, after which the procurement policy chooses a concrete offer for the requested quantity.
 
 ---
 
@@ -1301,9 +1341,17 @@ Mixed-block synthesis:
 
 - Combine selected active parts with synthesized passive networks.
 
-Entry selection is a synthesis degree of freedom alongside part selection and value sizing. When a slot block omits selection, the synthesizer explores all valid entries for each candidate part. For variant-generated entries, this means exploring all valid variant combinations. Each (part, entry) candidate yields a metric vector; constraints filter infeasible configurations and objectives rank the rest. For a `Resistor` slot, the search space is the Cartesian product of candidate part families, their entry space (including body size and tolerance grade axes), and the continuous value parameter.
+Entry selection is a synthesis degree of freedom alongside part selection and value sizing. During
+refinement, the synthesizer explores all valid entries for each candidate part. For
+variant-generated entries, this means exploring all valid variant combinations. Each (part, entry)
+candidate yields a metric vector; constraints filter infeasible configurations and objectives rank
+the rest. For a resistor request, the search space is the Cartesian product of candidate part
+families, their entry space (including body size and tolerance grade axes), and the declared
+E-series-constrained value parameter.
 
 Synthesis and resolution should be deterministic for identical inputs. This RFC requires stable outcomes but does not prescribe a single global tie-break algorithm.
+
+In v1, the synthesis space is intentionally limited to scalar value parameters, bounded min/max ranges, and discrete selections. Richer families with manufacturer-discretized continuous parameters, table-valued datasheet queries, or interpolation-driven selection semantics are explicitly deferred to follow-on work.
 
 The existing `synth {}` block remains the synthesis guidance carrier:
 
@@ -1666,31 +1714,24 @@ benchMetricRef
 
 The dot form (`instance.Metric`) is used in constraints, forwarding, and parameter propagation. The double-colon form (`bench::Measurement`) is used exclusively in bench-derived metric bindings. The evaluator enforces that `benchMetricRef` appears only inside `benchBindingMetrics` blocks or in bench-derived metric assignments.
 
-### 11.10 Instance Declaration with Selection
+### 11.10 Instance Declarations and Existential Requests
 
-Instance declarations now support an optional selection in square brackets between the type name and the argument list. `Some` remains valid only in slot blocks:
-
-```antlr
-slotBlockStatement
-    : NET_KW IDENT COLON portType                                    # SlotNetDecl
-    | slotInstanceDecl                                               # SlotInstanceDecl
-    | pinRef WIRE_OP pinRef                                          # SlotConnectDecl
-    ;
-
-slotInstanceDecl
-    : (declaredType=IDENT | SOME_KW) instanceId=IDENT EQ NEW_KW instanceTypeName
-      (LBRACKET selectionArgList? RBRACKET)?
-      (LPAREN argList? RPAREN)? bindingBlock?
-    ;
-```
-
-In fill blocks, the existing `instanceDecl` requires a declared type (an interface name) and does not accept `Some`:
+Concrete instance declarations support an optional selection in square brackets between the type name
+and the argument list:
 
 ```antlr
 instanceDecl
     : declaredType=IDENT instanceId=IDENT EQ NEW_KW instanceTypeName
       (LBRACKET selectionArgList? RBRACKET)?
       (LPAREN argList? RPAREN)? bindingBlock?
+    ;
+```
+
+ML existential child requests use a separate form:
+
+```antlr
+someInstanceDecl
+    : SOME_KW requiredType=IDENT instanceId=IDENT bindingBlock?
     ;
 
 selectionArgList
@@ -1704,9 +1745,11 @@ selectionArg
 
 Bare positional `[X]` selects an explicit `entry` by name only. Variant axes always require the named form `[axis=option]`, even for single-axis parts. A positional argument that does not match any declared entry name is a validation error. This rule eliminates ambiguity when a part declares both explicit entries and variant axes.
 
-In fill blocks, selection must be complete (all entries or all axes specified). In slot blocks, selection may be omitted (deferred to synthesis).
+In concrete fill blocks, selection must be complete (all entries or all axes specified). Deferred
+selection is a synthesis concern, not a partially specified source form.
 
-The formerly optional `(declaredType=IDENT)?` pattern is removed. A declared type is always required in both slot and fill blocks.
+The formerly optional `(declaredType=IDENT)?` pattern is removed. A declared type is always required
+for concrete instances.
 
 ### 11.11 Device Instantiation (Modified)
 
@@ -1769,12 +1812,16 @@ There are no reserved keyword categories. All instantiation targets -- whether f
 
 ## 12. Worked Example: Sensor Frontend PCB
 
-A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFrontendPCB.cas` and is updated as implementation phases land. The current example and planned extensions include:
+A complete worked example accompanies this RFC as a split HL/ML/EL trio under
+`tests/golden/cas/pcb/` and is updated as implementation phases land. The canonical entry points
+are `SensorFrontendPCB.hl.cas`, `SensorFrontendPCB.ml.cas`, and `SensorFrontendPCB.el.cas`. Shared
+interfaces, parts, and EL child circuits live alongside them in support files. The example set
+includes:
 
 - Two entries on OPA2376 (`catalog { defaults { ... } entry VSSOP8 { ... } entry SOIC8 { ... } }`) with positional bracket selection (`[VSSOP8]`).
 - Multi-axis entry generation on YageoRC (`catalog { defaults { ... } variant body { ... } variant grade { ... } }`) with named bracket selection (`[body=_0402, grade=F]`).
 - Part inheritance: abstract `STM32G0` base with concrete `STM32G031K extends STM32G0`, carrying `catalog { defaults { ... } variant flash { ... } variant pkg { ... } }`.
-- Concrete-entry pin mapping via `pins {}` and multi-unit grouping via `units {}`, including pin-range shorthand (`PA[0:15] = P6..P21`).
+- Concrete-entry pin mapping via `pins {}` and multi-unit grouping via `units {}`, including slice-based pin mapping (`P6:P21 = PA[0:15]`).
 - MPN template strings (`"STM32G031K{flash.code}{pkg.suffix}"`, `"RC{body.footprint}{grade.code}{R}L"`) with field and parameter interpolation.
 - Single-entry parts (ADS1115, CL05B) demonstrating that brackets are optional when only one entry exists.
 - Fill-block selection completeness: multi-entry parts require explicit selection; variant-generated entries require all axes explicitly selected.
@@ -1783,11 +1830,14 @@ A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFr
 - Corner-scoped metrics (`min|max|typ` qualifiers plus `metrics { at Corner { ... } }` blocks).
 - `bench`/`spec` constraint taxonomy separating simulation-verified and declaration-verified constraints, using dot syntax for instance metric references (`frontend.PassbandGain`, `adc.Resolution`, `mcu.FlashSize`).
 - Harness applicability based on bench executability (simulable paths require harness; spec-only paths may omit).
-- Hierarchical constraint verification (EL design targets with bare metric names, HL system requirements with instance-qualified references).
+- Hierarchical constraint verification (EL design targets with bare metric names, ML system
+  requirements with instance-qualified references).
 - Metric-driven parameter propagation (`load_cap=adc.InputCapacitance`), resolved during bench planning via an ordering pass.
 - Bench-derived metric bindings (`PassbandGain = transfer_bench::PassbandGain`) using `::` exclusively for bench extraction.
 
-The example intentionally exercises both simulable and non-simulable paths within one HL composition, demonstrating entry selection, part inheritance, and the constraint taxonomy across verification methods and hierarchy levels.
+The example intentionally spans the whole ladder: HL as a pure request boundary, ML as a fixed
+topology with existential child requests, and EL as the pinned schematic with concrete child
+implementations and part selections.
 
 ---
 
@@ -1821,17 +1871,25 @@ Section 5.7 (Parts Ecosystem and Pricing) describes the parts database role, `li
 
 Section 5.8 (PCB Synthesis Model) covers HL-to-EL synthesis for PCB designs: IC selection against metric constraints, passive network topology and value sizing, and mixed-block synthesis. Describes the `synth {}` block's `objective` directive and extensibility for future synthesis directives, cross-referencing Ch02 Section 2.12.
 
-Section 5.9 (Worked Example: Sensor Frontend PCB) walks through the `SensorFrontendPCB.cas` golden test section by section, covering file structure and includes, part declarations, interface contracts with metric declarations, HL composition with mixed bench/spec constraints and metric-driven parameter propagation, EL implementations with bench-derived and forwarded metrics, and the hierarchical verification flow.
+Section 5.9 (Worked Example: Sensor Frontend PCB) walks through the split `SensorFrontendPCB`
+goldens section by section: HL request boundary, ML topology with `Some` requests, EL top-level
+composition, and the shared support files that define interfaces, parts, and EL child circuits.
 
 ### 13.3 Updates to Existing Spec Chapters
 
-The specification already covers HL composition slots (2.5.5), the `Some` keyword (3.10.3), bench bindings with measurement exports (4.8.5), `implements` on circuits (2.4), and the `synth {}` block (2.12). The updates below target only what is genuinely new or renamed.
+The specification already covers slots, the `Some` keyword, bench bindings with measurement exports
+(4.8.5), `implements` on circuits (2.4), and the `synth {}` block (2.12). The updates below target
+what changes under the HL=request / ML=fixed-topology model.
 
 Ch01: add a brief note in Section 1.5 (Cascode in a Few Examples) that PCB design is covered in Ch05, or include a minimal PCB example. In Section 1.6 (Toolchain Pipeline), note that the pipeline extends to PCB schematic capture and constraint-driven part selection.
 
 Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.5.3 for E-series parameter types (`e6` through `e192`) in the parameter type system, covering the subtype hierarchy and compile-time validation. Add Section 2.6.2 for parts (`mpn`, `footprint`, `spice`, `catalog` fields, variant blocks, part inheritance, mandatory concrete `pins {}` mapping, optional `units {}`, MPN templates, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, qualifiers and corners, the two named metric kinds, variant-dependent metrics, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
 
-Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename `bench {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block with dot-operator metric lookup and bare-name self-references. Rename `physical {}` → `physical {}`. Add a note to Section 2.5.5 about metric-driven parameter propagation between slot sub-blocks.
+Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename
+`numeric {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block
+with dot-operator metric lookup and bare-name self-references. Rename `tech {}` → `physical {}`.
+Rewrite Section 2.5.5 so HL uses bare `slot`, ML uses `fill {}` with existential `Some` child
+requests, and EL forbids unresolved children.
 
 Ch03 new syntax: update Section 3.1 to include `partDef`. Add `eSeriesType` grammar rule in the parameter declarations section. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`, `pinsBlock`, `unitsBlock`, `cornersBlock`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics` with qualifiers/corners), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
 
@@ -1849,13 +1907,15 @@ Implementation is split into phases. Phase 1 covers grammar and AST changes in t
 
 Phase 1a: Additive grammar and AST
 
-- Add `part`, `catalog`, `entry`, `metrics`, `Some` grammar support.
+- Add `part`, `catalog`, `entry`, `metrics`, and existential `Some <Interface> <name>` grammar
+  support.
 - Add `pins {}` and `units {}` grammar support for parts.
 - Add `corners {}` and corner-scoped metrics (`metrics { at Corner { ... } }`) alongside metric qualifiers (`min`, `max`, `typ`).
 - Add `eSeriesType` tokens (`E6_KW` through `E192_KW`) and `eSeriesType` grammar rule; extend `paramType` to accept E-series types.
 - Add `implementsList` rule shared by `primitiveDef`, `partDef`, and `circuitDef`.
 - Add `variant`, `abstract`, `extends` grammar support: `VARIANT_KW`, `ABSTRACT_KW`, `EXTENDS_KW` tokens; `variantBlock`, `variantOption`, `variantOptionMember` rules (including `excludeDirective`); modified `partDef` with optional `ABSTRACT_KW`, optional `EXTENDS_KW` clause.
-- Add bracket selection syntax on `instanceDecl` and `slotInstanceDecl`: `selectionArgList`, `selectionArg` rules with `LBRACKET`/`RBRACKET` delimiters.
+- Add bracket selection syntax on concrete `instanceDecl`: `selectionArgList`, `selectionArg` rules
+  with `LBRACKET`/`RBRACKET` delimiters.
 - Add `mechanicalBlock` and `mechanicalField` rules as optional `entryMember` alternatives.
 - Add `spec` constraint sub-block.
 - Add `benchBindingMetrics` rule for metrics inside bench bind blocks.
@@ -1863,7 +1923,7 @@ Phase 1a: Additive grammar and AST
 - Add `LIBRARY_KW`, `CATALOG_KW`, `ENTRY_KW`, `OPTION_KW`, `BENCHES_KW` tokens.
 - Add AST types for part declarations, catalog entries, metric declarations/assignments, variant blocks, variant options.
 - Add AST types for pin maps, unit groupings, corners, and corner-scoped metric entries.
-- Add separate `slotInstanceDecl` with `Some` support.
+- Restrict `slot` to bare HL usage and add `Some` support to ML `fill` instance requests.
 - Add reader/writer support and tests.
 
 Verification checkpoint: all existing tests pass; new constructs parse and round-trip correctly.
@@ -1898,7 +1958,7 @@ Verification checkpoint: existing spec cross-references resolve; new syntax sect
 
 Phase 2a: Interface libraries
 
-- Create `lib/ic/Interfaces.cas` with IC-domain component interfaces.
+- Create `lib/ic/Interfaces.cas` with IC-domain component interfaces, including mandated `Resistor3T` and `Capacitor3T` refinements.
 - Create `lib/pcb/Interfaces.cas` with PCB-domain component interfaces and bus bundles.
 - Update all golden tests and examples.
 
@@ -1907,7 +1967,8 @@ Phase 2b: PCB spec chapter
 Interface libraries (`lib/ic/`, `lib/pcb/`, `lib/parts/`) exist after Phase 2a. The worked example can reference real library paths:
 
 - Draft `spec/language/Ch05_PCB_Design.md` with sections 5.0–5.9.
-- Ensure Section 5.9 worked example matches `tests/golden/cas/pcb/SensorFrontendPCB.cas`.
+- Ensure Section 5.9 worked example matches the split `tests/golden/cas/pcb/SensorFrontendPCB.*.cas`
+  canon.
 
 Verification checkpoint: spec chapter cross-references resolve end-to-end; worked example walkthrough is accurate against the golden test.
 
@@ -1915,7 +1976,9 @@ Phase 3: Resolution and validation
 
 - Implement unified semantic instantiation resolution policy (no reserved keyword categories).
 - Implement mixed-domain symbol ambiguity reporting and require fully-qualified references when ambiguous.
-- Implement variant selection validation: fill blocks require all axes selected; slot blocks allow omission.
+- Implement variant selection validation: concrete fill blocks require all axes selected; deferred
+  choice is represented by HL synthesis or ML `Some` requests rather than partially specified slot
+  instances.
 - Implement catalog/metric merge: base + variant option overrides with conflict detection (two axes providing the same non-template catalog field).
 - Implement variant exclusion validation: reject instantiations and synthesis candidates selecting combinations marked by `exclude` directives.
 - Implement `abstract` part enforcement: cannot appear in fill blocks or be instantiated directly.
@@ -1923,7 +1986,7 @@ Phase 3: Resolution and validation
 - Implement MPN template string validation: verify all `{...}` references resolve to known axes, axis fields, or constructor parameters at compile time.
 - Add interface metric contract validation (including variant-dependent metrics must cover all options).
 - Add alias-only forwarding resolution and cycle detection.
-- Validate `Some` only appears in slot blocks (grammar-enforced).
+- Validate `Some` only appears in ML `fill` blocks.
 - Add E-series value validation: check that a literal value passed to an E-series parameter is a member of the declared series at some decade.
 - Add pin-map validation: concrete parts must provide a complete mapping for every declared terminal leaf; mapping conflicts are errors.
 - Add unit-group validation: unit group references must be valid and consistent with pin maps.
@@ -1963,5 +2026,6 @@ Phase 6: Emission and synthesis expansion
 - `lib/std/amp/FullyDifferentialOpAmp.cas`
 - `tests/golden/cas/stress/OTA5T_Sky130.cas`
 - `tests/golden/cas/stress/OTA5TFullyDiff_Ideal.cas`
-- `tests/golden/cas/pcb/SensorFrontendPCB.cas`
-- `tests/golden/cas/hl/HLComposition.hl.cai`
+- `tests/golden/cas/pcb/SensorFrontendPCB.hl.cas`
+- `tests/golden/cas/pcb/SensorFrontendPCB.ml.cas`
+- `tests/golden/cas/pcb/SensorFrontendPCB.el.cas`

@@ -231,7 +231,7 @@ measurement ForwardGain(Frequency from, Frequency to) : dB {
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_forward_gain = sparam_bench::ForwardGain(from=100kHz, to=10MHz) >= 10dB
   }
 }

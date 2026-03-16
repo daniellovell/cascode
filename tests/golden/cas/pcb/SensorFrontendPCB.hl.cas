@@ -1,0 +1,25 @@
+VERSION 5.0
+
+include tests.golden.cas.pcb.sensor_frontend.interfaces
+
+// Definitive HL example: only the board boundary and synthesis target are fixed here.
+circuit SensorFrontendPCB {
+  level HL
+  supply VDD_3V3
+  ground GND
+  input SENSOR : Diff
+  output DEBUG : UART
+  io PROG : SWD
+
+  slot
+
+  harness {
+    supply VDD_3V3 = 3.3V
+    ground GND = 0V
+  }
+
+  synth {
+    seed = 42
+    objective = minimize_cost
+  }
+}

@@ -1,0 +1,208 @@
+VERSION 5.0
+
+library tests.golden.cas.pcb.sensor_frontend.components
+
+include tests.golden.cas.pcb.sensor_frontend.parts
+
+circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
+  level EL
+  supply VDD
+  ground GND
+  input SENSOR_IN : Diff
+  output SIGNAL_OUT : analog
+
+  env {
+    InputCommonModeRange = 1.65V
+    SourceImpedance = 1kOhm
+    LoadImpedance = (10GOhm || load_cap)
+  }
+
+  fill {
+    net stage1_out : analog
+    net vref : analog
+    net fb_a : analog
+
+    Resistor rDiv1 = new YageoRC[body=_0402, grade=F](R=100k) {
+      .P--VDD
+      .N--vref
+    }
+    Resistor rDiv2 = new YageoRC[body=_0402, grade=F](R=100k) {
+      .P--vref
+      .N--GND
+    }
+    Capacitor cRef = new CL05B(C=100n) {
+      .P--vref
+      .N--GND
+    }
+
+    DualOpAmp u1 = new OPA2376[VSSOP8]() {
+      .A_INP--SENSOR_IN.P
+      .A_INN--fb_a
+      .A_OUT--stage1_out
+
+      .B_INP--vref
+      .B_INN--u1.B_OUT
+      .B_OUT--vref
+
+      .VDD--VDD
+      .GND--GND
+    }
+
+    Resistor rG = new YageoRC[body=_0402, grade=F](R=1k) {
+      .P--SENSOR_IN.N
+      .N--fb_a
+    }
+    Resistor rF = new YageoRC[body=_0402, grade=F](R=100k) {
+      .P--stage1_out
+      .N--fb_a
+    }
+
+    Resistor rAa = new YageoRC[body=_0402, grade=F](R=1k) {
+      .P--stage1_out
+      .N--SIGNAL_OUT
+    }
+    Capacitor cAa = new CL05B(C=15n) {
+      .P--SIGNAL_OUT
+      .N--GND
+    }
+
+    Capacitor cByp = new CL05B(C=100n) {
+      .P--VDD
+      .N--GND
+    }
+  }
+
+  benches {
+    bind DiffToSECMRejection as cmrr_bench {
+      bench.CM--dut.SENSOR_IN.P
+      bench.CM--dut.SENSOR_IN.N
+      bench.OUT--dut.SIGNAL_OUT
+
+      metrics {
+        CMRR = cmrr_bench::CMRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
+  }
+
+  metrics {
+    PassbandGain = transfer_bench::PassbandGain
+    LowpassBandwidth = transfer_bench::LowpassBandwidth
+    IntegratedInputNoise = noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz)
+    CMRR = cmrr_bench::CMRR(dmGain=transfer_bench::PassbandGain)
+  }
+
+  constraints {
+    numeric {
+      c_bw = LowpassBandwidth >= 10kHz
+      c_gain = PassbandGain >= 38dB
+      c_noise = IntegratedInputNoise <= 1uVrms
+      c_cmrr = CMRR >= 20dB
+    }
+  }
+
+  harness {
+    supply VDD = 3.3V
+    ground GND = 0V
+  }
+}
+
+circuit ADCStage implements ADCSubsystem {
+  level EL
+  supply VDD
+  ground GND
+  input AIN : analog
+  io BUS : I2C
+  output DRDY : digital
+
+  fill {
+    ADCSubsystem uAdc = new ADS1115() {
+      .AIN0--AIN
+      .AIN1--GND
+      .AIN2--GND
+      .AIN3--GND
+      .ADDR--GND
+      .SDA--BUS.SDA
+      .SCL--BUS.SCL
+      .ALERT--DRDY
+      .VDD--VDD
+      .GND--GND
+    }
+
+    Resistor rSda = new YageoRC[body=_0402, grade=F](R=4.7k) {
+      .P--VDD
+      .N--BUS.SDA
+    }
+    Resistor rScl = new YageoRC[body=_0402, grade=F](R=4.7k) {
+      .P--VDD
+      .N--BUS.SCL
+    }
+
+    Capacitor cVdd = new CL05B(C=100n) {
+      .P--VDD
+      .N--GND
+    }
+    Capacitor cBulk = new CL05B(C=10u) {
+      .P--VDD
+      .N--GND
+    }
+  }
+
+  metrics {
+    Resolution = uAdc.Resolution
+    MaxSampleRate = uAdc.MaxSampleRate
+    InputCapacitance = uAdc.InputCapacitance
+  }
+}
+
+circuit Controller implements IMicrocontroller {
+  level EL
+  supply VDD
+  ground GND
+  io PERIPH : I2C
+  input IRQ : digital
+  output DEBUG : UART
+  io PROG : SWD
+
+  fill {
+    net nrst : digital
+
+    IMicrocontroller uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() {
+      .PA[0]--IRQ
+      .PA[2]--DEBUG.TX
+      .PA[3]--DEBUG.RX
+      .PA[9]--PERIPH.SDA
+      .PA[10]--PERIPH.SCL
+      .PA[13]--PROG.SWDIO
+      .PA[14]--PROG.SWCLK
+      .VDD--VDD
+      .VDDA--VDD
+      .VSS--GND
+      .NRST--nrst
+      .BOOT0--GND
+    }
+
+    Resistor rRst = new YageoRC[body=_0402, grade=F](R=10k) {
+      .P--VDD
+      .N--nrst
+    }
+    Capacitor cRst = new CL05B(C=100n) {
+      .P--nrst
+      .N--GND
+    }
+
+    Capacitor cVdd = new CL05B(C=100n) {
+      .P--VDD
+      .N--GND
+    }
+    Capacitor cVdda = new CL05B(C=1u) {
+      .P--VDD
+      .N--GND
+    }
+  }
+
+  metrics {
+    FlashSize = uMcu.FlashSize
+    CoreClock = uMcu.CoreClock
+    RAMSize = uMcu.RAMSize
+  }
+}

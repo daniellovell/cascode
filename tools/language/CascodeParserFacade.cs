@@ -71,6 +71,8 @@ public static class CascodeParserFacade
                 parsed = BundleDesugarer.Desugar(parsed);
             }
 
+            LevelStructureValidator.Check(parsed, diagnostics);
+
             // Bench inheritance and binding extensions require a complete document (no includes) to resolve.
             // Syntax-only parses used by the linker must preserve raw benches.
             var runBenchTransforms =

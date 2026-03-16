@@ -29,30 +29,34 @@ internal sealed class PortCoverageAnalysis
     /// </summary>
     public void ValidateInstancePortCoverage(InstanceDeclaration instance, Circuit targetCircuit)
     {
+        ValidateInstancePortCoverage(instance, targetCircuit.Ports);
+    }
+
+    public void ValidateInstancePortCoverage(
+        InstanceDeclaration instance,
+        TraitDefinition targetTrait
+    )
+    {
+        ValidateInstancePortCoverage(instance, targetTrait.Ports);
+    }
+
+    private void ValidateInstancePortCoverage(
+        InstanceDeclaration instance,
+        IReadOnlyList<PortDeclaration> targetPorts
+    )
+    {
         // Build set of ports that need coverage
         var requiredPorts = new HashSet<string>(StringComparer.Ordinal);
 
-        // Add supply ports
-        foreach (var supply in targetCircuit.Supplies)
-        {
-            requiredPorts.Add(supply);
-        }
-
-        // Add ground ports - they also need explicit binding
-        foreach (var ground in targetCircuit.Grounds)
-        {
-            requiredPorts.Add(ground);
-        }
-
-        // Add declared ports
-        var declaredPortNames = new HashSet<string>(
-            targetCircuit.Ports.Select(p => p.Name),
-            StringComparer.Ordinal
-        );
-        foreach (var port in targetCircuit.Ports)
+        // Add rails and declared ports
+        foreach (var port in targetPorts)
         {
             requiredPorts.Add(port.Name);
         }
+        var declaredPortNames = new HashSet<string>(
+            targetPorts.Select(p => p.Name),
+            StringComparer.Ordinal
+        );
 
         // Remove ports covered by direct bindings
         foreach (var binding in instance.Bindings.Keys)
@@ -101,7 +105,7 @@ internal sealed class PortCoverageAnalysis
         {
             foreach (var attach in _parentCircuit.Fill.Attaches)
             {
-                var coveredPorts = GetPortsCoveredByAttach(attach, instance, targetCircuit);
+                var coveredPorts = GetPortsCoveredByAttach(attach, instance, declaredPortNames);
                 foreach (var port in coveredPorts)
                 {
                     requiredPorts.Remove(port);
@@ -127,14 +131,10 @@ internal sealed class PortCoverageAnalysis
     private HashSet<string> GetPortsCoveredByAttach(
         AttachStatement attach,
         InstanceDeclaration instance,
-        Circuit targetCircuit
+        HashSet<string> declaredPortNames
     )
     {
         var coveredPorts = new HashSet<string>(StringComparer.Ordinal);
-        var declaredPortNames = new HashSet<string>(
-            targetCircuit.Ports.Select(p => p.Name),
-            StringComparer.Ordinal
-        );
 
         // Parse the via clause: "InterfaceName::TargetInterface"
         var viaParts = attach.Via.Split("::");

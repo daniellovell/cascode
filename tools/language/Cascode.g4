@@ -272,7 +272,6 @@ slotInstanceDecl
 
 slotDeclaredType
     : IDENT
-    | SOME_KW
     ;
 
 // ----------------------------------------------------------------------------
@@ -283,6 +282,7 @@ fillStatement
     : NET_KW IDENT COLON portType                                   # FillNetDecl
     | SIZE_KW sizeName=IDENT EQ sizeExpr                            # FillSizeDecl
     | fillInstanceDecl                                              # FillInstanceStatement
+    | someInstanceDecl                                              # FillSomeInstanceStatement
     | deviceDecl                                                    # FillDeviceDecl
     | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
     | pinRef WIRE_OP pinRef                                         # FillConnectDecl
@@ -321,6 +321,10 @@ fillBlock
 
 fillInstanceDecl
     : instanceDecl
+    ;
+
+someInstanceDecl
+    : SOME_KW requiredType=IDENT instanceId=IDENT bindingBlock?
     ;
 
 instanceDecl
