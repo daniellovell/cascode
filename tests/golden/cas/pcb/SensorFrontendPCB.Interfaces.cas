@@ -69,7 +69,7 @@ interface ADCSubsystem {
   }
 }
 
-interface IMicrocontroller {
+interface Microcontroller {
   supply VDD
   ground GND
   io PERIPH : I2C

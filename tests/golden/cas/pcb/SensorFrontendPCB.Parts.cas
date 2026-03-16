@@ -120,7 +120,7 @@ part ADS1115 implements ADCSubsystem {
   }
 }
 
-abstract part STM32G0 implements IMicrocontroller {
+abstract part STM32G0 implements Microcontroller {
   supply VDD
   supply VDDA
   ground VSS

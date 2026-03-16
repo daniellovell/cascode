@@ -154,7 +154,7 @@ circuit ADCStage implements ADCSubsystem {
   }
 }
 
-circuit Controller implements IMicrocontroller {
+circuit Controller implements Microcontroller {
   level EL
   supply VDD
   ground GND
@@ -166,7 +166,7 @@ circuit Controller implements IMicrocontroller {
   fill {
     net nrst : digital
 
-    IMicrocontroller uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() {
+    Microcontroller uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() {
       .PA[0]--IRQ
       .PA[2]--DEBUG.TX
       .PA[3]--DEBUG.RX

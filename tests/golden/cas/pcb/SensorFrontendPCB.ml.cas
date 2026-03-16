@@ -31,7 +31,7 @@ circuit SensorFrontendPCB {
       .DRDY--drdy
     }
 
-    Some mcu : IMicrocontroller {
+    Some mcu : Microcontroller {
       .VDD--VDD_3V3
       .GND--GND
       .PERIPH--i2c_bus

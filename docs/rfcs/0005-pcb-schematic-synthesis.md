@@ -556,7 +556,7 @@ E-series examples illustrate one important class of discrete search space, not a
 Parts support `extends` for sharing electrical identity and shared entry defaults. The `abstract` keyword marks a base part that cannot be directly instantiated. Concrete parts inherit terminals, constructor parameters, interface conformance, and the `catalog.defaults` backing layer from their base.
 
 ```cascode
-abstract part STM32G0 implements IMicrocontroller {
+abstract part STM32G0 implements Microcontroller {
   supply VDD
   supply VDDA
   ground VSS
@@ -739,7 +739,7 @@ part ADS1115 implements ADCSubsystem {
 An MCU family using inheritance and variants together:
 
 ```cascode
-abstract part STM32G0 implements IMicrocontroller {
+abstract part STM32G0 implements Microcontroller {
   supply VDD
   supply VDDA
   ground VSS
@@ -844,7 +844,7 @@ fill {
   ADCSubsystem uAdc = new ADS1115() { ... }
 
   // Inherited part with variants: all axes selected
-  IMicrocontroller uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() { ... }
+  Microcontroller uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() { ... }
 }
 ```
 
@@ -1150,7 +1150,7 @@ circuit SensorBoard {
   fill {
     Some frontend : SensorConditioner { ... }
     Some adc : ADCSubsystem { ... }
-    Some mcu : IMicrocontroller { ... }
+    Some mcu : Microcontroller { ... }
   }
 
   constraints {
@@ -1247,7 +1247,7 @@ Interface definitions and part declarations are organized under domain-specific 
 
 - `lib/std/` -- shared constructs: bundles (`Diff`), bus bundles (`I2C`, `SPI`, `UART`, `SWD` under `lib/std/bus/`), shared interfaces (`SingleEndedOpAmp` under `lib/std/amp/`), benches, and primitives.
 - `lib/ic/` -- IC-domain component interfaces (`NMOS`, `PMOS`, `Resistor`, `Resistor3T`, `Capacitor`, `Capacitor3T`, `Inductor`, `Diode`).
-- `lib/pcb/` -- PCB-domain component interfaces (`NMOS`, `Resistor` with metric contracts, `DualOpAmp`, `ADCSubsystem`, `IMicrocontroller`, etc.). Does not contain part declarations.
+- `lib/pcb/` -- PCB-domain component interfaces (`NMOS`, `Resistor` with metric contracts, `DualOpAmp`, `ADCSubsystem`, `Microcontroller`, etc.). Does not contain part declarations.
 - `lib/parts/` -- concrete part declarations organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.mcu`, `lib.parts.res`, `lib.parts.cap`, `lib.parts.power` for regulators and decoupling patterns, `lib.parts.conn` for connectors).
 
 ### 9.3 Catalog Option Contract
