@@ -167,7 +167,7 @@ Cascode uses three elaboration levels:
 - HL (high level): the current circuit is a synthesis request. Its boundary, constraints, and synthesis
   guidance are fixed, but its structure is not.
 - ML (mid level): topology at the current hierarchy is fixed with a `fill {}` block, but child
-  implementations may remain unresolved through existential `Some <Interface> <name>` requests.
+  implementations may remain unresolved through existential `Some <name> : <Interface>` requests.
 - EL (electrical level): fully concrete and emission-ready. Device choices, child implementations,
   and numeric values are sufficient for SPICE.
 
@@ -202,7 +202,7 @@ the implementation of a child block is intentionally deferred:
 
 ```cascode
 fill {
-  Some SensorConditioner frontend {
+  Some frontend : SensorConditioner {
     .VDD--VDD
     .GND--GND
     .SENSOR_IN--SENSOR
@@ -339,7 +339,7 @@ author knows the sub-block graph and wiring, the circuit is no longer HL at that
 
 ```cascode
 fill {
-  Some SensorConditioner frontend {
+  Some frontend : SensorConditioner {
     .VDD--VDD
     .GND--GND
     .SENSOR_IN--SENSOR

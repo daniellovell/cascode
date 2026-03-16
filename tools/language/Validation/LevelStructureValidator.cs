@@ -54,7 +54,7 @@ public static class LevelStructureValidator
                             Diagnostic(
                                 circuit,
                                 "CAS3035",
-                                "ML circuits must not define slot. Use fill and `Some <Interface> <name>` requests for unresolved children."
+                                "ML circuits must not define slot. Use fill and `Some <name> : <Interface>` requests for unresolved children."
                             )
                         );
                     }

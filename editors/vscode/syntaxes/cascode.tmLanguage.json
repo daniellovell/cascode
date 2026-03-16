@@ -338,6 +338,9 @@
           "include": "#provenance-block"
         },
         {
+          "include": "#some-request-declaration"
+        },
+        {
           "include": "#instance-declaration"
         },
         {
@@ -788,6 +791,29 @@
         }
       },
       "end": "(?<=\\})",
+      "patterns": [
+        {
+          "include": "#binding-block"
+        }
+      ]
+    },
+    "some-request-declaration": {
+      "begin": "\\b(Some)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Za-z_][a-zA-Z0-9_]*)\\s*",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.some.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.instance.cascode"
+        },
+        "3": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "4": {
+          "name": "entity.name.type.interface.cascode"
+        }
+      },
+      "end": "(?<=\\})|(?=;)",
       "patterns": [
         {
           "include": "#binding-block"
@@ -1333,6 +1359,9 @@
         },
         {
           "include": "#net-declaration"
+        },
+        {
+          "include": "#some-request-declaration"
         },
         {
           "include": "#instance-declaration"

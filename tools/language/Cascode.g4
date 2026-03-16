@@ -324,7 +324,7 @@ fillInstanceDecl
     ;
 
 someInstanceDecl
-    : SOME_KW requiredType=IDENT instanceId=IDENT bindingBlock?
+    : SOME_KW instanceId=IDENT COLON requiredType=IDENT bindingBlock?
     ;
 
 instanceDecl

@@ -258,8 +258,8 @@ to synthesis or later refinement.
 
 ```cascode
 fill {
-  Some SensorConditioner frontend { ... }
-  Some ADCSubsystem adc { ... }
+  Some frontend : SensorConditioner { ... }
+  Some adc : ADCSubsystem { ... }
 }
 ```
 
@@ -304,7 +304,7 @@ fill {
   net i2c_bus : I2C
   net spi_bus : SPI
 
-  Some MCURequired mcu {
+  Some mcu : MCURequired {
     .VDD--VDD_3V3
     .GND--GND
     .I2C1--i2c_bus
@@ -1148,9 +1148,9 @@ circuit SensorBoard {
   level ML
 
   fill {
-    Some SensorConditioner frontend { ... }
-    Some ADCSubsystem adc { ... }
-    Some IMicrocontroller mcu { ... }
+    Some frontend : SensorConditioner { ... }
+    Some adc : ADCSubsystem { ... }
+    Some mcu : IMicrocontroller { ... }
   }
 
   constraints {
@@ -1731,7 +1731,7 @@ ML existential child requests use a separate form:
 
 ```antlr
 someInstanceDecl
-    : SOME_KW requiredType=IDENT instanceId=IDENT bindingBlock?
+    : SOME_KW instanceId=IDENT COLON requiredType=IDENT bindingBlock?
     ;
 
 selectionArgList
@@ -1907,7 +1907,7 @@ Implementation is split into phases. Phase 1 covers grammar and AST changes in t
 
 Phase 1a: Additive grammar and AST
 
-- Add `part`, `catalog`, `entry`, `metrics`, and existential `Some <Interface> <name>` grammar
+- Add `part`, `catalog`, `entry`, `metrics`, and existential `Some <name> : <Interface>` grammar
   support.
 - Add `pins {}` and `units {}` grammar support for parts.
 - Add `corners {}` and corner-scoped metrics (`metrics { at Corner { ... } }`) alongside metric qualifiers (`min`, `max`, `typ`).

@@ -140,7 +140,7 @@ circuit Top {{
   output OUT : analog
 
   fill {{
-    Some AnalogFrontend frontend {{
+    Some frontend : AnalogFrontend {{
       .VDD--VDD
       .GND--GND
       .IN--IN
@@ -162,6 +162,46 @@ circuit Top {{
     }
 
     [Fact]
+    public void TryRead_MlFillWithLegacySomeOrder_ReturnsSyntaxError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+interface AnalogFrontend {{
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+}}
+
+circuit Top {{
+  level ML
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {{
+    Some AnalogFrontend frontend {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
+        );
+    }
+
+    [Fact]
     public void TryRead_ElFillWithSomeInterface_ReturnsLevelError()
     {
         var cascode =
@@ -176,7 +216,7 @@ circuit TestCircuit {{
   output OUT : analog
 
   fill {{
-    Some BiasSource src {{
+    Some src : BiasSource {{
       .OUT--OUT
     }}
   }}
@@ -230,7 +270,7 @@ circuit TestCircuit {{
         CascodeWriter.Write(doc, writer);
         var output = writer.ToString();
 
-        Assert.Contains("Some AnalogFrontend frontend {", output);
+        Assert.Contains("Some frontend : AnalogFrontend {", output);
         Assert.DoesNotContain("= new AnalogFrontend", output);
     }
 
@@ -255,7 +295,7 @@ circuit Top {{
   output OUT : analog
 
   fill {{
-    Some AnalogFrontend frontend {{
+    Some frontend : AnalogFrontend {{
       .VDD--VDD
       .GND--GND
       .IN--IN

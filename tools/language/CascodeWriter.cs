@@ -505,7 +505,7 @@ public static partial class CascodeWriter
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
         if (inst.IsSomeRequest)
         {
-            writer.WriteLine($"{indent}Some {inst.Type} {inst.Id} {{");
+            writer.WriteLine($"{indent}Some {inst.Id} : {inst.Type} {{");
         }
         else
         {

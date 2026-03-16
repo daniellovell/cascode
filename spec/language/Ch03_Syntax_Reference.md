@@ -535,7 +535,7 @@ Fill blocks contain a sequence of statements. The most common forms are:
 | Net declaration | `net out : analog` | Declares a local net and its terminal type |
 | Size declaration | `size S = size(W=2u, L=180n, M=1)` | Declares a reusable size pack |
 | Instance declaration | `DiffPair dp = new DiffPair(...) { ... }` | Instantiates a circuit/bench primitive |
-| Existential child request | `Some SensorConditioner frontend { ... }` | Requests some child circuit implementing the named interface |
+| Existential child request | `Some frontend : SensorConditioner { ... }` | Requests some child circuit implementing the named interface |
 | Device declaration | `NMOS M1 = new nfet_01v8(S) { ... }` | Instantiates a primitive-backed device |
 | Attach | `attach cm to dp via TraitA::TraitB as name` | Applies connector-driven wiring overrides |
 | Wire connection | `a--b` | Connects two pin references (joins nets) |
@@ -569,7 +569,7 @@ In ML `fill {}` blocks, the `Some` keyword declares an existential child request
 
 ```cascode
 fill {
-  Some SensorConditioner frontend {
+  Some frontend : SensorConditioner {
     .VDD--VDD
     .GND--GND
     .SENSOR_IN--SENSOR

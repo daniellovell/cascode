@@ -16,14 +16,14 @@ circuit SensorFrontendPCB {
     net i2c_bus : I2C
     net drdy : digital
 
-    Some SensorConditioner frontend {
+    Some frontend : SensorConditioner {
       .VDD--VDD_3V3
       .GND--GND
       .SENSOR_IN--SENSOR
       .SIGNAL_OUT--conditioned
     }
 
-    Some ADCSubsystem adc {
+    Some adc : ADCSubsystem {
       .VDD--VDD_3V3
       .GND--GND
       .AIN--conditioned
@@ -31,7 +31,7 @@ circuit SensorFrontendPCB {
       .DRDY--drdy
     }
 
-    Some IMicrocontroller mcu {
+    Some mcu : IMicrocontroller {
       .VDD--VDD_3V3
       .GND--GND
       .PERIPH--i2c_bus
