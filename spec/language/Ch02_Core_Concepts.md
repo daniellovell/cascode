@@ -18,7 +18,7 @@ Linked outputs (`.cai`) include a `VERSION` header as the first line. The defaul
 self-contained; include-pruned bench mode intentionally retains a minimal include set.
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 library lib.std.amp
 include lib.std.bench
 ```

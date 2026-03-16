@@ -113,7 +113,7 @@ Cascode is a unified language: circuits, benches, and primitives share a single 
 self-contained example (from `tests/golden/cas/bench/RcLowpass.el.cai`) looks like this:
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 
 primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
@@ -169,7 +169,7 @@ circuit RcLowpass {
   }
 
   constraints {
-    numeric { c_fc = lp::LowpassBandwidth >= 50MHz }
+    bench { c_fc = lp::LowpassBandwidth >= 50MHz }
   }
 }
 ```

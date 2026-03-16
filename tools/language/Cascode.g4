@@ -46,7 +46,7 @@ includeDecl
     : INCLUDE_KW qualifiedName
     ;
 
-// Version declaration like "VERSION 4.0"
+// Version declaration like "VERSION 5.0"
 versionDecl
     : VERSION_KW NUMBER
     ;

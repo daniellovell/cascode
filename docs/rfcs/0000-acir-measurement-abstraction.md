@@ -189,7 +189,7 @@ Human-authored Cascode source files use the `.cas` file extension. Tool-generate
 Cascode files may include a version header as the first line:
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 ```
 
 Version header requirements:
