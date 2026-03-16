@@ -59,21 +59,21 @@ public sealed class RenderConstraintTests
     }
 
     [Fact]
-    public void Route_WithWaypointConstraint_PassesThroughWaypoint()
+    public void Route_WithGuidePointConstraint_PassesThroughGuidePoint()
     {
         var circuit = TestCircuits.SimpleCircuit();
         var graph = CircuitGraph.Build(circuit);
         var topology = TopologyAnalyzer.Analyze(graph);
         var placement = CoarseGridPlacer.Place(topology, graph);
 
-        var waypoint = new GridPoint(40, 80);
+        var guidePoint = new GridPoint(40, 80);
         var routeConstraints = new RouteConstraintSet
         {
             NetRoutes = new Dictionary<string, NetRouteConstraint>(StringComparer.Ordinal)
             {
                 ["IN"] = new NetRouteConstraint(
                     NetName: "IN",
-                    Waypoints: [waypoint],
+                    GuidePoints: [guidePoint],
                     Strength: RenderConstraintStrength.Hard,
                     Mode: RenderRouteMode.Ortho
                 ),
@@ -82,7 +82,7 @@ public sealed class RenderConstraintTests
 
         var routing = MazeRouter.Route(placement, graph, routeConstraints);
         Assert.True(routing.SegmentsByNet.TryGetValue("IN", out var segments));
-        Assert.Contains(segments, segment => IsPointOnSegment(waypoint, segment));
+        Assert.Contains(segments, segment => IsPointOnSegment(guidePoint, segment));
     }
 
     [Fact]

@@ -6,6 +6,7 @@ using Cascode.Cli.Output;
 using Cascode.Cli.Services;
 using Cascode.Language;
 using Cascode.Render.Analysis;
+using Cascode.Render.Layout;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
 using Cascode.Render.Svg;
@@ -233,9 +234,25 @@ internal sealed class RenderCommandModule : ICommandModule
             var resolution = attachResolution.CircuitResults.GetValueOrDefault(circuit.Name);
             var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
             var graph = CircuitGraph.Build(flattened);
-            var topology = TopologyAnalyzer.Analyze(graph);
-            var placement = CoarseGridPlacer.Place(topology, graph);
-            var routing = MazeRouter.Route(placement, graph);
+            CoarseGridResult placement;
+            RoutingResult routing;
+
+            if (circuit.Render?.Mode == RenderLayoutMode.Manual)
+            {
+                var exact = ExactSchematicResolver.Resolve(
+                    flattened.RootCircuit,
+                    graph,
+                    circuit.Render
+                );
+                placement = exact.Placement;
+                routing = exact.Routing;
+            }
+            else
+            {
+                var topology = TopologyAnalyzer.Analyze(graph);
+                placement = CoarseGridPlacer.Place(topology, graph);
+                routing = MazeRouter.Route(placement, graph);
+            }
 
             var schematicSvg = new SvgRenderer().Render(
                 placement,

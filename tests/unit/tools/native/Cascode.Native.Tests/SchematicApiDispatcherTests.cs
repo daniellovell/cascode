@@ -464,6 +464,81 @@ public sealed class SchematicApiDispatcherTests
         }
     }
 
+    [Fact]
+    public void DocumentOpen_ManualRender_ReturnsManualModeAndStructuredDiagnostics()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildManualSourceWithOverlappingPorts(),
+            }
+        );
+
+        var document = opened.RootElement;
+        Assert.Equal(
+            "manual",
+            document.GetProperty("renderSource").GetProperty("mode").GetString()
+        );
+
+        var diagnostic = document.GetProperty("diagnostics").EnumerateArray().First();
+        Assert.Equal("warning", diagnostic.GetProperty("severity").GetString());
+        Assert.Equal("CASAPI-RENDER-DIAGNOSTIC", diagnostic.GetProperty("code").GetString());
+        Assert.True(diagnostic.TryGetProperty("message", out _));
+    }
+
+    [Fact]
+    public void ApplyOperations_SetNetSegments_RewritesRenderSegments()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "setNetSegments",
+                        ["net"] = "OUT",
+                        ["segments"] = new JsonArray(
+                            new JsonObject
+                            {
+                                ["from"] = new JsonObject { ["x"] = 0, ["y"] = 0 },
+                                ["to"] = new JsonObject { ["x"] = 5, ["y"] = 5 },
+                            },
+                            new JsonObject
+                            {
+                                ["from"] = new JsonObject { ["x"] = 5, ["y"] = 5 },
+                                ["to"] = new JsonObject { ["x"] = 10, ["y"] = 5 },
+                            }
+                        ),
+                    }
+                ),
+            }
+        );
+
+        var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
+        var outEntry = Assert.Single(circuit.Render!.Entities, entry => entry.Name == "OUT");
+        Assert.Equal(2, outEntry.Segments.Count);
+    }
+
     private static JsonDocument Dispatch(SessionState session, string method, JsonObject payload)
     {
         var response = SchematicApiDispatcher.Dispatch(session, method, payload.ToJsonString());
@@ -590,6 +665,45 @@ circuit Amp {{
   }}
   render {{
 {m1Render}{m2Render}  }}
+}}
+";
+    }
+
+    private static string BuildManualSourceWithOverlappingPorts()
+    {
+        return $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit ManualNative {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 0 hard
+      side left
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place abs 0 0 hard
+      side right
+      seg ref R1.N ref OUT
+    }}
+    R1 place abs 10 5 hard
+  }}
 }}
 ";
     }

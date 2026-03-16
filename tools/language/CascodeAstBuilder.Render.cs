@@ -14,7 +14,7 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>A RenderBlock whose Entities list contains the parsed RenderEntity objects in source order; duplicate entity names are skipped and corresponding diagnostics are emitted.</returns>
     private RenderBlock BuildRenderBlock(CascodeParser.RenderSectionContext ctx)
     {
-        var block = new RenderBlock();
+        var block = new RenderBlock { Mode = BuildRenderMode(ctx.renderModeDecl()) };
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var entityCtx in ctx.renderEntity())
@@ -72,7 +72,7 @@ internal sealed partial class CascodeAstBuilder
     /// Applies the render field described by <paramref name="fieldCtx"/> to the specified <paramref name="entity"/>.
     /// </summary>
     /// <param name="entity">The render entity to modify.</param>
-    /// <param name="fieldCtx">Parser context for a single render field; recognized field kinds include place, orient, z-index, side, route, and waypoints.</param>
+    /// <param name="fieldCtx">Parser context for a single render field; recognized field kinds include place, orient, z-index, side, route, and segments.</param>
     private void ProcessRenderField(RenderEntity entity, CascodeParser.RenderFieldContext fieldCtx)
     {
         if (fieldCtx.PLACE_KW() is not null)
@@ -100,19 +100,19 @@ internal sealed partial class CascodeAstBuilder
 
         if (fieldCtx.SIDE_KW() is not null)
         {
-            ApplySide(entity, fieldCtx.IDENT().GetText(), fieldCtx);
+            ApplySide(entity, fieldCtx.side.GetText(), fieldCtx);
             return;
         }
 
         if (fieldCtx.ROUTE_KW() is not null)
         {
-            ApplyRoute(entity, fieldCtx.IDENT().GetText(), fieldCtx.strengthLevel(), fieldCtx);
+            ApplyRoute(entity, fieldCtx.route.GetText(), fieldCtx.strengthLevel(), fieldCtx);
             return;
         }
 
-        if (fieldCtx.WP_KW() is not null)
+        if (fieldCtx.SEG_KW() is not null)
         {
-            ApplyWaypoints(entity, fieldCtx.pointExpr());
+            ApplySegment(entity, fieldCtx.@from, fieldCtx.to);
         }
     }
 
@@ -216,21 +216,19 @@ internal sealed partial class CascodeAstBuilder
         entity.Route = new RenderRoute { Mode = routeMode, Strength = BuildStrength(strengthCtx) };
     }
 
-    /// <summary>
-    /// Populate the entity's Waypoints by converting each provided point expression into a RenderPointExpression.
-    /// </summary>
-    /// <param name="entity">The RenderEntity whose Waypoints will be replaced.</param>
-    /// <param name="pointExprs">Sequence of point expression contexts to convert into waypoint expressions, applied in order.</param>
-    private void ApplyWaypoints(
+    private void ApplySegment(
         RenderEntity entity,
-        IEnumerable<CascodeParser.PointExprContext> pointExprs
+        CascodeParser.PointExprContext fromCtx,
+        CascodeParser.PointExprContext toCtx
     )
     {
-        entity.Waypoints.Clear();
-        foreach (var pointCtx in pointExprs)
-        {
-            entity.Waypoints.Add(BuildPointExpression(pointCtx));
-        }
+        entity.Segments.Add(
+            new RenderSegment
+            {
+                From = BuildPointExpression(fromCtx),
+                To = BuildPointExpression(toCtx),
+            }
+        );
     }
 
     /// <summary>
@@ -241,6 +239,26 @@ internal sealed partial class CascodeAstBuilder
     private static string BuildRenderEntityRef(CascodeParser.RenderEntityRefContext ctx)
     {
         return string.Join(".", ctx.idPart().Select(part => part.GetText()));
+    }
+
+    private RenderLayoutMode BuildRenderMode(CascodeParser.RenderModeDeclContext? ctx)
+    {
+        if (ctx is null)
+        {
+            return RenderLayoutMode.Auto;
+        }
+
+        if (TryParseRenderMode(ctx.renderMode.GetText(), out var mode))
+        {
+            return mode;
+        }
+
+        AddDiagnostic(
+            ctx,
+            DiagnosticSeverity.Error,
+            $"CAS3207: Invalid render mode '{ctx.renderMode.GetText()}'."
+        );
+        return RenderLayoutMode.Auto;
     }
 
     /// <summary>
@@ -388,6 +406,19 @@ internal sealed partial class CascodeAstBuilder
         };
 
         return normalized is "auto" or "ortho";
+    }
+
+    private static bool TryParseRenderMode(string raw, out RenderLayoutMode mode)
+    {
+        var normalized = raw.ToLowerInvariant();
+        mode = normalized switch
+        {
+            "auto" => RenderLayoutMode.Auto,
+            "manual" => RenderLayoutMode.Manual,
+            _ => default,
+        };
+
+        return normalized is "auto" or "manual";
     }
 
     /// <summary>

@@ -202,7 +202,7 @@ circuitMember
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
     | ENV_KW LBRACE envStatement* RBRACE                            # EnvSection
-    | RENDER_KW LBRACE renderEntity* RBRACE                         # RenderSection
+    | RENDER_KW LBRACE renderModeDecl? renderEntity* RBRACE         # RenderSection
     | circuitBenchesSection                                         # CircuitBenches
     | SYNTH_KW LBRACE synthEntry* RBRACE                            # SynthSection
     | PROVENANCE_KW LBRACE provenanceEntry* RBRACE                  # ProvenanceSection
@@ -454,16 +454,18 @@ idPart
     | IN_KW
     | PAIR_KW
     | RENDER_KW
+    | MODE_KW
     | PLACE_KW
     | ORIENT_KW
     | MIRROR_KW
     | SIDE_KW
     | ROUTE_KW
-    | WP_KW
+    | SEG_KW
     | ZINDEX_KW
     | HARD_KW
     | SOFT_KW
     | HINT_KW
+    | MANUAL_KW
     | ABS_KW
     | REF_KW
     | REL_KW
@@ -516,6 +518,10 @@ renderEntity
     | renderEntityRef LBRACE renderField* RBRACE
     ;
 
+renderModeDecl
+    : MODE_KW renderMode=idPart
+    ;
+
 renderEntityRef
     : idPart (DOT idPart)*
     ;
@@ -527,9 +533,9 @@ renderOneLiner
 renderField
     : PLACE_KW pointExpr strengthLevel?
     | ORIENT_KW signedInt MIRROR_KW?
-    | SIDE_KW IDENT
-    | ROUTE_KW IDENT strengthLevel?
-    | WP_KW LBRACK pointExpr (COMMA pointExpr)* RBRACK
+    | SIDE_KW side=idPart
+    | ROUTE_KW route=idPart strengthLevel?
+    | SEG_KW from=pointExpr to=pointExpr
     | ZINDEX_KW signedInt
     ;
 
@@ -1085,16 +1091,18 @@ REPEAT_KW       : 'repeat' ;
 IN_KW           : 'in' ;
 PAIR_KW         : 'pair' ;
 RENDER_KW       : 'render' ;
+MODE_KW         : 'mode' ;
 PLACE_KW        : 'place' ;
 ORIENT_KW       : 'orient' ;
 MIRROR_KW       : 'mirror' ;
 SIDE_KW         : 'side' ;
 ROUTE_KW        : 'route' ;
-WP_KW           : 'wp' ;
+SEG_KW          : 'seg' ;
 ZINDEX_KW       : 'zindex' ;
 HARD_KW         : 'hard' ;
 SOFT_KW         : 'soft' ;
 HINT_KW         : 'hint' ;
+MANUAL_KW       : 'manual' ;
 ABS_KW          : 'abs' ;
 REF_KW          : 'ref' ;
 REL_KW          : 'rel' ;

@@ -299,6 +299,82 @@ public class RenderIntegrationTests
         return new BoundaryAnalysis(horizontal.Count > 0, hasVertical, horizontalY);
     }
 
+    [Fact]
+    public async Task Render_ManualMode_PreservesAngledSegments()
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var home = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, "render_manual");
+        var inputPath = Path.Combine(home.Path, "manual.cas");
+        var outputPath = Path.Combine(home.Path, "manual.svg");
+
+        await File.WriteAllTextAsync(
+            inputPath,
+            $@"VERSION {Cascode.Language.CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit ManualArbitrary {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 0 hard
+      side left
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place abs 20 10 hard
+      side right
+      seg ref R1.N ref OUT
+    }}
+    R1 place abs 10 5 hard
+  }}
+}}
+"
+        );
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            home,
+            "render",
+            inputPath,
+            "--output",
+            outputPath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result);
+        var svgContent = await File.ReadAllTextAsync(outputPath);
+        var lines = Regex.Matches(
+            svgContent,
+            @"<line class=""wire"" x1=""(-?\d+(?:\.\d+)?)"" y1=""(-?\d+(?:\.\d+)?)"" x2=""(-?\d+(?:\.\d+)?)"" y2=""(-?\d+(?:\.\d+)?)"""
+        );
+
+        Assert.Contains(
+            lines.Cast<Match>(),
+            line =>
+            {
+                var x1 = double.Parse(line.Groups[1].Value);
+                var y1 = double.Parse(line.Groups[2].Value);
+                var x2 = double.Parse(line.Groups[3].Value);
+                var y2 = double.Parse(line.Groups[4].Value);
+                return x1 != x2 && y1 != y2;
+            }
+        );
+    }
+
     private readonly record struct SvgWireSegment(double X1, double Y1, double X2, double Y2);
 
     private readonly record struct BoundaryAnalysis(

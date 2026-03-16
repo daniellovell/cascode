@@ -2,9 +2,9 @@ namespace Cascode.Native;
 
 internal enum RenderSchematicMode
 {
-    RespectRenderBlock,
-    ReflowUnlocked,
-    RerenderFromScratch,
+    RespectDocument,
+    Auto,
+    Manual,
 }
 
 internal sealed class SchematicDocumentResponse
@@ -126,8 +126,26 @@ internal sealed class RenderCacheInfo
 
 internal sealed class ApiDiagnostic
 {
+    public required string Severity { get; init; }
     public required string Code { get; init; }
     public required string Message { get; init; }
+    public ApiDiagnosticEntityRefs? EntityRefs { get; init; }
+    public ApiDiagnosticGeometry? Geometry { get; init; }
+}
+
+internal sealed class ApiDiagnosticEntityRefs
+{
+    public string? DeviceId { get; init; }
+    public string? PortName { get; init; }
+    public string? NetName { get; init; }
+    public int? SegmentIndex { get; init; }
+}
+
+internal sealed class ApiDiagnosticGeometry
+{
+    public PointValue? Point { get; init; }
+    public SegmentValue? Segment { get; init; }
+    public BboxValue? Bbox { get; init; }
 }
 
 internal sealed class SymbolCatalogEntry

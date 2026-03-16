@@ -116,7 +116,7 @@ internal static class SchematicApiDispatcher
 
         var render = SchematicDocumentBuilder.Build(
             state,
-            RenderSchematicMode.RespectRenderBlock,
+            RenderSchematicMode.RespectDocument,
             allowRelaxation: false
         );
         var response = new JsonObject
@@ -160,7 +160,7 @@ internal static class SchematicApiDispatcher
 
         var render = SchematicDocumentBuilder.Build(
             state,
-            RenderSchematicMode.RespectRenderBlock,
+            RenderSchematicMode.RespectDocument,
             allowRelaxation: false
         );
         var response = new JsonObject
@@ -200,7 +200,7 @@ internal static class SchematicApiDispatcher
     /// <param name="requestJson">A JSON request that must include "documentId" and may include "mode", "allowConstraintRelaxation", and "persist".</param>
     /// <returns>A JSON string conforming to the "cascode.render/1.0" schema containing the rendered document node and the document's sourceText.</returns>
     /// <remarks>
-    /// If the request specifies mode = RerenderFromScratch and persist = true, the document's circuit is replaced with a copy that has no render block, the sourceText is updated, and the document revision is incremented.
+    /// If the request specifies mode = auto or manual and persist = true, the selected circuit's render mode is rewritten in source and the document revision is incremented.
     /// </remarks>
     private static string RenderSchematic(SessionState session, string requestJson)
     {
@@ -212,9 +212,12 @@ internal static class SchematicApiDispatcher
         var allowRelaxation = TryGetBool(root, "allowConstraintRelaxation") ?? false;
         var persist = TryGetBool(root, "persist") ?? false;
 
-        if (mode == RenderSchematicMode.RerenderFromScratch && persist)
+        if (mode != RenderSchematicMode.RespectDocument && persist)
         {
-            var updated = CopyCircuitWithRender(FindCircuit(state), render: null);
+            var updated = CopyCircuitWithRender(
+                FindCircuit(state),
+                BuildPersistedRender(FindCircuit(state).Render, mode)
+            );
             state.Document = ReplaceCircuit(state.Document, updated);
             state.SourceText = SerializeSource(state.Document);
             state.Revision++;
@@ -259,7 +262,7 @@ internal static class SchematicApiDispatcher
 
         var render = SchematicDocumentBuilder.Build(
             state,
-            RenderSchematicMode.RespectRenderBlock,
+            RenderSchematicMode.RespectDocument,
             allowRelaxation: false
         );
         state.SourceText = SerializeSource(state.Document);
@@ -842,18 +845,37 @@ internal static class SchematicApiDispatcher
     /// Parses a render mode string into a <see cref="RenderSchematicMode"/> value.
     /// </summary>
     /// <param name="raw">Mode string to parse (case-insensitive); may be null.</param>
-    /// <returns>
-    /// <see cref="RenderSchematicMode.ReflowUnlocked"/> for "reflowunlocked",
-    /// <see cref="RenderSchematicMode.RerenderFromScratch"/> for "rerenderfromscratch",
-    /// otherwise <see cref="RenderSchematicMode.RespectRenderBlock"/>.
-    /// </returns>
+    /// <returns>`manual`, `auto`, or `RespectDocument` when the request omits a mode override.</returns>
     private static RenderSchematicMode ParseRenderMode(string? raw)
     {
         return raw?.ToLowerInvariant() switch
         {
-            "reflowunlocked" => RenderSchematicMode.ReflowUnlocked,
-            "rerenderfromscratch" => RenderSchematicMode.RerenderFromScratch,
-            _ => RenderSchematicMode.RespectRenderBlock,
+            "manual" => RenderSchematicMode.Manual,
+            "auto" => RenderSchematicMode.Auto,
+            _ => RenderSchematicMode.RespectDocument,
+        };
+    }
+
+    private static RenderBlock? BuildPersistedRender(RenderBlock? render, RenderSchematicMode mode)
+    {
+        return mode switch
+        {
+            RenderSchematicMode.Manual when render is null => new RenderBlock
+            {
+                Mode = RenderLayoutMode.Manual,
+            },
+            RenderSchematicMode.Manual when render is not null => new RenderBlock
+            {
+                Mode = RenderLayoutMode.Manual,
+                Entities = render.Entities.ToList(),
+            },
+            RenderSchematicMode.Auto when render is not null => new RenderBlock
+            {
+                Mode = RenderLayoutMode.Auto,
+                Entities = render.Entities.ToList(),
+            },
+            RenderSchematicMode.Auto => null,
+            _ => render,
         };
     }
 

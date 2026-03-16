@@ -25,6 +25,57 @@ export type NativeMethodCall = <Req extends object, Res>(
   req: Req
 ) => Res;
 
+export type RenderSourceMode = "auto" | "manual";
+
+export interface PointValue {
+  x: number;
+  y: number;
+}
+
+export interface SegmentValue {
+  from: PointValue;
+  to: PointValue;
+}
+
+export interface BboxValue {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface DiagnosticEntityRefs {
+  deviceId?: string;
+  portName?: string;
+  netName?: string;
+  segmentIndex?: number;
+}
+
+export interface DiagnosticGeometry {
+  point?: PointValue;
+  segment?: SegmentValue;
+  bbox?: BboxValue;
+}
+
+export interface ApiDiagnostic {
+  severity: string;
+  code: string;
+  message: string;
+  entityRefs?: DiagnosticEntityRefs;
+  geometry?: DiagnosticGeometry;
+}
+
+export interface RenderSourceInfo {
+  hasRenderBlock: boolean;
+  mode: RenderSourceMode;
+}
+
+export interface SetNetSegmentsOperation {
+  type: "setNetSegments";
+  net: string;
+  segments: SegmentValue[];
+}
+
 export const open: NativeMethodCall;
 export const updateText: NativeMethodCall;
 export const close: NativeMethodCall;

@@ -709,38 +709,26 @@ internal static partial class SchematicLayoutProjection
     }
 
     /// <summary>
-    /// Determines whether a point lies on an axis-aligned wire segment (inclusive of the segment endpoints).
+    /// Determines whether a point lies on a wire segment (inclusive of the segment endpoints).
     /// </summary>
     /// <param name="point">The point to test, given in grid coordinates.</param>
-    /// <param name="segment">The wire segment with From and To endpoints; only horizontal or vertical segments are considered.</param>
+    /// <param name="segment">The wire segment with From and To endpoints.</param>
     /// <returns>`true` if the point lies on the segment (including endpoints), `false` otherwise.</returns>
     private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
     {
-        if (segment.From.X == segment.To.X)
+        var cross =
+            (point.Y - segment.From.Y) * (segment.To.X - segment.From.X)
+            - (point.X - segment.From.X) * (segment.To.Y - segment.From.Y);
+        if (cross != 0)
         {
-            if (point.X != segment.From.X)
-            {
-                return false;
-            }
-
-            var minY = Math.Min(segment.From.Y, segment.To.Y);
-            var maxY = Math.Max(segment.From.Y, segment.To.Y);
-            return point.Y >= minY && point.Y <= maxY;
+            return false;
         }
 
-        if (segment.From.Y == segment.To.Y)
-        {
-            if (point.Y != segment.From.Y)
-            {
-                return false;
-            }
-
-            var minX = Math.Min(segment.From.X, segment.To.X);
-            var maxX = Math.Max(segment.From.X, segment.To.X);
-            return point.X >= minX && point.X <= maxX;
-        }
-
-        return false;
+        var minX = Math.Min(segment.From.X, segment.To.X);
+        var maxX = Math.Max(segment.From.X, segment.To.X);
+        var minY = Math.Min(segment.From.Y, segment.To.Y);
+        var maxY = Math.Max(segment.From.Y, segment.To.Y);
+        return point.X >= minX && point.X <= maxX && point.Y >= minY && point.Y <= maxY;
     }
 
     /// <summary>

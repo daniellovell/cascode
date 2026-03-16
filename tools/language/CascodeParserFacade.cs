@@ -143,7 +143,13 @@ public static class CascodeParserFacade
             foreach (var message in validation.Messages)
             {
                 diagnostics.Add(
-                    new Diagnostic($"CAS3200: {message}", DiagnosticSeverity.Warning, path, 1, 1)
+                    new Diagnostic(
+                        $"CAS3200: {message.Text}",
+                        DiagnosticSeverity.Warning,
+                        path,
+                        message.Line ?? 1,
+                        message.Column ?? 1
+                    )
                 );
             }
 

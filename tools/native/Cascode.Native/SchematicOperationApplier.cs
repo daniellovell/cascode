@@ -29,11 +29,8 @@ internal static class SchematicOperationApplier
             case "movePort":
                 ApplyMovePort(state, operation, changed);
                 return;
-            case "setNetRouteWaypoints":
-                ApplySetNetWaypoints(state, operation, changed);
-                return;
-            case "clearNetRouteWaypoints":
-                ApplyClearNetWaypoints(state, operation, changed);
+            case "setNetSegments":
+                ApplySetNetSegments(state, operation, changed);
                 return;
             case "pinEntity":
                 ApplyPinEntity(state, operation, changed, RenderConstraintStrength.Hard);
@@ -269,12 +266,12 @@ internal static class SchematicOperationApplier
     }
 
     /// <summary>
-    /// Replace the render route waypoints for the specified net and set the route's strength to Hard.
+    /// Replace the explicit render segments for the specified net and set the route strength to Hard.
     /// </summary>
     /// <param name="state">Current document state containing the target circuit.</param>
-    /// <param name="op">Operation JSON object. Must contain a string property "net" and may contain "waypoints" — an array of objects with integer "x" and "y" properties.</param>
+    /// <param name="op">Operation JSON object. Must contain a string property "net" and may contain "segments" — an array of objects with "from"/"to" point payloads.</param>
     /// <param name="changed">Set that will receive the net name to indicate the net's render state was modified.</param>
-    private static void ApplySetNetWaypoints(
+    private static void ApplySetNetSegments(
         DocumentState state,
         JsonElement op,
         HashSet<string> changed
@@ -291,40 +288,47 @@ internal static class SchematicOperationApplier
                 Strength = RenderConstraintStrength.Hard,
             }
             : new RenderRoute { Mode = entry.Route.Mode, Strength = RenderConstraintStrength.Hard };
-        entry.Waypoints.Clear();
+        entry.Segments.Clear();
 
-        if (!op.TryGetProperty("waypoints", out var waypoints))
+        if (!op.TryGetProperty("segments", out var segments))
         {
+            entry.Route = null;
             changed.Add(netName);
             return;
         }
 
-        foreach (var point in waypoints.EnumerateArray())
+        foreach (var segment in segments.EnumerateArray())
         {
-            var x = point.RequireInt("x");
-            var y = point.RequireInt("y");
-            entry.Waypoints.Add(CanonicalizePoint(state, circuit, netName, point, x, y));
+            var from = segment.RequireProperty("from");
+            var to = segment.RequireProperty("to");
+            entry.Segments.Add(
+                new RenderSegment
+                {
+                    From = CanonicalizePoint(
+                        state,
+                        circuit,
+                        netName,
+                        from,
+                        from.RequireInt("x"),
+                        from.RequireInt("y")
+                    ),
+                    To = CanonicalizePoint(
+                        state,
+                        circuit,
+                        netName,
+                        to,
+                        to.RequireInt("x"),
+                        to.RequireInt("y")
+                    ),
+                }
+            );
         }
 
-        changed.Add(netName);
-    }
+        if (entry.Segments.Count == 0)
+        {
+            entry.Route = null;
+        }
 
-    /// <summary>
-    /// Removes all route waypoints for the specified net, clears its Route, and records the net as changed.
-    /// </summary>
-    /// <param name="state">Current document state containing the target circuit.</param>
-    /// <param name="op">JSON operation object containing a required "net" string field identifying the net.</param>
-    /// <param name="changed">Set to which the net name will be added to indicate it was modified.</param>
-    private static void ApplyClearNetWaypoints(
-        DocumentState state,
-        JsonElement op,
-        HashSet<string> changed
-    )
-    {
-        var netName = op.RequireString("net");
-        var entry = UpsertRenderEntity(FindCircuit(state), netName, RenderEntityKind.Net);
-        entry.Waypoints.Clear();
-        entry.Route = null;
         changed.Add(netName);
     }
 

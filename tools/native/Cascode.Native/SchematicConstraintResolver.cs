@@ -32,6 +32,26 @@ internal static class SchematicConstraintResolver
         var resolution = attach.CircuitResults.GetValueOrDefault(circuit.Name);
         var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
         var graph = CircuitGraph.Build(flattened);
+
+        if (render?.Mode == RenderLayoutMode.Manual)
+        {
+            try
+            {
+                var exact = ExactSchematicResolver.Resolve(flattened.RootCircuit, graph, render);
+                return new RenderComputationState
+                {
+                    Graph = graph,
+                    Placement = exact.Placement,
+                    Routing = exact.Routing,
+                    Diagnostics = exact.Diagnostics,
+                };
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new ApiException("CASAPI-MANUAL-INVALID", ex.Message);
+            }
+        }
+
         var topology = TopologyAnalyzer.Analyze(graph);
 
         var baselinePlacement = CoarseGridPlacer.Place(topology, graph);
@@ -138,12 +158,12 @@ internal static class SchematicConstraintResolver
     }
 
     /// <summary>
-    /// Constructs routing constraints for nets declared in the provided render block by resolving each net's waypoints into grid coordinates.
+    /// Constructs routing constraints for nets declared in the provided render block by resolving each net's explicit segments into guide points.
     /// </summary>
     /// <param name="render">The optional render block containing net route definitions; when null, no constraints are produced.</param>
-    /// <param name="anchors">Mapping of anchor names to resolved render-space points used to evaluate waypoint expressions.</param>
+    /// <param name="anchors">Mapping of anchor names to resolved render-space points used to evaluate segment expressions.</param>
     /// <param name="allowRelaxation">When true, allows produced route constraints to be marked as relaxable.</param>
-    /// <param name="diagnostics">A list that will be appended with messages for any unresolved waypoints encountered while building constraints.</param>
+    /// <param name="diagnostics">A list that will be appended with messages for any unresolved segments encountered while building constraints.</param>
     /// <returns>
     /// A <see cref="RouteConstraintSet"/> containing net route constraints and the relaxation flag, or null if no net routes were defined or none could be resolved.
     /// </returns>
@@ -160,33 +180,32 @@ internal static class SchematicConstraintResolver
         }
 
         var netRoutes = new Dictionary<string, NetRouteConstraint>(StringComparer.Ordinal);
-        foreach (var entity in render.Entities.Where(entry => entry.Kind == RenderEntityKind.Net))
+        var renderAnchors = anchors.ToDictionary(
+            entry => entry.Key,
+            entry => new RenderUnitPoint(
+                (int)Math.Round(entry.Value.X),
+                (int)Math.Round(entry.Value.Y)
+            ),
+            StringComparer.Ordinal
+        );
+        foreach (var entity in render.Entities.Where(entry => entry.Segments.Count > 0))
         {
-            if (entity.Waypoints.Count == 0)
+            IReadOnlyList<ResolvedRenderSegment> resolvedSegments;
+            try
             {
+                resolvedSegments = ExactSchematicResolver.ResolveSegments(
+                    entity.Segments,
+                    renderAnchors,
+                    entity.Name
+                );
+            }
+            catch (InvalidOperationException ex)
+            {
+                diagnostics.Add(ex.Message);
                 continue;
             }
 
-            PointValue? previous = null;
-            var points = new List<GridPoint>();
-            foreach (var waypoint in entity.Waypoints)
-            {
-                var resolved = EvaluatePoint(waypoint, anchors, previous);
-                if (resolved is null)
-                {
-                    diagnostics.Add($"Could not resolve waypoint for net '{entity.Name}'.");
-                    continue;
-                }
-
-                previous = resolved;
-                points.Add(
-                    new GridPoint(
-                        ToPixels((int)Math.Round(resolved.X)),
-                        ToPixels((int)Math.Round(resolved.Y))
-                    )
-                );
-            }
-
+            var points = FlattenGuidePoints(resolvedSegments);
             if (points.Count == 0)
             {
                 continue;
@@ -210,6 +229,24 @@ internal static class SchematicConstraintResolver
             NetRoutes = netRoutes,
             AllowConstraintRelaxation = allowRelaxation,
         };
+    }
+
+    private static List<GridPoint> FlattenGuidePoints(IReadOnlyList<ResolvedRenderSegment> segments)
+    {
+        var points = new List<GridPoint>(segments.Count + 1);
+        foreach (var segment in segments)
+        {
+            var from = new GridPoint(ToPixels(segment.From.X), ToPixels(segment.From.Y));
+            var to = new GridPoint(ToPixels(segment.To.X), ToPixels(segment.To.Y));
+            if (points.Count == 0 || points[^1] != from)
+            {
+                points.Add(from);
+            }
+
+            points.Add(to);
+        }
+
+        return points;
     }
 
     /// <summary>
