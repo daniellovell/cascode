@@ -33,11 +33,11 @@ New to Cascode? Start here to understand the core concepts through a practical O
 - [Chapter 4 – Bench System](spec/language/Ch04_Bench_System.md)
 
 Practical usage guide:
-- `docs/language/README.md`
-- `docs/language/style.md`
-- `docs/language/bench-cookbook.md`
-- `docs/language/connectors.md`
-- `docs/language/troubleshooting.md`
+- [docs/language/README.md](docs/language/README.md)
+- [docs/language/style.md](docs/language/style.md)
+- [docs/language/bench-cookbook.md](docs/language/bench-cookbook.md)
+- [docs/language/connectors.md](docs/language/connectors.md)
+- [docs/language/troubleshooting.md](docs/language/troubleshooting.md)
 
 
 
@@ -110,7 +110,8 @@ cascode install ngspice --from-source
 ## 📝 Language at a Glance
 
 Cascode is a unified language: circuits, benches, and primitives share a single syntax. A small,
-self-contained example (from `tests/golden/cas/bench/RcLowpass.el.cai`) looks like this:
+self-contained example (from [tests/golden/cas/bench/RcLowpass.el.cai](tests/golden/cas/bench/RcLowpass.el.cai))
+looks like this:
 
 ```cascode
 VERSION 4.0
@@ -193,6 +194,8 @@ Roadmap stages (vision):
 - `cascode syn` consumes `.hl/.ml.cai` plus `<name>.synth.yaml` and produces `.el.cai` (topology selection and sizing).
 - `cascode par` consumes `.el.cai` and produces physical layout artifacts; `.cal` is reserved for Cascode Layout files (format specified separately).
 
+These are roadmap stages, not current CLI commands.
+
 ---
 
 ## 📁 Repository Layout
@@ -222,19 +225,18 @@ cascode/
 │  ├─ golden/              # Canonical Cascode fixtures and results (see below)
 │  ├─ integration/
 │  └─ unit/
-├─ editors/
-│  └─ vscode/
-└─ examples/
-   └─ harnesses/
+└─ editors/
+   ├─ vscode/
+   └─ node/
 ```
 
 ### Component Responsibilities
 
-- `tools/cli`: CLI entrypoints and UX (no core semantics).
-- `tools/language`: Grammar, parsing, linking, validation, and IR for the Cascode language.
-- `tools/bench`: Bench planning/runtime and bench-oriented SPICE emission support.
-- `tools/workspace`: PDK workspace scanning and persistence (`pdk.db`).
-- `tools/render`: Schematic/layout rendering from EL circuits.
+- [tools/cli](tools/cli): CLI entrypoints and UX (no core semantics).
+- [tools/language](tools/language): Grammar, parsing, linking, validation, emission, and bench runtime logic for the Cascode language.
+- [tools/bench](tools/bench): Shared bench-facing result and formatting types used by the CLI and runtime.
+- [tools/workspace](tools/workspace): PDK workspace scanning and persistence (`pdk.db`).
+- [tools/render](tools/render): Schematic/layout rendering from EL circuits.
 
 ### Notes
 
@@ -248,7 +250,7 @@ cascode/
 ### Building from source
 
 ```bash
-# Build everything (compiler, CLI, tests)
+# Build everything
 dotnet build
 
 # Run the CLI directly
@@ -286,14 +288,14 @@ This runs CSharpier on staged C# files before each commit, matching the CI forma
 
 ## ♻️ Golden fixtures
 
-`tests/golden/` is the canonical store for regression assets that tie Cascode
+[`tests/golden`](tests/golden) is the canonical store for regression assets that tie Cascode
 inputs (`*.cai`) to expected emitted outputs and constraint-checking results.
 
 ---
 
 ## 💻 CLI (preview)
 
-> Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
+> Architecture, command modules, and shared tooling notes are documented in [tools/README.md](tools/README.md).
 
 ```bash
 # Link source (resolve includes) to self-contained .cai (default mode)
@@ -329,11 +331,11 @@ cd editors\vscode; .\install.ps1
 
 Highlights keywords (`circuit`, `interface`, `bench`, `fill`, `constraints`, `harness`), typed quantities (`1.8V`, `15pF`, `50MHz`), the wire operator (`--`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
-For native editor/runtime integrations, see `@cascode/native` in `editors/node`:
+For native editor/runtime integrations, see `@cascode/native` in [editors/node](editors/node):
 
-- Package docs: `editors/node/README.md`
-- Runtime package: `editors/node/package.json`
-- Platform package templates: `editors/node/platform-packages/`
+- Package docs: [editors/node/README.md](editors/node/README.md)
+- Runtime package: [editors/node/package.json](editors/node/package.json)
+- Platform package templates: [editors/node/platform-packages](editors/node/platform-packages)
 
 Maintainers: native npm package versions are release-tag aligned and validated in `.github/workflows/release.yml`.
 
@@ -341,7 +343,7 @@ Maintainers: native npm package versions are release-tag aligned and validated i
 
 ## 🤝 Contributing
 
-* See `CONTRIBUTING.md` for coding standards, style, and the language conformance suite.
+* See [AGENTS.md](AGENTS.md) for coding standards, style, and required local checks.
 * Library authors: add minimal, runnable examples with each new circuit or interface.
 
 ---

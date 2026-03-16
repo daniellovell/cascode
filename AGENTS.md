@@ -77,6 +77,8 @@ Use professional prose and use precisely the level of verbosity that is required
 
 Bold formatting should be reserved for technical terms being defined, critical warnings, or table headers requiring emphasis. Do not bold every subsection label, list lead-in, or organizational marker.
 
+When prose references an in-repo file or document, use a relative Markdown link rather than a backticked path. Reserve backticks for commands, identifiers, globs, and intentionally historical references in RFCs.
+
 ## Boundaries
 - `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/language`, `tools/bench`, `tools/render`. Nothing depends on CLI.
 - `tools/workspace`: orchestration + persistence to `pdk.db`. No UI.

@@ -88,4 +88,4 @@ sky130/
 - All content remains open-source (per the original SkyWater/Cadence release).
 - No changes were made to the supplied files; additions (like Cascode
   characterization outputs) should live alongside this tree under
-  `tests/fixtures/pdk/sky130` to keep the fixture hermetic.
+  [tests/fixtures/pdk/sky130](./) to keep the fixture hermetic.

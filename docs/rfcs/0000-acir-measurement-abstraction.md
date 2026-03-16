@@ -1,12 +1,16 @@
 # RFC-0000: Cascode Language Unification and Declarative Bench System
 
-Status: Draft
+Status: Historical
 Authors: Daniel Lovell
 Created: 2026-01-25
 Last Updated: 2026-01-28
 Target Version: Cascode 1.0
 
 ---
+
+> Editor's note: this RFC is kept as historical design context. The current source of truth for
+> shipped behavior is [spec/language](../../spec/language/README.md) and
+> [docs/architecture](../architecture/README.md).
 
 ## Abstract
 
