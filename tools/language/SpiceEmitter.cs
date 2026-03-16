@@ -853,13 +853,15 @@ public static class SpiceEmitter
             }
         }
 
-        if (
-            circuit.Fill?.Instances.Count > 0
-            && circuitsByName is not null
-            && partsByName is not null
-            && primitivesByName is not null
-        )
+        if (circuit.Fill?.Instances.Count > 0)
         {
+            if (circuitsByName is null || partsByName is null || primitivesByName is null)
+            {
+                throw new InvalidOperationException(
+                    "SpiceEmitter.EmitDesign requires the source CascodeDocument when the circuit contains instances."
+                );
+            }
+
             bool hasEmittedCircuitInstancesHeader = false;
 
             foreach (
@@ -2045,41 +2047,23 @@ public static class SpiceEmitter
     {
         var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (circuit.Fill?.Devices is null)
+        if (circuit.Fill is null)
         {
             return required;
         }
 
-        foreach (var device in circuit.Fill.Devices)
+        foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
         {
             var modelName = device.DeviceType;
             if (
                 primitivesByName is not null
+                && !string.IsNullOrWhiteSpace(device.Primitive)
                 && primitivesByName.TryGetValue(device.Primitive, out var primitive)
             )
             {
                 modelName = primitive.Device;
             }
-            if (GenericMosfetModels.Contains(modelName))
-            {
-                required.Add(modelName.ToLowerInvariant());
-            }
-        }
 
-        if (primitivesByName is null || circuit.Fill?.Instances is null)
-        {
-            return required;
-        }
-
-        foreach (var instance in circuit.Fill.Instances)
-        {
-            var primitiveName = InstanceTargetResolver.GetReferenceName(instance.Type);
-            if (!primitivesByName.TryGetValue(primitiveName, out var primitive))
-            {
-                continue;
-            }
-
-            var modelName = primitive.Device;
             if (GenericMosfetModels.Contains(modelName))
             {
                 required.Add(modelName.ToLowerInvariant());

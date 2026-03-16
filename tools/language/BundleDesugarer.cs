@@ -424,6 +424,9 @@ public static class BundleDesugarer
                             portTypes,
                             bundlesByName,
                             circuitsByName,
+                            primitivesByName,
+                            partsByName,
+                            traitsByName,
                             instanceTypes
                         ),
                     };
@@ -444,6 +447,9 @@ public static class BundleDesugarer
                 portTypes,
                 bundlesByName,
                 circuitsByName,
+                primitivesByName,
+                partsByName,
+                traitsByName,
                 instanceTypes
             ),
         };
@@ -549,6 +555,9 @@ public static class BundleDesugarer
         IReadOnlyDictionary<string, string> portTypes,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
+        IReadOnlyDictionary<string, TraitDefinition> traitsByName,
         IReadOnlyDictionary<string, string> instanceTypes
     )
     {
@@ -557,7 +566,16 @@ public static class BundleDesugarer
         foreach (var conn in connections)
         {
             expanded.AddRange(
-                ExpandConnection(conn, portTypes, bundlesByName, circuitsByName, instanceTypes)
+                ExpandConnection(
+                    conn,
+                    portTypes,
+                    bundlesByName,
+                    circuitsByName,
+                    primitivesByName,
+                    partsByName,
+                    traitsByName,
+                    instanceTypes
+                )
             );
         }
 
@@ -572,6 +590,9 @@ public static class BundleDesugarer
         IReadOnlyDictionary<string, string> portTypes,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
+        IReadOnlyDictionary<string, TraitDefinition> traitsByName,
         IReadOnlyDictionary<string, string> instanceTypes
     )
     {
@@ -590,26 +611,30 @@ public static class BundleDesugarer
             var portName = fromPath[(dotIndex + 1)..];
 
             // Look up the instance type and its port
-            if (
-                instanceTypes.TryGetValue(instanceId, out var instanceTypeName)
-                && circuitsByName.TryGetValue(instanceTypeName, out var instanceCircuit)
-            )
+            if (instanceTypes.TryGetValue(instanceId, out var instanceTypeName))
             {
-                var instancePortTypes = instanceCircuit.Ports.ToDictionary(
-                    p => p.Name,
-                    p => p.Type,
-                    StringComparer.Ordinal
+                var instancePortTypes = InstanceTargetResolver.ResolvePortTypes(
+                    instanceTypeName,
+                    declaredType: null,
+                    circuitsByName,
+                    partsByName,
+                    primitivesByName,
+                    traitsByName
                 );
 
                 // Check if the port on the instance is bundle-typed
                 if (
-                    instancePortTypes.TryGetValue(portName, out var portType)
+                    instancePortTypes is not null
+                    && instancePortTypes.TryGetValue(portName, out var portType)
                     && bundlesByName.ContainsKey(portType)
                 )
                 {
                     bundleType = portType;
                 }
-                else
+                else if (
+                    instancePortTypes is not null
+                    && circuitsByName.TryGetValue(instanceTypeName, out var instanceCircuit)
+                )
                 {
                     // Check if there are dotted ports with this prefix (e.g., "IN.P", "IN.N" for "IN")
                     var prefix = portName + ".";
@@ -657,18 +682,20 @@ public static class BundleDesugarer
             {
                 var toInstanceId = toPath[..toDotIndex];
                 var toPortName = toPath[(toDotIndex + 1)..];
-                if (
-                    instanceTypes.TryGetValue(toInstanceId, out var toInstanceTypeName)
-                    && circuitsByName.TryGetValue(toInstanceTypeName, out var toInstanceCircuit)
-                )
+                if (instanceTypes.TryGetValue(toInstanceId, out var toInstanceTypeName))
                 {
-                    var toInstancePortTypes = toInstanceCircuit.Ports.ToDictionary(
-                        p => p.Name,
-                        p => p.Type,
-                        StringComparer.Ordinal
+                    var toInstancePortTypes = InstanceTargetResolver.ResolvePortTypes(
+                        toInstanceTypeName,
+                        declaredType: null,
+                        circuitsByName,
+                        partsByName,
+                        primitivesByName,
+                        traitsByName
                     );
+
                     if (
-                        toInstancePortTypes.TryGetValue(toPortName, out var toPortType)
+                        toInstancePortTypes is not null
+                        && toInstancePortTypes.TryGetValue(toPortName, out var toPortType)
                         && bundlesByName.ContainsKey(toPortType)
                     )
                     {
@@ -697,6 +724,9 @@ public static class BundleDesugarer
                         portTypes,
                         bundlesByName,
                         circuitsByName,
+                        primitivesByName,
+                        partsByName,
+                        traitsByName,
                         instanceTypes
                     )
                 )
@@ -745,6 +775,9 @@ public static class BundleDesugarer
                         portTypes,
                         bundlesByName,
                         circuitsByName,
+                        primitivesByName,
+                        partsByName,
+                        traitsByName,
                         instanceTypes
                     )
                 )

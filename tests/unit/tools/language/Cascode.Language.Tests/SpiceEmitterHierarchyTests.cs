@@ -441,7 +441,7 @@ public class SpiceEmitterHierarchyTests
     }
 
     [Fact]
-    public void EmitDesign_NoDocument_SkipsInstances()
+    public void EmitDesign_NoDocument_WithInstances_Throws()
     {
         var circuit = new Circuit
         {
@@ -468,11 +468,100 @@ public class SpiceEmitterHierarchyTests
         };
 
         using var writer = new StringWriter();
-        SpiceEmitter.EmitDesign(circuit, writer);
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            SpiceEmitter.EmitDesign(circuit, writer)
+        );
+        Assert.Contains(
+            "requires the source CascodeDocument",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void EmitDesign_InstanceOnlyPrimitiveFill_EmitsGenericModelCards()
+    {
+        var primitive = new PrimitiveDefinition
+        {
+            Name = "NMOS_Level1",
+            Kind = "NMOS",
+            Device = "nmos_level1",
+            SizeParameter = "primSize",
+            Params = new Dictionary<string, string>
+            {
+                ["W"] = "primSize.W",
+                ["L"] = "primSize.L",
+                ["m"] = "primSize.M",
+            },
+        };
+
+        var top = new Circuit
+        {
+            Name = "Top",
+            Level = CascodeLevel.EL,
+            Supplies = ["VDD"],
+            Grounds = ["GND"],
+            Ports =
+            [
+                new PortDeclaration
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new PortDeclaration
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
+            ],
+            Fill = new FillBlock
+            {
+                Instances =
+                [
+                    new InstanceDeclaration
+                    {
+                        Id = "M1",
+                        DeclaredType = "NMOS",
+                        Type = "NMOS_Level1",
+                        Sizes = new Dictionary<string, SizePack>
+                        {
+                            ["value"] = new SizePack
+                            {
+                                Entries = new Dictionary<string, string>
+                                {
+                                    ["W"] = "1u",
+                                    ["L"] = "180n",
+                                    ["M"] = "1",
+                                },
+                            },
+                        },
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "IN",
+                            ["S"] = "GND",
+                            ["B"] = "GND",
+                        },
+                    },
+                ],
+            },
+        };
+
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Primitives = [primitive],
+            Circuits = [top],
+        };
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
         var output = writer.ToString();
 
-        // Should not emit X-element without document to resolve type
-        Assert.DoesNotContain("Xchild1", output);
+        Assert.Contains(".model nmos_level1", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

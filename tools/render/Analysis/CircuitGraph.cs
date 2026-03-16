@@ -97,9 +97,20 @@ public sealed class CircuitGraph
     /// </summary>
     public static CircuitGraph Build(Circuit circuit)
     {
-        var devices =
-            circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
-            ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
+        var enumeratedDevices = PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill).ToList();
+        var duplicateIds = enumeratedDevices
+            .GroupBy(d => d.Id, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+        if (duplicateIds.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Duplicate device IDs in circuit '{circuit.Name}': {string.Join(", ", duplicateIds)}"
+            );
+        }
+        var devices = enumeratedDevices.ToDictionary(d => d.Id, StringComparer.Ordinal);
         var internalNets =
             circuit.Fill?.Nets.Select(n => n.Id).ToHashSet(StringComparer.Ordinal)
             ?? new HashSet<string>(StringComparer.Ordinal);

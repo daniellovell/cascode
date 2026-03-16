@@ -498,20 +498,39 @@ public static class BenchTestbenchEmitter
             );
         }
 
-        var device =
-            fill.Devices.FirstOrDefault(d => d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase))
-            ?? fill.Instances.Where(i =>
+        var device = fill.Devices.FirstOrDefault(d =>
+            d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
+        );
+        if (device is null)
+        {
+            foreach (
+                var instance in fill.Instances.Where(i =>
                     i.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
-                    && i.DeclaredType is "NMOS" or "PMOS"
                 )
-                .Select(i => new DeviceDeclaration
+            )
+            {
+                var primitiveName = InstanceTargetResolver.GetReferenceName(instance.Type);
+                if (!primitivesByName.TryGetValue(primitiveName, out var primitiveDef))
                 {
-                    DeviceType = i.DeclaredType!,
-                    Id = i.Id,
-                    Primitive = InstanceTargetResolver.GetReferenceName(i.Type),
-                    Bindings = i.Bindings,
-                })
-                .FirstOrDefault();
+                    continue;
+                }
+
+                if (primitiveDef.Kind is not ("NMOS" or "PMOS"))
+                {
+                    continue;
+                }
+
+                device = new DeviceDeclaration
+                {
+                    DeviceType = primitiveDef.Kind,
+                    Id = instance.Id,
+                    Primitive = primitiveName,
+                    Bindings = instance.Bindings,
+                };
+                break;
+            }
+        }
+
         if (device is null)
         {
             throw new InvalidOperationException(

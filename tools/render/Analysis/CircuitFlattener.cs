@@ -52,7 +52,7 @@ public static class CircuitFlattener
             internalNets.Add(net.Id);
         }
 
-        foreach (var device in circuit.Fill.Devices)
+        foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
         {
             devices[device.Id] = device;
         }
@@ -177,10 +177,12 @@ public static class CircuitFlattener
 
         var deviceIdsInThisInstance = new List<string>();
 
-        if (inlineCircuit.Fill?.Devices is not null)
+        if (inlineCircuit.Fill is not null)
         {
             foreach (
-                var device in inlineCircuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal)
+                var device in PrimitiveInstanceAdapter
+                    .EnumerateDevices(inlineCircuit.Fill)
+                    .OrderBy(d => d.Id, StringComparer.Ordinal)
             )
             {
                 var flattenedId = $"{prefix}.{device.Id}";

@@ -57,6 +57,55 @@ public sealed class UnifiedInstantiationSemanticTests
     }
 
     [Fact]
+    public void Validate_PrimitiveInstanceDeclaredTypeMayMatchConcretePrimitiveName()
+    {
+        var document = new CascodeDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Nfet",
+                    Kind = "NMOS",
+                    Device = "nmos_level1",
+                    SizeParameter = "primSize",
+                },
+            ],
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Fill = new FillBlock
+                    {
+                        Instances =
+                        [
+                            new InstanceDeclaration
+                            {
+                                Id = "m1",
+                                DeclaredType = "Nfet",
+                                Type = "Nfet",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "OUT",
+                                    ["G"] = "IN",
+                                    ["S"] = "GND",
+                                    ["B"] = "GND",
+                                },
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        var result = CompleteDocumentSemanticValidator.Validate(document);
+
+        Assert.True(result.IsValid, string.Join("\n", result.GetErrors().Select(e => e.Message)));
+    }
+
+    [Fact]
     public void Validate_PartInstanceMayUseImplementedInterfaceAsDeclaredType()
     {
         var document = new CascodeDocument

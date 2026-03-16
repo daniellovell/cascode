@@ -55,9 +55,23 @@ public static class HierarchyValidator
                 circuitsByName[circuit.Name] = circuit;
             }
         }
-        var partsByName = doc.Parts.ToDictionary(p => p.Name, StringComparer.Ordinal);
-        var primitivesByName = doc.Primitives.ToDictionary(p => p.Name, StringComparer.Ordinal);
-        var traitsByName = doc.Traits.ToDictionary(t => t.Name, StringComparer.Ordinal);
+        var partsByName = new Dictionary<string, PartDefinition>(StringComparer.Ordinal);
+        foreach (var part in doc.Parts)
+        {
+            partsByName.TryAdd(part.Name, part);
+        }
+
+        var primitivesByName = new Dictionary<string, PrimitiveDefinition>(StringComparer.Ordinal);
+        foreach (var primitive in doc.Primitives)
+        {
+            primitivesByName.TryAdd(primitive.Name, primitive);
+        }
+
+        var traitsByName = new Dictionary<string, TraitDefinition>(StringComparer.Ordinal);
+        foreach (var trait in doc.Traits)
+        {
+            traitsByName.TryAdd(trait.Name, trait);
+        }
 
         // Validate each circuit's hierarchy
         foreach (var circuit in doc.Circuits)
@@ -194,14 +208,21 @@ public static class HierarchyValidator
             return;
         }
 
-        if (instance.Sizes.ContainsKey("value"))
+        var sizeArgName = target.Primitive.SizeParameter;
+        if (instance.Sizes.ContainsKey("value") || instance.Sizes.ContainsKey(sizeArgName))
         {
             return;
         }
 
         if (
-            instance.Params.TryGetValue("value", out var value)
-            && !string.IsNullOrWhiteSpace(value.Symbolic)
+            (
+                instance.Params.TryGetValue("value", out var positional)
+                && !string.IsNullOrWhiteSpace(positional.Symbolic)
+            )
+            || (
+                instance.Params.TryGetValue(sizeArgName, out var named)
+                && !string.IsNullOrWhiteSpace(named.Symbolic)
+            )
         )
         {
             return;

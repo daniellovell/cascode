@@ -189,10 +189,10 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
             return;
         }
 
-        // Collect PDK devices directly in this circuit
-        if (circuit.Fill?.Devices is not null)
+        // Collect PDK devices directly in this circuit.
+        if (circuit.Fill is not null)
         {
-            foreach (var device in circuit.Fill.Devices)
+            foreach (var device in PrimitiveInstanceAdapter.EnumerateDevices(circuit.Fill))
             {
                 if (
                     primitivesByName is not null

@@ -237,4 +237,56 @@ public class CircuitGraphTests
         Assert.Contains("BIDIR", graph.InputPorts);
         Assert.DoesNotContain("BIDIR", graph.OutputPorts);
     }
+
+    [Fact]
+    public void Build_IncludesPrimitiveLikeInstancesAsDevices()
+    {
+        var circuit = new Circuit
+        {
+            Name = "test",
+            Level = CascodeLevel.EL,
+            Supplies = ["VDD"],
+            Grounds = ["GND"],
+            Ports =
+            [
+                new PortDeclaration
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new PortDeclaration
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
+            ],
+            Fill = new FillBlock
+            {
+                Instances =
+                [
+                    new InstanceDeclaration
+                    {
+                        Id = "M1",
+                        DeclaredType = "NMOS",
+                        Type = "nfet_01v8",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "IN",
+                            ["S"] = "GND",
+                            ["B"] = "GND",
+                        },
+                    },
+                ],
+            },
+        };
+
+        var graph = CircuitGraph.Build(circuit);
+
+        Assert.True(graph.Devices.ContainsKey("M1"));
+        Assert.Equal("NMOS", graph.Devices["M1"].DeviceType);
+        Assert.Contains("OUT", graph.NetConnections.Keys);
+    }
 }

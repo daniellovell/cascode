@@ -11,12 +11,23 @@ internal static class InstanceTargetSemanticChecker
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(diagnostics);
 
-        var circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
-        var partsByName = document.Parts.ToDictionary(p => p.Name, StringComparer.Ordinal);
-        var primitivesByName = document.Primitives.ToDictionary(
-            p => p.Name,
-            StringComparer.Ordinal
-        );
+        var circuitsByName = new Dictionary<string, Circuit>(StringComparer.Ordinal);
+        foreach (var circuit in document.Circuits)
+        {
+            circuitsByName.TryAdd(circuit.Name, circuit);
+        }
+
+        var partsByName = new Dictionary<string, PartDefinition>(StringComparer.Ordinal);
+        foreach (var part in document.Parts)
+        {
+            partsByName.TryAdd(part.Name, part);
+        }
+
+        var primitivesByName = new Dictionary<string, PrimitiveDefinition>(StringComparer.Ordinal);
+        foreach (var primitive in document.Primitives)
+        {
+            primitivesByName.TryAdd(primitive.Name, primitive);
+        }
 
         foreach (var circuit in document.Circuits)
         {
@@ -69,7 +80,7 @@ internal static class InstanceTargetSemanticChecker
                     case InstanceTargetResolutionError.Ambiguous:
                         diagnostics.Add(
                             new Diagnostic(
-                                $"INST-002: Instance '{instance.Id}' constructor target '{instance.Type}' is ambiguous in {location}. Use a less ambiguous declared type or a fully-qualified target.",
+                                $"INST-002: Instance '{instance.Id}' constructor target '{instance.Type}' is ambiguous in {location}. Use a less ambiguous declared type or unambiguous identifier.",
                                 DiagnosticSeverity.Error,
                                 "<semantic>",
                                 1,
