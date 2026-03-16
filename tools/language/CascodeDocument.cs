@@ -60,6 +60,11 @@ public sealed partial class CascodeDocument
     public List<PrimitiveDefinition> Primitives { get; init; } = new();
 
     /// <summary>
+    /// Part declarations declared at the file level.
+    /// </summary>
+    public List<PartDefinition> Parts { get; init; } = new();
+
+    /// <summary>
     /// Circuit definitions in this document.
     /// </summary>
     public List<Circuit> Circuits { get; init; } = new();
@@ -188,6 +193,9 @@ public sealed class Circuit
 
     /// <summary>Bench bindings declared on the circuit (override/extend interface benches).</summary>
     public List<BenchBinding> BenchBindings { get; init; } = new();
+
+    /// <summary>Declared and forwarded metrics on the circuit.</summary>
+    public MetricsBlock? Metrics { get; init; }
 
     /// <summary>
     /// Bench binding extensions declared on the circuit (adds statements to inherited/circuit bindings).
@@ -350,6 +358,9 @@ public sealed class InstanceDeclaration
 
     /// <summary>Size pack assignments for this instance.</summary>
     public Dictionary<string, SizePack> Sizes { get; init; } = new();
+
+    /// <summary>Explicit entry or variant selections written in square brackets.</summary>
+    public List<SelectionArgument> Selection { get; init; } = new();
 
     /// <summary>Instance-level connect statements.</summary>
     public List<ConnectionStatement> Connects { get; init; } = new();

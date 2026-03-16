@@ -70,6 +70,12 @@ public static partial class CascodeWriter
             writer.WriteLine();
         }
 
+        foreach (var part in document.Parts.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            WritePartDefinition(part, writer);
+            writer.WriteLine();
+        }
+
         // Circuits
         foreach (var circuit in document.Circuits)
         {
@@ -117,6 +123,11 @@ public static partial class CascodeWriter
         }
 
         // Connectors
+        if (interfaceDef.Metrics is not null)
+        {
+            WriteMetricsBlock(interfaceDef.Metrics, writer, "  ", declarationsOnly: true);
+        }
+
         if (interfaceDef.Connectors.Count > 0)
         {
             writer.WriteLine("  connectors {");
@@ -339,6 +350,11 @@ public static partial class CascodeWriter
             writer.WriteLine("  }");
         }
 
+        if (circuit.Metrics is not null)
+        {
+            WriteMetricsBlock(circuit.Metrics, writer, "  ");
+        }
+
         // Constraints
         if (circuit.Constraints is not null)
         {
@@ -503,6 +519,17 @@ public static partial class CascodeWriter
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
+        var selection =
+            inst.Selection.Count == 0
+                ? string.Empty
+                : "["
+                    + string.Join(
+                        ", ",
+                        inst.Selection.Select(s =>
+                            string.IsNullOrEmpty(s.Axis) ? s.Value : $"{s.Axis}={s.Value}"
+                        )
+                    )
+                    + "]";
         if (inst.IsSomeRequest)
         {
             writer.WriteLine($"{indent}Some {inst.Id} : {inst.Type} {{");
@@ -512,7 +539,9 @@ public static partial class CascodeWriter
             var declaredType = string.IsNullOrWhiteSpace(inst.DeclaredType)
                 ? inst.Type
                 : inst.DeclaredType;
-            writer.WriteLine($"{indent}{declaredType} {inst.Id} = new {inst.Type}{argList} {{");
+            writer.WriteLine(
+                $"{indent}{declaredType} {inst.Id} = new {inst.Type}{selection}{argList} {{"
+            );
         }
         var bindIndent = indent + "  ";
         foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
@@ -566,7 +595,7 @@ public static partial class CascodeWriter
                             )
                             + ")";
                 writer.WriteLine(
-                    $"      {c.Id} = {c.BenchBase}{benchArgs}::{c.Metric}{metricArgs}{node} {c.Op} {c.Value}{c.Unit}"
+                    $"      {c.Id} = {FormatConstraintSource(c, benchArgs, metricArgs)}{node} {c.Op} {c.Value}{c.Unit}"
                 );
             }
             writer.WriteLine("    }");
@@ -590,6 +619,20 @@ public static partial class CascodeWriter
             writer.WriteLine("    }");
         }
         writer.WriteLine("  }");
+    }
+
+    private static string FormatConstraintSource(
+        NumericConstraint constraint,
+        string benchArgs,
+        string metricArgs
+    )
+    {
+        if (!string.IsNullOrEmpty(constraint.Source))
+        {
+            return constraint.Source;
+        }
+
+        return $"{constraint.BenchBase}{benchArgs}::{constraint.Metric}{metricArgs}";
     }
 
     private static void WriteHarness(HarnessBlock harness, TextWriter writer)
@@ -723,6 +766,11 @@ public static partial class CascodeWriter
                 }
             }
 
+            if (binding.Metrics is not null)
+            {
+                WriteMetricsBlock(binding.Metrics, writer, "      ");
+            }
+
             if (bindingExports.Count > 0)
             {
                 writer.WriteLine("      measurements {");
@@ -767,6 +815,11 @@ public static partial class CascodeWriter
                         WriteInstance(inst.Instance, writer, indent: "      ");
                         break;
                 }
+            }
+
+            if (ext.Metrics is not null)
+            {
+                WriteMetricsBlock(ext.Metrics, writer, "      ");
             }
 
             if (extExports.Count > 0)

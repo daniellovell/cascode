@@ -51,36 +51,36 @@ internal sealed partial class CascodeAstBuilder
     )
     {
         var id = ctx.IDENT().GetText();
-        var benchRef = ctx.benchMetricRef();
-        var benchBase = benchRef.IDENT().GetText();
-        var metric = benchRef.idPart().GetText();
-
-        // Extract bench args and metric args from the grammar:
-        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
-        // The measurementArgList() array contains 0-2 elements depending on which arg lists are present.
-        var argLists = benchRef.measurementArgList();
+        var source = ctx.constraintMetricRef().GetText();
+        var benchRef = ctx.constraintMetricRef().benchMetricRef();
+        var benchBase = string.Empty;
+        var metric = source;
+        var argLists = benchRef?.measurementArgList() ?? [];
         var benchArgs = new List<MetricCallArg>();
         var metricArgs = new List<MetricCallArg>();
 
-        if (argLists.Length == 2)
+        if (benchRef is not null)
         {
-            // Both bench(args)::metric(args)
-            benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
-            metricArgs = ExtractConstraintArgs(argLists[1], "metric invocation");
-        }
-        else if (argLists.Length == 1)
-        {
-            // Either bench(args)::metric or bench::metric(args)
-            // Check if the arg list appears before or after COLONCOLON by comparing token positions.
-            var colonColonIndex = benchRef.COLONCOLON().Symbol.TokenIndex;
-            var argListStartIndex = argLists[0].Start.TokenIndex;
-            if (argListStartIndex < colonColonIndex)
+            benchBase = benchRef.IDENT().GetText();
+            metric = benchRef.idPart().GetText();
+
+            if (argLists.Length == 2)
             {
                 benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+                metricArgs = ExtractConstraintArgs(argLists[1], "metric invocation");
             }
-            else
+            else if (argLists.Length == 1)
             {
-                metricArgs = ExtractConstraintArgs(argLists[0], "metric invocation");
+                var colonColonIndex = benchRef.COLONCOLON().Symbol.TokenIndex;
+                var argListStartIndex = argLists[0].Start.TokenIndex;
+                if (argListStartIndex < colonColonIndex)
+                {
+                    benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+                }
+                else
+                {
+                    metricArgs = ExtractConstraintArgs(argLists[0], "metric invocation");
+                }
             }
         }
 
@@ -98,6 +98,7 @@ internal sealed partial class CascodeAstBuilder
         return new NumericConstraint
         {
             Id = id,
+            Source = source,
             BenchBase = benchBase,
             BenchArgs = benchArgs,
             Bench = bench,

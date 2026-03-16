@@ -27,6 +27,9 @@ public sealed class NumericConstraint
     /// <summary>Unique identifier for this constraint (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;
 
+    /// <summary>Source-form metric reference exactly as written by the user.</summary>
+    public string Source { get; init; } = string.Empty;
+
     /// <summary>
     /// Base bench binding alias written by the user (e.g., "tran_bench").
     /// When no bench args are provided, this equals <see cref="Bench"/>.
@@ -263,6 +266,9 @@ public sealed class TraitDefinition
 
     /// <summary>Port declarations for this interface.</summary>
     public List<PortDeclaration> Ports { get; init; } = new();
+
+    /// <summary>Declared interface metric contracts.</summary>
+    public MetricsBlock? Metrics { get; set; }
 
     /// <summary>Connectors to other interfaces.</summary>
     public List<TraitConnector> Connectors { get; init; } = new();

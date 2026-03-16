@@ -16,7 +16,7 @@ internal sealed partial class CascodeAstBuilder
             Name = ctx.name.Text,
             Traits = ctx.implementsClause()
                 ?.interfaceList()
-                ?.IDENT()
+                ?.idPart()
                 .Select(i => i.GetText())
                 .ToList(),
             Level = memberState.Level,
@@ -34,6 +34,7 @@ internal sealed partial class CascodeAstBuilder
             Env = memberState.Env,
             Render = memberState.Render,
             BenchBindings = memberState.BenchBindings,
+            Metrics = memberState.Metrics,
             BenchBindingExtensions = memberState.BenchBindingExtensions,
             Synth = memberState.Synth,
             Provenance = memberState.Provenance,
@@ -98,6 +99,10 @@ internal sealed partial class CascodeAstBuilder
                     state.Fill = BuildFillBlock(fillCtx);
                     break;
 
+                case CascodeParser.MetricsSectionContext metricsCtx:
+                    state.Metrics = BuildMetricsBlock(metricsCtx.metricsValueBlock());
+                    break;
+
                 case CascodeParser.ConstraintsSectionContext constraintsCtx:
                     state.Constraints = BuildConstraintsBlock(constraintsCtx);
                     break;
@@ -143,6 +148,7 @@ internal sealed partial class CascodeAstBuilder
     private sealed class CircuitMemberState
     {
         public FillBlock? Fill { get; set; }
+        public MetricsBlock? Metrics { get; set; }
         public ConstraintsBlock? Constraints { get; set; }
         public HarnessBlock? Harness { get; set; }
         public EnvBlock? Env { get; set; }
@@ -457,7 +463,7 @@ internal sealed partial class CascodeAstBuilder
         return BuildInstance(
             declaredType: "Some",
             id: ctx.instanceId.Text,
-            type: ctx.requiredType.Text,
+            type: ctx.requiredType.GetText(),
             argList: null,
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
@@ -471,14 +477,30 @@ internal sealed partial class CascodeAstBuilder
         bool allowSomeDeclaredType = false
     )
     {
+        var selection = new List<SelectionArgument>();
+        if (ctx.selectionArgList() is not null)
+        {
+            foreach (var arg in ctx.selectionArgList().selectionArg())
+            {
+                selection.Add(
+                    new SelectionArgument
+                    {
+                        Axis = arg.idPart().Length > 1 ? arg.idPart(0).GetText() : null,
+                        Value = arg.idPart(arg.idPart().Length - 1).GetText(),
+                    }
+                );
+            }
+        }
+
         return BuildInstance(
-            declaredType: ctx.declaredType.Text,
+            declaredType: ctx.declaredType.GetText(),
             id: ctx.instanceId.Text,
             type: ctx.instanceTypeName().GetText(),
             argList: ctx.argList(),
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
-            allowSomeDeclaredType: allowSomeDeclaredType
+            allowSomeDeclaredType: allowSomeDeclaredType,
+            selection: selection
         );
     }
 
@@ -489,25 +511,14 @@ internal sealed partial class CascodeAstBuilder
         CascodeParser.ArgListContext? argList,
         CascodeParser.BindingBlockContext? bindingBlock,
         Antlr4.Runtime.ParserRuleContext diagnosticCtx,
-        bool allowSomeDeclaredType
+        bool allowSomeDeclaredType,
+        IReadOnlyList<SelectionArgument>? selection = null
     )
     {
         var usesSomeDeclaredType =
             allowSomeDeclaredType
             && declaredType is not null
             && declaredType.Equals("Some", StringComparison.Ordinal);
-        if (
-            !usesSomeDeclaredType
-            && declaredType is not null
-            && !declaredType.Equals(type, StringComparison.Ordinal)
-        )
-        {
-            AddDiagnostic(
-                diagnosticCtx,
-                DiagnosticSeverity.Error,
-                $"CAS0036: Instance '{id}' declares type '{declaredType}' but constructs '{type}'. The declared and constructor types must match exactly."
-            );
-        }
 
         var bindings = bindingBlock is null
             ? new Dictionary<string, string>()
@@ -580,6 +591,7 @@ internal sealed partial class CascodeAstBuilder
             Bindings = bindings,
             Params = instanceParams,
             Sizes = sizes,
+            Selection = selection?.ToList() ?? new List<SelectionArgument>(),
             Connects = new List<ConnectionStatement>(),
         };
     }

@@ -205,6 +205,7 @@ public sealed class BenchBinding
 {
     public required string BenchName { get; init; }
     public required string BindingName { get; init; }
+    public MetricsBlock? Metrics { get; set; }
     public List<BenchBindingStatement> Statements { get; init; } = new();
 
     /// <summary>
@@ -222,6 +223,7 @@ public sealed class BenchBinding
 public sealed class BenchBindingExtension
 {
     public required string BindingName { get; init; }
+    public MetricsBlock? Metrics { get; set; }
     public List<BenchBindingStatement> Statements { get; init; } = new();
 }
 
