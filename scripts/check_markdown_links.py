@@ -70,11 +70,14 @@ def validate_links(path: Path, text: str, anchor_cache: dict[Path, set[str]]) ->
     errors: list[str] = []
     for match in LINK_RE.finditer(text):
         raw_target = match.group(1).strip()
-        if not raw_target or is_external(raw_target):
+        if is_external(raw_target):
             continue
         if raw_target.startswith("<") and raw_target.endswith(">"):
             raw_target = raw_target[1:-1]
         target_part, anchor = raw_target.split("#", 1) if "#" in raw_target else (raw_target, "")
+        if target_part == "" and not raw_target.startswith("#"):
+            errors.append(f"{path.relative_to(ROOT)}: broken link target '{raw_target}'")
+            continue
         if raw_target.startswith("#"):
             target_path = path
             anchor = raw_target[1:]
