@@ -10,7 +10,7 @@ const packageRoot = path.resolve(__dirname, "..");
 
 const sampleSource = `VERSION 5.0
 
-primitive NMOS NMOS_Level1(size primSize) {
+primitive NMOS_Level1(size primSize) implements NMOS {
   device "nmos_level1"
   params {
     W = primSize.W
