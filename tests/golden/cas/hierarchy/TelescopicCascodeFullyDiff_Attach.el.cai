@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.1
 
 bundle Diff {
   P : analog
@@ -25,8 +25,8 @@ interface LoadPairLike {
 
 
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -34,8 +34,8 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -101,9 +101,9 @@ circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   input TAIL : bias
   fill {
     net tnode : analog
-    NMOS M_N = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.P, .S--tnode }
-    NMOS M_P = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.N, .S--tnode }
-    NMOS M_TAIL = new Level1_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+    NMOS M_N = new NMOS_Level1(InputPair) { .B--GND, .D--OUT.P, .G--IN.P, .S--tnode }
+    NMOS M_P = new NMOS_Level1(InputPair) { .B--GND, .D--OUT.N, .G--IN.N, .S--tnode }
+    NMOS M_TAIL = new NMOS_Level1(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
   }
 }
 
@@ -116,8 +116,8 @@ circuit LoadPair_N(size Cascode) implements LoadPairLike {
   io DRAIN : Diff
   io SOURCE : Diff
   fill {
-    NMOS M_P = new Level1_NMOS(Cascode) { .B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P }
-    NMOS M_N = new Level1_NMOS(Cascode) { .B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N }
+    NMOS M_P = new NMOS_Level1(Cascode) { .B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P }
+    NMOS M_N = new NMOS_Level1(Cascode) { .B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N }
   }
 }
 
@@ -130,7 +130,7 @@ circuit LoadPair_P(size Cascode) implements LoadPairLike {
   io DRAIN : Diff
   io SOURCE : Diff
   fill {
-    PMOS M_P = new Level1_PMOS(Cascode) { .B--VDD, .D--DRAIN.P, .G--BIAS, .S--SOURCE.P }
-    PMOS M_N = new Level1_PMOS(Cascode) { .B--VDD, .D--DRAIN.N, .G--BIAS, .S--SOURCE.N }
+    PMOS M_P = new PMOS_Level1(Cascode) { .B--VDD, .D--DRAIN.P, .G--BIAS, .S--SOURCE.P }
+    PMOS M_N = new PMOS_Level1(Cascode) { .B--VDD, .D--DRAIN.N, .G--BIAS, .S--SOURCE.N }
   }
 }

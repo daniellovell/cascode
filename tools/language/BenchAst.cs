@@ -55,10 +55,15 @@ public enum BenchValueType
     VoltageRatio,
     TransferFunction,
     GainSpectrum,
+    ScalarSpectrum,
     PhaseSpectrum,
+    TimeSpectrum,
+    ComplexVoltageSpectrum,
+    ComplexCurrentSpectrum,
     VoltageSpectrum,
     CurrentSpectrum,
     NoiseSpectrum,
+    ImpedanceSpectrum,
     NoiseSpectralDensity,
     IntegratedNoise,
     Impedance,
@@ -69,6 +74,7 @@ public enum BenchValueType
     Time,
     Phase,
     Scalar,
+    SParameterMatrix,
 
     // Time-domain compound types
     VoltageWaveform,
@@ -83,6 +89,7 @@ public enum BenchValueType
     TranAnalysis,
     NoiseAnalysis,
     STBAnalysis,
+    SPAnalysis,
 }
 
 public sealed record TypedParameter(BenchValueType Type, string Name);
@@ -199,6 +206,17 @@ public sealed class BenchBinding
     public required string BenchName { get; init; }
     public required string BindingName { get; init; }
     public List<BenchBindingStatement> Statements { get; init; } = new();
+
+    /// <summary>
+    /// Transient semantic metadata attached after bench-binding resolution.
+    /// </summary>
+    /// <remarks>
+    /// This is internal on purpose: callers that serialize or reason about source syntax
+    /// should continue to treat <see cref="BenchBinding"/> as a source-shaped AST node.
+    /// The resolved layer uses this hook only to preserve origin/extension information on
+    /// cloned bindings as they move between validation, extension folding, and planning.
+    /// </remarks>
+    internal BenchBindingResolutionInfo? Resolution { get; set; }
 }
 
 public sealed class BenchBindingExtension

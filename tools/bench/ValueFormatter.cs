@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Cascode.Bench;
 
@@ -7,6 +8,21 @@ namespace Cascode.Bench;
 /// </summary>
 public static class ValueFormatter
 {
+    private const int SignificantDigits = 4;
+    private static readonly (double Divisor, string Prefix)[] PrefixScales =
+    [
+        (1e-15, "f"),
+        (1e-12, "p"),
+        (1e-9, "n"),
+        (1e-6, "u"),
+        (1e-3, "m"),
+        (1.0, ""),
+        (1e3, "k"),
+        (1e6, "M"),
+        (1e9, "G"),
+        (1e12, "T"),
+    ];
+
     /// <summary>
     /// Formats a numeric value with an appropriate unit prefix (G, M, k, m, u, n, etc.).
     /// </summary>
@@ -15,35 +31,65 @@ public static class ValueFormatter
     /// <returns>A formatted string with the value scaled to an appropriate prefix and the unit appended.</returns>
     public static string FormatValue(double value, string unit)
     {
-        // Format value with appropriate unit prefix
-        if (Math.Abs(value) >= 1e9)
+        if (!double.IsFinite(value))
         {
-            return $"{value / 1e9:G3}G {unit}";
+            return FormatWithUnit(value.ToString(CultureInfo.InvariantCulture), unit);
         }
-        if (Math.Abs(value) >= 1e6)
+
+        if (value == 0)
         {
-            return $"{value / 1e6:G3}M {unit}";
+            return FormatWithUnit("0", unit);
         }
-        if (Math.Abs(value) >= 1e3)
+
+        var abs = Math.Abs(value);
+        var prefixIndex = SelectPrefixIndex(abs);
+        var divisor = PrefixScales[prefixIndex].Divisor;
+        var scaledValue = value / divisor;
+        var roundedScaledValue = RoundToSignificantDigits(scaledValue, SignificantDigits);
+
+        while (Math.Abs(roundedScaledValue) >= 1000 && prefixIndex < PrefixScales.Length - 1)
         {
-            return $"{value / 1e3:G3}k {unit}";
+            prefixIndex++;
+            divisor = PrefixScales[prefixIndex].Divisor;
+            scaledValue = value / divisor;
+            roundedScaledValue = RoundToSignificantDigits(scaledValue, SignificantDigits);
         }
-        if (Math.Abs(value) >= 1.0)
+
+        var prefix = PrefixScales[prefixIndex].Prefix;
+        var scaled = roundedScaledValue.ToString("G4", CultureInfo.InvariantCulture);
+        var prefixedUnit = $"{prefix}{unit}".Trim();
+        return prefixedUnit.Length == 0 ? scaled : $"{scaled} {prefixedUnit}";
+    }
+
+    private static int SelectPrefixIndex(double abs)
+    {
+        for (var i = PrefixScales.Length - 1; i >= 0; i--)
         {
-            return $"{value:G3} {unit}";
+            if (abs >= PrefixScales[i].Divisor)
+            {
+                return i;
+            }
         }
-        if (Math.Abs(value) >= 1e-3)
+
+        return 0;
+    }
+
+    private static double RoundToSignificantDigits(double value, int digits)
+    {
+        if (value == 0)
         {
-            return $"{value * 1e3:G3}m {unit}";
+            return 0;
         }
-        if (Math.Abs(value) >= 1e-6)
-        {
-            return $"{value * 1e6:G3}u {unit}";
-        }
-        if (Math.Abs(value) >= 1e-9)
-        {
-            return $"{value * 1e9:G3}n {unit}";
-        }
-        return $"{value:G3} {unit}";
+
+        var abs = Math.Abs(value);
+        var exponent = Math.Floor(Math.Log10(abs));
+        var scale = Math.Pow(10, digits - 1 - exponent);
+        return Math.Round(value * scale, MidpointRounding.AwayFromZero) / scale;
+    }
+
+    private static string FormatWithUnit(string numericText, string unit)
+    {
+        var trimmedUnit = unit.Trim();
+        return trimmedUnit.Length == 0 ? numericText : $"{numericText} {trimmedUnit}";
     }
 }

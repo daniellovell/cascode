@@ -19,8 +19,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
 
@@ -93,6 +93,40 @@ public sealed class CascodeLinkerTests
     }
 
     [Fact]
+    public void LinkFile_SelfContainedOutput_RetainsImplementedTraitDefinitions()
+    {
+        var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-trait-contract");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            include lib.std
+
+            circuit TraitRetention implements SingleEndedOpAmp {
+              level EL
+              supply VDD
+              ground GND
+              input IN : Diff
+              output OUT : analog
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(entryPath, outDir, repoRoot);
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+        Assert.Empty(linked.Includes);
+        Assert.Contains(linked.Traits, trait => trait.Name == "SingleEndedOpAmp");
+        Assert.Contains(linked.BundleTypes, bundle => bundle.Name == "Diff");
+    }
+
+    [Fact]
     public void LinkFile_ResolvesBenchBaseAcrossIncludedFiles()
     {
         var tmp = Path.Combine(
@@ -105,8 +139,8 @@ public sealed class CascodeLinkerTests
         var basePath = Path.Combine(tmp, "base.cas");
         File.WriteAllText(
             basePath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             abstract bench AbstractBase {
               abstract stim IN
@@ -124,8 +158,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(tmp, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include base
 
@@ -173,8 +207,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.hl.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
 
@@ -248,8 +282,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std.Diff
             include lib.std.amp.FullyDifferentialOpAmp
@@ -324,8 +358,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -369,8 +403,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 3.2
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -409,5 +443,289 @@ public sealed class CascodeLinkerTests
                     StringComparison.Ordinal
                 )
         );
+    }
+
+    [Fact]
+    public void LinkFile_WithBenchPruning_ResolvesCrossFileBenchHelperFunctionIncludes()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-bench-helper-fn");
+        var workspaceRoot = cascodeHome.Path;
+        var outDir = Path.Combine(workspaceRoot, "out");
+
+        var helperPath = Path.Combine(workspaceRoot, "bench_helpers.cas");
+        File.WriteAllText(
+            helperPath,
+            """
+            VERSION 4.1
+
+            library lib.test.bench
+
+            function get_source_impedance(Impedance fallback) : Impedance {
+              return fallback
+            }
+            """
+        );
+
+        var benchPath = Path.Combine(workspaceRoot, "bench_defs.cas");
+        File.WriteAllText(
+            benchPath,
+            """
+            VERSION 4.1
+
+            library lib.test.bench
+
+            bench HelperBench {
+              stim IN : analog
+              resp OUT : analog
+
+              fill {
+                net gnd : ground
+                GND g = new GND() { .GND--gnd }
+                VAC ac = new VAC(A=1V, phase=0deg) { .N--gnd }
+                Impedor src = new Impedor(Z=get_source_impedance(0Ohm)) { }
+                ac.P--src.P
+                src.N--IN
+              }
+
+              measurements {
+                measurement Gain : dB { return 0dB }
+              }
+            }
+            """
+        );
+
+        var traitPath = Path.Combine(workspaceRoot, "filter_interface.cas");
+        File.WriteAllText(
+            traitPath,
+            """
+            VERSION 4.1
+
+            library lib.test.filter
+            include lib.test.bench
+
+            interface HelperFilter {
+              input IN : analog
+              output OUT : analog
+
+              benches {
+                bind HelperBench as helper_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+            }
+            """
+        );
+
+        var entryPath = Path.Combine(workspaceRoot, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 4.1
+
+            include lib.test.filter.HelperFilter
+
+            circuit LinkHelperFn implements HelperFilter {
+              level EL
+              input IN : analog
+              output OUT : analog
+
+              fill { }
+
+              constraints {
+                numeric {
+                  c_gain = helper_bench::Gain >= -1dB
+                }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            workspaceRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+        var includeNames = linked.Includes.Select(inc => inc.Name).ToList();
+
+        Assert.Contains("lib.test.bench.HelperBench", includeNames);
+        Assert.Contains("lib.test.bench.get_source_impedance", includeNames);
+    }
+
+    [Fact]
+    public void LinkFile_WithBenchPruning_DoesNotIncludeFunctionsUsedOnlyByPrunedBenches()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-pruned-bench-fn");
+        var workspaceRoot = cascodeHome.Path;
+        var outDir = Path.Combine(workspaceRoot, "out");
+
+        var helperPath = Path.Combine(workspaceRoot, "bench_helpers.cas");
+        File.WriteAllText(
+            helperPath,
+            """
+            VERSION 4.1
+
+            library lib.test.helpers
+
+            function get_pruned_impedance(Impedance fallback) : Impedance {
+              return fallback
+            }
+            """
+        );
+
+        var entryPath = Path.Combine(workspaceRoot, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 4.1
+
+            include lib.test.helpers
+
+            bench ReachableBench {
+              stim IN : analog
+              resp OUT : analog
+
+              measurements {
+                measurement Gain : dB { return 0dB }
+              }
+            }
+
+            bench PrunedBench {
+              stim IN : analog
+              resp OUT : analog
+
+              fill {
+                net gnd : ground
+                GND g = new GND() { .GND--gnd }
+                VAC ac = new VAC(A=1V, phase=0deg) { .N--gnd }
+                Impedor src = new Impedor(Z=get_pruned_impedance(0Ohm)) { }
+                ac.P--src.P
+                src.N--IN
+              }
+
+              measurements {
+                measurement Gain : dB { return 0dB }
+              }
+            }
+
+            circuit LinkBenchPruningCircuit {
+              level EL
+              input IN : analog
+              output OUT : analog
+
+              fill { }
+
+              benches {
+                bind ReachableBench as reachable_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+
+                bind PrunedBench as pruned_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              constraints {
+                numeric {
+                  c_gain = reachable_bench::Gain >= -1dB
+                }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            workspaceRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+        var includeNames = linked.Includes.Select(inc => inc.Name).ToList();
+
+        Assert.DoesNotContain("lib.test.helpers.get_pruned_impedance", includeNames);
+    }
+
+    [Fact]
+    public void LinkFile_WithBenchPruning_AllowsBenchLocalHelperFunctionUsedInsideFill()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-local-fill-helper");
+        var workspaceRoot = cascodeHome.Path;
+        var outDir = Path.Combine(workspaceRoot, "out");
+
+        var entryPath = Path.Combine(workspaceRoot, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            $$"""
+            VERSION {{CascodeVersion.Current}}
+
+            bench SourceImpedanceBench {
+              stim IN : analog
+              resp OUT : analog
+
+              function resolve_source_impedance(Impedance fallback) : Impedance {
+                if env.SourceImpedance { return env.SourceImpedance }
+                return fallback
+              }
+
+              fill {
+                net gnd : ground
+                GND g = new GND() { .GND--gnd }
+                VAC ac = new VAC(A=1V, phase=0deg) { .N--gnd }
+                Impedor src = new Impedor(Z=resolve_source_impedance(0Ohm)) { }
+                ac.P--src.P
+                src.N--IN
+              }
+
+              measurements {
+                measurement Gain : dB { return 0dB }
+              }
+            }
+
+            circuit LocalFillHelperCircuit {
+              level EL
+              input IN : analog
+              output OUT : analog
+
+              env {
+                SourceImpedance = 50Ohm
+              }
+
+              fill { }
+
+              benches {
+                bind SourceImpedanceBench as source_impedance_bench {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+
+              constraints {
+                numeric {
+                  c_gain = source_impedance_bench::Gain >= -1dB
+                }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            workspaceRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
     }
 }

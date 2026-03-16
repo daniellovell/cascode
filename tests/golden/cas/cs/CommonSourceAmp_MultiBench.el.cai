@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.1
 
 
 circuit CommonSourceAmp_MultiBench implements SingleEndedAmp {
@@ -9,13 +9,13 @@ circuit CommonSourceAmp_MultiBench implements SingleEndedAmp {
   output OUT : analog
   input VBIAS : bias
   fill {
-    NMOS M_in = new Level1_NMOS(size(W=10u, L=180n, M=1)) {
+    NMOS M_in = new NMOS_Level1(size(W=10u, L=180n, M=1)) {
       .D--OUT
       .G--IN
       .S--GND
       .B--GND
     }
-    PMOS load.M = new Level1_PMOS(size(W=20u, L=180n, M=1)) {
+    PMOS load.M = new PMOS_Level1(size(W=20u, L=180n, M=1)) {
       .D--OUT
       .G--VBIAS
       .S--VDD

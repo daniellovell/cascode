@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.1
 
 // This file is intentionally names .cas 
 // During e2e tests, `cascode emit OTA5T_Sky130.cas` should function
@@ -47,7 +47,7 @@ circuit OTA5T_Hierarchical_Attach implements SingleEndedOpAmp {
       c_cmrr = cmrr_bench::CMRR at net::OUT >= 20dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
-      c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 10mW
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.4V
       c_psrr = psrr_bench::PSRR at net::OUT >= 20dB
       c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 20dB

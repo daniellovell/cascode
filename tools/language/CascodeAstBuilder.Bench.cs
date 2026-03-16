@@ -284,7 +284,7 @@ internal sealed partial class CascodeAstBuilder
     {
         var measurement = new MeasurementDefinition
         {
-            Name = decl.name.Text,
+            Name = decl.name.GetText(),
             IsOverride = decl.OVERRIDE_KW() is not null,
             Unit = decl.unitType().GetText(),
         };
@@ -615,7 +615,7 @@ internal sealed partial class CascodeAstBuilder
             }
         }
 
-        return new MeasurementBenchMeasurementRef(r.IDENT(0).GetText(), r.IDENT(1).GetText(), args);
+        return new MeasurementBenchMeasurementRef(r.IDENT().GetText(), r.idPart().GetText(), args);
     }
 
     private ScopedValueRef BuildScopedValueRef(CascodeParser.ScopedAccessContext ctx)
@@ -671,6 +671,7 @@ internal sealed partial class CascodeAstBuilder
         {
             "stim" => BenchValueType.Terminal,
             "resp" => BenchValueType.Terminal,
+            "port" => BenchValueType.Terminal,
             _ => throw new InvalidOperationException(
                 $"Unknown typed parameter type: {ctx.GetText()}"
             ),
@@ -685,10 +686,15 @@ internal sealed partial class CascodeAstBuilder
             "VoltageRatio" => BenchValueType.VoltageRatio,
             "TransferFunction" => BenchValueType.TransferFunction,
             "GainSpectrum" => BenchValueType.GainSpectrum,
+            "ScalarSpectrum" => BenchValueType.ScalarSpectrum,
             "PhaseSpectrum" => BenchValueType.PhaseSpectrum,
+            "TimeSpectrum" => BenchValueType.TimeSpectrum,
+            "ComplexVoltageSpectrum" => BenchValueType.ComplexVoltageSpectrum,
+            "ComplexCurrentSpectrum" => BenchValueType.ComplexCurrentSpectrum,
             "VoltageSpectrum" => BenchValueType.VoltageSpectrum,
             "CurrentSpectrum" => BenchValueType.CurrentSpectrum,
             "NoiseSpectrum" => BenchValueType.NoiseSpectrum,
+            "ImpedanceSpectrum" => BenchValueType.ImpedanceSpectrum,
             "VoltageWaveform" => BenchValueType.VoltageWaveform,
             "CurrentWaveform" => BenchValueType.CurrentWaveform,
             "NoiseSpectralDensity" => BenchValueType.NoiseSpectralDensity,
@@ -702,6 +708,7 @@ internal sealed partial class CascodeAstBuilder
             "Time" => BenchValueType.Time,
             "Phase" => BenchValueType.Phase,
             "Scalar" => BenchValueType.Scalar,
+            "SParameterMatrix" => BenchValueType.SParameterMatrix,
             _ => throw new InvalidOperationException($"Unknown physical type: {ctx.GetText()}"),
         };
     }
@@ -715,6 +722,7 @@ internal sealed partial class CascodeAstBuilder
             "TranAnalysis" => BenchValueType.TranAnalysis,
             "NoiseAnalysis" => BenchValueType.NoiseAnalysis,
             "STBAnalysis" => BenchValueType.STBAnalysis,
+            "SPAnalysis" => BenchValueType.SPAnalysis,
             _ => throw new InvalidOperationException($"Unknown analysis type: {ctx.GetText()}"),
         };
     }

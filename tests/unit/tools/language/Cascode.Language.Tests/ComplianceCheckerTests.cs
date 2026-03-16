@@ -31,7 +31,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
-        Assert.Equal("non_finite_value", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.NonFiniteValue, report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -49,7 +49,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
-        Assert.Equal("non_finite_value", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.NonFiniteValue, report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -86,6 +86,182 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.Equal(expectedPass, report.Results[0].Passed);
+        if (!expectedPass)
+        {
+            Assert.Equal(ConstraintResult.ConstraintViolation, report.Results[0].FailureReason);
+        }
+    }
+
+    [Fact]
+    public void Check_NoiseDensityThreshold_PassingMeasurement_Passes()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_noise",
+            "InputReferredNoise",
+            "OUT",
+            "<=",
+            "9n",
+            "V/rtHz"
+        );
+        var results = CreateResultsWithMeasurement("InputReferredNoise", 8.5e-9, "V/rtHz", "OUT");
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Passed);
+        Assert.InRange(result.Expected, 8.999999999999999e-9, 9.000000000000001e-9);
+    }
+
+    [Fact]
+    public void Check_NoiseDensityThreshold_FailingMeasurement_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_noise",
+            "InputReferredNoise",
+            "OUT",
+            "<=",
+            "9n",
+            "V/rtHz"
+        );
+        var results = CreateResultsWithMeasurement("InputReferredNoise", 9.5e-9, "V/rtHz", "OUT");
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.ConstraintViolation, result.FailureReason);
+        Assert.Equal(9.5e-9, result.Actual);
+    }
+
+    [Fact]
+    public void Check_ValuesArray_AllPass_Passes()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement(
+            "ForwardGainSpectrum",
+            [-0.95, -0.92, -0.90],
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Passed);
+        Assert.Equal(-0.95, result.Actual);
+    }
+
+    [Fact]
+    public void Check_ValuesArray_OneViolation_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement(
+            "ForwardGainSpectrum",
+            [-0.95, -0.98, -0.90],
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.ConstraintViolation, result.FailureReason);
+        Assert.Equal(-0.98, result.Actual);
+    }
+
+    [Fact]
+    public void Check_ValuesArray_EmptyArray_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement("ForwardGainSpectrum", [], "dB", null);
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.EmptySpectrum, result.FailureReason);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Check_ValuesArray_WithNonFiniteElement_Fails(double sample)
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement(
+            "ForwardGainSpectrum",
+            [-0.95, sample, -0.90],
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.NonFiniteValue, result.FailureReason);
+    }
+
+    [Theory]
+    [InlineData(">=", 5.0, new[] { 5.0, 7.0 }, true, 5.0)]
+    [InlineData(">", 5.0, new[] { 5.0, 7.0 }, false, 5.0)]
+    [InlineData("<=", 5.0, new[] { 1.0, 5.0 }, true, 5.0)]
+    [InlineData("<", 5.0, new[] { 1.0, 5.0 }, false, 5.0)]
+    [InlineData("==", 5.0, new[] { 5.0, 5.0 + 1e-10 }, true, 5.0 + 1e-10)]
+    [InlineData("==", 5.0, new[] { 5.0, 5.0 + 1e-6 }, false, 5.0 + 1e-6)]
+    public void Check_ValuesArray_AllOperators(
+        string op,
+        double threshold,
+        double[] measured,
+        bool expectedPass,
+        double expectedWorstCase
+    )
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_array_op",
+            "ArrayMetric",
+            null,
+            op,
+            threshold.ToString("G17", System.Globalization.CultureInfo.InvariantCulture),
+            ""
+        );
+        var results = CreateResultsWithArrayMeasurement("ArrayMetric", measured, "", null);
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.Equal(expectedPass, result.Passed);
+        Assert.Equal(expectedWorstCase, result.Actual);
     }
 
     [Theory]
@@ -256,7 +432,7 @@ public class ComplianceCheckerTests
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
         Assert.Contains("No measurement found", report.Results[0].Message);
-        Assert.Equal("no_measurement", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.NoMeasurement, report.Results[0].FailureReason);
     }
 
     [Fact]
@@ -291,7 +467,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
-        Assert.Equal("bench_error", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.BenchError, report.Results[0].FailureReason);
         Assert.Contains("Measurement error", report.Results[0].Message);
     }
 
@@ -476,6 +652,31 @@ public class ComplianceCheckerTests
                 {
                     Metric = metric,
                     Value = value,
+                    Unit = unit,
+                    Node = node,
+                },
+            },
+        };
+    }
+
+    private static BenchResult CreateResultsWithArrayMeasurement(
+        string metric,
+        double[] values,
+        string unit,
+        string? node
+    )
+    {
+        return new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "TestBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["m_test"] = new()
+                {
+                    Metric = metric,
+                    Value = null,
+                    Values = values,
                     Unit = unit,
                     Node = node,
                 },
@@ -735,7 +936,7 @@ public class ComplianceCheckerTests
 
         var cGbw = report.Results.Single(r => r.Id == "c_gbw");
         Assert.False(cGbw.Passed);
-        Assert.Equal("no_measurement", cGbw.FailureReason);
+        Assert.Equal(ConstraintResult.NoMeasurement, cGbw.FailureReason);
     }
 
     [Fact]

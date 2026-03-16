@@ -19,7 +19,12 @@ internal sealed class LinkCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("link", "Link Cascode source (resolve includes)", LinkCommand)
+            new DelegateCliCommand(
+                "link",
+                "Link Cascode source (resolve includes)",
+                LinkCommand,
+                helpCategory: CommandHelpCategory.Design
+            )
         );
     }
 
@@ -84,8 +89,9 @@ internal sealed class LinkCommandModule : ICommandModule
             ?? _state.WorkspaceRoot;
         var logger = _state.LoggerFactory?.CreateLogger("CascodeLinker");
 
+        var searchRoots = Cascode.Cli.Services.BenchRunHelpers.BuildSearchRoots(workspaceRoot);
         var options = new CascodeLinkOptions(linkBenchMode, includePolicy);
-        var result = CascodeLinker.LinkFile(inputPath, outputDir, workspaceRoot, options, logger);
+        var result = CascodeLinker.LinkFile(inputPath, outputDir, searchRoots, options, logger);
         foreach (var d in result.Diagnostics)
         {
             if (d.Severity == DiagnosticSeverity.Error)

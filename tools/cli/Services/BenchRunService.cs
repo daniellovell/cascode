@@ -312,12 +312,14 @@ public class BenchRunService
             $"load+link: done ({loadStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
         );
         var updatedArgs = args with { CascodePath = loaded.ResolvedPath };
-        var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(loaded.Document);
-        return (loaded.Document, updatedArgs, allCircuitsWithBenches);
+        var verifiableCircuits = BenchVerificationTargets.CollectVerifiableCircuits(
+            loaded.Document
+        );
+        return (loaded.Document, updatedArgs, verifiableCircuits);
     }
 
     /// <summary>
-    /// Runs benches for all EL circuits with benches, in dependency order (leaves first).
+    /// Runs benches for all verifiable EL circuits, in dependency order (leaves first).
     /// Optionally filtered to a single circuit via CircuitFilter.
     /// </summary>
     public MultiCircuitBenchRunResult RunAll(
@@ -328,7 +330,7 @@ public class BenchRunService
     {
         var timing = new BenchRunTimingCollector();
         var paths = ResolveInputAndOutputPaths(args);
-        var (doc, updatedArgs, allCircuitsWithBenches) = PerformLoadAndLink(
+        var (doc, updatedArgs, verifiableCircuits) = PerformLoadAndLink(
             workspaceRoot,
             args,
             paths,
@@ -336,14 +338,16 @@ public class BenchRunService
         );
         args = updatedArgs;
 
-        if (allCircuitsWithBenches.Count == 0)
+        if (verifiableCircuits.Count == 0)
         {
-            _logger.LogError("No EL-level circuits with benches found in Cascode document.");
+            _logger.LogError(
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations."
+            );
             return BuildEmptyResult(args, timing);
         }
 
         var filterResult = ValidateCircuitFilterOrReturnError(
-            allCircuitsWithBenches,
+            verifiableCircuits,
             args.CircuitFilter,
             args.Backend,
             args.OutputDir ?? string.Empty,
@@ -987,7 +991,8 @@ public class BenchRunService
                     continue;
                 }
 
-                var resultValue = double.NaN;
+                double? resultValue = null;
+                double[]? resultValues = null;
                 string? error = null;
                 if (v.Value is BenchNumber num)
                 {
@@ -996,6 +1001,10 @@ public class BenchRunService
                 else if (v.Value is BenchError err)
                 {
                     error = err.Message;
+                }
+                else if (TryExtractSeriesValues(v.Value, out var extractedValues))
+                {
+                    resultValues = extractedValues;
                 }
                 else
                 {
@@ -1006,6 +1015,7 @@ public class BenchRunService
                 {
                     Metric = metric,
                     Value = resultValue,
+                    Values = resultValues,
                     Unit = v.Unit,
                     Node = node,
                     Bench = instanceName,
@@ -1820,6 +1830,37 @@ public class BenchRunService
                         Noise: noise
                     );
                 }
+                else if (a.Type == BenchValueType.SPAnalysis)
+                {
+                    var wrdataPath = BenchRuntimePaths.GetSpWrdataPath(
+                        Path.GetDirectoryName(testbenchPath)!,
+                        plan.CircuitName,
+                        plan.InstanceName,
+                        a.Name
+                    );
+                    var sp = NgspiceWrdataSpParser.Parse(wrdataPath, plan.NumPorts);
+                    SpNoiseDataset? spNoise = null;
+                    if (a.EnableNoise)
+                    {
+                        var nfWrdataPath = BenchRuntimePaths.GetSpNfWrdataPath(
+                            Path.GetDirectoryName(testbenchPath)!,
+                            plan.CircuitName,
+                            plan.InstanceName,
+                            a.Name
+                        );
+                        spNoise = NgspiceWrdataSpParser.ParseNoiseFigure(nfWrdataPath);
+                    }
+
+                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                        a.Name,
+                        a.StartHz,
+                        a.StopHz,
+                        StartS: 0,
+                        StopS: 0,
+                        SParameters: sp,
+                        SpNoise: spNoise
+                    );
+                }
                 else if (a.Type == BenchValueType.TranAnalysis)
                 {
                     var wrdataPath = BenchRuntimePaths.GetTranWrdataPath(
@@ -2114,7 +2155,10 @@ public class BenchRunService
             {
                 if (byMetric.TryGetValue(metric, out var m))
                 {
-                    row.Add(m.Value.ToString("G17", CultureInfo.InvariantCulture));
+                    row.Add(
+                        m.Value?.ToString("G17", CultureInfo.InvariantCulture)
+                            ?? double.NaN.ToString("G17", CultureInfo.InvariantCulture)
+                    );
                 }
                 else
                 {
@@ -2139,5 +2183,23 @@ public class BenchRunService
             dict[shortName] = dataset.ValuesByName[vectorName][index];
         }
         return dict;
+    }
+
+    private static bool TryExtractSeriesValues(BenchValue value, out double[]? values)
+    {
+        values = value switch
+        {
+            BenchGainSpectrum spectrum => spectrum.Values,
+            BenchScalarSpectrum spectrum => spectrum.Values,
+            BenchTimeSpectrum spectrum => spectrum.ValuesS,
+            BenchPhaseSpectrum spectrum => spectrum.Degrees,
+            BenchNoiseSpectrum spectrum => spectrum.ValuesVPerRtHz,
+            BenchVoltageSpectrum spectrum => spectrum.Values,
+            BenchCurrentSpectrum spectrum => spectrum.Values,
+            BenchWaveform waveform => waveform.Values,
+            _ => null,
+        };
+
+        return values is not null;
     }
 }

@@ -462,4 +462,49 @@ circuit Outer {{
         Assert.Equal("Some", instance2.DeclaredType);
         Assert.Equal("AnalogFrontend", instance2.Type);
     }
+
+    public static IEnumerable<object[]> HlRoundTripGoldenPaths()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var goldenDir = Path.Combine(repoRoot, "tests", "golden", "cas", "hl");
+        foreach (
+            var path in new[]
+            {
+                "HLComposition.hl.cai",
+                "HLSlotSome.hl.cai",
+                "LNASynthesisRequest.hl.cai",
+                "TLC2272A_SynthesisRequest.hl.cai",
+                "SST12LN01_SynthesisRequest.hl.cai",
+            }.Select(name => Path.Combine(goldenDir, name))
+        )
+        {
+            yield return new object[] { path };
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(HlRoundTripGoldenPaths))]
+    public void RoundTrip_AllHlGoldens_ParseWriteAndReRead(string goldenPath)
+    {
+        using var reader = File.OpenText(goldenPath);
+        var readResult = CascodeReader.TryRead(reader, goldenPath);
+        Assert.True(
+            readResult.Success,
+            string.Join("; ", readResult.Diagnostics.Select(d => d.Message))
+        );
+
+        using var writer = new StringWriter();
+        CascodeWriter.Write(readResult.Document!, writer);
+        var output = writer.ToString();
+
+        var reReadResult = CascodeReader.TryParse(output, "roundtrip.cas");
+        Assert.True(
+            reReadResult.Success,
+            string.Join("; ", reReadResult.Diagnostics.Select(d => d.Message))
+        );
+
+        Assert.NotNull(readResult.Document);
+        Assert.NotNull(reReadResult.Document);
+        Assert.Equal(readResult.Document.Circuits.Count, reReadResult.Document.Circuits.Count);
+    }
 }

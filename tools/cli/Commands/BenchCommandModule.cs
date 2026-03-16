@@ -20,13 +20,19 @@ internal sealed class BenchCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("bench", "Bench and harness commands", ShowBenchUsage)
+            new DelegateCliCommand(
+                "bench",
+                "Bench and harness commands",
+                ShowBenchUsage,
+                helpCategory: CommandHelpCategory.Bench
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "bench run",
                 "Run a bench simulation and emit trace/results",
-                BenchRunCommand
+                BenchRunCommand,
+                helpCategory: CommandHelpCategory.Bench
             )
         );
     }

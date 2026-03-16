@@ -33,7 +33,8 @@ internal sealed class RenderCommandModule : ICommandModule
             new DelegateCliCommand(
                 "render",
                 "Render SVG schematic from Cascode EL circuit",
-                RenderCommand
+                RenderCommand,
+                helpCategory: CommandHelpCategory.Design
             )
         );
     }

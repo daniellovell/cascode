@@ -196,13 +196,39 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task CSAmpResistiveSky130_AllConstraintsPass() =>
-        await RunConstraintCheckForCas("CSAmp_Resistive_Sky130.cas", "CSAmp_Resistive_Sky130");
+    public async Task CSAmpActiveLoadSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CSAmp_ActiveLoad_Sky130.cas", "CSAmp_ActiveLoad_Sky130");
 
     [Fact]
     [Trait("Category", "Simulation")]
     public async Task CapFeedbackFDSky130_AllConstraintsPass() =>
         await RunConstraintCheckForCas("CapFeedbackFD_Sky130.cas", "CapFeedbackFD_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_Sky130"
+        );
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas(
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+            "LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130"
+        );
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task SST12LN01_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("SST12LN01_Sky130.cas", "SST12LN01_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task TLC2272A_Sky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("TLC2272A_Sky130.cas", "TLC2272A_Sky130");
 
     private async Task RunConstraintCheckForCas(string casFileName, string circuitName)
     {
@@ -330,8 +356,27 @@ public sealed class StressFolderIntegrationTests : IDisposable
                 {
                     if (string.IsNullOrEmpty(m.Error))
                     {
-                        Assert.False(double.IsNaN(m.Value));
-                        Assert.False(double.IsInfinity(m.Value));
+                        if (m.Values is not null)
+                        {
+                            Assert.True(m.Values.Length > 0);
+                            Assert.All(
+                                m.Values,
+                                value =>
+                                {
+                                    Assert.False(double.IsNaN(value));
+                                    Assert.False(double.IsInfinity(value));
+                                }
+                            );
+                        }
+                        else
+                        {
+                            Assert.True(
+                                m.Value.HasValue,
+                                "expected scalar Value when Values is null"
+                            );
+                            Assert.False(double.IsNaN(m.Value.Value));
+                            Assert.False(double.IsInfinity(m.Value.Value));
+                        }
                     }
                 }
             );
@@ -341,8 +386,9 @@ public sealed class StressFolderIntegrationTests : IDisposable
             await AssertDiffToDiffLoadSplitIfApplicable(plan, tbPath);
         }
 
-        // For every EL circuit, ensure its numeric constraints resolve to measured values (not missing/error).
-        // This is the core stress invariant: adding a new constraint should fail CI until the backend exists.
+        // For every EL circuit, ensure its numeric constraints resolve to measured values (not
+        // missing/error). This is the core stress invariant: adding a new constraint should fail CI
+        // until the backend exists.
         foreach (
             var circuit in doc.Circuits.Where(c =>
                 c.Level == CascodeLevel.EL && !c.Inline && c.Constraints?.Numeric?.Count > 0

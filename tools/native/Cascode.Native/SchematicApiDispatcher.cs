@@ -413,15 +413,7 @@ internal static class SchematicApiDispatcher
             linked = state.Document;
         }
 
-        var circuits = linked
-            .Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
-            .ToList();
-
-        var combinedResult = new ValidationResult();
-        foreach (var circuit in circuits)
-        {
-            combinedResult.Merge(ElectricalRuleChecker.Check(circuit, linked, requirePdk));
-        }
+        var combinedResult = ElectricalRuleChecker.Check(linked, requirePdk);
 
         var errors = new JsonArray();
         foreach (var error in combinedResult.GetErrors())

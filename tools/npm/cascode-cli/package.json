@@ -1,6 +1,6 @@
 {
   "name": "@cascode/cascode-cli",
-  "version": "0.6.1",
+  "version": "0.7.3",
   "description": "Cascode CLI installer wrapper. Installs a prebuilt cascode binary for your platform.",
   "homepage": "https://github.com/daniellovell/cascode",
   "repository": {

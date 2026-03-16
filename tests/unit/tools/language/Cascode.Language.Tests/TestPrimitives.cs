@@ -8,9 +8,9 @@ public static class TestPrimitives
     public static PrimitiveDefinition GetLevel1Nmos() =>
         new()
         {
-            Name = "Level1_NMOS",
+            Name = "NMOS_Level1",
             Kind = "nmos",
-            Device = "level1_nmos",
+            Device = "nmos_level1",
             SizeParameter = "primSize",
             Params = new Dictionary<string, string>
             {

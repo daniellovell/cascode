@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cascode.Language;
 using Cascode.Language.BenchRuntime.Netlist;
 
@@ -15,7 +17,8 @@ public sealed record BenchPlanAnalysis(
     double? StopS = null,
     BenchTerminalRef? OutputTerminal = null,
     string? NoiseInputSource = null,
-    double? StepS = null
+    double? StepS = null,
+    bool EnableNoise = false
 );
 
 public sealed record BenchHarnessElement(
@@ -48,4 +51,8 @@ public sealed record BenchPlan(
     IReadOnlyList<string> DutAcNodeKeys,
     IReadOnlyDictionary<string, string> DutNodeKeyByPinRef,
     BenchNetlist Netlist
-);
+)
+{
+    public int NumPorts =>
+        HarnessElements.Count(e => e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase));
+}

@@ -20,6 +20,28 @@ namespace Cascode.Language.Validation;
 public static class ElectricalRuleChecker
 {
     /// <summary>
+    /// Performs complete-document ERC, including semantic contract validation.
+    /// </summary>
+    public static ValidationResult Check(CascodeDocument document, bool requirePdkDevice = false)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var result = CompleteDocumentSemanticValidator.Validate(document);
+        if (!result.IsValid)
+        {
+            return result;
+        }
+
+        var circuits = document.Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML);
+        foreach (var circuit in circuits)
+        {
+            result.Merge(Check(circuit, document, requirePdkDevice));
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Performs electrical rule checking on a circuit.
     /// </summary>
     /// <param name="circuit">The circuit to check (must be desugared).</param>
@@ -293,8 +315,8 @@ public static class ElectricalRuleChecker
     {
         "nmos",
         "pmos",
-        "level1_nmos",
-        "level1_pmos",
+        "nmos_level1",
+        "pmos_level1",
     };
 
     /// <summary>

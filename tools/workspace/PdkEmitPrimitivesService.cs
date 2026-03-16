@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Cascode.Language;
 
 namespace Cascode.Workspace;
 
@@ -435,7 +436,7 @@ public static class PdkEmitPrimitivesService
     )
     {
         var builder = new StringBuilder();
-        builder.AppendLine("VERSION 3.0");
+        builder.AppendLine($"VERSION {CascodeVersion.Current}");
         builder.AppendLine();
         builder.AppendLine($"library {libraryNamespace}.{categorySuffix}");
         builder.AppendLine();

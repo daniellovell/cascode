@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cascode.Cli.Services;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -119,8 +120,8 @@ public sealed class CascodeLoadLinkServiceTests
 
     private static string BuildIncludeBearingDocument(string circuitName)
     {
-        return """
-            VERSION 3.2
+        return $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -145,8 +146,8 @@ public sealed class CascodeLoadLinkServiceTests
 
     private static string BuildIncludeFreeDocument(string circuitName)
     {
-        return """
-            VERSION 3.2
+        return $$"""
+            VERSION {{CascodeVersion.Current}}
 
             circuit __CIRCUIT_NAME__ {
               level EL

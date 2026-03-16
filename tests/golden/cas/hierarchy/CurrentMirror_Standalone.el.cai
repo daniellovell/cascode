@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.1
 
 interface LoadBranch {
   input IN : analog
@@ -14,8 +14,8 @@ interface CurrentMirrorLike {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -30,9 +30,9 @@ circuit CurrentMirror(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implement
   input SENSE : analog
   output TAP[0] : analog
   fill {
-    PMOS M_SENSE = new Level1_PMOS(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    PMOS M_SENSE = new PMOS_Level1(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
     size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
-    PMOS M_TAP0 = new Level1_PMOS(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+    PMOS M_TAP0 = new PMOS_Level1(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
   }
   constraints {
     tech {

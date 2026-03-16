@@ -44,7 +44,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -104,7 +104,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -162,7 +162,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "diode_node" },
@@ -184,7 +184,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "pmos",
                         Id = "M2",
-                        Primitive = "Level1_PMOS",
+                        Primitive = "PMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -237,7 +237,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M_short",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "VDD" }, // Drain to VDD
@@ -295,7 +295,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "pmos",
                         Id = "M_short",
-                        Primitive = "Level1_PMOS",
+                        Primitive = "PMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "GND" }, // Drain to GND
@@ -538,7 +538,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -598,7 +598,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -659,7 +659,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -711,7 +711,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "resistor",
                         Id = "R_short",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
@@ -761,7 +761,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "capacitor",
                         Id = "C_short",
-                        Primitive = "Ideal_Capacitor",
+                        Primitive = "CapacitorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "GND" },
@@ -811,7 +811,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "inductor",
                         Id = "L_short",
-                        Primitive = "Ideal_Inductor",
+                        Primitive = "InductorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
@@ -867,7 +867,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "resistor",
                         Id = "R_load",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
@@ -929,7 +929,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -983,7 +983,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "pmos",
                         Id = "M_SENSE",
-                        Primitive = "Level1_PMOS",
+                        Primitive = "PMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1041,7 +1041,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M_short",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "VDD" },
@@ -1098,7 +1098,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "resistor",
                         Id = "R_short",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
@@ -1164,7 +1164,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1218,7 +1218,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1253,7 +1253,7 @@ public class ElectricalRuleCheckerTests
         {
             DeviceType = "nmos",
             Id = id,
-            Primitive = "Level1_NMOS",
+            Primitive = "NMOS_Level1",
             Bindings = new Dictionary<string, string>
             {
                 { "D", drain },

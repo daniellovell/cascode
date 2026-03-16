@@ -1,11 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace Cascode.Language.Validation;
 
 public static class BenchSemanticChecker
 {
+    private sealed record MeasurementSignatureInfo(
+        MeasurementDefinition Definition,
+        MeasurementType ReturnType
+    );
+
     public static void Check(CascodeDocument document, List<Diagnostic> diagnostics)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -66,16 +72,15 @@ public static class BenchSemanticChecker
             }
         }
 
-        foreach (var analysis in bench.Analyses)
-        {
-            scope.Values[analysis.Name] = MeasurementType.FromBenchValueType(analysis.Type);
-        }
-
-        // Seed measurement types from declaration units for cross-measurement references.
-        var measurementTypes = new Dictionary<string, MeasurementType>(StringComparer.Ordinal);
+        // Seed measurement metadata by canonical signature key (name#arity).
+        var measurementTypes = new Dictionary<string, MeasurementSignatureInfo>(
+            StringComparer.Ordinal
+        );
         foreach (var m in bench.Measurements)
         {
-            if (!measurementTypes.TryAdd(m.Name, MeasurementType.FromUnit(m.Unit)))
+            var signatureKey = MeasurementSignature.Create(m.Name, m.Parameters.Count);
+            var measurementInfo = new MeasurementSignatureInfo(m, MeasurementType.FromUnit(m.Unit));
+            if (!measurementTypes.TryAdd(signatureKey, measurementInfo))
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -87,6 +92,14 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+        }
+
+        ValidatePortDeclarations(bench, scope, measurementTypes, benchesByName, diagnostics);
+        ValidateSParameterAnalysisDeclarations(bench, diagnostics);
+
+        foreach (var analysis in bench.Analyses)
+        {
+            scope.Values[analysis.Name] = MeasurementType.FromBenchValueType(analysis.Type);
         }
 
         foreach (var m in bench.Measurements)
@@ -101,7 +114,7 @@ public static class BenchSemanticChecker
                 bench,
                 m.Body,
                 measurementScope,
-                expectedReturn: measurementTypes[m.Name],
+                expectedReturn: MeasurementType.FromUnit(m.Unit),
                 measurementTypes,
                 benchesByName,
                 diagnostics
@@ -132,8 +145,25 @@ public static class BenchSemanticChecker
         List<Diagnostic> diagnostics
     )
     {
+        var scope = new TypeScope(globalFunctions, bench.Functions);
+        foreach (var param in bench.Parameters)
+        {
+            scope.Values[param.Name] = MeasurementType.FromBenchValueType(param.Type);
+        }
+        foreach (var terminal in bench.Terminals)
+        {
+            if (terminal.Type is not null)
+            {
+                scope.Values[terminal.Name] = MeasurementType.Terminal(terminal.Type);
+            }
+        }
+        foreach (var analysis in bench.Analyses)
+        {
+            scope.Values[analysis.Name] = MeasurementType.FromBenchValueType(analysis.Type);
+        }
+
         var measurementNames = bench
-            .Measurements.Select(m => m.Name)
+            .Measurements.Select(m => MeasurementSignature.Create(m.Name, m.Parameters.Count))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var functionNames = globalFunctions
             .Values.Concat(bench.Functions)
@@ -158,7 +188,17 @@ public static class BenchSemanticChecker
         >(StringComparer.OrdinalIgnoreCase);
         foreach (var fn in functionsByName.Values)
         {
-            functionDeps[fn.Name] = CollectDirectDeps(fn.Body, measurementNames, functionNames);
+            var functionScope = scope.Clone();
+            foreach (var p in fn.Parameters)
+            {
+                functionScope.Values[p.Name] = MeasurementType.FromBenchValueType(p.Type);
+            }
+            functionDeps[fn.Name] = CollectDirectDeps(
+                fn.Body,
+                measurementNames,
+                functionNames,
+                functionScope
+            );
         }
 
         var measurementDeps = new Dictionary<string, HashSet<string>>(
@@ -166,7 +206,17 @@ public static class BenchSemanticChecker
         );
         foreach (var m in bench.Measurements)
         {
-            var direct = CollectDirectDeps(m.Body, measurementNames, functionNames);
+            var measurementScope = scope.Clone();
+            foreach (var p in m.Parameters)
+            {
+                measurementScope.Values[p.Name] = MeasurementType.FromBenchValueType(p.Type);
+            }
+            var direct = CollectDirectDeps(
+                m.Body,
+                measurementNames,
+                functionNames,
+                measurementScope
+            );
 
             var deps = new HashSet<string>(direct.Measurements, StringComparer.OrdinalIgnoreCase);
             var stack = new Stack<string>(direct.Functions);
@@ -194,7 +244,7 @@ public static class BenchSemanticChecker
                 }
             }
 
-            measurementDeps[m.Name] = deps;
+            measurementDeps[MeasurementSignature.Create(m.Name, m.Parameters.Count)] = deps;
         }
 
         // Standard DFS cycle detection on the measurement-only graph.
@@ -204,12 +254,22 @@ public static class BenchSemanticChecker
 
         foreach (var m in bench.Measurements)
         {
-            if (visited.Contains(m.Name))
+            var measurementKey = MeasurementSignature.Create(m.Name, m.Parameters.Count);
+            if (visited.Contains(measurementKey))
             {
                 continue;
             }
 
-            if (TryFindCycle(m.Name, measurementDeps, visited, visiting, path, out var cycle))
+            if (
+                TryFindCycle(
+                    measurementKey,
+                    measurementDeps,
+                    visited,
+                    visiting,
+                    path,
+                    out var cycle
+                )
+            )
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -222,6 +282,236 @@ public static class BenchSemanticChecker
                 );
             }
         }
+    }
+
+    private static void ValidatePortDeclarations(
+        BenchDefinition bench,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var namesByPortNumber = new Dictionary<int, string>();
+        foreach (var portInstance in EnumeratePortInstances(bench))
+        {
+            if (!TryReadPositivePortNumber(portInstance, out var portNumber))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"Port number must be a positive integer; got {ReadPortNumberToken(portInstance) ?? "-1"}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            if (
+                namesByPortNumber.TryGetValue(portNumber, out var priorName)
+                && !string.Equals(priorName, portInstance.Id, StringComparison.Ordinal)
+            )
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"Duplicate port number {portNumber}: '{priorName}' and '{portInstance.Id}'",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+            else
+            {
+                namesByPortNumber[portNumber] = portInstance.Id;
+            }
+
+            if (
+                TryReadPortImpedanceToken(portInstance, out var impedanceText)
+                && !IsRealValuedPortImpedance(impedanceText, scope, measurementTypes, benchesByName)
+            )
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"Port impedance must be real-valued: invalid port impedance on port {portNumber}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+
+        if (
+            namesByPortNumber.Count > 0
+            && (
+                namesByPortNumber.Keys.Min() != 1
+                || namesByPortNumber.Keys.Max() != namesByPortNumber.Count
+            )
+        )
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    "Incorrect port ordering, ports must be numbered sequentially from 1",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+        }
+    }
+
+    private static bool IsRealValuedPortImpedance(
+        string impedanceText,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName
+    )
+    {
+        if (
+            !CascodeAstBuilder.TryParseMeasurementExprText(impedanceText, out var expr, out _)
+            || expr is null
+        )
+        {
+            return false;
+        }
+
+        var inferredType = InferExprType(expr, scope, measurementTypes, benchesByName);
+        return inferredType.Kind == MeasurementTypeKind.Impedance;
+    }
+
+    private static void ValidateSParameterAnalysisDeclarations(
+        BenchDefinition bench,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var hasPorts = EnumeratePortInstances(bench).Any();
+        foreach (var analysis in bench.Analyses.Where(a => a.Type == BenchValueType.SPAnalysis))
+        {
+            if (!hasPorts)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "SPAnalysis requires at least one Port instance.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+    }
+
+    private static IEnumerable<InstanceDeclaration> EnumeratePortInstances(BenchDefinition bench)
+    {
+        if (bench.Fill is null)
+        {
+            yield break;
+        }
+
+        foreach (var instance in bench.Fill.Instances)
+        {
+            if (instance.Type.Equals("Port", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return instance;
+            }
+        }
+    }
+
+    private static bool TryReadPositivePortNumber(
+        InstanceDeclaration portInstance,
+        out int portNumber
+    )
+    {
+        portNumber = 0;
+        if (!portInstance.Params.TryGetValue("N", out var nValue))
+        {
+            return false;
+        }
+
+        if (!TryReadIntegerText(ReadParamToken(nValue), out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed <= 0)
+        {
+            return false;
+        }
+
+        portNumber = parsed;
+        return true;
+    }
+
+    private static string? ReadPortNumberToken(InstanceDeclaration portInstance)
+    {
+        return portInstance.Params.TryGetValue("N", out var nValue) ? ReadParamToken(nValue) : null;
+    }
+
+    private static bool TryReadPortImpedanceToken(
+        InstanceDeclaration portInstance,
+        out string impedanceText
+    )
+    {
+        impedanceText = string.Empty;
+        if (!portInstance.Params.TryGetValue("Z", out var zValue))
+        {
+            return false;
+        }
+
+        var raw = ReadParamToken(zValue);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        impedanceText = raw;
+        return true;
+    }
+
+    private static string? ReadParamToken(ParamValue value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.Numeric))
+        {
+            return value.Numeric;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.Symbolic))
+        {
+            return value.Symbolic;
+        }
+
+        return value.Literal;
+    }
+
+    private static bool TryReadIntegerText(string? text, out int value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        if (
+            !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+        )
+        {
+            return false;
+        }
+
+        if (parsed != Math.Round(parsed) || parsed < int.MinValue || parsed > int.MaxValue)
+        {
+            return false;
+        }
+
+        value = (int)parsed;
+        return true;
     }
 
     private static bool TryFindCycle(
@@ -274,15 +564,17 @@ public static class BenchSemanticChecker
     private static (HashSet<string> Measurements, HashSet<string> Functions) CollectDirectDeps(
         IReadOnlyList<BenchStatement> body,
         IReadOnlySet<string> measurementNames,
-        IReadOnlySet<string> functionNames
+        IReadOnlySet<string> functionNames,
+        TypeScope scope
     )
     {
         var ms = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var fs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var bodyScope = scope.Clone();
 
         foreach (var stmt in body)
         {
-            CollectDeps(stmt, measurementNames, functionNames, ms, fs);
+            CollectDeps(stmt, measurementNames, functionNames, ms, fs, bodyScope);
         }
 
         return (ms, fs);
@@ -293,7 +585,8 @@ public static class BenchSemanticChecker
         IReadOnlySet<string> measurementNames,
         IReadOnlySet<string> functionNames,
         HashSet<string> calledMeasurements,
-        HashSet<string> calledFunctions
+        HashSet<string> calledFunctions,
+        TypeScope scope
     )
     {
         switch (stmt)
@@ -304,8 +597,10 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
+                scope.Values[v.Name] = MeasurementType.FromBenchValueType(v.Type);
                 break;
             case BenchReturn r:
                 CollectDeps(
@@ -313,7 +608,8 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
             case BenchIf i:
@@ -322,8 +618,10 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
+                var thenScope = scope.Clone();
                 foreach (var s in i.ThenBody)
                 {
                     CollectDeps(
@@ -331,11 +629,13 @@ public static class BenchSemanticChecker
                         measurementNames,
                         functionNames,
                         calledMeasurements,
-                        calledFunctions
+                        calledFunctions,
+                        thenScope
                     );
                 }
                 if (i.ElseBody is not null)
                 {
+                    var elseScope = scope.Clone();
                     foreach (var s in i.ElseBody)
                     {
                         CollectDeps(
@@ -343,7 +643,8 @@ public static class BenchSemanticChecker
                             measurementNames,
                             functionNames,
                             calledMeasurements,
-                            calledFunctions
+                            calledFunctions,
+                            elseScope
                         );
                     }
                 }
@@ -356,7 +657,8 @@ public static class BenchSemanticChecker
         IReadOnlySet<string> measurementNames,
         IReadOnlySet<string> functionNames,
         HashSet<string> calledMeasurements,
-        HashSet<string> calledFunctions
+        HashSet<string> calledFunctions,
+        TypeScope scope
     )
     {
         switch (expr)
@@ -367,14 +669,16 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     c.Right,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
         }
@@ -385,29 +689,52 @@ public static class BenchSemanticChecker
         IReadOnlySet<string> measurementNames,
         IReadOnlySet<string> functionNames,
         HashSet<string> calledMeasurements,
-        HashSet<string> calledFunctions
+        HashSet<string> calledFunctions,
+        TypeScope scope
     )
     {
         switch (expr)
         {
             case MeasurementCall c:
-                if (measurementNames.Contains(c.Name))
+                var measurementKey = MeasurementSignature.Create(c.Name, c.Args.Count);
+                if (measurementNames.Contains(measurementKey))
                 {
-                    calledMeasurements.Add(c.Name);
+                    calledMeasurements.Add(measurementKey);
                 }
                 else if (functionNames.Contains(c.Name))
                 {
                     calledFunctions.Add(c.Name);
                 }
-                foreach (var a in c.Args)
+                for (var i = 0; i < c.Args.Count; i++)
                 {
+                    var argExpr = c.Args[i].Value;
+                    if (
+                        c.Name.Equals("op_param", StringComparison.OrdinalIgnoreCase)
+                        && i == 2
+                        && argExpr is MeasurementPath
+                    )
+                    {
+                        continue;
+                    }
+
                     CollectDeps(
-                        a.Value,
+                        argExpr,
                         measurementNames,
                         functionNames,
                         calledMeasurements,
-                        calledFunctions
+                        calledFunctions,
+                        scope
                     );
+                }
+                break;
+            case MeasurementPath p:
+                var zeroArgMeasurementKey = MeasurementSignature.ZeroArg(p.Path);
+                if (
+                    !scope.TryResolvePath(p.Path, out _)
+                    && measurementNames.Contains(zeroArgMeasurementKey)
+                )
+                {
+                    calledMeasurements.Add(zeroArgMeasurementKey);
                 }
                 break;
             case MeasurementMethodCall m:
@@ -416,7 +743,8 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 foreach (var a in m.Args)
                 {
@@ -425,7 +753,8 @@ public static class BenchSemanticChecker
                         measurementNames,
                         functionNames,
                         calledMeasurements,
-                        calledFunctions
+                        calledFunctions,
+                        scope
                     );
                 }
                 break;
@@ -435,14 +764,16 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     b.Right,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
             case MeasurementUnary u:
@@ -451,7 +782,8 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
             case MeasurementConditional c:
@@ -460,21 +792,24 @@ public static class BenchSemanticChecker
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     c.ThenExpr,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 CollectDeps(
                     c.ElseExpr,
                     measurementNames,
                     functionNames,
                     calledMeasurements,
-                    calledFunctions
+                    calledFunctions,
+                    scope
                 );
                 break;
         }
@@ -484,7 +819,7 @@ public static class BenchSemanticChecker
         BenchDefinition bench,
         FunctionDefinition fn,
         TypeScope benchScope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -511,7 +846,7 @@ public static class BenchSemanticChecker
         IReadOnlyList<BenchStatement> statements,
         TypeScope scope,
         MeasurementType expectedReturn,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -522,6 +857,7 @@ public static class BenchSemanticChecker
             {
                 case BenchVarDecl v:
                     ValidateBuiltinCalls(
+                        bench,
                         v.Expr,
                         scope,
                         measurementTypes,
@@ -572,6 +908,7 @@ public static class BenchSemanticChecker
 
                 case BenchReturn r:
                     ValidateBuiltinCalls(
+                        bench,
                         r.Expr,
                         scope,
                         measurementTypes,
@@ -599,7 +936,7 @@ public static class BenchSemanticChecker
     private static void InferBoolType(
         BoolExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -631,7 +968,7 @@ public static class BenchSemanticChecker
     private static MeasurementType InferExprType(
         MeasurementExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
@@ -649,10 +986,10 @@ public static class BenchSemanticChecker
                 if (
                     expr is MeasurementScopedAccess s
                     && s.Ref.Scope == MeasurementScope.Constraints
-                    && measurementTypes.TryGetValue(s.Ref.Name, out var inferred)
+                    && TryGetZeroArgMeasurementInfo(s.Ref.Name, measurementTypes, out var inferred)
                 )
                 {
-                    return inferred;
+                    return inferred!.ReturnType;
                 }
                 if (
                     expr is MeasurementScopedAccess hs
@@ -673,9 +1010,9 @@ public static class BenchSemanticChecker
                 {
                     return t;
                 }
-                if (measurementTypes.TryGetValue(p.Path, out var mt))
+                if (TryGetZeroArgMeasurementInfo(p.Path, measurementTypes, out var mt))
                 {
-                    return mt;
+                    return mt!.ReturnType;
                 }
                 return MeasurementType.Scalar();
 
@@ -718,11 +1055,22 @@ public static class BenchSemanticChecker
     private static MeasurementType InferMethodCallType(
         MeasurementMethodCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
         var recv = InferExprType(call.Receiver, scope, measurementTypes, benchesByName);
+
+        if (
+            (
+                call.Method.Equals("From", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("To", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("Range", StringComparison.OrdinalIgnoreCase)
+            ) && IsArrayKind(recv.Kind)
+        )
+        {
+            return recv;
+        }
 
         if (recv.Kind == MeasurementTypeKind.TransferFunction)
         {
@@ -734,6 +1082,46 @@ public static class BenchSemanticChecker
             if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.PhaseSpectrum();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.SParameterMatrix)
+        {
+            if (call.Method.Equals("S", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.TransferFunction();
+            }
+
+            if (
+                call.Method.Equals("ReturnLoss", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("InsertionLoss", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("NFmin", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return MeasurementType.GainSpectrum();
+            }
+
+            if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.ImpedanceSpectrum();
+            }
+
+            if (
+                call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return MeasurementType.ScalarSpectrum();
+            }
+
+            if (call.Method.Equals("GroupDelay", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.TimeSpectrum();
             }
         }
 
@@ -750,6 +1138,45 @@ public static class BenchSemanticChecker
             )
             {
                 return MeasurementType.VoltageRatio();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ScalarSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Scalar();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.TimeSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Time();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ImpedanceSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Impedance();
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
@@ -776,6 +1203,42 @@ public static class BenchSemanticChecker
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ComplexVoltageSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.ComplexVoltage();
+            }
+
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.VoltageSpectrum();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.PhaseSpectrum();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ComplexCurrentSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.ComplexCurrent();
+            }
+
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.CurrentSpectrum();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.PhaseSpectrum();
             }
         }
 
@@ -818,6 +1281,32 @@ public static class BenchSemanticChecker
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ComplexVoltage)
+        {
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Voltage();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Phase();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ComplexCurrent)
+        {
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Current();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Phase();
             }
         }
 
@@ -900,10 +1389,25 @@ public static class BenchSemanticChecker
         return MeasurementType.Scalar();
     }
 
+    private static bool IsArrayKind(MeasurementTypeKind kind) =>
+        kind == MeasurementTypeKind.GainSpectrum
+        || kind == MeasurementTypeKind.ScalarSpectrum
+        || kind == MeasurementTypeKind.TimeSpectrum
+        || kind == MeasurementTypeKind.PhaseSpectrum
+        || kind == MeasurementTypeKind.ComplexVoltageSpectrum
+        || kind == MeasurementTypeKind.ComplexCurrentSpectrum
+        || kind == MeasurementTypeKind.VoltageSpectrum
+        || kind == MeasurementTypeKind.CurrentSpectrum
+        || kind == MeasurementTypeKind.NoiseSpectrum
+        || kind == MeasurementTypeKind.ImpedanceSpectrum
+        || kind == MeasurementTypeKind.VoltageWaveform
+        || kind == MeasurementTypeKind.CurrentWaveform
+        || kind == MeasurementTypeKind.TransferFunction;
+
     private static MeasurementType InferCallType(
         MeasurementCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName
     )
     {
@@ -924,7 +1428,7 @@ public static class BenchSemanticChecker
                     );
                     return a.Kind switch
                     {
-                        MeasurementTypeKind.ACAnalysis => MeasurementType.VoltageSpectrum(),
+                        MeasurementTypeKind.ACAnalysis => MeasurementType.ComplexVoltageSpectrum(),
                         MeasurementTypeKind.DCAnalysis => MeasurementType.Voltage(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.VoltageWaveform(),
                         _ => MeasurementType.Scalar(),
@@ -944,13 +1448,15 @@ public static class BenchSemanticChecker
                     );
                     return a.Kind switch
                     {
-                        MeasurementTypeKind.ACAnalysis => MeasurementType.CurrentSpectrum(),
+                        MeasurementTypeKind.ACAnalysis => MeasurementType.ComplexCurrentSpectrum(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.CurrentWaveform(),
                         _ => MeasurementType.Scalar(),
                     };
                 }
                 return MeasurementType.Scalar();
             }
+            case "sparam":
+                return MeasurementType.SParameterMatrix();
             case "db20":
                 return MeasurementType.GainSpectrum();
             case "db10":
@@ -991,9 +1497,21 @@ public static class BenchSemanticChecker
         }
 
         // Allow measurement calls (e.g. LowpassBandwidth() or IntegratedInputNoise(from=..., to=...)).
-        if (measurementTypes.TryGetValue(call.Name, out var mt))
+        if (
+            measurementTypes.TryGetValue(
+                MeasurementSignature.Create(call.Name, call.Args.Count),
+                out var measurementInfo
+            )
+            && TryValidateMeasurementCallArguments(
+                call,
+                measurementInfo.Definition,
+                scope,
+                measurementTypes,
+                benchesByName
+            )
+        )
         {
-            return mt;
+            return measurementInfo.ReturnType;
         }
 
         // User-defined function
@@ -1006,10 +1524,100 @@ public static class BenchSemanticChecker
         return MeasurementType.Scalar();
     }
 
+    private static bool TryGetZeroArgMeasurementInfo(
+        string name,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        out MeasurementSignatureInfo? info
+    )
+    {
+        return measurementTypes.TryGetValue(MeasurementSignature.ZeroArg(name), out info);
+    }
+
+    private static bool TryValidateMeasurementCallArguments(
+        MeasurementCall call,
+        MeasurementDefinition measurement,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName
+    )
+    {
+        var parameterIndices = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < measurement.Parameters.Count; i++)
+        {
+            parameterIndices[measurement.Parameters[i].Name] = i;
+        }
+
+        var boundArgs = new MeasurementExpr?[measurement.Parameters.Count];
+        var sawNamedArgument = false;
+        var nextPositionalParameterIndex = 0;
+
+        foreach (var arg in call.Args)
+        {
+            if (arg.Name is null)
+            {
+                if (sawNamedArgument)
+                {
+                    return false;
+                }
+                if (nextPositionalParameterIndex >= measurement.Parameters.Count)
+                {
+                    return false;
+                }
+                if (boundArgs[nextPositionalParameterIndex] is not null)
+                {
+                    return false;
+                }
+
+                boundArgs[nextPositionalParameterIndex] = arg.Value;
+                nextPositionalParameterIndex++;
+                continue;
+            }
+
+            sawNamedArgument = true;
+            if (!parameterIndices.TryGetValue(arg.Name, out var parameterIndex))
+            {
+                return false;
+            }
+            if (boundArgs[parameterIndex] is not null)
+            {
+                return false;
+            }
+
+            boundArgs[parameterIndex] = arg.Value;
+            while (
+                nextPositionalParameterIndex < boundArgs.Length
+                && boundArgs[nextPositionalParameterIndex] is not null
+            )
+            {
+                nextPositionalParameterIndex++;
+            }
+        }
+
+        for (var i = 0; i < measurement.Parameters.Count; i++)
+        {
+            var parameter = measurement.Parameters[i];
+            var valueExpr = boundArgs[i];
+            if (valueExpr is null)
+            {
+                return false;
+            }
+
+            var expectedType = MeasurementType.FromBenchValueType(parameter.Type);
+            var actualType = InferExprType(valueExpr, scope, measurementTypes, benchesByName);
+            if (!MeasurementType.CanAssign(expectedType, actualType))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static void ValidateBuiltinCalls(
+        BenchDefinition bench,
         MeasurementExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1017,11 +1625,26 @@ public static class BenchSemanticChecker
         switch (expr)
         {
             case MeasurementBinary b:
-                ValidateBuiltinCalls(b.Left, scope, measurementTypes, benchesByName, diagnostics);
-                ValidateBuiltinCalls(b.Right, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(
+                    bench,
+                    b.Left,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                ValidateBuiltinCalls(
+                    bench,
+                    b.Right,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 return;
             case MeasurementUnary u:
                 ValidateBuiltinCalls(
+                    bench,
                     u.Operand,
                     scope,
                     measurementTypes,
@@ -1031,6 +1654,7 @@ public static class BenchSemanticChecker
                 return;
             case MeasurementConditional c:
                 ValidateBuiltinCallsInBoolExpr(
+                    bench,
                     c.Condition,
                     scope,
                     measurementTypes,
@@ -1038,6 +1662,7 @@ public static class BenchSemanticChecker
                     diagnostics
                 );
                 ValidateBuiltinCalls(
+                    bench,
                     c.ThenExpr,
                     scope,
                     measurementTypes,
@@ -1045,6 +1670,7 @@ public static class BenchSemanticChecker
                     diagnostics
                 );
                 ValidateBuiltinCalls(
+                    bench,
                     c.ElseExpr,
                     scope,
                     measurementTypes,
@@ -1057,6 +1683,7 @@ public static class BenchSemanticChecker
                 foreach (var a in call.Args)
                 {
                     ValidateBuiltinCalls(
+                        bench,
                         a.Value,
                         scope,
                         measurementTypes,
@@ -1067,6 +1694,7 @@ public static class BenchSemanticChecker
                 return;
             case MeasurementMethodCall m:
                 ValidateBuiltinCalls(
+                    bench,
                     m.Receiver,
                     scope,
                     measurementTypes,
@@ -1076,6 +1704,7 @@ public static class BenchSemanticChecker
                 foreach (var a in m.Args)
                 {
                     ValidateBuiltinCalls(
+                        bench,
                         a.Value,
                         scope,
                         measurementTypes,
@@ -1083,14 +1712,23 @@ public static class BenchSemanticChecker
                         diagnostics
                     );
                 }
+                ValidateSParameterMethodCall(
+                    bench,
+                    m,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 return;
         }
     }
 
     private static void ValidateBuiltinCallsInBoolExpr(
+        BenchDefinition bench,
         BoolExpr expr,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1098,11 +1736,32 @@ public static class BenchSemanticChecker
         switch (expr)
         {
             case BoolCompare c:
-                ValidateBuiltinCalls(c.Left, scope, measurementTypes, benchesByName, diagnostics);
-                ValidateBuiltinCalls(c.Right, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(
+                    bench,
+                    c.Left,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                ValidateBuiltinCalls(
+                    bench,
+                    c.Right,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 break;
             case BoolTruthy t:
-                ValidateBuiltinCalls(t.Expr, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(
+                    bench,
+                    t.Expr,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 break;
         }
     }
@@ -1110,21 +1769,155 @@ public static class BenchSemanticChecker
     private static void ValidateBuiltinCall(
         MeasurementCall call,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
     {
-        if (!call.Name.Equals("op_param", StringComparison.OrdinalIgnoreCase))
+        if (call.Name.Equals("op_param", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 3)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2008: op_param requires exactly 3 arguments, got {call.Args.Count}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            var analysisType = InferExprType(
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (analysisType.Kind != MeasurementTypeKind.DCAnalysis)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2009: op_param first argument must be a DCAnalysis, got '{analysisType}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            return;
+        }
+
+        if (call.Name.Equals("sparam", StringComparison.OrdinalIgnoreCase))
+        {
+            if (call.Args.Count != 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2010: sparam requires exactly 1 argument, got {call.Args.Count}.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            var analysisType = InferExprType(
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName
+            );
+            if (analysisType.Kind != MeasurementTypeKind.SPAnalysis)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2011: sparam first argument must be an SPAnalysis, got '{analysisType}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+    }
+
+    private static void ValidateSParameterMethodCall(
+        BenchDefinition bench,
+        MeasurementMethodCall call,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var recv = InferExprType(call.Receiver, scope, measurementTypes, benchesByName);
+        if (recv.Kind != MeasurementTypeKind.SParameterMatrix)
         {
             return;
         }
 
-        if (call.Args.Count != 3)
+        var sParamMatrixMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "S",
+            "InsertionLoss",
+            "Isolation",
+            "GroupDelay",
+            "ReturnLoss",
+            "VSWR",
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+            "NFmin",
+            "Rn",
+        };
+        var indexPairMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "S",
+            "InsertionLoss",
+            "Isolation",
+            "GroupDelay",
+        };
+        var singlePortMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ReturnLoss",
+            "VSWR",
+        };
+        var zeroPortMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+            "NFmin",
+            "Rn",
+        };
+        var twoPortOnlyMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+            "NFmin",
+            "Rn",
+        };
+
+        if (!sParamMatrixMethods.Contains(call.Method))
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"CAS2008: op_param requires exactly 3 arguments, got {call.Args.Count}.",
+                    $"Unknown SParameterMatrix method '{call.Method}'.",
                     DiagnosticSeverity.Error,
                     "<bench>",
                     1,
@@ -1134,17 +1927,138 @@ public static class BenchSemanticChecker
             return;
         }
 
-        var analysisType = InferExprType(
-            call.Args[0].Value,
-            scope,
-            measurementTypes,
-            benchesByName
-        );
-        if (analysisType.Kind != MeasurementTypeKind.DCAnalysis)
+        if (indexPairMethods.Contains(call.Method))
+        {
+            if (call.Args.Count != 2)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"{call.Method} requires exactly 2 integer port arguments.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[1].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+        }
+
+        if (singlePortMethods.Contains(call.Method))
+        {
+            if (call.Args.Count != 1)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"{call.Method} requires exactly 1 integer port argument.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+        }
+
+        if (zeroPortMethods.Contains(call.Method) && call.Args.Count != 0)
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"CAS2009: op_param first argument must be a DCAnalysis, got '{analysisType}'.",
+                    $"{call.Method} requires exactly 0 arguments.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        if (twoPortOnlyMethods.Contains(call.Method))
+        {
+            var numPorts = EnumeratePortInstances(bench).Count();
+            if (numPorts != 2)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"{call.Method} is defined for 2-port networks only; bench declares {numPorts} ports.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return;
+            }
+        }
+    }
+
+    private static void ValidatePortArgument(
+        BenchDefinition bench,
+        string methodName,
+        MeasurementExpr arg,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var argType = InferExprType(arg, scope, measurementTypes, benchesByName);
+        if (argType.Kind != MeasurementTypeKind.Scalar)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Port argument to {methodName} must be an integer, got '{argType}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        if (!TryResolveConstantInt(arg, out var portIndex))
+        {
+            return;
+        }
+
+        var maxPort = EnumeratePortInstances(bench).Count();
+        if (portIndex < 1 || portIndex > maxPort)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Port index {portIndex} is out of range; bench declares ports 1..{maxPort}.",
                     DiagnosticSeverity.Error,
                     "<bench>",
                     1,
@@ -1154,10 +2068,29 @@ public static class BenchSemanticChecker
         }
     }
 
+    private static bool TryResolveConstantInt(MeasurementExpr expr, out int value)
+    {
+        if (
+            expr is MeasurementNumber number
+            && int.TryParse(
+                number.Raw,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out value
+            )
+        )
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
+    }
+
     private static void ValidateAnalysisParams(
         AnalysisDeclaration analysis,
         TypeScope scope,
-        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, MeasurementSignatureInfo> measurementTypes,
         IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
@@ -1182,6 +2115,12 @@ public static class BenchSemanticChecker
                 ["stop"] = MeasurementTypeKind.Frequency,
                 ["output"] = MeasurementTypeKind.Terminal,
             },
+            BenchValueType.SPAnalysis => new Dictionary<string, MeasurementTypeKind>
+            {
+                ["start"] = MeasurementTypeKind.Frequency,
+                ["stop"] = MeasurementTypeKind.Frequency,
+                ["noise"] = MeasurementTypeKind.Scalar,
+            },
             _ => new Dictionary<string, MeasurementTypeKind>(),
         };
 
@@ -1205,7 +2144,48 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+
+            if (
+                analysis.Type == BenchValueType.SPAnalysis
+                && name.Equals("noise", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                ValidateSpNoiseFlag(analysis, expr, actual, diagnostics);
+            }
         }
+    }
+
+    private static void ValidateSpNoiseFlag(
+        AnalysisDeclaration analysis,
+        MeasurementExpr expr,
+        MeasurementType actual,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (actual.Kind != MeasurementTypeKind.Scalar)
+        {
+            return;
+        }
+
+        if (!TryResolveConstantInt(expr, out var noiseFlag))
+        {
+            return;
+        }
+
+        if (noiseFlag == 0 || noiseFlag == 1)
+        {
+            return;
+        }
+
+        diagnostics.Add(
+            new Diagnostic(
+                $"CAS2006: Analysis parameter '{analysis.Name}.noise' must be 0 or 1, got {noiseFlag}.",
+                DiagnosticSeverity.Error,
+                "<bench>",
+                1,
+                1
+            )
+        );
     }
 
     private sealed class TypeScope
@@ -1255,6 +2235,7 @@ public static class BenchSemanticChecker
                     || baseType.Kind == MeasurementTypeKind.DCAnalysis
                     || baseType.Kind == MeasurementTypeKind.TranAnalysis
                     || baseType.Kind == MeasurementTypeKind.STBAnalysis
+                    || baseType.Kind == MeasurementTypeKind.SPAnalysis
                 )
                 {
                     if (string.Equals(parts[1], "start", StringComparison.OrdinalIgnoreCase))
@@ -1313,20 +2294,29 @@ public static class BenchSemanticChecker
         Time,
         TransferFunction,
         GainSpectrum,
+        ScalarSpectrum,
         PhaseSpectrum,
+        TimeSpectrum,
+        ComplexVoltageSpectrum,
+        ComplexCurrentSpectrum,
         VoltageSpectrum,
         CurrentSpectrum,
         NoiseSpectrum,
+        ImpedanceSpectrum,
         VoltageWaveform,
         CurrentWaveform,
         NoiseSpectralDensity,
         IntegratedNoise,
+        ComplexVoltage,
+        ComplexCurrent,
+        SParameterMatrix,
         Terminal,
         ACAnalysis,
         DCAnalysis,
         TranAnalysis,
         NoiseAnalysis,
         STBAnalysis,
+        SPAnalysis,
     }
 
     private sealed record MeasurementType(MeasurementTypeKind Kind, string? TerminalDomain = null)
@@ -1360,13 +2350,26 @@ public static class BenchSemanticChecker
 
         public static MeasurementType GainSpectrum() => new(MeasurementTypeKind.GainSpectrum);
 
+        public static MeasurementType ScalarSpectrum() => new(MeasurementTypeKind.ScalarSpectrum);
+
         public static MeasurementType PhaseSpectrum() => new(MeasurementTypeKind.PhaseSpectrum);
+
+        public static MeasurementType TimeSpectrum() => new(MeasurementTypeKind.TimeSpectrum);
+
+        public static MeasurementType ComplexVoltageSpectrum() =>
+            new(MeasurementTypeKind.ComplexVoltageSpectrum);
+
+        public static MeasurementType ComplexCurrentSpectrum() =>
+            new(MeasurementTypeKind.ComplexCurrentSpectrum);
 
         public static MeasurementType VoltageSpectrum() => new(MeasurementTypeKind.VoltageSpectrum);
 
         public static MeasurementType CurrentSpectrum() => new(MeasurementTypeKind.CurrentSpectrum);
 
         public static MeasurementType NoiseSpectrum() => new(MeasurementTypeKind.NoiseSpectrum);
+
+        public static MeasurementType ImpedanceSpectrum() =>
+            new(MeasurementTypeKind.ImpedanceSpectrum);
 
         public static MeasurementType VoltageWaveform() => new(MeasurementTypeKind.VoltageWaveform);
 
@@ -1376,6 +2379,13 @@ public static class BenchSemanticChecker
             new(MeasurementTypeKind.NoiseSpectralDensity);
 
         public static MeasurementType IntegratedNoise() => new(MeasurementTypeKind.IntegratedNoise);
+
+        public static MeasurementType ComplexVoltage() => new(MeasurementTypeKind.ComplexVoltage);
+
+        public static MeasurementType ComplexCurrent() => new(MeasurementTypeKind.ComplexCurrent);
+
+        public static MeasurementType SParameterMatrix() =>
+            new(MeasurementTypeKind.SParameterMatrix);
 
         public static MeasurementType Terminal(string domain) =>
             new(MeasurementTypeKind.Terminal, TerminalDomain: domain);
@@ -1397,14 +2407,20 @@ public static class BenchSemanticChecker
                 BenchValueType.Inductance => Inductance(),
                 BenchValueType.TransferFunction => TransferFunction(),
                 BenchValueType.GainSpectrum => GainSpectrum(),
+                BenchValueType.ScalarSpectrum => ScalarSpectrum(),
                 BenchValueType.PhaseSpectrum => PhaseSpectrum(),
+                BenchValueType.TimeSpectrum => TimeSpectrum(),
+                BenchValueType.ComplexVoltageSpectrum => ComplexVoltageSpectrum(),
+                BenchValueType.ComplexCurrentSpectrum => ComplexCurrentSpectrum(),
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
                 BenchValueType.CurrentSpectrum => CurrentSpectrum(),
                 BenchValueType.NoiseSpectrum => NoiseSpectrum(),
+                BenchValueType.ImpedanceSpectrum => ImpedanceSpectrum(),
                 BenchValueType.VoltageWaveform => VoltageWaveform(),
                 BenchValueType.CurrentWaveform => CurrentWaveform(),
                 BenchValueType.NoiseSpectralDensity => NoiseSpectralDensity(),
                 BenchValueType.IntegratedNoise => IntegratedNoise(),
+                BenchValueType.SParameterMatrix => SParameterMatrix(),
                 BenchValueType.ACAnalysis => new MeasurementType(MeasurementTypeKind.ACAnalysis),
                 BenchValueType.DCAnalysis => new MeasurementType(MeasurementTypeKind.DCAnalysis),
                 BenchValueType.TranAnalysis => new MeasurementType(
@@ -1414,6 +2430,7 @@ public static class BenchSemanticChecker
                     MeasurementTypeKind.NoiseAnalysis
                 ),
                 BenchValueType.STBAnalysis => new MeasurementType(MeasurementTypeKind.STBAnalysis),
+                BenchValueType.SPAnalysis => new MeasurementType(MeasurementTypeKind.SPAnalysis),
                 _ => Scalar(),
             };
 
@@ -1450,11 +2467,27 @@ public static class BenchSemanticChecker
             {
                 return Phase();
             }
+            if (unit.EndsWith("Ohm", StringComparison.OrdinalIgnoreCase))
+            {
+                return Impedance();
+            }
+            if (unit.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            {
+                return Time();
+            }
             return Scalar();
         }
 
         public static MeasurementType FromQuantity(string raw)
         {
+            if (raw.EndsWith("/rtHz", StringComparison.OrdinalIgnoreCase))
+            {
+                return NoiseSpectralDensity();
+            }
+            if (raw.EndsWith("rms", StringComparison.OrdinalIgnoreCase))
+            {
+                return IntegratedNoise();
+            }
             if (raw.EndsWith("dB", StringComparison.OrdinalIgnoreCase))
             {
                 return VoltageRatio();
@@ -1494,14 +2527,6 @@ public static class BenchSemanticChecker
             {
                 return Time();
             }
-            if (raw.EndsWith("/rtHz", StringComparison.OrdinalIgnoreCase))
-            {
-                return NoiseSpectralDensity();
-            }
-            if (raw.EndsWith("rms", StringComparison.OrdinalIgnoreCase))
-            {
-                return IntegratedNoise();
-            }
 
             return Scalar();
         }
@@ -1527,6 +2552,62 @@ public static class BenchSemanticChecker
                         or MeasurementTypeKind.Capacitance
                         or MeasurementTypeKind.Inductance
                         or MeasurementTypeKind.Time;
+            }
+
+            // Element-wise constraints allow spectrum/waveform measurements to be declared
+            // with the corresponding scalar physical unit (e.g., dB, V, A, s, deg).
+            if (
+                target.Kind == MeasurementTypeKind.VoltageRatio
+                && value.Kind == MeasurementTypeKind.GainSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Phase
+                && value.Kind == MeasurementTypeKind.PhaseSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Time
+                && value.Kind == MeasurementTypeKind.TimeSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Voltage
+                && value.Kind
+                    is MeasurementTypeKind.VoltageSpectrum
+                        or MeasurementTypeKind.VoltageWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Current
+                && value.Kind
+                    is MeasurementTypeKind.CurrentSpectrum
+                        or MeasurementTypeKind.CurrentWaveform
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.Scalar
+                && value.Kind == MeasurementTypeKind.ScalarSpectrum
+            )
+            {
+                return true;
+            }
+            if (
+                target.Kind == MeasurementTypeKind.NoiseSpectralDensity
+                && value.Kind == MeasurementTypeKind.NoiseSpectrum
+            )
+            {
+                return true;
             }
 
             return false;

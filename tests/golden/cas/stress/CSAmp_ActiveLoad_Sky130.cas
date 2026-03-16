@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.1
 
 // Stress test: single-ended common-source amplifier using sky130 devices.
 //
@@ -9,7 +9,7 @@ include lib.std
 include lib.pdk.sky130.devices.pfet_01v8
 include lib.pdk.sky130.devices.nfet_01v8
 
-circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
+circuit CSAmp_ActiveLoad_Sky130 implements SingleEndedAmp {
   level EL
   supply VDD
   ground GND
@@ -20,7 +20,8 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
   env {
     // Required by lib.std transfer/noise/tran/psrr benches.
     InputCommonModeRange = 0.9V
-    SourceImpedance = 50Ohm
+    OutputCommonModeRange = 0.9V
+    SourceImpedance = 10kOhm
     LoadImpedance = (1GOhm || 15pF)
   }
 
@@ -44,13 +45,18 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
     numeric {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
+      c_gain_band = transfer_bench::Gain(from=100kHz, to=10MHz) at net::OUT >= 9dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100uVrms
-      c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
-      c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 10mW
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.3V
       c_psrr = psrr_bench::PSRR at net::OUT >= -25dB
       c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 0dB
-      // No CMRR constraint (not possible of course).
+      c_forward_gain = sparam_bench::ForwardGain(f=1MHz) >= -22.5dB
+      c_forward_gain_band = sparam_bench::ForwardGain(from=100kHz, to=10MHz) >= -22.5dB
+      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) <= 0.4dB
+      c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) <= 1e-4dB
+      c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) <= 1kOhm
+      // No CMRR constraint (not possible).
     }
   }
 

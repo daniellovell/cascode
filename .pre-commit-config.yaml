@@ -3,3 +3,20 @@ repos:
     rev: v18.1.8
     hooks:
       - id: clang-format
+        types_or: [c, c++]
+  - repo: local
+    hooks:
+      - id: dotnet-tool-restore
+        name: Install .NET tools
+        entry: dotnet tool restore
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
+        description: Install the .NET tools listed at .config/dotnet-tools.json.
+      - id: csharpier
+        name: Run CSharpier on C# files
+        entry: dotnet csharpier format
+        language: system
+        types: [c#]
+        description: CSharpier is an opinionated C# formatter inspired by Prettier.

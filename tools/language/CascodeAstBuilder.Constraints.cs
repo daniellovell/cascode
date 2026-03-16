@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace Cascode.Language;
 
@@ -53,11 +52,11 @@ internal sealed partial class CascodeAstBuilder
     {
         var id = ctx.IDENT().GetText();
         var benchRef = ctx.benchMetricRef();
-        var benchBase = benchRef.IDENT(0).GetText();
-        var metric = benchRef.IDENT(1).GetText();
+        var benchBase = benchRef.IDENT().GetText();
+        var metric = benchRef.idPart().GetText();
 
         // Extract bench args and metric args from the grammar:
-        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
         // The measurementArgList() array contains 0-2 elements depending on which arg lists are present.
         var argLists = benchRef.measurementArgList();
         var benchArgs = new List<MetricCallArg>();
@@ -87,8 +86,8 @@ internal sealed partial class CascodeAstBuilder
 
         var node = ctx.nodeRef() != null ? BuildNodeRef(ctx.nodeRef()) : null;
         var op = ctx.COMPARISON_OP().GetText();
-        var quantity = ctx.signedQuantity().GetText();
-        var (value, unit) = ParseQuantity(quantity);
+        var threshold = ParseThreshold(ctx.signedThreshold());
+        var (value, unit) = ParseQuantity(threshold);
 
         // Compute the bench instance name from BenchBase + BenchArgs.
         var bench =
@@ -140,8 +139,8 @@ internal sealed partial class CascodeAstBuilder
         var param = ctx.IDENT(1).GetText();
         var scope = ctx.techConstraintScope().GetText();
         var op = ctx.COMPARISON_OP().GetText();
-        var quantity = ctx.signedQuantity().GetText();
-        var (value, unit) = ParseQuantity(quantity);
+        var threshold = ParseThreshold(ctx.signedThreshold());
+        var (value, unit) = ParseQuantity(threshold);
 
         return new TechConstraint
         {
@@ -434,18 +433,16 @@ internal sealed partial class CascodeAstBuilder
     /// <summary>Splits a quantity string into numeric value and unit.</summary>
     /// <param name="quantity">Quantity text such as "1.8V".</param>
     /// <returns>Tuple of numeric value and unit.</returns>
-    private static (string Value, string Unit) ParseQuantity(string quantity)
+    private static string ParseThreshold(CascodeParser.SignedThresholdContext threshold)
     {
-        // Match patterns like "50MHz", "30dB", "60deg", "1.8V"
-        var match = QuantityPattern().Match(quantity);
-        if (match.Success)
-        {
-            return (match.Groups[1].Value, match.Groups[2].Value);
-        }
-        return (quantity, string.Empty);
+        return threshold.signedQuantity()?.GetText() ?? threshold.GetText();
     }
 
-    /// <summary>Regex used to parse quantity value/unit pairs.</summary>
-    [GeneratedRegex(@"^(-?[0-9][0-9.eE+-]*[fpnumkMGT]?)([A-Za-z]+)$")]
-    private static partial Regex QuantityPattern();
+    /// <summary>Splits a quantity string into numeric value and unit.</summary>
+    /// <param name="quantity">Quantity text such as "1.8V".</param>
+    /// <returns>Tuple of numeric value and unit.</returns>
+    private static (string Value, string Unit) ParseQuantity(string quantity)
+    {
+        return QuantityLiteral.SplitValueAndUnit(quantity);
+    }
 }
