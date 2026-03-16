@@ -23,7 +23,7 @@ circuit CSeriesQ implements SingleEndedPassiveFilter {
   }
 
   constraints {
-    numeric {
+    bench {
       // The capacitor impedance is 50Ohm at 1MHz, but the ESR is 50Ohm as well.
       c_s11_min = sparam_bench::S11(f=1MHz) >= -6.99dB
       c_s11_max = sparam_bench::S11(f=1MHz) <= -6.98dB

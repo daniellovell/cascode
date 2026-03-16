@@ -256,26 +256,39 @@ circuit TestCircuit {{
     }
 
     [Fact]
-    public void TryRead_InstanceWithMismatchedDeclaredType_ReturnsError()
+    public void TryRead_InstanceWithInterfaceDeclaredType_ParsesSuccessfully()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
+
+interface CurrentMirror {{
+  input IN : analog
+  output OUT : analog
+}}
+
+circuit DiffPair implements CurrentMirror {{
+  level EL
+  input IN : analog
+  output OUT : analog
+}}
 
 circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   fill {{
-    CurrentMirror cm = new DiffPair {{ }}
+    CurrentMirror cm = new DiffPair {{ .IN--VDD, .OUT--GND }}
   }}
 }}
 ";
 
         var result = CascodeReader.TryParse(cascode, "test.cas");
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0036")
-        );
+        Assert.True(result.Success);
+        Assert.NotNull(result.Document);
+
+        var instance = Assert.Single(result.Document!.Circuits.Last().Fill!.Instances);
+        Assert.Equal("CurrentMirror", instance.DeclaredType);
+        Assert.Equal("DiffPair", instance.Type);
     }
 
     [Fact]

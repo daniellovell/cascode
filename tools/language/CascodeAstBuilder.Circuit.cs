@@ -349,14 +349,16 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
-                case CascodeParser.FillDeviceDeclContext deviceCtx:
-                    fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
-                    break;
-
                 case CascodeParser.FillInstanceStatementContext instanceCtx:
-                    fill.Instances.Add(
-                        BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl())
-                    );
+                    var instance = BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl());
+                    if (TryBuildDevice(instance, out var device))
+                    {
+                        fill.Devices.Add(device);
+                    }
+                    else
+                    {
+                        fill.Instances.Add(instance);
+                    }
                     break;
 
                 case CascodeParser.FillSomeInstanceStatementContext someInstanceCtx:
@@ -391,41 +393,58 @@ internal sealed partial class CascodeAstBuilder
         return fill;
     }
 
-    /// <summary>Builds a device declaration from its parse context.</summary>
-    private DeviceDeclaration BuildDevice(CascodeParser.DeviceDeclContext ctx)
+    private bool TryBuildDevice(InstanceDeclaration instance, out DeviceDeclaration device)
     {
-        var deviceType = ctx.DEVICE_TYPE().GetText();
-        var deviceId = BuildDeviceId(ctx.deviceId());
-        var primitiveName = ctx.primitiveName.Text;
+        device = default!;
+
+        if (
+            string.IsNullOrWhiteSpace(instance.DeclaredType)
+            || !IsPrimitiveDeclaredType(instance.DeclaredType)
+            || instance.Selection.Count > 0
+            || instance.Bindings.Count == 0
+            || instance.Params.Count > 1
+            || instance.Sizes.Count > 1
+        )
+        {
+            return false;
+        }
 
         string? sizeName = null;
         SizePack? sizePack = null;
-        if (ctx.sizeArg().IDENT() != null)
+        if (instance.Sizes.Count == 1 && instance.Sizes.TryGetValue("value", out var inlineSize))
         {
-            sizeName = ctx.sizeArg().IDENT().GetText();
+            sizePack = inlineSize;
         }
-        else if (ctx.sizeArg().sizeExpr() != null)
+        else if (instance.Params.Count == 1 && instance.Params.TryGetValue("value", out var value))
         {
-            sizePack = BuildSizeExpression(ctx.sizeArg().sizeExpr(), ctx.sizeArg());
+            if (!string.IsNullOrWhiteSpace(value.Symbolic))
+            {
+                sizeName = value.Symbolic;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else if (instance.Params.Count > 0 || instance.Sizes.Count > 0)
+        {
+            return false;
         }
 
-        var bindings = BuildBindings(ctx.bindingBlock().bindingList());
-
-        return new DeviceDeclaration
+        device = new DeviceDeclaration
         {
-            DeviceType = deviceType,
-            Id = deviceId,
-            Bindings = bindings,
-            Primitive = primitiveName,
+            DeviceType = instance.DeclaredType!,
+            Id = instance.Id,
+            Bindings = instance.Bindings,
+            Primitive = instance.Type,
             SizeName = sizeName,
             Size = sizePack,
         };
+        return true;
     }
 
-    private static string BuildDeviceId(CascodeParser.DeviceIdContext ctx)
-    {
-        return string.Join(".", ctx.idPart().Select(p => p.GetText()));
-    }
+    private static bool IsPrimitiveDeclaredType(string declaredType) =>
+        declaredType is "NMOS" or "PMOS" or "Resistor" or "Capacitor" or "Inductor" or "Diode";
 
     private static Dictionary<string, string> BuildBindings(CascodeParser.BindingListContext ctx)
     {
@@ -462,7 +481,7 @@ internal sealed partial class CascodeAstBuilder
     {
         return BuildInstance(
             declaredType: "Some",
-            id: ctx.instanceId.Text,
+            id: ctx.instanceId.GetText(),
             type: ctx.requiredType.GetText(),
             argList: null,
             bindingBlock: ctx.bindingBlock(),
@@ -494,7 +513,7 @@ internal sealed partial class CascodeAstBuilder
 
         return BuildInstance(
             declaredType: ctx.declaredType.GetText(),
-            id: ctx.instanceId.Text,
+            id: ctx.instanceId.GetText(),
             type: ctx.instanceTypeName().GetText(),
             argList: ctx.argList(),
             bindingBlock: ctx.bindingBlock(),

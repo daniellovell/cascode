@@ -299,7 +299,7 @@ public sealed class CascodeLinkerTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_gbw = transfer_bench::GainBandwidth >= 1MHz
                   c_power = vdd_pwr::QuiescentPower <= 1mW
                 }
@@ -370,7 +370,7 @@ public sealed class CascodeLinkerTests
               fill { }
 
               constraints {
-                numeric {
+                bench {
                   c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
                   c_pwr = vdd_pwr::QuiescentPower <= 1mW
                 }
@@ -604,7 +604,7 @@ public sealed class CascodeLinkerTests
               fill { }
 
               constraints {
-                numeric {
+                bench {
                   c_gain = helper_bench::Gain >= -1dB
                 }
               }
@@ -704,7 +704,7 @@ public sealed class CascodeLinkerTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_gain = reachable_bench::Gain >= -1dB
                 }
               }
@@ -782,7 +782,7 @@ public sealed class CascodeLinkerTests
               }
 
               constraints {
-                numeric {
+                bench {
                   c_gain = source_impedance_bench::Gain >= -1dB
                 }
               }

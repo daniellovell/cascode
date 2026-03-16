@@ -1,27 +1,27 @@
 library lib.std.prim
 
-primitive Resistor ResistorIdeal(size primSize) {
+primitive ResistorIdeal(size primSize) implements Resistor {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive Capacitor CapacitorIdeal(size primSize) {
+primitive CapacitorIdeal(size primSize) implements Capacitor {
   device "capacitor"
   params {
     C = primSize.C
   }
 }
 
-primitive Inductor InductorIdeal(size primSize) {
+primitive InductorIdeal(size primSize) implements Inductor {
   device "inductor"
   params {
     L = primSize.L
   }
 }
 
-primitive Capacitor CapacitorQ(size primSize) {
+primitive CapacitorQ(size primSize) implements Capacitor {
   device "capacitor_q"
   params {
     C = primSize.C
@@ -30,7 +30,7 @@ primitive Capacitor CapacitorQ(size primSize) {
   }
 }
 
-primitive Inductor InductorQ(size primSize) {
+primitive InductorQ(size primSize) implements Inductor {
   device "inductor_q"
   params {
     L = primSize.L

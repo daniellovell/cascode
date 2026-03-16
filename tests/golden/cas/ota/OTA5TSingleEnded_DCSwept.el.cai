@@ -1,6 +1,6 @@
 VERSION 5.0
 
-primitive NMOS NMOS_Level1(size primSize) {
+primitive NMOS_Level1(size primSize) implements NMOS {
   device "nmos_level1"
   params {
     W = primSize.W
@@ -9,7 +9,7 @@ primitive NMOS NMOS_Level1(size primSize) {
   }
 }
 
-primitive PMOS PMOS_Level1(size primSize) {
+primitive PMOS_Level1(size primSize) implements PMOS {
   device "pmos_level1"
   params {
     W = primSize.W
@@ -66,7 +66,7 @@ circuit OTA5TSingleEnded_DCSwept implements SingleEndedOpAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_out_bias = dc_bias::OutputDCBias at net::OUT >= 0.4V
       c_power = vdd_pwr::QuiescentPower <= 500uW
     }

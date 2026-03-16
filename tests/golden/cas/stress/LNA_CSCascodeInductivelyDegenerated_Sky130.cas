@@ -44,7 +44,7 @@ circuit LNA_CSCascodeInductivelyDegenerated_Sky130 implements SingleEndedAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_s21 = sparam_bench::S21(from=2.3GHz, to=2.5GHz) >= 12dB
       c_s11 = sparam_bench::S11(from=2.3GHz, to=2.5GHz) <= -15dB
       c_noise_figure = sparam_bench::NoiseFigure(from=2.3GHz, to=2.5GHz) <= 1dB

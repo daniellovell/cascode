@@ -40,7 +40,7 @@ public sealed class BenchDependencyGraph
 
     public static bool TryBuild(
         Circuit circuit,
-        IReadOnlyList<NumericConstraint> constraints,
+        IReadOnlyList<MetricConstraint> constraints,
         IReadOnlyDictionary<string, BenchDefinition> benchByBindingAlias,
         IReadOnlyDictionary<
             string,
@@ -246,7 +246,7 @@ public sealed class BenchDependencyGraph
 
     private static BenchMetricInvocation? TryCreateInvocationFromConstraint(
         Circuit circuit,
-        NumericConstraint c,
+        MetricConstraint c,
         IReadOnlyDictionary<string, BenchDefinition> benchByBindingAlias,
         IReadOnlyDictionary<
             string,

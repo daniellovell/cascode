@@ -344,7 +344,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {
@@ -528,7 +528,7 @@ public class ComplianceCheckerTests
 
         var circuit = doc.Circuits[0];
         Assert.NotNull(circuit.Constraints);
-        Assert.Equal(5, circuit.Constraints.Numeric.Count);
+        Assert.Equal(5, circuit.Constraints.Bench.Count);
     }
 
     [Fact]
@@ -539,7 +539,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {
@@ -618,7 +618,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {
@@ -692,7 +692,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {
@@ -769,7 +769,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {
@@ -826,7 +826,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {
@@ -947,7 +947,7 @@ public class ComplianceCheckerTests
             Name = "TestCircuit",
             Constraints = new ConstraintsBlock
             {
-                Numeric = new List<NumericConstraint>
+                Bench = new List<MetricConstraint>
                 {
                     new()
                     {

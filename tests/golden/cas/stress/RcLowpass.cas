@@ -43,7 +43,7 @@ circuit RcLowpass {
   }
 
   constraints {
-    numeric {
+    bench {
       // 1k || 1p -> fc ~ 159 MHz
       c_fc = transfer::LowpassBandwidth >= 50MHz
       // PassbandGain is evaluated at a non-zero passband frequency, so it will be slightly < 0dB.

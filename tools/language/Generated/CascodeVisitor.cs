@@ -661,13 +661,6 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitFillSomeInstanceStatement([NotNull] CascodeParser.FillSomeInstanceStatementContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>FillDeviceDecl</c>
-	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitFillDeviceDecl([NotNull] CascodeParser.FillDeviceDeclContext context);
-	/// <summary>
 	/// Visit a parse tree produced by the <c>FillAttachDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
 	/// </summary>
@@ -805,17 +798,11 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSelectionArg([NotNull] CascodeParser.SelectionArgContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.deviceDecl"/>.
+	/// Visit a parse tree produced by <see cref="CascodeParser.scopedId"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitDeviceDecl([NotNull] CascodeParser.DeviceDeclContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.sizeArg"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitSizeArg([NotNull] CascodeParser.SizeArgContext context);
+	Result VisitScopedId([NotNull] CascodeParser.ScopedIdContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.bindingBlock"/>.
 	/// </summary>
@@ -834,12 +821,6 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitBinding([NotNull] CascodeParser.BindingContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.deviceId"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitDeviceId([NotNull] CascodeParser.DeviceIdContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.idPart"/>.
 	/// </summary>
@@ -985,20 +966,6 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSignedThreshold([NotNull] CascodeParser.SignedThresholdContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>NumericSection</c>
-	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitNumericSection([NotNull] CascodeParser.NumericSectionContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>TechSection</c>
-	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitTechSection([NotNull] CascodeParser.TechSectionContext context);
-	/// <summary>
 	/// Visit a parse tree produced by the <c>BenchSection</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
 	/// </summary>
@@ -1019,20 +986,6 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitPhysicalSection([NotNull] CascodeParser.PhysicalSectionContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>GraphSection</c>
-	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitGraphSection([NotNull] CascodeParser.GraphSectionContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>NumericConstraintDirect</c>
-	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitNumericConstraintDirect([NotNull] CascodeParser.NumericConstraintDirectContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.numericConstraint"/>.
 	/// </summary>

@@ -69,7 +69,7 @@ public class SpiceEmitterTests
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS NMOS_Level1(size primSize) {{
+primitive NMOS_Level1(size primSize) implements NMOS {{
   device ""nmos_level1""
   params {{
     W = primSize.W

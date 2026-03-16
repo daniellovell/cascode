@@ -242,7 +242,7 @@ public static partial class CascodeWriter
         var signature = string.IsNullOrWhiteSpace(primitive.SizeParameter)
             ? string.Empty
             : $"(size {primitive.SizeParameter})";
-        writer.WriteLine($"primitive {primitive.Kind} {primitive.Name}{signature} {{");
+        writer.WriteLine($"primitive {primitive.Name}{signature} implements {primitive.Kind} {{");
         writer.WriteLine($"  device \"{primitive.Device}\"");
         writer.WriteLine("  params {");
         foreach (var entry in primitive.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
@@ -568,61 +568,68 @@ public static partial class CascodeWriter
     private static void WriteConstraints(ConstraintsBlock constraints, TextWriter writer)
     {
         writer.WriteLine("  constraints {");
-        if (constraints.Numeric.Count > 0)
+        if (constraints.Bench.Count > 0)
         {
-            writer.WriteLine("    numeric {");
-            foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
+            writer.WriteLine("    bench {");
+            foreach (var c in constraints.Bench.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
-                var node = c.Node is not null ? $" at {c.Node}" : "";
-                var benchArgs =
-                    c.BenchArgs.Count == 0
-                        ? ""
-                        : "("
-                            + string.Join(
-                                ", ",
-                                c.BenchArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                                    .Select(a => $"{a.Name}={a.Value}")
-                            )
-                            + ")";
-                var metricArgs =
-                    c.MetricArgs.Count == 0
-                        ? ""
-                        : "("
-                            + string.Join(
-                                ", ",
-                                c.MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                                    .Select(a => $"{a.Name}={a.Value}")
-                            )
-                            + ")";
-                writer.WriteLine(
-                    $"      {c.Id} = {FormatConstraintSource(c, benchArgs, metricArgs)}{node} {c.Op} {c.Value}{c.Unit}"
-                );
+                WriteMetricConstraint(c, writer);
             }
             writer.WriteLine("    }");
         }
-        if (constraints.Tech.Count > 0)
+        if (constraints.Spec.Count > 0)
         {
-            writer.WriteLine("    tech {");
-            foreach (var c in constraints.Tech.OrderBy(c => c.Id, StringComparer.Ordinal))
+            writer.WriteLine("    spec {");
+            foreach (var c in constraints.Spec.OrderBy(c => c.Id, StringComparer.Ordinal))
+            {
+                WriteMetricConstraint(c, writer);
+            }
+            writer.WriteLine("    }");
+        }
+        if (constraints.Physical.Count > 0)
+        {
+            writer.WriteLine("    physical {");
+            foreach (var c in constraints.Physical.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 writer.WriteLine($"      {c.Id} : {c.Param} {c.Op} {c.Value}{c.Unit} on {c.Scope}");
-            }
-            writer.WriteLine("    }");
-        }
-        if (constraints.Graph.Count > 0)
-        {
-            writer.WriteLine("    graph {");
-            foreach (var c in constraints.Graph.OrderBy(c => c.Id, StringComparer.Ordinal))
-            {
-                writer.WriteLine($"      {c.Id} : {c.Rule} ..."); // Simplified for now
             }
             writer.WriteLine("    }");
         }
         writer.WriteLine("  }");
     }
 
+    private static void WriteMetricConstraint(MetricConstraint constraint, TextWriter writer)
+    {
+        var node = constraint.Node is not null ? $" at {constraint.Node}" : "";
+        var benchArgs =
+            constraint.BenchArgs.Count == 0
+                ? ""
+                : "("
+                    + string.Join(
+                        ", ",
+                        constraint
+                            .BenchArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                            .Select(a => $"{a.Name}={a.Value}")
+                    )
+                    + ")";
+        var metricArgs =
+            constraint.MetricArgs.Count == 0
+                ? ""
+                : "("
+                    + string.Join(
+                        ", ",
+                        constraint
+                            .MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                            .Select(a => $"{a.Name}={a.Value}")
+                    )
+                    + ")";
+        writer.WriteLine(
+            $"      {constraint.Id} = {FormatConstraintSource(constraint, benchArgs, metricArgs)}{node} {constraint.Op} {constraint.Value}{constraint.Unit}"
+        );
+    }
+
     private static string FormatConstraintSource(
-        NumericConstraint constraint,
+        MetricConstraint constraint,
         string benchArgs,
         string metricArgs
     )

@@ -92,7 +92,7 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
   }
 
   constraints {
-    numeric {
+    bench {
       c_bw = LowpassBandwidth >= 10kHz
       c_gain = PassbandGain >= 38dB
       c_noise = IntegratedInputNoise <= 1uVrms

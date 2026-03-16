@@ -188,7 +188,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
               }
 
               constraints {
-                numeric {
+                bench {
                   c_gain = transfer_bench::PassbandGain >= -0.1dB
                 }
               }

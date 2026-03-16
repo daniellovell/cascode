@@ -73,7 +73,7 @@ circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 10MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
       c_cmrr = cmrr_bench::CMRR at net::OUT >= 300dB

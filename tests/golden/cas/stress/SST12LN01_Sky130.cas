@@ -69,7 +69,7 @@ circuit SST12LN01_Sky130 implements SingleEndedAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_s21 = sparam_bench::S21(from=2.4GHz, to=2.55GHz) >= 14dB
       c_s11 = sparam_bench::S11(from=2.4GHz, to=2.55GHz) <= -12dB
       c_s22 = sparam_bench::S22(from=2.4GHz, to=2.55GHz) <= -12dB

@@ -83,9 +83,9 @@ public sealed class BenchInvocationPlannerTests
             ],
             Constraints = new ConstraintsBlock
             {
-                Numeric =
+                Bench =
                 [
-                    new NumericConstraint
+                    new MetricConstraint
                     {
                         Id = "c_cmrr",
                         BenchBase = "cmrr_bench",
@@ -143,9 +143,9 @@ public sealed class BenchInvocationPlannerTests
             Traits = ["AmpInterface"],
             Constraints = new ConstraintsBlock
             {
-                Numeric =
+                Bench =
                 [
-                    new NumericConstraint
+                    new MetricConstraint
                     {
                         Id = "c_gain",
                         BenchBase = "transfer_bench",

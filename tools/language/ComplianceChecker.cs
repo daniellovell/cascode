@@ -18,7 +18,7 @@ public enum ConstraintEvaluationMode
 public static class ComplianceChecker
 {
     /// <summary>
-    /// Checks numeric constraints from a circuit against measurement results.
+    /// Checks bench constraints from a circuit against measurement results.
     /// Only evaluates constraints whose metrics are measured by the bench that produced the results.
     /// </summary>
     /// <param name="circuit">Circuit containing constraints.</param>
@@ -28,7 +28,7 @@ public static class ComplianceChecker
         Check(circuit, results, ConstraintEvaluationMode.BenchScoped);
 
     /// <summary>
-    /// Checks numeric constraints from a circuit against measurement results.
+    /// Checks bench constraints from a circuit against measurement results.
     /// </summary>
     /// <param name="circuit">Circuit containing constraints.</param>
     /// <param name="results">Bench measurement results.</param>
@@ -45,7 +45,7 @@ public static class ComplianceChecker
 
         var report = new ComplianceReport();
 
-        if (circuit.Constraints?.Numeric == null || circuit.Constraints.Numeric.Count == 0)
+        if (circuit.Constraints?.Bench == null || circuit.Constraints.Bench.Count == 0)
         {
             return report;
         }
@@ -57,7 +57,7 @@ public static class ComplianceChecker
             StringComparison.OrdinalIgnoreCase
         );
 
-        foreach (var constraint in circuit.Constraints.Numeric)
+        foreach (var constraint in circuit.Constraints.Bench)
         {
             var benchForConstraint = constraint.Bench;
 
@@ -88,7 +88,7 @@ public static class ComplianceChecker
     private static void AddUncheckedConstraint(
         ComplianceReport report,
         string benchForConstraint,
-        NumericConstraint constraint
+        MetricConstraint constraint
     )
     {
         if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
@@ -103,7 +103,7 @@ public static class ComplianceChecker
     }
 
     private static ConstraintResult EvaluateConstraint(
-        NumericConstraint constraint,
+        MetricConstraint constraint,
         BenchResult results
     )
     {
@@ -219,7 +219,7 @@ public static class ComplianceChecker
     }
 
     private static ConstraintResult EvaluateSeriesConstraint(
-        NumericConstraint constraint,
+        MetricConstraint constraint,
         string metricKey,
         double expected,
         MeasurementResult measurement
@@ -310,7 +310,7 @@ public static class ComplianceChecker
 
     private static KeyValuePair<string, MeasurementResult>? FindMatchingMeasurement(
         string metricKey,
-        NumericConstraint constraint,
+        MetricConstraint constraint,
         BenchResult results
     )
     {
@@ -349,7 +349,7 @@ public static class ComplianceChecker
         return null;
     }
 
-    private static string FormatMetricKey(NumericConstraint constraint)
+    private static string FormatMetricKey(MetricConstraint constraint)
     {
         if (constraint.MetricArgs.Count == 0)
         {

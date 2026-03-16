@@ -42,7 +42,7 @@ circuit CSAmp_ActiveLoad_Sky130 implements SingleEndedAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
       c_gain_band = transfer_bench::Gain(from=100kHz, to=10MHz) at net::OUT >= 9dB

@@ -30,7 +30,7 @@ circuit DcInternalNode {
   }
 
   constraints {
-    numeric {
+    bench {
       // Midpoint of a 1.8V divider should be ~0.9V.
       c_mid = dc::MidVoltage >= 0.89V
     }
