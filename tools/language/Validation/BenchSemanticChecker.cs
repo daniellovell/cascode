@@ -2535,28 +2535,51 @@ public static class BenchSemanticChecker
 
         if (name.Equals("uic", StringComparison.OrdinalIgnoreCase))
         {
-            if (TryResolveConstantInt(expr, out var flag) && flag is not 0 and not 1)
+            if (TryResolveConstantScalar(expr, out var uicValue))
             {
-                diagnostics.Add(
-                    new Diagnostic(
-                        $"CAS2006: Analysis parameter '{analysis.Name}.uic' must be 0 or 1, got {flag}.",
-                        DiagnosticSeverity.Error,
-                        "<bench>",
-                        1,
-                        1
-                    )
-                );
+                if (uicValue != Math.Round(uicValue) || (int)uicValue is not (0 or 1))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS2006: Analysis parameter '{analysis.Name}.uic' must be 0 or 1, got {uicValue.ToString(CultureInfo.InvariantCulture)}.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                }
             }
             return;
         }
 
         if (name.Equals("iterations", StringComparison.OrdinalIgnoreCase))
         {
-            if (TryResolveConstantInt(expr, out var iterations) && iterations < 1)
+            if (TryResolveConstantScalar(expr, out var iterationsValue))
+            {
+                if (iterationsValue != Math.Round(iterationsValue) || iterationsValue < 1)
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS2006: Analysis parameter '{analysis.Name}.iterations' must be an integer >= 1, got {iterationsValue.ToString(CultureInfo.InvariantCulture)}.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+            return;
+        }
+
+        if (name.Equals("steady_coef", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryResolveConstantScalar(expr, out var steadyCoefValue) && steadyCoefValue < 0)
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS2006: Analysis parameter '{analysis.Name}.iterations' must be >= 1, got {iterations}.",
+                        $"CAS2006: Analysis parameter '{analysis.Name}.steady_coef' must be >= 0, got {steadyCoefValue.ToString(CultureInfo.InvariantCulture)}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -2675,6 +2698,7 @@ public static class BenchSemanticChecker
                     {
                         type =
                             baseType.Kind == MeasurementTypeKind.TranAnalysis
+                            || baseType.Kind == MeasurementTypeKind.PSSAnalysis
                                 ? MeasurementType.Time()
                                 : MeasurementType.Frequency();
                         return true;
@@ -2683,6 +2707,7 @@ public static class BenchSemanticChecker
                     {
                         type =
                             baseType.Kind == MeasurementTypeKind.TranAnalysis
+                            || baseType.Kind == MeasurementTypeKind.PSSAnalysis
                                 ? MeasurementType.Time()
                                 : MeasurementType.Frequency();
                         return true;

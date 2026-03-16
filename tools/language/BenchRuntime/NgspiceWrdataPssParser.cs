@@ -59,18 +59,20 @@ public static class NgspiceWrdataPssParser
 
         if (parts.Length == 2 * vectorCount)
         {
+            var x = ParseDouble(parts[0]);
             var values = new double[vectorCount];
             for (var i = 0; i < vectorCount; i++)
             {
+                var xi = ParseDouble(parts[2 * i]);
+                if (xi != x)
+                {
+                    throw new InvalidOperationException(
+                        $"Inconsistent wrdata X axis in row: expected {x}, got {xi}."
+                    );
+                }
                 values[i] = ParseDouble(parts[2 * i + 1]);
             }
-            return (ParseDouble(parts[0]), values);
-        }
-
-        // Single-vector fallback: <x> <v>
-        if (vectorCount == 1 && parts.Length == 2)
-        {
-            return (ParseDouble(parts[0]), new[] { ParseDouble(parts[1]) });
+            return (x, values);
         }
 
         return null;

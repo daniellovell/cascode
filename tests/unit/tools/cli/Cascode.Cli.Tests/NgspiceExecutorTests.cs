@@ -64,13 +64,9 @@ public sealed class NgspiceExecutorTests
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
-            var executablePath = CreateHeavyStderrEmitter(tempDir.FullName);
+            var (executablePath, arguments) = CreateHeavyStderrEmitter(tempDir.FullName);
 
-            var result = NgspiceExecutor.RunProcess(
-                executablePath,
-                tempDir.FullName,
-                Array.Empty<string>()
-            );
+            var result = NgspiceExecutor.RunProcess(executablePath, tempDir.FullName, arguments);
 
             Assert.Equal(0, result.ExitCode);
             Assert.Contains("stdout:done", result.Stdout, StringComparison.Ordinal);
@@ -87,7 +83,9 @@ public sealed class NgspiceExecutorTests
         }
     }
 
-    private static string CreateHeavyStderrEmitter(string directory)
+    private static (string Executable, string[] Arguments) CreateHeavyStderrEmitter(
+        string directory
+    )
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -98,7 +96,7 @@ public sealed class NgspiceExecutorTests
                     + "for /L %%i in (1,1,50000) do @>&2 echo stderr:line %%i\r\n"
                     + "echo stdout:done\r\n"
             );
-            return batPath;
+            return ("cmd.exe", new[] { "/c", "emit-heavy-stderr.cmd" });
         }
 
         var shPath = Path.Combine(directory, "emit-heavy-stderr.sh");
@@ -117,6 +115,6 @@ public sealed class NgspiceExecutorTests
             shPath,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
         );
-        return shPath;
+        return (shPath, Array.Empty<string>());
     }
 }

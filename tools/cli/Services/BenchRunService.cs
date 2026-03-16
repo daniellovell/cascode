@@ -1902,53 +1902,7 @@ public class BenchRunService
                 }
                 else if (a.Type == BenchValueType.PSSAnalysis)
                 {
-                    var wrdataPath = BenchRuntimePaths.GetPssWrdataPath(
-                        Path.GetDirectoryName(testbenchPath)!,
-                        plan.CircuitName,
-                        plan.InstanceName,
-                        a.Name
-                    );
-
-                    var nodes = NgspiceWrdataPssParser.Parse(wrdataPath, plan.AcNodeKeys);
-                    if (nodes.TimePoints.Length == 0)
-                    {
-                        throw new InvalidOperationException(
-                            $"PSSAnalysis '{a.Name}' produced no waveform points."
-                        );
-                    }
-
-                    PssDataset? currents = null;
-                    var currentSources = plan
-                        .HarnessElements.Where(e =>
-                            e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
-                            || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
-                            || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
-                            || e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
-                        )
-                        .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-                    if (plan.RequiresCurrents && currentSources.Count > 0)
-                    {
-                        var iWrdataPath = BenchRuntimePaths.GetPssCurrentsWrdataPath(
-                            Path.GetDirectoryName(testbenchPath)!,
-                            plan.CircuitName,
-                            plan.InstanceName,
-                            a.Name
-                        );
-                        var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
-                        currents = NgspiceWrdataPssParser.Parse(iWrdataPath, sourceNames);
-                    }
-
-                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
-                        a.Name,
-                        StartHz: 0,
-                        StopHz: 0,
-                        StartS: nodes.TimePoints[0],
-                        StopS: nodes.TimePoints[nodes.TimePoints.Length - 1],
-                        Ac: null,
-                        Pss: nodes,
-                        PssCurrents: currents
-                    );
+                    analyses[a.Name] = CreatePssAnalysisContext(a, plan, testbenchPath);
                 }
             }
 
@@ -2084,6 +2038,61 @@ public class BenchRunService
                 : $"{measurement.Bench}/{metricKey}";
             target[key] = measurement;
         }
+    }
+
+    private static BenchMeasurementRunner.AnalysisContext CreatePssAnalysisContext(
+        BenchPlanAnalysis a,
+        BenchPlan plan,
+        string testbenchPath
+    )
+    {
+        var wrdataPath = BenchRuntimePaths.GetPssWrdataPath(
+            Path.GetDirectoryName(testbenchPath)!,
+            plan.CircuitName,
+            plan.InstanceName,
+            a.Name
+        );
+
+        var nodes = NgspiceWrdataPssParser.Parse(wrdataPath, plan.AcNodeKeys);
+        if (nodes.TimePoints.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{a.Name}' produced no waveform points."
+            );
+        }
+
+        PssDataset? currents = null;
+        var currentSources = plan
+            .HarnessElements.Where(e =>
+                e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
+            )
+            .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (plan.RequiresCurrents && currentSources.Count > 0)
+        {
+            var iWrdataPath = BenchRuntimePaths.GetPssCurrentsWrdataPath(
+                Path.GetDirectoryName(testbenchPath)!,
+                plan.CircuitName,
+                plan.InstanceName,
+                a.Name
+            );
+            var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
+            currents = NgspiceWrdataPssParser.Parse(iWrdataPath, sourceNames);
+        }
+
+        return new BenchMeasurementRunner.AnalysisContext(
+            a.Name,
+            StartHz: 0,
+            StopHz: 0,
+            StartS: nodes.TimePoints[0],
+            StopS: nodes.TimePoints[nodes.TimePoints.Length - 1],
+            Ac: null,
+            Pss: nodes,
+            PssCurrents: currents
+        );
     }
 
     private static IReadOnlyDictionary<string, BenchPlan> BuildPlanMap(CascodeDocument doc)

@@ -107,7 +107,7 @@ current(PSSAnalysis, element_pin) → CurrentWaveform
 
 These behave identically to their transient counterparts. `voltage()` takes a terminal reference (node voltage). `current()` uses the same extraction model as transient benches: branch currents are available for harness voltage-source elements written via `i(V...)` vectors (for example `harness.VDD.P`), not as a generic simulator-side element-pin probe for arbitrary devices.
 
-For differential terminals, `voltage(pss, OUT)` produces the differential waveform `V(OUT.P) - V(OUT.N)`, consistent with the existing differential terminal semantics (Section 4.2.5 of the spec).
+For differential terminals, `voltage(pss, OUT)` produces the differential waveform `V(OUT.P) - V(OUT.N)`, consistent with the existing differential terminal semantics ([Section 4.2.5](../../spec/language/Ch04_Bench_System.md#425-differential-terminal-semantics)).
 
 ### 2.2 Duration
 

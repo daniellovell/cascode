@@ -123,6 +123,236 @@ bench BadPssHarmonics {{
     }
 
     [Fact]
+    public void PssAnalysis_UicMustBeZeroOrOne()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadPssUic {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, uic=2)
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "bad_pss_uic.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.uic", StringComparison.Ordinal)
+                && d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
+                && d.Message.Contains("2", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_UicRejectsNonInteger()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadPssUicNonInt {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, uic=0.5)
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "bad_pss_uic_nonint.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.uic", StringComparison.Ordinal)
+                && d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_IterationsMustBePositiveInteger()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadPssIterations {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, iterations=0)
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "bad_pss_iterations.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.iterations", StringComparison.Ordinal)
+                && d.Message.Contains(">= 1", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_IterationsRejectsNonInteger()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadPssIterationsNonInt {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, iterations=0.5)
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "bad_pss_iterations_nonint.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.iterations", StringComparison.Ordinal)
+                && d.Message.Contains("integer >= 1", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_SteadyCoefMustBeNonNegative()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadPssSteadyCoef {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3, steady_coef=-0.1)
+  }}
+
+  measurements {{
+    measurement Freq : Hz {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return 1 / duration(vout)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "bad_pss_steady_coef.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("pss.steady_coef", StringComparison.Ordinal)
+                && d.Message.Contains(">= 0", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_StartStopResolveToTime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssStartStopTime {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3)
+  }}
+
+  measurements {{
+    measurement StartTime : s {{
+      return pss.start
+    }}
+    measurement StopTime : s {{
+      return pss.stop
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "pss_start_stop_time.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+    }
+
+    [Fact]
+    public void PssAnalysis_StartStopRejectFrequencyContext()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssStartStopFrequencyMismatch {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(fguess=1GHz, tstab=1ns, harmonics=3)
+  }}
+
+  measurements {{
+    measurement Bad : Hz {{
+      return pss.start
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "pss_start_stop_freq_mismatch.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("Return type 'Time'", StringComparison.Ordinal)
+                && d.Message.Contains("expected 'Frequency'", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
     public void PssAnalysis_RequiresRespTerminalDuringSemanticCheck()
     {
         var cascode =

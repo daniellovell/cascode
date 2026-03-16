@@ -544,6 +544,110 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     }
 
     [Fact]
+    public void EmitVariant_SameNameParameterOverrideUsesInheritedParentValue()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit Top(real width = 2u) {{
+  level EL
+  supply VDD
+  ground GND
+  fill {{
+    Child u1 = new Child(width=width*2) {{
+      .VDD--VDD
+      .GND--GND
+    }}
+  }}
+}}
+
+circuit Child(real width) {{
+  level EL
+  supply VDD
+  ground GND
+  fill {{ }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "same_name_param_forwarding.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("Xu1 VDD GND Child_width_4u", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmitVariant_SameNameSizeOverrideUsesInheritedParentFields()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(size Core = size(W=2u, L=180n, M=1)) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Child u1 = new Child(Core=size(W=Core.W*2, L=Core.L, M=Core.M)) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Child(size Core) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS M1 = new NMOS_Level1(Core) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "same_name_size_forwarding.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("Mu1__M1 OUT IN GND GND nmos_level1", output, StringComparison.Ordinal);
+        Assert.Contains("W=4u", output, StringComparison.Ordinal);
+        Assert.Contains("L=180n", output, StringComparison.Ordinal);
+        Assert.Contains("m=1", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EmitDesign_DeviceTerminalOrder_DGBS()
     {
         var circuit = new Circuit

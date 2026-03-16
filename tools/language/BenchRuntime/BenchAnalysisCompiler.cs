@@ -276,24 +276,36 @@ internal static class BenchAnalysisCompiler
                 var harmonicsV =
                     evalRunner.EvaluateExpressionForPlan(harmonicsExpr, benchParams) as BenchNumber;
 
-                if (fguessV is null || fguessV.Kind != BenchNumericKind.FrequencyHz)
+                if (
+                    fguessV is null
+                    || fguessV.Kind != BenchNumericKind.FrequencyHz
+                    || !double.IsFinite(fguessV.Value)
+                    || fguessV.Value <= 0
+                )
                 {
                     throw new InvalidOperationException(
-                        $"PSSAnalysis '{a.Name}.fguess' expects 'Frequency'."
+                        $"PSSAnalysis '{a.Name}.fguess' expects a finite positive 'Frequency'."
                     );
                 }
 
-                if (tstabV is null || tstabV.Kind != BenchNumericKind.TimeS)
+                if (
+                    tstabV is null
+                    || tstabV.Kind != BenchNumericKind.TimeS
+                    || !double.IsFinite(tstabV.Value)
+                    || tstabV.Value < 0
+                )
                 {
                     throw new InvalidOperationException(
-                        $"PSSAnalysis '{a.Name}.tstab' expects 'Time'."
+                        $"PSSAnalysis '{a.Name}.tstab' expects a finite non-negative 'Time'."
                     );
                 }
 
                 if (
                     harmonicsV is null
                     || harmonicsV.Kind != BenchNumericKind.Scalar
+                    || !double.IsFinite(harmonicsV.Value)
                     || harmonicsV.Value < 1
+                    || harmonicsV.Value > int.MaxValue
                     || harmonicsV.Value != Math.Round(harmonicsV.Value)
                 )
                 {
@@ -342,7 +354,7 @@ internal static class BenchAnalysisCompiler
                         0,
                         FguessHz: fguessV.Value,
                         TstabS: tstabV.Value,
-                        Harmonics: (int)harmonicsV.Value,
+                        Harmonics: checked((int)harmonicsV.Value),
                         OscNode: outputTerminal.LeafNodes[0],
                         Iterations: iterations,
                         SteadyCoef: steadyCoef,

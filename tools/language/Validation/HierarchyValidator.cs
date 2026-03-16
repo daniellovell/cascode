@@ -178,7 +178,7 @@ public static class HierarchyValidator
         ValidationResult result
     )
     {
-        foreach (var size in targetCircuit.Sizes)
+        foreach (var size in GetDeclaredSizes(targetCircuit))
         {
             // Skip if size pack has a default value
             if (size.Default is not null)
@@ -202,18 +202,27 @@ public static class HierarchyValidator
 
     private static HashSet<string> BuildAvailableSizeNames(Circuit circuit)
     {
-        var names = circuit.Sizes.Select(size => size.Name).ToHashSet(StringComparer.Ordinal);
+        return GetDeclaredSizes(circuit)
+            .Select(size => size.Name)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<SizeDeclaration> GetDeclaredSizes(Circuit circuit)
+    {
+        foreach (var size in circuit.Sizes)
+        {
+            yield return size;
+        }
+
         if (circuit.Fill?.Sizes is null)
         {
-            return names;
+            yield break;
         }
 
         foreach (var size in circuit.Fill.Sizes)
         {
-            names.Add(size.Name);
+            yield return size;
         }
-
-        return names;
     }
 
     /// <summary>

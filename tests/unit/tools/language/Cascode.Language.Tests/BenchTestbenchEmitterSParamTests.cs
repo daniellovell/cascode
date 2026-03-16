@@ -345,7 +345,9 @@ circuit Top {
         Assert.False(parsed.Success);
         Assert.Contains(
             parsed.Diagnostics,
-            d => d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
+            d =>
+                d.Message.Contains("sp.noise", StringComparison.Ordinal)
+                && d.Message.Contains("must be 0 or 1", StringComparison.Ordinal)
         );
     }
 

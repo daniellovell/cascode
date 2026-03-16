@@ -445,4 +445,56 @@ bench PssMalformedWaveform {{
         );
         Assert.Contains("equal length and at least two samples", ex.Message);
     }
+
+    [Fact]
+    public void Pss_HarmonicPowerRejectsNonStrictlyIncreasingTimePoints()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssNonIncreasingTime {{
+  measurements {{
+    measurement FundamentalPower(VoltageWaveform vout) : W {{
+      return harmonic_power(vout, 50Ohm)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "PssNonIncreasingTime");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetricWithNamedArgs(
+                "FundamentalPower",
+                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["vout"] = new BenchWaveform(
+                        new[] { 0.0, 1e-6, 1e-6, 2e-6 },
+                        new[] { 0.0, 0.5, 0.5, 1.0 },
+                        BenchNumericKind.VoltageV
+                    ),
+                }
+            )
+        );
+        Assert.Contains("waveform time points must be strictly increasing", ex.Message);
+        Assert.Contains("'0'", ex.Message);
+    }
 }

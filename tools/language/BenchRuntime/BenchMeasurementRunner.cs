@@ -3057,9 +3057,11 @@ public sealed class BenchMeasurementRunner
             var ta = waveform.TimePointsS[i - 1] - t0;
             var tb = waveform.TimePointsS[i] - t0;
             var dt = tb - ta;
-            if (dt <= 0)
+            if (!double.IsFinite(dt) || dt <= 0)
             {
-                continue;
+                throw new InvalidOperationException(
+                    $"harmonic: waveform time points must be strictly increasing, got '{dt}'."
+                );
             }
 
             var fa = waveform.Values[i - 1] * Complex.Exp(-Complex.ImaginaryOne * omega * ta);

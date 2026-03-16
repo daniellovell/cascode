@@ -963,9 +963,10 @@ public static class BenchTestbenchEmitter
 
     private static string FormatUnitlessScalar(double value)
     {
-        if (value == Math.Round(value))
+        var rounded = Math.Round(value);
+        if (value == rounded && rounded >= long.MinValue && rounded <= long.MaxValue)
         {
-            return ((long)value).ToString(CultureInfo.InvariantCulture);
+            return ((long)rounded).ToString(CultureInfo.InvariantCulture);
         }
 
         var abs = Math.Abs(value);

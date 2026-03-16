@@ -47,4 +47,23 @@ public sealed class NgspiceWrdataPssParserTests
         Assert.Equal(new[] { 1.0, 1.5 }, ds.NodeVoltages["OUT"]);
         Assert.Equal(new[] { 2.0, 2.5 }, ds.NodeVoltages["IN"]);
     }
+
+    [Fact]
+    public void Parse_ThrowsOnInconsistentXAxisInRepeatedXFormat()
+    {
+        using var tmp = new TemporaryDirectory();
+        var path = Path.Combine(tmp.Path, "pss_inconsistent_x.wrdata");
+        File.WriteAllText(
+            path,
+            """
+            0.0  1.0  0.1  2.0
+            """
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            NgspiceWrdataPssParser.Parse(path, new[] { "OUT", "IN" })
+        );
+        Assert.Contains("Inconsistent wrdata X axis", ex.Message);
+        Assert.Contains("expected 0, got 0.1", ex.Message);
+    }
 }

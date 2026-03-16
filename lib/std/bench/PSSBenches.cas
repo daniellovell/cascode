@@ -100,7 +100,7 @@ bench SEOscPSS extends AbstractOutputPSS {
     net gnd : ground
     GND _ = new GND() { .GND--gnd }
 
-    Kick kick = new Kick(ic=1) {
+    Kick kick = new Kick(ic=1V) {
       .P--OUT
       .N--gnd
     }
@@ -129,7 +129,7 @@ bench DiffOscPSS extends AbstractOutputPSS {
     net gnd : ground
     GND _ = new GND() { .GND--gnd }
 
-    Kick kick = new Kick(ic=1) {
+    Kick kick = new Kick(ic=1V) {
       .P--OUT.P
       .N--OUT.N
     }

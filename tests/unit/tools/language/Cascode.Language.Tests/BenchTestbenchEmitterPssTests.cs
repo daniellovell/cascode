@@ -78,8 +78,8 @@ circuit Top {
     [Fact]
     public void EmitAll_EmitsPssCurrentWrdata_WhenCurrentIsRequested()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench PssBench {
   stim IN : analog
@@ -151,8 +151,8 @@ circuit Top {
     [Fact]
     public void EmitAll_EmitsKickAsAttocapWithInitialCondition()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench PssBench {
   resp OUT : analog
@@ -208,8 +208,8 @@ circuit Top {
     [Fact]
     public void EmitAll_ThrowsWhenKickMissingIcParameter()
     {
-        var cascode = """
-VERSION 4.0
+        var cascode = $$"""
+VERSION {{CascodeVersion.Current}}
 
 bench PssBench {
   resp OUT : analog

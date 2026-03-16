@@ -324,6 +324,143 @@ circuit Inverter(size NmosSize, size PmosSize) {{
     }
 
     [Fact]
+    public void HierarchyAndEmitter_ResolveForwardedFillScopedSizeAlias()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    size Pack = size(W=2u, L=180n, M=3)
+
+    Child child = new Child(LocalFillSize=Pack) {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Child {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(LocalFillSize) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "fill_scoped_size_alias.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var child = doc.Circuits.Single(c => c.Name == "Child");
+        child.Fill!.Sizes.Add(new SizeDeclaration { Name = "LocalFillSize" });
+
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.True(
+            validation.IsValid,
+            string.Join(", ", validation.GetErrors().Select(e => e.Message))
+        );
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        Assert.Contains("Mchild__MN", spice);
+        Assert.Contains("W=2u", spice);
+        Assert.Contains("L=180n", spice);
+        Assert.Contains("m=3", spice);
+    }
+
+    [Fact]
+    public void HierarchyValidator_ReportsMissingRequiredFillScopedSizePack()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    Child child = new Child() {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Child {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(LocalFillSize) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "missing_fill_scoped_size.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var child = doc.Circuits.Single(c => c.Name == "Child");
+        child.Fill!.Sizes.Add(new SizeDeclaration { Name = "LocalFillSize" });
+
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.False(validation.IsValid);
+
+        var errors = validation.GetErrors().ToList();
+        Assert.Contains(
+            errors,
+            e =>
+                e.Code == "HIER-007"
+                && e.Message.Contains("LocalFillSize", System.StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
     public void HierarchyAndEmitter_FailsOnMissingOrWrongKindForwardedSize()
     {
         static void AssertHierarchyValidationFailsWithMissingForwardedSize(
