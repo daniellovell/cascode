@@ -13,6 +13,7 @@ public static class CompleteDocumentSemanticValidator
 
         LevelStructureValidator.Check(document, diagnostics);
         InterfaceContractValidator.Check(document, diagnostics);
+        InstanceTargetSemanticChecker.Check(document, diagnostics);
         BenchBindingChecker.Check(document, diagnostics);
     }
 

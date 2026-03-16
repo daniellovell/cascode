@@ -214,24 +214,27 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
     {
         return document
             .Circuits.SelectMany(circuit =>
-                (circuit.Fill?.Devices ?? new List<DeviceDeclaration>()).Select(device =>
-                    $"{circuit.Name}:{device.Id}:{FormatDeviceSize(device)}"
-                )
+                (circuit.Fill?.Instances ?? new List<InstanceDeclaration>())
+                    .Where(instance => instance.DeclaredType is "NMOS" or "PMOS")
+                    .Select(instance => $"{circuit.Name}:{instance.Id}:{FormatInstanceSize(instance)}")
             )
             .OrderBy(snapshot => snapshot, StringComparer.Ordinal)
             .ToArray();
     }
 
-    private static string FormatDeviceSize(DeviceDeclaration device)
+    private static string FormatInstanceSize(InstanceDeclaration instance)
     {
-        if (device.SizeName is not null)
+        if (
+            instance.Params.TryGetValue("value", out var value)
+            && !string.IsNullOrWhiteSpace(value.Symbolic)
+        )
         {
-            return $"named:{device.SizeName}";
+            return $"named:{value.Symbolic}";
         }
 
-        if (device.Size is not null)
+        if (instance.Sizes.TryGetValue("value", out var pack))
         {
-            return $"inline:{FormatSizePack(device.Size)}";
+            return $"inline:{FormatSizePack(pack)}";
         }
 
         return "none";

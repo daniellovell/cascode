@@ -120,6 +120,7 @@ public static class SpiceEmitter
 
         IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName = null;
         IReadOnlyDictionary<string, Circuit>? circuitsByName = null;
+        IReadOnlyDictionary<string, PartDefinition>? partsByName = null;
         if (document is not null)
         {
             primitivesByName = document.Primitives.ToDictionary(
@@ -127,6 +128,7 @@ public static class SpiceEmitter
                 StringComparer.Ordinal
             );
             circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+            partsByName = document.Parts.ToDictionary(p => p.Name, StringComparer.Ordinal);
         }
 
         // If the design uses generic MOS model names (e.g. nmos_level1), emit model cards so
@@ -160,6 +162,7 @@ public static class SpiceEmitter
                 writer,
                 deviceModelMap,
                 circuitsByName,
+                partsByName,
                 primitivesByName,
                 variantMap,
                 resolution,
@@ -801,6 +804,7 @@ public static class SpiceEmitter
         TextWriter writer,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         IReadOnlyDictionary<string, Circuit>? circuitsByName,
+        IReadOnlyDictionary<string, PartDefinition>? partsByName,
         IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
         IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap,
         CircuitResolutionResult? resolution,
@@ -849,7 +853,12 @@ public static class SpiceEmitter
             }
         }
 
-        if (circuit.Fill?.Instances.Count > 0 && circuitsByName is not null)
+        if (
+            circuit.Fill?.Instances.Count > 0
+            && circuitsByName is not null
+            && partsByName is not null
+            && primitivesByName is not null
+        )
         {
             bool hasEmittedCircuitInstancesHeader = false;
 
@@ -857,20 +866,46 @@ public static class SpiceEmitter
                 var instance in circuit.Fill.Instances.OrderBy(i => i.Id, StringComparer.Ordinal)
             )
             {
-                if (!circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+                if (
+                    !InstanceTargetResolver.TryResolveConcreteTarget(
+                        instance.Type,
+                        instance.DeclaredType,
+                        circuitsByName,
+                        partsByName,
+                        primitivesByName,
+                        out var target,
+                        out _
+                    )
+                )
                 {
                     continue;
                 }
 
+                if (target.Kind == InstanceTargetKind.Primitive)
+                {
+                    var device = CreateDeviceDeclaration(instance, target.Primitive!);
+                    EmitDevice(
+                        device,
+                        writer,
+                        deviceModelMap,
+                        primitivesByName,
+                        variant.ResolvedSizes,
+                        expressionContext,
+                        backend
+                    );
+                    continue;
+                }
+
+                if (target.Kind == InstanceTargetKind.Part)
+                {
+                    throw new InvalidOperationException(
+                        $"Part instance '{instance.Id}' cannot emit until part selection and entry resolution are available."
+                    );
+                }
+
+                var targetCircuit = target.Circuit!;
                 if (targetCircuit.Inline)
                 {
-                    if (primitivesByName is null)
-                    {
-                        throw new InvalidOperationException(
-                            "Primitive definitions are required for device emission. Provide the Cascode document when emitting."
-                        );
-                    }
-
                     writer.WriteLine();
                     writer.WriteLine($"* Inline expansion of {instance.Id} : {instance.Type}");
                     ExpandInlineCircuit(
@@ -883,6 +918,7 @@ public static class SpiceEmitter
                         parentParamBindings: variant.ResolvedParams,
                         parentSizeBindings: variant.ResolvedSizes,
                         circuitsByName,
+                        partsByName,
                         resolution,
                         deviceModelMap,
                         primitivesByName,
@@ -915,6 +951,36 @@ public static class SpiceEmitter
 
         writer.WriteLine();
         writer.WriteLine($".ends {variant.CanonicalName}");
+    }
+
+    private static DeviceDeclaration CreateDeviceDeclaration(
+        InstanceDeclaration instance,
+        PrimitiveDefinition primitive
+    )
+    {
+        string? sizeName = null;
+        SizePack? sizePack = null;
+        if (instance.Sizes.TryGetValue("value", out var inlineSize))
+        {
+            sizePack = inlineSize;
+        }
+        else if (
+            instance.Params.TryGetValue("value", out var value)
+            && !string.IsNullOrWhiteSpace(value.Symbolic)
+        )
+        {
+            sizeName = value.Symbolic;
+        }
+
+        return new DeviceDeclaration
+        {
+            DeviceType = primitive.Kind,
+            Id = instance.Id,
+            Primitive = primitive.Name,
+            SizeName = sizeName,
+            Size = sizePack,
+            Bindings = instance.Bindings,
+        };
     }
 
     /// <summary>
@@ -1128,6 +1194,7 @@ public static class SpiceEmitter
         IReadOnlyDictionary<string, string> parentParamBindings,
         IReadOnlyDictionary<string, SizePack> parentSizeBindings,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PartDefinition> partsByName,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
@@ -1191,12 +1258,47 @@ public static class SpiceEmitter
                 )
             )
             {
-                if (!circuitsByName.TryGetValue(nestedInstance.Type, out var nestedCircuit))
+                if (
+                    !InstanceTargetResolver.TryResolveConcreteTarget(
+                        nestedInstance.Type,
+                        nestedInstance.DeclaredType,
+                        circuitsByName,
+                        partsByName,
+                        primitivesByName,
+                        out var target,
+                        out _
+                    )
+                )
                 {
-                    // Unknown circuit type - skip (validation should catch this)
                     continue;
                 }
 
+                if (target.Kind == InstanceTargetKind.Primitive)
+                {
+                    EmitInlineDevice(
+                        CreateDeviceDeclaration(nestedInstance, target.Primitive!),
+                        currentPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution,
+                        deviceModelMap,
+                        primitivesByName,
+                        expressionContext,
+                        sizeBindings,
+                        writer,
+                        backend
+                    );
+                    continue;
+                }
+
+                if (target.Kind == InstanceTargetKind.Part)
+                {
+                    throw new InvalidOperationException(
+                        $"Part instance '{nestedInstance.Id}' cannot emit until part selection and entry resolution are available."
+                    );
+                }
+
+                var nestedCircuit = target.Circuit!;
                 if (nestedCircuit.Inline)
                 {
                     // Recursively expand nested inline circuit
@@ -1212,6 +1314,7 @@ public static class SpiceEmitter
                         paramBindings,
                         sizeBindings,
                         circuitsByName,
+                        partsByName,
                         resolution,
                         deviceModelMap,
                         primitivesByName,
@@ -1957,6 +2060,26 @@ public static class SpiceEmitter
             {
                 modelName = primitive.Device;
             }
+            if (GenericMosfetModels.Contains(modelName))
+            {
+                required.Add(modelName.ToLowerInvariant());
+            }
+        }
+
+        if (primitivesByName is null || circuit.Fill?.Instances is null)
+        {
+            return required;
+        }
+
+        foreach (var instance in circuit.Fill.Instances)
+        {
+            var primitiveName = InstanceTargetResolver.GetReferenceName(instance.Type);
+            if (!primitivesByName.TryGetValue(primitiveName, out var primitive))
+            {
+                continue;
+            }
+
+            var modelName = primitive.Device;
             if (GenericMosfetModels.Contains(modelName))
             {
                 required.Add(modelName.ToLowerInvariant());

@@ -385,7 +385,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
 
         // Fill block
         Assert.NotNull(circuit.Fill);
-        Assert.Equal(2, circuit.Fill.Devices.Count);
+        Assert.Equal(2, circuit.Fill.Instances.Count);
 
         // Bench definitions
         Assert.Single(doc.BenchDefinitions);
@@ -442,9 +442,9 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Contains(circuit.Ports, p => p.Name == "OUT");
         Assert.Contains(circuit.Ports, p => p.Name == "VBIAS");
 
-        // Fill block with 2 devices
+        // Fill block with 2 primitive instances
         Assert.NotNull(circuit.Fill);
-        Assert.Equal(2, circuit.Fill.Devices.Count);
+        Assert.Equal(2, circuit.Fill.Instances.Count);
 
         // Harness with bias
         Assert.NotNull(circuit.Harness);
@@ -475,20 +475,20 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Contains(circuit.Ports, p => p.Name == "IN");
         Assert.Contains(circuit.Ports, p => p.Name == "OUT");
 
-        // Fill block with 2 devices: 1 NMOS + 1 resistor
+        // Fill block with 2 primitive instances: 1 NMOS + 1 resistor
         Assert.NotNull(circuit.Fill);
-        Assert.Equal(2, circuit.Fill.Devices.Count);
+        Assert.Equal(2, circuit.Fill.Instances.Count);
 
-        // Verify we have both device types
-        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "NMOS");
-        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "Resistor");
+        // Verify we have both primitive instance declared types
+        Assert.Contains(circuit.Fill.Instances, i => i.DeclaredType == "NMOS");
+        Assert.Contains(circuit.Fill.Instances, i => i.DeclaredType == "Resistor");
 
-        // Verify resistor parameters
-        var resistor = circuit.Fill.Devices.First(d => d.DeviceType == "Resistor");
+        // Verify resistor constructor arguments
+        var resistor = circuit.Fill.Instances.First(i => i.DeclaredType == "Resistor");
         Assert.Equal("R_load", resistor.Id);
         Assert.Equal("VDD", resistor.Bindings["P"]);
         Assert.Equal("OUT", resistor.Bindings["N"]);
-        Assert.Equal("10k", resistor.Size?.Entries["R"]);
+        Assert.Equal("10k", resistor.Sizes["value"].Entries["R"]);
 
         // Harness without bias (simpler)
         Assert.NotNull(circuit.Harness);

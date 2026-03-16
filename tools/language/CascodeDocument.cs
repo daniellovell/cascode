@@ -302,7 +302,7 @@ public sealed class FillBlock
     /// <summary>Local size declarations.</summary>
     public List<SizeDeclaration> Sizes { get; init; } = new();
 
-    /// <summary>Instance declarations (ML level).</summary>
+    /// <summary>Instance declarations.</summary>
     public List<InstanceDeclaration> Instances { get; init; } = new();
 
     /// <summary>Device declarations (EL level).</summary>

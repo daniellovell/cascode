@@ -509,13 +509,25 @@ public static partial class CascodeWriter
     private static void WriteInstance(InstanceDeclaration inst, TextWriter writer, string indent)
     {
         var args = new List<string>();
+        var hasSinglePositionalSize = inst.Sizes.Count == 1 && inst.Sizes.ContainsKey("value");
+        var hasSinglePositionalParam =
+            inst.Params.Count == 1 && inst.Params.ContainsKey("value") && inst.Sizes.Count == 0;
+
         foreach (var size in inst.Sizes.OrderBy(s => s.Key, StringComparer.Ordinal))
         {
-            args.Add($"{size.Key}={FormatSizeExpr(size.Value)}");
+            args.Add(
+                hasSinglePositionalSize
+                    ? FormatSizeExpr(size.Value)
+                    : $"{size.Key}={FormatSizeExpr(size.Value)}"
+            );
         }
         foreach (var param in inst.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            args.Add($"{param.Key}={FormatParamValue(param.Value)}");
+            args.Add(
+                hasSinglePositionalParam
+                    ? FormatParamValue(param.Value)
+                    : $"{param.Key}={FormatParamValue(param.Value)}"
+            );
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;

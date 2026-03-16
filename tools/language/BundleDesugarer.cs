@@ -43,6 +43,11 @@ public static class BundleDesugarer
             c => c,
             StringComparer.Ordinal
         );
+        var primitivesByName = document.Primitives.ToDictionary(
+            p => p.Name,
+            p => p,
+            StringComparer.Ordinal
+        );
         var partsByName = document.Parts.ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
         var traitsByName = document.Traits.ToDictionary(
             t => t.Name,
@@ -64,7 +69,14 @@ public static class BundleDesugarer
             Parts = document.Parts,
             Circuits = document
                 .Circuits.Select(c =>
-                    DesugarCircuit(c, bundlesByName, circuitsByName, partsByName, traitsByName)
+                    DesugarCircuit(
+                        c,
+                        bundlesByName,
+                        circuitsByName,
+                        primitivesByName,
+                        partsByName,
+                        traitsByName
+                    )
                 )
                 .ToList(),
         };
@@ -188,6 +200,7 @@ public static class BundleDesugarer
         Circuit circuit,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName
     )
@@ -221,6 +234,7 @@ public static class BundleDesugarer
                     circuit.Slot,
                     bundlesByName,
                     circuitsByName,
+                    primitivesByName,
                     partsByName,
                     traitsByName
                 )
@@ -231,6 +245,7 @@ public static class BundleDesugarer
                     portTypes,
                     bundlesByName,
                     circuitsByName,
+                    primitivesByName,
                     partsByName,
                     traitsByName,
                     instanceTypes
@@ -337,6 +352,7 @@ public static class BundleDesugarer
         SlotBlock slot,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName
     )
@@ -351,7 +367,14 @@ public static class BundleDesugarer
             Nets = slot.Nets,
             Instances = slot
                 .Instances.Select(i =>
-                    DesugarInstance(i, bundlesByName, circuitsByName, partsByName, traitsByName)
+                    DesugarInstance(
+                        i,
+                        bundlesByName,
+                        circuitsByName,
+                        primitivesByName,
+                        partsByName,
+                        traitsByName
+                    )
                 )
                 .ToList(),
             Connections = slot.Connections,
@@ -366,6 +389,7 @@ public static class BundleDesugarer
         IReadOnlyDictionary<string, string> portTypes,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName,
         IReadOnlyDictionary<string, string> instanceTypes
@@ -379,6 +403,7 @@ public static class BundleDesugarer
                     i,
                     bundlesByName,
                     circuitsByName,
+                    primitivesByName,
                     partsByName,
                     traitsByName
                 );
@@ -431,6 +456,7 @@ public static class BundleDesugarer
         InstanceDeclaration instance,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
         IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         IReadOnlyDictionary<string, PartDefinition> partsByName,
         IReadOnlyDictionary<string, TraitDefinition> traitsByName
     )
@@ -439,8 +465,10 @@ public static class BundleDesugarer
 
         var childPortTypes = InstanceTargetResolver.ResolvePortTypes(
             instance.Type,
+            instance.DeclaredType,
             circuitsByName,
             partsByName,
+            primitivesByName,
             traitsByName
         );
 

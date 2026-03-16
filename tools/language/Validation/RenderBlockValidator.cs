@@ -56,9 +56,7 @@ public static class RenderBlockValidator
         }
 
         var messages = new List<RenderValidationMessage>();
-        var devicesByName =
-            circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
-            ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
+        var devicesByName = BuildRenderableDevices(circuit);
         var ports = circuit.Ports.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
         var nets = BuildNetSet(circuit);
 
@@ -216,8 +214,54 @@ public static class RenderBlockValidator
             }
         }
 
+        foreach (var instance in circuit.Fill?.Instances ?? Enumerable.Empty<InstanceDeclaration>())
+        {
+            if (!IsPrimitiveLikeInstance(instance))
+            {
+                continue;
+            }
+
+            foreach (var (_, netName) in instance.Bindings)
+            {
+                nets.Add(netName);
+            }
+        }
+
         return nets;
     }
+
+    private static IReadOnlyDictionary<string, DeviceDeclaration> BuildRenderableDevices(
+        Circuit circuit
+    )
+    {
+        var devices = new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
+        foreach (var device in circuit.Fill?.Devices ?? Enumerable.Empty<DeviceDeclaration>())
+        {
+            devices[device.Id] = device;
+        }
+
+        foreach (var instance in circuit.Fill?.Instances ?? Enumerable.Empty<InstanceDeclaration>())
+        {
+            if (!IsPrimitiveLikeInstance(instance))
+            {
+                continue;
+            }
+
+            devices[instance.Id] = new DeviceDeclaration
+            {
+                DeviceType = instance.DeclaredType!,
+                Id = instance.Id,
+                Primitive = instance.Type,
+                Bindings = instance.Bindings,
+            };
+        }
+
+        return devices;
+    }
+
+    private static bool IsPrimitiveLikeInstance(InstanceDeclaration instance) =>
+        instance.DeclaredType is "NMOS" or "PMOS" or "Resistor" or "Capacitor" or "Inductor"
+            or "Diode";
 
     /// <summary>
     /// Validate a render placement and return it if it is valid; otherwise record a validation message and return null.

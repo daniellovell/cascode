@@ -491,16 +491,28 @@ public static class BenchTestbenchEmitter
         }
 
         var fill = circuit.Fill;
-        if (fill?.Devices is null || fill.Devices.Count == 0)
+        if (fill is null)
         {
             throw new InvalidOperationException(
                 $"op_param requires circuit '{circuit.Name}' to contain a single-device fill block."
             );
         }
 
-        var device = fill.Devices.FirstOrDefault(d =>
-            d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
-        );
+        var device =
+            fill.Devices.FirstOrDefault(d => d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase))
+            ?? fill
+                .Instances.Where(i =>
+                    i.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
+                    && i.DeclaredType is "NMOS" or "PMOS"
+                )
+                .Select(i => new DeviceDeclaration
+                {
+                    DeviceType = i.DeclaredType!,
+                    Id = i.Id,
+                    Primitive = InstanceTargetResolver.GetReferenceName(i.Type),
+                    Bindings = i.Bindings,
+                })
+                .FirstOrDefault();
         if (device is null)
         {
             throw new InvalidOperationException(

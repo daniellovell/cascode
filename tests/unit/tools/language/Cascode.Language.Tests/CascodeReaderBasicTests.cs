@@ -85,6 +85,55 @@ primitive NMOS_Level1(size primSize) implements NMOS {{
     }
 
     [Fact]
+    public void TryParse_PrimitiveConstructor_RemainsInstanceDeclaration()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS_Level1(size primSize) implements NMOS {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit TestCircuit {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n, M=1)) {{
+      .G--IN
+      .D--OUT
+      .S--GND
+      .B--GND
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+
+        Assert.True(result.Success);
+        var circuit = Assert.Single(result.Document!.Circuits);
+        Assert.NotNull(circuit.Fill);
+        Assert.Empty(circuit.Fill!.Devices);
+        var instance = Assert.Single(circuit.Fill.Instances);
+        Assert.Equal("M1", instance.Id);
+        Assert.Equal("NMOS", instance.DeclaredType);
+        Assert.Equal("NMOS_Level1", instance.Type);
+        Assert.True(instance.Sizes.ContainsKey("value"));
+        Assert.Equal("IN", instance.Bindings["G"]);
+        Assert.Equal("OUT", instance.Bindings["D"]);
+        Assert.Equal("GND", instance.Bindings["S"]);
+        Assert.Equal("GND", instance.Bindings["B"]);
+    }
+
+    [Fact]
     public void TryParse_LegacyPrimitiveDeclarationShape_IsRejected()
     {
         const string legacyKind = "NMOS";
@@ -644,14 +693,14 @@ circuit TestCircuit {{
 
         var circuit = result.Document!.Circuits.First();
         Assert.NotNull(circuit.Fill);
-        Assert.Single(circuit.Fill!.Devices);
+        Assert.Single(circuit.Fill!.Instances);
 
-        var device = circuit.Fill.Devices[0];
-        Assert.Equal("M1", device.Id);
-        Assert.Equal("IN", device.Bindings["G"]);
-        Assert.Equal("OUT", device.Bindings["D"]);
-        Assert.Equal("GND", device.Bindings["S"]);
-        Assert.Equal("GND", device.Bindings["B"]);
+        var instance = circuit.Fill.Instances[0];
+        Assert.Equal("M1", instance.Id);
+        Assert.Equal("IN", instance.Bindings["G"]);
+        Assert.Equal("OUT", instance.Bindings["D"]);
+        Assert.Equal("GND", instance.Bindings["S"]);
+        Assert.Equal("GND", instance.Bindings["B"]);
     }
 
     [Theory]

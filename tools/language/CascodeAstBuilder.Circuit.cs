@@ -350,15 +350,7 @@ internal sealed partial class CascodeAstBuilder
                     break;
 
                 case CascodeParser.FillInstanceStatementContext instanceCtx:
-                    var instance = BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl());
-                    if (TryBuildDevice(instance, out var device))
-                    {
-                        fill.Devices.Add(device);
-                    }
-                    else
-                    {
-                        fill.Instances.Add(instance);
-                    }
+                    fill.Instances.Add(BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl()));
                     break;
 
                 case CascodeParser.FillSomeInstanceStatementContext someInstanceCtx:
@@ -392,59 +384,6 @@ internal sealed partial class CascodeAstBuilder
 
         return fill;
     }
-
-    private bool TryBuildDevice(InstanceDeclaration instance, out DeviceDeclaration device)
-    {
-        device = default!;
-
-        if (
-            string.IsNullOrWhiteSpace(instance.DeclaredType)
-            || !IsPrimitiveDeclaredType(instance.DeclaredType)
-            || instance.Selection.Count > 0
-            || instance.Bindings.Count == 0
-            || instance.Params.Count > 1
-            || instance.Sizes.Count > 1
-        )
-        {
-            return false;
-        }
-
-        string? sizeName = null;
-        SizePack? sizePack = null;
-        if (instance.Sizes.Count == 1 && instance.Sizes.TryGetValue("value", out var inlineSize))
-        {
-            sizePack = inlineSize;
-        }
-        else if (instance.Params.Count == 1 && instance.Params.TryGetValue("value", out var value))
-        {
-            if (!string.IsNullOrWhiteSpace(value.Symbolic))
-            {
-                sizeName = value.Symbolic;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else if (instance.Params.Count > 0 || instance.Sizes.Count > 0)
-        {
-            return false;
-        }
-
-        device = new DeviceDeclaration
-        {
-            DeviceType = instance.DeclaredType!,
-            Id = instance.Id,
-            Bindings = instance.Bindings,
-            Primitive = instance.Type,
-            SizeName = sizeName,
-            Size = sizePack,
-        };
-        return true;
-    }
-
-    private static bool IsPrimitiveDeclaredType(string declaredType) =>
-        declaredType is "NMOS" or "PMOS" or "Resistor" or "Capacitor" or "Inductor" or "Diode";
 
     private static Dictionary<string, string> BuildBindings(CascodeParser.BindingListContext ctx)
     {

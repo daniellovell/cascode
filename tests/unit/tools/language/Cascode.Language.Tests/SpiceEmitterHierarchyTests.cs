@@ -1322,7 +1322,7 @@ public class SpiceEmitterHierarchyTests
 
         // Verify devices
         Assert.NotNull(circuit.Fill);
-        Assert.Equal(2, circuit.Fill.Devices.Count);
+        Assert.Equal(2, circuit.Fill.Instances.Count);
     }
 
     [Fact]

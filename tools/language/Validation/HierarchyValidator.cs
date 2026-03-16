@@ -56,6 +56,7 @@ public static class HierarchyValidator
             }
         }
         var partsByName = doc.Parts.ToDictionary(p => p.Name, StringComparer.Ordinal);
+        var primitivesByName = doc.Primitives.ToDictionary(p => p.Name, StringComparer.Ordinal);
         var traitsByName = doc.Traits.ToDictionary(t => t.Name, StringComparer.Ordinal);
 
         // Validate each circuit's hierarchy
@@ -66,6 +67,7 @@ public static class HierarchyValidator
                 circuit,
                 circuitsByName,
                 partsByName,
+                primitivesByName,
                 traitsByName,
                 doc.Traits,
                 instanceIds,
@@ -103,6 +105,7 @@ public static class HierarchyValidator
         Circuit circuit,
         Dictionary<string, Circuit> circuitsByName,
         Dictionary<string, PartDefinition> partsByName,
+        Dictionary<string, PrimitiveDefinition> primitivesByName,
         Dictionary<string, TraitDefinition> traitsByName,
         List<TraitDefinition> traits,
         HashSet<string> instanceIds,
@@ -138,12 +141,20 @@ public static class HierarchyValidator
             if (
                 !InstanceTargetResolver.TryResolveConcreteTarget(
                     instance.Type,
+                    instance.DeclaredType,
                     circuitsByName,
                     partsByName,
-                    out var target
+                    primitivesByName,
+                    out var target,
+                    out var resolutionError
                 )
             )
             {
+                if (resolutionError is not InstanceTargetResolutionError.Unresolved)
+                {
+                    continue;
+                }
+
                 result.AddError(
                     "HIER-001",
                     $"Instance '{instance.Id}' references undefined circuit type '{instance.Type}'",
@@ -153,15 +164,55 @@ public static class HierarchyValidator
                 continue; // Cannot validate further without target circuit
             }
 
-            // HIER-002: Validate required parameters
-            ValidateInstanceParameters(instance, target.Parameters, circuit.Name, result);
+            if (target.Kind == InstanceTargetKind.Primitive)
+            {
+                ValidatePrimitiveArguments(instance, target, circuit.Name, result);
+            }
+            else
+            {
+                // HIER-002: Validate required parameters
+                ValidateInstanceParameters(instance, target.Parameters, circuit.Name, result);
 
-            // HIER-007: Validate required size packs
-            ValidateInstanceSizes(instance, target.Sizes, circuit.Name, result);
+                // HIER-007: Validate required size packs
+                ValidateInstanceSizes(instance, target.Sizes, circuit.Name, result);
+            }
 
             // HIER-003: Validate port coverage (bindings + attach)
             portAnalysis.ValidateInstancePortCoverage(instance, target.Ports);
         }
+    }
+
+    private static void ValidatePrimitiveArguments(
+        InstanceDeclaration instance,
+        InstanceTargetDefinition target,
+        string parentCircuitName,
+        ValidationResult result
+    )
+    {
+        if (target.Primitive is null || string.IsNullOrWhiteSpace(target.Primitive.SizeParameter))
+        {
+            return;
+        }
+
+        if (instance.Sizes.ContainsKey("value"))
+        {
+            return;
+        }
+
+        if (
+            instance.Params.TryGetValue("value", out var value)
+            && !string.IsNullOrWhiteSpace(value.Symbolic)
+        )
+        {
+            return;
+        }
+
+        result.AddError(
+            "HIER-007",
+            $"Instance '{instance.Id}' missing required size argument for primitive '{target.Name}'",
+            $"circuit {parentCircuitName}, instance {instance.Id} : {target.Name}",
+            "Add a positional size argument or a named size binding for the primitive constructor"
+        );
     }
 
     /// <summary>
@@ -423,17 +474,19 @@ public static class HierarchyValidator
                     continue;
                 }
 
+                var targetName = InstanceTargetResolver.GetReferenceName(instance.Type);
+
                 // Only add dependency if target exists and (if excludeInline) is not inline
                 if (excludeInline)
                 {
-                    if (circuitsByName.TryGetValue(instance.Type, out var target) && !target.Inline)
+                    if (circuitsByName.TryGetValue(targetName, out var target) && !target.Inline)
                     {
-                        graph[circuit.Name].Add(instance.Type);
+                        graph[circuit.Name].Add(targetName);
                     }
                 }
-                else if (circuitsByName.ContainsKey(instance.Type))
+                else if (circuitsByName.ContainsKey(targetName))
                 {
-                    graph[circuit.Name].Add(instance.Type);
+                    graph[circuit.Name].Add(targetName);
                 }
             }
         }
