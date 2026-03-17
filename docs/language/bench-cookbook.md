@@ -1,8 +1,7 @@
 # Bench cookbook
 
 This cookbook is a practical companion to the normative bench specification in
-[Chapter 4: Bench System](../../spec/language/Ch04_Bench_System.md). It collects patterns used in the
-[standard library](../../lib/std/bench/) and in the [golden examples](../../tests/golden/cas/).
+[Chapter 4: Bench System](../../spec/language/Ch04_Bench_System.md). It collects patterns used in the [standard library](../../lib/std/bench/) and in the [golden examples](../../tests/golden/cas/).
 
 Benches are executed when at least one of their measurements is referenced by a numeric constraint.
 When developing a new bench or binding, add a constraint that forces execution and inspect the
