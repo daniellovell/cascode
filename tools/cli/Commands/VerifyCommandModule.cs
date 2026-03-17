@@ -105,7 +105,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             );
         }
 
-        if (NeedsBenchRun(runContext.InputPath, inputs, out var runReason))
+        if (NeedsBenchRun(runContext.ResolvedCascodePath, inputs, out var runReason))
         {
             return RunThenVerify(parsed, runContext, output, jsonOptions, runReason);
         }

@@ -29,6 +29,7 @@ internal sealed partial class VerifyCommandModule
 
     private sealed record VerifyRunContext(
         string InputPath,
+        string ResolvedCascodePath,
         IReadOnlyList<Circuit> AllElCircuits,
         IReadOnlyList<Circuit> VerifiableCircuits
     );
@@ -104,6 +105,7 @@ internal sealed partial class VerifyCommandModule
 
         context = new VerifyRunContext(
             inputPath,
+            loaded.ResolvedPath,
             elCircuits,
             BenchVerificationTargets.CollectVerifiableCircuits(loaded.Document)
         );

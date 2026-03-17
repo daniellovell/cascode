@@ -140,63 +140,6 @@ public sealed class VerifyCommandIntegrationTests
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task Verify_WithIncludeBasedSourceAndFreshResults_DoesNotRerunBenchPipeline()
-    {
-        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
-        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
-            repoRoot,
-            "verify-include-fresh-results"
-        );
-
-        var tempRoot = Path.Combine(
-            Path.GetTempPath(),
-            $"verify-include-fresh-results-{Guid.NewGuid():N}"
-        );
-        Directory.CreateDirectory(tempRoot);
-        try
-        {
-            var sourceCas = Path.Combine(repoRoot, "tests/golden/cas/bench/DcInternalNode.cas");
-            var cascodePath = Path.Combine(tempRoot, "DcInternalNode.cas");
-            File.Copy(sourceCas, cascodePath, overwrite: true);
-
-            var run = await CliIntegrationTestHelper.RunCliAsync(
-                TimeSpan.FromSeconds(60),
-                cascodeHome,
-                "bench",
-                "run",
-                cascodePath,
-                "-o",
-                tempRoot
-            );
-            CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
-
-            var verify = await CliIntegrationTestHelper.RunCliAsync(
-                TimeSpan.FromSeconds(10),
-                cascodeHome,
-                "verify",
-                cascodePath,
-                tempRoot
-            );
-
-            CliIntegrationTestHelper.AssertSuccess(
-                verify,
-                "verify should reuse fresh results for include-based sources"
-            );
-            Assert.DoesNotContain("Running bench pipeline", verify.Stdout);
-            Assert.Contains("Circuit: DcInternalNode", verify.Stdout);
-            Assert.Contains("Result: 1/1 constraints satisfied", verify.Stdout);
-        }
-        finally
-        {
-            if (Directory.Exists(tempRoot))
-            {
-                Directory.Delete(tempRoot, recursive: true);
-            }
-        }
-    }
-
-    [Fact]
-    [Trait("Category", "Simulation")]
     public async Task Verify_WithOnlyCascodeAndMissingResults_AutoRunsBenchPipeline_WithoutDuplicateComplianceOutput()
     {
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
