@@ -140,6 +140,65 @@ public sealed class VerifyCommandIntegrationTests
 
     [Fact]
     [Trait("Category", "Simulation")]
+    public async Task Verify_WithExplicitResultsFromIncludedSource_DoesNotAutoRunBenchPipeline()
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            "verify-explicit-results-no-rerun"
+        );
+
+        var tempRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"verify-explicit-results-no-rerun-{Guid.NewGuid():N}"
+        );
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var sourceCas = Path.Combine(repoRoot, "tests/golden/cas/bench/SingleResistor.cas");
+            var cascodePath = Path.Combine(tempRoot, "SingleResistor.cas");
+            File.Copy(sourceCas, cascodePath, overwrite: true);
+
+            var run = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(60),
+                cascodeHome,
+                "bench",
+                "run",
+                cascodePath,
+                "-o",
+                tempRoot
+            );
+            CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+            var resultsPath = Path.Combine(tempRoot, "SingleResistor_results.json");
+            Assert.True(File.Exists(resultsPath), "combined results not found");
+
+            var verify = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(10),
+                cascodeHome,
+                "verify",
+                cascodePath,
+                resultsPath
+            );
+
+            CliIntegrationTestHelper.AssertSuccess(
+                verify,
+                "verify should reuse explicit results instead of rerunning benches"
+            );
+            Assert.DoesNotContain("Verification input is missing or stale", verify.Stdout);
+            Assert.DoesNotContain("Running bench pipeline.", verify.Stdout);
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
     public async Task Verify_WithOnlyCascodeAndMissingResults_AutoRunsBenchPipeline_WithoutDuplicateComplianceOutput()
     {
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();

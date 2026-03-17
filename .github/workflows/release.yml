@@ -251,21 +251,30 @@ jobs:
             mingw-w64-x86_64-gcc
       - name: build ngspice via installer (windows)
         if: startsWith(matrix.rid, 'win-')
-        shell: pwsh
+        shell: msys2 {0}
         env:
           CASCODE_HOME: ${{ github.workspace }}\\build\\ngspice-home\\${{ matrix.rid }}
           CASCODE_RUNTIME_RID: ${{ matrix.rid }}
         run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Path $env:CASCODE_HOME -Force | Out-Null
-          $jsonOutput = dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json
-          Write-Host $jsonOutput
-          $result = $jsonOutput | ConvertFrom-Json
-          if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
-            $message = if ([string]::IsNullOrWhiteSpace($result.Message)) { 'ngspice installation failed' } else { $result.Message }
-            throw $message
-          }
-          "NGSPICE_INSTALL_PATH=$($result.InstallPath)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          os.makedirs(os.environ["CASCODE_HOME"], exist_ok=True)
+          PY
+          json_output="$(dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json)"
+          printf '%s\n' "$json_output"
+          install_path="$(printf '%s\n' "$json_output" | python - <<'PY'
+          import json, sys
+          payload = json.load(sys.stdin)
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path:
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+              sys.exit(1)
+          PY
+          )"
+          printf 'NGSPICE_INSTALL_PATH=%s\n' "$install_path" >> "$GITHUB_ENV"
       - name: verify ngspice PSS support (unix)
         if: "!startsWith(matrix.rid, 'win-')"
         shell: bash

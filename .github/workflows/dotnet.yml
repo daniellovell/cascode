@@ -163,18 +163,31 @@ jobs:
 
       - name: Install ngspice via CLI (windows)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: msys2 {0}
         run: |
-          $jsonOutput = & ".\tools\cli\bin\Release\$env:DOTNET_TFM\Cascode.Cli.exe" install ngspice --from-source --json
-          Write-Host $jsonOutput
-          $result = $jsonOutput | ConvertFrom-Json
-          if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
-            $message = if ([string]::IsNullOrWhiteSpace($result.Message)) { "ngspice installation failed" } else { $result.Message }
-            throw $message
-          }
+          set -euo pipefail
+          json_output="$(./tools/cli/bin/Release/$DOTNET_TFM/Cascode.Cli.exe install ngspice --from-source --json)"
+          printf '%s\n' "$json_output"
+          install_path="$(printf '%s\n' "$json_output" | python - <<'PY'
+          import json, sys
+          payload = json.load(sys.stdin)
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path:
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+              sys.exit(1)
+          PY
+          )"
+          python - "$install_path" <<'PY'
+          import os
+          import sys
+          from pathlib import PureWindowsPath
 
-          $binDir = Split-Path -Parent $result.InstallPath
-          $binDir | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          bin_dir = str(PureWindowsPath(sys.argv[1]).parent)
+          with open(os.environ["GITHUB_PATH"], "a", encoding="utf-8") as handle:
+              handle.write(bin_dir + "\n")
+          PY
 
       - name: Verify ngspice installation
         run: ngspice --version
