@@ -29,6 +29,9 @@ internal static class SchematicApiDispatcher
             "convert.toCas" => ConvertToCas(session, requestJson),
             "render.schematic" => RenderSchematic(session, requestJson),
             "schematic.applyOperations" => ApplyOperations(session, requestJson),
+            "schematic.applyPlacementEdits" => ApplyPlacementEdits(session, requestJson),
+            "schematic.previewRoute" => PreviewRoute(session, requestJson),
+            "schematic.applyRouteEdit" => ApplyRouteEdit(session, requestJson),
             "job.start" => JobStart(session, requestJson),
             "job.poll" => JobPoll(session, requestJson),
             "job.cancel" => JobCancel(session, requestJson),
@@ -276,6 +279,94 @@ internal static class SchematicApiDispatcher
         var response = new JsonObject
         {
             ["schema"] = "cascode.apply/1.0",
+            ["document"] = ApiJson.SerializeDocumentNode(render),
+            ["sourceText"] = state.SourceText,
+        };
+
+        return response.ToJsonString(ApiJson.Options);
+    }
+
+    private static string ApplyPlacementEdits(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+
+        var state = GetDocumentState(session, root.RequireString("documentId"));
+        EnsureRevision(state, TryGetInt(root, "baseRevision"));
+
+        var changed = new HashSet<string>(StringComparer.Ordinal);
+        var operations = root.TryGetProperty("operations", out var operationsEl)
+            ? operationsEl.EnumerateArray().Select(operation => operation.Clone()).ToArray()
+            : Array.Empty<JsonElement>();
+
+        SchematicWorkflowService.ApplyPlacementEdits(state, operations, changed);
+        state.Revision++;
+        state.ChangedEntities = changed.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+
+        var render = SchematicDocumentBuilder.Build(
+            state,
+            RenderSchematicMode.RespectDocument,
+            allowRelaxation: false
+        );
+        state.SourceText = SerializeSource(state.Document);
+
+        var response = new JsonObject
+        {
+            ["schema"] = "cascode.applyPlacementEdits/1.0",
+            ["document"] = ApiJson.SerializeDocumentNode(render),
+            ["sourceText"] = state.SourceText,
+        };
+
+        return response.ToJsonString(ApiJson.Options);
+    }
+
+    private static string PreviewRoute(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+
+        var state = GetDocumentState(session, root.RequireString("documentId"));
+        EnsureRevision(state, TryGetInt(root, "baseRevision"));
+
+        var preview = SchematicWorkflowService.PreviewRoute(
+            state,
+            root.RequireString("mode"),
+            ParseRouteEndpoint(root.RequireProperty("start"), "start"),
+            ParseRouteEndpoint(root.RequireProperty("target"), "target")
+        );
+        return ApiJson.SerializeRoutePreview(preview);
+    }
+
+    private static string ApplyRouteEdit(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+
+        var state = GetDocumentState(session, root.RequireString("documentId"));
+        EnsureRevision(state, TryGetInt(root, "baseRevision"));
+
+        var changed = new HashSet<string>(StringComparer.Ordinal);
+        SchematicWorkflowService.ApplyRouteEdit(
+            state,
+            root.RequireString("mode"),
+            ParseRouteEndpoint(root.RequireProperty("start"), "start"),
+            ParseRouteEndpoint(root.RequireProperty("end"), "end"),
+            changed
+        );
+
+        state.Revision++;
+        state.ChangedEntities = changed.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+
+        var render = SchematicDocumentBuilder.Build(
+            state,
+            RenderSchematicMode.RespectDocument,
+            allowRelaxation: false
+        );
+        state.SourceText = SerializeSource(state.Document);
+
+        var response = new JsonObject
+        {
+            ["schema"] = "cascode.applyRouteEdit/1.0",
             ["document"] = ApiJson.SerializeDocumentNode(render),
             ["sourceText"] = state.SourceText,
         };
@@ -862,15 +953,39 @@ internal static class SchematicApiDispatcher
         };
     }
 
+    private static RouteEndpoint ParseRouteEndpoint(JsonElement element, string fieldName)
+    {
+        var kind = element.RequireString("kind");
+        return kind switch
+        {
+            "terminal" => new RouteEndpoint(
+                kind,
+                element.RequireString("token"),
+                element.RequireInt("x"),
+                element.RequireInt("y")
+            ),
+            "netAnchor" => new RouteEndpoint(
+                kind,
+                element.RequireString("token"),
+                element.RequireInt("x"),
+                element.RequireInt("y")
+            ),
+            "point" => new RouteEndpoint(
+                kind,
+                null,
+                element.RequireInt("x"),
+                element.RequireInt("y")
+            ),
+            _ => throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Invalid route endpoint kind '{kind}' for '{fieldName}'."
+            ),
+        };
+    }
+
     private static void EnsureManualSnapshotIfNeeded(DocumentState state)
     {
-        var circuit = FindCircuit(state);
-        if (circuit.Render?.Mode == RenderLayoutMode.Manual)
-        {
-            return;
-        }
-
-        circuit.Render = ManualRenderSnapshotBuilder.Build(state, circuit);
+        ManualRenderSnapshotService.EnsureManualRender(state);
     }
 
     private static RenderBlock? BuildPersistedRender(
@@ -882,7 +997,7 @@ internal static class SchematicApiDispatcher
         return mode switch
         {
             RenderSchematicMode.Manual when circuit.Render?.Mode != RenderLayoutMode.Manual =>
-                ManualRenderSnapshotBuilder.Build(state, circuit),
+                ManualRenderSnapshotService.Build(state, circuit),
             RenderSchematicMode.Manual when circuit.Render is not null => new RenderBlock
             {
                 Mode = RenderLayoutMode.Manual,

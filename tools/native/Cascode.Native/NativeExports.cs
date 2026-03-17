@@ -165,6 +165,42 @@ public static unsafe class NativeExports
     }
 
     /// <summary>
+    /// Dispatches a "schematic.applyPlacementEdits" request for the specified session.
+    /// </summary>
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <c>IntPtr.Zero</c> if an error occurred. In case of error the session's last error is updated.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_apply_placement_edits")]
+    public static IntPtr SchematicApplyPlacementEdits(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "schematic.applyPlacementEdits");
+    }
+
+    /// <summary>
+    /// Dispatches a "schematic.previewRoute" request for the specified session.
+    /// </summary>
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <c>IntPtr.Zero</c> if an error occurred. In case of error the session's last error is updated.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_preview_route")]
+    public static IntPtr SchematicPreviewRoute(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "schematic.previewRoute");
+    }
+
+    /// <summary>
+    /// Dispatches a "schematic.applyRouteEdit" request for the specified session.
+    /// </summary>
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <c>IntPtr.Zero</c> if an error occurred. In case of error the session's last error is updated.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_apply_route_edit")]
+    public static IntPtr SchematicApplyRouteEdit(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "schematic.applyRouteEdit");
+    }
+
+    /// <summary>
     /// Invokes the "erc.run" API method for the specified session.
     /// </summary>
     /// <param name="session">The session identifier returned by CreateSession.</param>

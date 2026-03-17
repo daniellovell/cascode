@@ -203,11 +203,19 @@ function tryLoadFromLocalBuild(errors) {
  */
 function loadAddonOrThrow() {
   const errors = [];
+  const preferLocalBuild = Boolean(process.env.CASCODE_NATIVE_LIB);
+  if (preferLocalBuild) {
+    const localAddon = tryLoadFromLocalBuild(errors);
+    if (localAddon) return localAddon;
+  }
+
   const prebuiltAddon = tryLoadFromPrebuiltPackage(errors);
   if (prebuiltAddon) return prebuiltAddon;
 
-  const localAddon = tryLoadFromLocalBuild(errors);
-  if (localAddon) return localAddon;
+  if (!preferLocalBuild) {
+    const localAddon = tryLoadFromLocalBuild(errors);
+    if (localAddon) return localAddon;
+  }
 
   throw new Error(
     "[cascode-native] Failed to load native addon.\n" +

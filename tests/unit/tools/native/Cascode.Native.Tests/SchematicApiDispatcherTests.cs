@@ -571,6 +571,344 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void PreviewRoute_ReturnsOrthogonalSegmentsBetweenTerminalAndTerminal()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var start = opened
+            .RootElement.GetProperty("renderCache")
+            .GetProperty("terminalPoints")
+            .GetProperty("M1")
+            .GetProperty("G");
+        var target = opened
+            .RootElement.GetProperty("renderCache")
+            .GetProperty("terminalPoints")
+            .GetProperty("M2")
+            .GetProperty("G");
+
+        var preview = Dispatch(
+            session.State,
+            "schematic.previewRoute",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["mode"] = "connect",
+                ["start"] = new JsonObject
+                {
+                    ["kind"] = "terminal",
+                    ["token"] = "M1.G",
+                    ["x"] = start.GetProperty("x").GetDouble(),
+                    ["y"] = start.GetProperty("y").GetDouble(),
+                },
+                ["target"] = new JsonObject
+                {
+                    ["kind"] = "terminal",
+                    ["token"] = "M2.G",
+                    ["x"] = target.GetProperty("x").GetDouble(),
+                    ["y"] = target.GetProperty("y").GetDouble(),
+                },
+            }
+        );
+
+        Assert.True(preview.RootElement.GetProperty("valid").GetBoolean());
+        AssertOrthogonalSegments(preview.RootElement.GetProperty("segments").EnumerateArray());
+    }
+
+    [Fact]
+    public void PreviewRoute_ReturnsOrthogonalSegmentsBetweenTerminalAndExistingNetAnchor()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var start = opened
+            .RootElement.GetProperty("renderCache")
+            .GetProperty("terminalPoints")
+            .GetProperty("M1")
+            .GetProperty("G");
+        var netPoint = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("nets")
+            .EnumerateArray()
+            .Single(net => net.GetProperty("name").GetString() == "n1")
+            .GetProperty("segments")
+            .EnumerateArray()
+            .First()
+            .GetProperty("from");
+
+        var preview = Dispatch(
+            session.State,
+            "schematic.previewRoute",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["mode"] = "connect",
+                ["start"] = new JsonObject
+                {
+                    ["kind"] = "terminal",
+                    ["token"] = "M1.G",
+                    ["x"] = start.GetProperty("x").GetDouble(),
+                    ["y"] = start.GetProperty("y").GetDouble(),
+                },
+                ["target"] = new JsonObject
+                {
+                    ["kind"] = "netAnchor",
+                    ["token"] = "n1",
+                    ["x"] = netPoint.GetProperty("x").GetDouble(),
+                    ["y"] = netPoint.GetProperty("y").GetDouble(),
+                },
+            }
+        );
+
+        Assert.True(preview.RootElement.GetProperty("valid").GetBoolean());
+        AssertOrthogonalSegments(preview.RootElement.GetProperty("segments").EnumerateArray());
+    }
+
+    [Fact]
+    public void ApplyRouteEdit_InManualMode_PersistsExplicitOrthogonalSegments()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var rendered = Dispatch(
+            session.State,
+            "render.schematic",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["mode"] = "manual",
+                ["persist"] = true,
+            }
+        );
+        var start = rendered
+            .RootElement.GetProperty("document")
+            .GetProperty("renderCache")
+            .GetProperty("terminalPoints")
+            .GetProperty("M1")
+            .GetProperty("G");
+        var end = rendered
+            .RootElement.GetProperty("document")
+            .GetProperty("layout")
+            .GetProperty("ports")
+            .EnumerateArray()
+            .Single(port => port.GetProperty("name").GetString() == "OUT")
+            .GetProperty("position");
+
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyRouteEdit",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 2,
+                ["mode"] = "connect",
+                ["start"] = new JsonObject
+                {
+                    ["kind"] = "terminal",
+                    ["token"] = "M1.G",
+                    ["x"] = start.GetProperty("x").GetDouble(),
+                    ["y"] = start.GetProperty("y").GetDouble(),
+                },
+                ["end"] = new JsonObject
+                {
+                    ["kind"] = "netAnchor",
+                    ["token"] = "OUT",
+                    ["x"] = end.GetProperty("x").GetDouble(),
+                    ["y"] = end.GetProperty("y").GetDouble(),
+                },
+            }
+        );
+
+        Assert.Equal(
+            "manual",
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+
+        var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
+        AssertManualRenderHasNoCompletenessErrors(circuit);
+        AssertOrthogonalSegments(
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("layout")
+                .GetProperty("nets")
+                .EnumerateArray()
+                .SelectMany(net => net.GetProperty("segments").EnumerateArray())
+        );
+        Assert.Contains(
+            circuit.Fill!.Connections,
+            connection =>
+                (connection.From == "M1.G" && connection.To == "OUT")
+                || (connection.From == "OUT" && connection.To == "M1.G")
+        );
+    }
+
+    [Fact]
+    public void ApplyRouteEdit_InAutoMode_PreservesAutoTopologySemantics()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyRouteEdit",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["mode"] = "connect",
+                ["start"] = new JsonObject
+                {
+                    ["kind"] = "terminal",
+                    ["token"] = "M1.G",
+                    ["x"] = 6,
+                    ["y"] = 5,
+                },
+                ["end"] = new JsonObject
+                {
+                    ["kind"] = "netAnchor",
+                    ["token"] = "OUT",
+                    ["x"] = 12,
+                    ["y"] = 5,
+                },
+            }
+        );
+
+        Assert.Equal(
+            "auto",
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+
+        var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
+        Assert.Null(circuit.Render);
+        Assert.Contains(
+            circuit.Fill!.Connections,
+            connection =>
+                (connection.From == "M1.G" && connection.To == "OUT")
+                || (connection.From == "OUT" && connection.To == "M1.G")
+        );
+    }
+
+    [Fact]
+    public void ApplyPlacementEdits_InManualMode_RebuildsOrthogonalRoutesAfterDrag()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var rendered = Dispatch(
+            session.State,
+            "render.schematic",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["mode"] = "manual",
+                ["persist"] = true,
+            }
+        );
+        var m1Position = rendered
+            .RootElement.GetProperty("document")
+            .GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M1")
+            .GetProperty("position");
+        var requestedX = m1Position.GetProperty("x").GetDouble() + 17;
+        var requestedY = m1Position.GetProperty("y").GetDouble() + 9;
+
+        var applied = Dispatch(
+            session.State,
+            "schematic.applyPlacementEdits",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 2,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "move-placement-1",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "M1",
+                        ["x"] = requestedX,
+                        ["y"] = requestedY,
+                    }
+                ),
+            }
+        );
+
+        Assert.Equal(
+            "manual",
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("renderSource")
+                .GetProperty("mode")
+                .GetString()
+        );
+        var movedDevice = applied
+            .RootElement.GetProperty("document")
+            .GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M1");
+        Assert.Equal(requestedX, movedDevice.GetProperty("position").GetProperty("x").GetDouble());
+        Assert.Equal(requestedY, movedDevice.GetProperty("position").GetProperty("y").GetDouble());
+
+        var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
+        AssertManualRenderHasNoCompletenessErrors(circuit);
+        AssertOrthogonalSegments(
+            applied
+                .RootElement.GetProperty("document")
+                .GetProperty("layout")
+                .GetProperty("nets")
+                .EnumerateArray()
+                .SelectMany(net => net.GetProperty("segments").EnumerateArray())
+        );
+    }
+
+    [Fact]
     public void ApplyOperations_SetPortSide_WritesRenderPortSide()
     {
         using var session = ApiSession.Create();
@@ -835,6 +1173,23 @@ public sealed class SchematicApiDispatcherTests
         Assert.DoesNotContain(
             validation.Messages,
             message => message.Text.Contains("Manual render requires", StringComparison.Ordinal)
+        );
+    }
+
+    private static void AssertOrthogonalSegments(IEnumerable<JsonElement> segments)
+    {
+        var segmentList = segments.ToList();
+        Assert.NotEmpty(segmentList);
+        Assert.All(
+            segmentList,
+            segment =>
+            {
+                var from = segment.GetProperty("from");
+                var to = segment.GetProperty("to");
+                var sameX = from.GetProperty("x").GetDouble() == to.GetProperty("x").GetDouble();
+                var sameY = from.GetProperty("y").GetDouble() == to.GetProperty("y").GetDouble();
+                Assert.True(sameX || sameY, "Expected preview segment to be orthogonal.");
+            }
         );
     }
 

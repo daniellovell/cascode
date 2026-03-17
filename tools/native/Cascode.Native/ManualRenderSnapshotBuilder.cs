@@ -4,17 +4,47 @@ namespace Cascode.Native;
 
 internal static class ManualRenderSnapshotBuilder
 {
-    public static RenderBlock Build(DocumentState state, Circuit circuit)
+    public static RenderBlock Build(
+        DocumentState state,
+        Circuit circuit,
+        RenderBlock? renderOverride = null
+    )
     {
+        var render = renderOverride ?? circuit.Render;
         var computation = SchematicConstraintResolver.ComputeRender(
             state.Document,
             circuit,
-            circuit.Render,
+            render,
             allowRelaxation: false
         );
+        return BuildFromComputation(circuit, render, computation);
+    }
+
+    public static RenderBlock BuildWithExactPlacementRouting(DocumentState state, Circuit circuit)
+    {
+        var render =
+            circuit.Render
+            ?? throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Manual snapshot could not find a render block for circuit '{circuit.Name}'."
+            );
+        var computation = SchematicConstraintResolver.ComputeExactManualPlacementRouting(
+            state.Document,
+            circuit,
+            render
+        );
+        return BuildFromComputation(circuit, render, computation);
+    }
+
+    private static RenderBlock BuildFromComputation(
+        Circuit circuit,
+        RenderBlock? render,
+        RenderComputationState computation
+    )
+    {
         var layout = SchematicLayoutProjection.BuildLayout(
             circuit,
-            circuit.Render,
+            render,
             computation.Placement,
             computation.Routing
         );
@@ -177,12 +207,24 @@ internal static class ManualRenderSnapshotBuilder
         var x = RoundToRenderUnit(point.X);
         var y = RoundToRenderUnit(point.Y);
         var anchor = anchors
-            .OrderBy(entry => entry.Key, StringComparer.Ordinal)
-            .FirstOrDefault(entry =>
+            .Where(entry =>
                 RoundToRenderUnit(entry.Value.X) == x && RoundToRenderUnit(entry.Value.Y) == y
-            );
+            )
+            .OrderBy(entry => GetAnchorPriority(entry.Key))
+            .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+            .FirstOrDefault();
 
         return anchor.Key is null ? new RenderAbsPoint(x, y) : new RenderRefPoint(anchor.Key, 0, 0);
+    }
+
+    private static int GetAnchorPriority(string anchor)
+    {
+        if (anchor.Contains('.', StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        return anchor.StartsWith("canvas ", StringComparison.Ordinal) ? 2 : 1;
     }
 
     private static string DescribePoint(RenderPointExpression point)

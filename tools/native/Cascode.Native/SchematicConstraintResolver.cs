@@ -98,6 +98,40 @@ internal static class SchematicConstraintResolver
         };
     }
 
+    public static RenderComputationState ComputeExactManualPlacementRouting(
+        CascodeDocument document,
+        Circuit circuit,
+        RenderBlock render,
+        RouteConstraintSet? routeConstraints = null
+    )
+    {
+        var attach = new AttachResolver(document).Resolve();
+        var resolution = attach.CircuitResults.GetValueOrDefault(circuit.Name);
+        var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
+        var graph = CircuitGraph.Build(flattened);
+
+        try
+        {
+            var exactPlacement = ExactSchematicResolver.ResolvePlacementContext(
+                flattened.RootCircuit,
+                graph,
+                render
+            );
+            var routing = ExactPlacementRouter.Route(graph, exactPlacement, routeConstraints);
+            return new RenderComputationState
+            {
+                Graph = graph,
+                Placement = exactPlacement.Placement,
+                Routing = routing,
+                Diagnostics = exactPlacement.Diagnostics,
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ApiException("CASAPI-MANUAL-INVALID", ex.Message);
+        }
+    }
+
     /// <summary>
     /// Builds a placement constraint set from the provided render block using resolved anchors.
     /// </summary>

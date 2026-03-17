@@ -36,6 +36,11 @@ internal static class ApiJson
             ) ?? new JsonObject();
     }
 
+    public static string SerializeRoutePreview(RoutePreviewResponse preview)
+    {
+        return JsonSerializer.Serialize(preview, ApiJsonContext.Default.RoutePreviewResponse);
+    }
+
     /// <summary>
     /// Serialize a <see cref="StructuralInfo"/> instance to a <see cref="JsonNode"/>.
     /// </summary>

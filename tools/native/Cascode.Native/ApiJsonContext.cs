@@ -8,5 +8,6 @@ namespace Cascode.Native;
     WriteIndented = false
 )]
 [JsonSerializable(typeof(SchematicDocumentResponse))]
+[JsonSerializable(typeof(RoutePreviewResponse))]
 [JsonSerializable(typeof(StructuralInfo))]
 internal sealed partial class ApiJsonContext : JsonSerializerContext;

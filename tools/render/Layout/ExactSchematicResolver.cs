@@ -17,6 +17,16 @@ public readonly record struct RenderUnitPoint(int X, int Y);
 
 public sealed record ResolvedRenderSegment(RenderUnitPoint From, RenderUnitPoint To);
 
+public sealed class ExactPlacementContext
+{
+    public required CoarseGridResult Placement { get; init; }
+    public required IReadOnlyList<TerminalPosition> TerminalPositions { get; init; }
+    public required IReadOnlyList<Obstacle> Obstacles { get; init; }
+    public required IReadOnlyList<RenderDiagnostic> Diagnostics { get; init; }
+    public required int CanvasWidth { get; init; }
+    public required int CanvasHeight { get; init; }
+}
+
 public static class ExactSchematicResolver
 {
     private sealed record DevicePlacement(
@@ -39,6 +49,7 @@ public static class ExactSchematicResolver
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(render);
 
+        var placementContext = ResolvePlacementContext(circuit, graph, render);
         var renderByName = render.Entities.ToDictionary(
             entity => entity.Name,
             StringComparer.Ordinal
@@ -47,22 +58,28 @@ public static class ExactSchematicResolver
         var portPlacements = ResolvePortPlacements(circuit, renderByName, devicePlacements);
         var anchors = BuildAnchorMap(devicePlacements, portPlacements);
         var segmentsByNet = ResolveNetSegments(graph, renderByName, anchors);
-        var terminalPositions = BuildTerminalPositions(graph, devicePlacements, portPlacements);
-
-        ValidateManualConnectivity(graph, terminalPositions, segmentsByNet);
+        ValidateManualConnectivity(graph, placementContext.TerminalPositions, segmentsByNet);
 
         var allSegments = segmentsByNet.Values.SelectMany(segments => segments).ToList();
-        var diagnostics = DetectOverlapDiagnostics(devicePlacements.Values, portPlacements.Values);
         var junctions = BuildJunctions(segmentsByNet);
-        var (canvasWidth, canvasHeight) = ComputeCanvasSize(
-            devicePlacements.Values,
-            portPlacements.Values,
-            allSegments
+        var canvasWidth = Math.Max(
+            placementContext.CanvasWidth,
+            allSegments.Count == 0
+                ? placementContext.CanvasWidth
+                : allSegments.Max(segment => Math.Max(segment.From.X, segment.To.X))
+                    + DeviceGeometry.CellWidth
+        );
+        var canvasHeight = Math.Max(
+            placementContext.CanvasHeight,
+            allSegments.Count == 0
+                ? placementContext.CanvasHeight
+                : allSegments.Max(segment => Math.Max(segment.From.Y, segment.To.Y))
+                    + DeviceGeometry.CellHeight
         );
 
         return new ExactSchematicResult
         {
-            Placement = BuildPlacement(devicePlacements.Values, graph, canvasWidth, canvasHeight),
+            Placement = placementContext.Placement,
             Routing = new RoutingResult
             {
                 Segments = allSegments,
@@ -74,9 +91,44 @@ public static class ExactSchematicResolver
                 ),
                 CanvasWidth = canvasWidth,
                 CanvasHeight = canvasHeight,
-                TerminalPositions = terminalPositions,
+                TerminalPositions = placementContext.TerminalPositions,
             },
+            Diagnostics = placementContext.Diagnostics,
+        };
+    }
+
+    public static ExactPlacementContext ResolvePlacementContext(
+        Circuit circuit,
+        CircuitGraph graph,
+        RenderBlock render
+    )
+    {
+        ArgumentNullException.ThrowIfNull(circuit);
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(render);
+
+        var renderByName = render.Entities.ToDictionary(
+            entity => entity.Name,
+            StringComparer.Ordinal
+        );
+        var devicePlacements = ResolveDevicePlacements(graph, renderByName);
+        var portPlacements = ResolvePortPlacements(circuit, renderByName, devicePlacements);
+        var terminalPositions = BuildTerminalPositions(graph, devicePlacements, portPlacements);
+        var diagnostics = DetectOverlapDiagnostics(devicePlacements.Values, portPlacements.Values);
+        var (canvasWidth, canvasHeight) = ComputeCanvasSize(
+            devicePlacements.Values,
+            portPlacements.Values,
+            Array.Empty<WireSegment>()
+        );
+
+        return new ExactPlacementContext
+        {
+            Placement = BuildPlacement(devicePlacements.Values, graph, canvasWidth, canvasHeight),
+            TerminalPositions = terminalPositions,
+            Obstacles = BuildObstacles(devicePlacements.Values),
             Diagnostics = diagnostics,
+            CanvasWidth = canvasWidth,
+            CanvasHeight = canvasHeight,
         };
     }
 
@@ -405,6 +457,86 @@ public static class ExactSchematicResolver
         }
 
         return diagnostics;
+    }
+
+    private static IReadOnlyList<Obstacle> BuildObstacles(IEnumerable<DevicePlacement> devices)
+    {
+        const int margin = 2;
+        var obstacles = new List<Obstacle>();
+        foreach (var device in devices)
+        {
+            var (minX, minY, maxX, maxY) = ComputeDeviceBounds(device);
+            obstacles.Add(
+                new Obstacle(
+                    MinX: (int)Math.Floor(minX) + margin,
+                    MinY: (int)Math.Floor(minY) + margin,
+                    MaxX: (int)Math.Ceiling(maxX) - margin,
+                    MaxY: (int)Math.Ceiling(maxY) - margin
+                )
+            );
+        }
+
+        return obstacles;
+    }
+
+    private static (double MinX, double MinY, double MaxX, double MaxY) ComputeDeviceBounds(
+        DevicePlacement device
+    )
+    {
+        var parsed =
+            SymbolLibrary.GetParsedSymbol(device.DeviceType)
+            ?? throw new InvalidOperationException(
+                $"Manual render does not support device type '{device.DeviceType}'."
+            );
+        var x0 = parsed.ViewBox[0];
+        var y0 = parsed.ViewBox[1];
+        var x1 = parsed.ViewBox[0] + parsed.ViewBox[2];
+        var y1 = parsed.ViewBox[1] + parsed.ViewBox[3];
+        var corners = new[]
+        {
+            TransformSymbolPoint(x0, y0, parsed, device.Position, device.Orientation),
+            TransformSymbolPoint(x1, y0, parsed, device.Position, device.Orientation),
+            TransformSymbolPoint(x0, y1, parsed, device.Position, device.Orientation),
+            TransformSymbolPoint(x1, y1, parsed, device.Position, device.Orientation),
+        };
+
+        return (
+            MinX: corners.Min(point => point.X),
+            MinY: corners.Min(point => point.Y),
+            MaxX: corners.Max(point => point.X),
+            MaxY: corners.Max(point => point.Y)
+        );
+    }
+
+    private static (double X, double Y) TransformSymbolPoint(
+        double x,
+        double y,
+        ParsedSymbol parsed,
+        RenderUnitPoint position,
+        RenderOrientation orientation
+    )
+    {
+        var centerX =
+            parsed.Terminals.Count > 0
+                ? parsed.Terminals.Values.Average(terminal => terminal.X)
+                : parsed.ViewBox[0] + parsed.ViewBox[2] / 2.0;
+        var centerY =
+            parsed.Terminals.Count > 0
+                ? parsed.Terminals.Values.Average(terminal => terminal.Y)
+                : parsed.ViewBox[1] + parsed.ViewBox[3] / 2.0;
+        var dx = (x - centerX) / DeviceGeometry.RoutingPitch;
+        var dy = (y - centerY) / DeviceGeometry.RoutingPitch;
+        if (orientation.MirrorX)
+        {
+            dx = -dx;
+        }
+
+        var angle = Mod360(orientation.Rotate) * Math.PI / 180.0;
+        var cos = Math.Cos(angle);
+        var sin = Math.Sin(angle);
+        var rotatedX = dx * cos - dy * sin;
+        var rotatedY = dx * sin + dy * cos;
+        return (X: ToPixelsExact(position.X + rotatedX), Y: ToPixelsExact(position.Y + rotatedY));
     }
 
     private static List<GridPoint> BuildJunctions(

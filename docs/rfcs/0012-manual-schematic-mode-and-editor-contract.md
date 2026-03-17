@@ -1,9 +1,9 @@
 # RFC-0012: Manual Schematic Mode And Editor Contract
 
 Status: Active
-Authors: Cascode + Designer maintainers
+Authors: Daniel Lovell
 Created: 2026-03-15
-Last Updated: 2026-03-15
+Last Updated: 2026-03-16
 
 ---
 
@@ -65,10 +65,17 @@ Supported authoring operations include:
 - `setPortSide`
 - `setNetSegments`
 
+Workflow-level native APIs include:
+
+- `schematic.applyPlacementEdits`
+- `schematic.previewRoute`
+- `schematic.applyRouteEdit`
+
 Manual mode constraints:
 
 - `setPortSide` rejects `auto` side in manual mode
 - manual updates must not be rewritten into solver-only behavior
+- workflow APIs may recompute and persist explicit orthogonal `seg` geometry when the document is already in `mode manual`
 
 ### Diagnostics
 
@@ -81,26 +88,3 @@ Diagnostics returned to editor clients are structured and preserve:
 - `geometry` (`point`, `segment`, `bbox`) where applicable
 
 Clients must not flatten diagnostics into message-only strings.
-
-## Designer Integration Contract
-
-Designer must support authoring (without source hand-editing) for all first-class manual primitives:
-
-- device placement
-- device orientation
-- port placement
-- port side
-- net segments
-
-Editor sync behavior:
-
-- after text update, do not force extra auto reflow over manual documents
-- preserve native error codes/details through boundary, sync controller, store, and panel
-
-## Canonical References
-
-- Language grammar: `tools/language/Cascode.g4`
-- Exact manual resolver: `tools/render/Layout/ExactSchematicResolver.cs`
-- Native operation applier: `tools/native/Cascode.Native/SchematicOperationApplier.cs`
-- Designer operation flow: `ide/designer/src/features/cascode-schematic/hooks/useSchematicOperations.ts`
-

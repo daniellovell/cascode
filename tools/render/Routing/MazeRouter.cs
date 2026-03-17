@@ -69,8 +69,28 @@ public static partial class MazeRouter
             placement.RowCount * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
 
         var terminals = ComputeTerminalPositions(placement, graph, canvasWidth, canvasHeight);
-        var terminalsByNet = GroupTerminalsByNet(terminals, graph);
         var obstacles = ObstacleMap.FromPlacement(placement, graph);
+        return RouteWithResolvedTerminals(
+            graph,
+            terminals,
+            obstacles,
+            canvasWidth,
+            canvasHeight,
+            constraints
+        );
+    }
+
+    internal static (RoutingResult Result, OccupiedSegments Occupied) RouteWithResolvedTerminals(
+        CircuitGraph graph,
+        IReadOnlyList<TerminalPosition> terminals,
+        IReadOnlyList<Obstacle> obstacles,
+        int canvasWidth,
+        int canvasHeight,
+        RouteConstraintSet? constraints = null
+    )
+    {
+        var terminalList = terminals.ToList();
+        var terminalsByNet = GroupTerminalsByNet(terminalList, graph);
         var occupied = new OccupiedSegments();
 
         var allSegments = new List<WireSegment>();
@@ -147,7 +167,7 @@ public static partial class MazeRouter
             AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
         }
 
-        var junctions = FindJunctions(allSegments, terminals);
+        var junctions = FindJunctions(allSegments, terminalList);
 
         var result = new RoutingResult
         {
@@ -156,7 +176,7 @@ public static partial class MazeRouter
             SegmentsByNet = segmentsByNet,
             CanvasWidth = canvasWidth,
             CanvasHeight = canvasHeight,
-            TerminalPositions = terminals,
+            TerminalPositions = terminalList,
         };
 
         return (result, occupied);
