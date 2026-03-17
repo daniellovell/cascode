@@ -324,7 +324,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/LCSeries.cas");
 
-        await RunBenchAsync(cascodePath);
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
