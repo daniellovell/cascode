@@ -102,34 +102,33 @@ internal static class SchematicApiDispatcher
         var baseRevision = TryGetInt(root, "baseRevision");
         EnsureRevision(state, baseRevision);
 
-        var sourceText = root.RequireString("text");
-        var read = CascodeReader.TryParse(sourceText, "<api>");
-        EnsureParseSuccess(read);
-
-        var selectedCircuit = SelectCircuit(
-            read.Document!,
-            root.TryGetString("circuit") ?? state.CircuitName
-        );
-
-        state.SourceText = sourceText;
-        state.Document = read.Document!;
-        state.CircuitName = selectedCircuit.Name;
-        state.Revision++;
-        state.ChangedEntities = Array.Empty<string>();
-
-        var render = SchematicDocumentBuilder.Build(
+        return DocumentStateTransactions.Commit(
             state,
-            RenderSchematicMode.RespectDocument,
-            allowRelaxation: false
-        );
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.document.update/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
+            draft =>
+            {
+                var sourceText = root.RequireString("text");
+                var read = CascodeReader.TryParse(sourceText, "<api>");
+                EnsureParseSuccess(read);
 
-        return response.ToJsonString(ApiJson.Options);
+                var selectedCircuit = SelectCircuit(
+                    read.Document!,
+                    root.TryGetString("circuit") ?? draft.CircuitName
+                );
+
+                draft.SourceText = sourceText;
+                draft.Document = read.Document!;
+                draft.CircuitName = selectedCircuit.Name;
+                draft.Revision++;
+                draft.ChangedEntities = Array.Empty<string>();
+
+                return BuildRenderedDocumentResponse(
+                    "cascode.document.update/1.0",
+                    draft,
+                    RenderSchematicMode.RespectDocument,
+                    allowRelaxation: false
+                );
+            }
+        );
     }
 
     /// <summary>
@@ -217,25 +216,29 @@ internal static class SchematicApiDispatcher
 
         if (mode != RenderSchematicMode.RespectDocument && persist)
         {
-            var circuit = FindCircuit(state);
-            var updated = CopyCircuitWithRender(
-                circuit,
-                BuildPersistedRender(state, circuit, mode)
+            return DocumentStateTransactions.Commit(
+                state,
+                draft =>
+                {
+                    var circuit = FindCircuit(draft);
+                    var updated = CopyCircuitWithRender(
+                        circuit,
+                        BuildPersistedRender(draft, circuit, mode)
+                    );
+                    draft.Document = ReplaceCircuit(draft.Document, updated);
+                    draft.SourceText = SerializeSource(draft.Document);
+                    draft.Revision++;
+                    return BuildRenderedDocumentResponse(
+                        "cascode.render/1.0",
+                        draft,
+                        mode,
+                        allowRelaxation
+                    );
+                }
             );
-            state.Document = ReplaceCircuit(state.Document, updated);
-            state.SourceText = SerializeSource(state.Document);
-            state.Revision++;
         }
 
-        var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation);
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.render/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
-
-        return response.ToJsonString(ApiJson.Options);
+        return BuildRenderedDocumentResponse("cascode.render/1.0", state, mode, allowRelaxation);
     }
 
     /// <summary>
@@ -250,40 +253,25 @@ internal static class SchematicApiDispatcher
 
         var state = GetDocumentState(session, root.RequireString("documentId"));
         EnsureRevision(state, TryGetInt(root, "baseRevision"));
-
-        var changed = new HashSet<string>(StringComparer.Ordinal);
         var operations = root.TryGetProperty("operations", out var operationsEl)
             ? operationsEl.EnumerateArray().ToArray()
             : Array.Empty<JsonElement>();
-
-        if (operations.Length > 0)
-        {
-            EnsureManualSnapshotIfNeeded(state);
-        }
-
-        foreach (var operation in operations)
-        {
-            SchematicOperationApplier.Apply(state, operation, changed);
-        }
-
-        state.Revision++;
-        state.ChangedEntities = changed.OrderBy(name => name, StringComparer.Ordinal).ToArray();
-
-        var render = SchematicDocumentBuilder.Build(
+        return CommitSchematicMutation(
             state,
-            RenderSchematicMode.RespectDocument,
-            allowRelaxation: false
+            "cascode.apply/1.0",
+            (draft, changed) =>
+            {
+                if (operations.Length > 0)
+                {
+                    EnsureManualSnapshotIfNeeded(draft);
+                }
+
+                foreach (var operation in operations)
+                {
+                    SchematicOperationApplier.Apply(draft, operation, changed);
+                }
+            }
         );
-        state.SourceText = SerializeSource(state.Document);
-
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.apply/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
-
-        return response.ToJsonString(ApiJson.Options);
     }
 
     private static string ApplyPlacementEdits(SessionState session, string requestJson)
@@ -293,31 +281,15 @@ internal static class SchematicApiDispatcher
 
         var state = GetDocumentState(session, root.RequireString("documentId"));
         EnsureRevision(state, TryGetInt(root, "baseRevision"));
-
-        var changed = new HashSet<string>(StringComparer.Ordinal);
         var operations = root.TryGetProperty("operations", out var operationsEl)
             ? operationsEl.EnumerateArray().Select(operation => operation.Clone()).ToArray()
             : Array.Empty<JsonElement>();
-
-        SchematicWorkflowService.ApplyPlacementEdits(state, operations, changed);
-        state.Revision++;
-        state.ChangedEntities = changed.OrderBy(name => name, StringComparer.Ordinal).ToArray();
-
-        var render = SchematicDocumentBuilder.Build(
+        return CommitSchematicMutation(
             state,
-            RenderSchematicMode.RespectDocument,
-            allowRelaxation: false
+            "cascode.applyPlacementEdits/1.0",
+            (draft, changed) =>
+                SchematicWorkflowService.ApplyPlacementEdits(draft, operations, changed)
         );
-        state.SourceText = SerializeSource(state.Document);
-
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.applyPlacementEdits/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
-
-        return response.ToJsonString(ApiJson.Options);
     }
 
     private static string PreviewRoute(SessionState session, string requestJson)
@@ -344,34 +316,18 @@ internal static class SchematicApiDispatcher
 
         var state = GetDocumentState(session, root.RequireString("documentId"));
         EnsureRevision(state, TryGetInt(root, "baseRevision"));
-
-        var changed = new HashSet<string>(StringComparer.Ordinal);
-        SchematicWorkflowService.ApplyRouteEdit(
+        return CommitSchematicMutation(
             state,
-            root.RequireString("mode"),
-            ParseRouteEndpoint(root.RequireProperty("start"), "start"),
-            ParseRouteEndpoint(root.RequireProperty("end"), "end"),
-            changed
+            "cascode.applyRouteEdit/1.0",
+            (draft, changed) =>
+                SchematicWorkflowService.ApplyRouteEdit(
+                    draft,
+                    root.RequireString("mode"),
+                    ParseRouteEndpoint(root.RequireProperty("start"), "start"),
+                    ParseRouteEndpoint(root.RequireProperty("end"), "end"),
+                    changed
+                )
         );
-
-        state.Revision++;
-        state.ChangedEntities = changed.OrderBy(name => name, StringComparer.Ordinal).ToArray();
-
-        var render = SchematicDocumentBuilder.Build(
-            state,
-            RenderSchematicMode.RespectDocument,
-            allowRelaxation: false
-        );
-        state.SourceText = SerializeSource(state.Document);
-
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.applyRouteEdit/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
-
-        return response.ToJsonString(ApiJson.Options);
     }
 
     /// <summary>
@@ -936,6 +892,49 @@ internal static class SchematicApiDispatcher
         using var writer = new StringWriter();
         CascodeWriter.Write(document, writer);
         return writer.ToString();
+    }
+
+    private static string CommitSchematicMutation(
+        DocumentState state,
+        string schema,
+        Action<DocumentState, HashSet<string>> mutate
+    )
+    {
+        return DocumentStateTransactions.Commit(
+            state,
+            draft =>
+            {
+                var changed = new HashSet<string>(StringComparer.Ordinal);
+                mutate(draft, changed);
+                draft.Revision++;
+                draft.ChangedEntities = changed
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToArray();
+                draft.SourceText = SerializeSource(draft.Document);
+                return BuildRenderedDocumentResponse(
+                    schema,
+                    draft,
+                    RenderSchematicMode.RespectDocument,
+                    allowRelaxation: false
+                );
+            }
+        );
+    }
+
+    private static string BuildRenderedDocumentResponse(
+        string schema,
+        DocumentState state,
+        RenderSchematicMode mode,
+        bool allowRelaxation
+    )
+    {
+        var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation);
+        return new JsonObject
+        {
+            ["schema"] = schema,
+            ["document"] = ApiJson.SerializeDocumentNode(render),
+            ["sourceText"] = state.SourceText,
+        }.ToJsonString(ApiJson.Options);
     }
 
     /// <summary>

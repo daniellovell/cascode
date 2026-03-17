@@ -57,7 +57,7 @@ internal static class SchematicWorkflowService
 
         try
         {
-            var previewState = CloneState(state);
+            var previewState = DocumentStateTransactions.Clone(state);
             var operation = BuildConnectionOperation(mode, start, target);
             SchematicOperationApplier.Apply(
                 previewState,
@@ -273,29 +273,6 @@ internal static class SchematicWorkflowService
         );
     }
 
-    private static DocumentState CloneState(DocumentState state)
-    {
-        var sourceText = SerializeSource(state.Document);
-        var read = CascodeReader.TryParse(sourceText, "<workflow-preview>");
-        if (!read.Success || read.Document is null)
-        {
-            throw new ApiException(
-                "CASAPI-INVALID-REQUEST",
-                "Could not clone the current document state for route preview."
-            );
-        }
-
-        return new DocumentState
-        {
-            DocumentId = state.DocumentId,
-            SourceText = sourceText,
-            Document = read.Document,
-            CircuitName = state.CircuitName,
-            Revision = state.Revision,
-            ChangedEntities = state.ChangedEntities.ToArray(),
-        };
-    }
-
     private static Circuit FindCircuit(DocumentState state)
     {
         var circuit = state.Document.Circuits.FirstOrDefault(c => c.Name == state.CircuitName);
@@ -308,12 +285,5 @@ internal static class SchematicWorkflowService
         }
 
         return circuit;
-    }
-
-    private static string SerializeSource(CascodeDocument document)
-    {
-        using var writer = new StringWriter();
-        CascodeWriter.Write(document, writer);
-        return writer.ToString();
     }
 }

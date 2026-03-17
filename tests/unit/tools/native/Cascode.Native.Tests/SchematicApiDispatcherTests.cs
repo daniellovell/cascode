@@ -986,6 +986,84 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void ApplyOperations_FailedDelete_DoesNotCommitPartialDocumentState()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildManualSourceWithDeviceAnchoredPort(),
+            }
+        );
+        var resistorPosition = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "R1")
+            .GetProperty("position");
+
+        var ex = Assert.Throws<ApiException>(() =>
+            Dispatch(
+                session.State,
+                "schematic.applyOperations",
+                new JsonObject
+                {
+                    ["documentId"] = "doc1",
+                    ["baseRevision"] = 1,
+                    ["operations"] = new JsonArray(
+                        new JsonObject
+                        {
+                            ["opId"] = "delete-r1",
+                            ["type"] = "deleteDevice",
+                            ["deviceId"] = "R1",
+                        }
+                    ),
+                }
+            )
+        );
+        Assert.Equal(
+            "Manual render could not resolve explicit port placement anchors for: OUT.",
+            ex.Message
+        );
+
+        var current = Dispatch(
+            session.State,
+            "convert.toCas",
+            new JsonObject { ["documentId"] = "doc1" }
+        );
+        Assert.Equal(1, current.RootElement.GetProperty("revision").GetInt32());
+        Assert.Contains("Resistor R1", current.RootElement.GetProperty("sourceText").GetString());
+
+        var moved = Dispatch(
+            session.State,
+            "schematic.applyPlacementEdits",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "move-r1",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "R1",
+                        ["x"] = (int)Math.Round(resistorPosition.GetProperty("x").GetDouble()) + 4,
+                        ["y"] = (int)Math.Round(resistorPosition.GetProperty("y").GetDouble()) + 2,
+                    }
+                ),
+            }
+        );
+
+        Assert.Equal(
+            2,
+            moved.RootElement.GetProperty("document").GetProperty("revision").GetInt32()
+        );
+    }
+
+    [Fact]
     public void RenderSchematic_ThrowsApiExceptionWhenSelectedCircuitIsMissing()
     {
         using var session = ApiSession.Create();
@@ -1398,6 +1476,45 @@ circuit ManualNative {{
     }}
     OUT {{
       place abs 0 0 hard
+      side right
+      seg ref R1.N ref OUT
+    }}
+    R1 place abs 10 5 hard
+  }}
+}}
+";
+    }
+
+    private static string BuildManualSourceWithDeviceAnchoredPort()
+    {
+        return $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit ManualDeleteFailure {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 0 hard
+      side left
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place ref R1.N 2 0 hard
       side right
       seg ref R1.N ref OUT
     }}
