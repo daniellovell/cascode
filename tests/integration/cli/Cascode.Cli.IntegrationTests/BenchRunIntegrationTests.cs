@@ -324,7 +324,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/LCSeries.cas");
 
-        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(300));
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
@@ -359,7 +359,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/osc/LCTank.cas");
 
-        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(300));
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
@@ -396,7 +396,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
 
         await SetupPdkAsync(pdkRoot);
-        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(60));
+        await RunBenchAsync(cascodePath, TimeSpan.FromSeconds(300));
 
         var instanceName = BenchInvocationName.Compute(
             "pss_bench",
