@@ -121,5 +121,6 @@ public sealed record PssDataset(
 public sealed record BenchWaveform(
     double[] TimePointsS,
     double[] Values,
-    BenchNumericKind ValueKind
+    BenchNumericKind ValueKind,
+    string? AnalysisName = null
 ) : BenchValue;

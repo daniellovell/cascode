@@ -93,6 +93,37 @@ public sealed class BenchRunServicePssTests
         );
     }
 
+    [Fact]
+    public void CreatePssAnalysisContext_PropagatesConfiguredHarmonics()
+    {
+        using var tempDir = new TemporaryDirectory();
+        var analysis = new BenchPlanAnalysis(
+            BenchValueType.PSSAnalysis,
+            "pss",
+            "time",
+            Samples: 0,
+            StartHz: 0,
+            StopHz: 0,
+            Harmonics: 7
+        );
+        var plan = CreatePlan(requiresCurrents: false);
+        var testbenchPath = Path.Combine(tempDir.Path, "Top_bench.sp");
+        File.WriteAllText(testbenchPath, "* dummy");
+
+        var nodesPath = BenchRuntimePaths.GetPssWrdataPath(
+            tempDir.Path,
+            plan.CircuitName,
+            plan.InstanceName,
+            analysis.Name
+        );
+        File.WriteAllText(nodesPath, "0 1.0\n1e-6 0.5\n");
+
+        var context = Assert.IsType<BenchMeasurementRunner.AnalysisContext>(
+            InvokeCreatePssAnalysisContext(analysis, plan, testbenchPath)
+        );
+        Assert.Equal(7, context.PssHarmonics);
+    }
+
     private static object? InvokeCreatePssAnalysisContext(
         BenchPlanAnalysis analysis,
         BenchPlan plan,

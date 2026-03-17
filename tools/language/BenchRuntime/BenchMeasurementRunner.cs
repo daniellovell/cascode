@@ -52,6 +52,7 @@ public sealed class BenchMeasurementRunner
     /// <param name="SParameters">S-parameter dataset when available.</param>
     /// <param name="SpNoise">S-parameter noise data when available.</param>
     /// <param name="Op">DC operating-point node voltages keyed by node name.</param>
+    /// <param name="PssHarmonics">Configured PSS harmonics count when available.</param>
     public sealed record AnalysisContext(
         string Name,
         double StartHz,
@@ -67,7 +68,8 @@ public sealed class BenchMeasurementRunner
         AcDataset? AcCurrents = null,
         BenchSParameterMatrix? SParameters = null,
         SpNoiseDataset? SpNoise = null,
-        IReadOnlyDictionary<string, double>? Op = null
+        IReadOnlyDictionary<string, double>? Op = null,
+        int? PssHarmonics = null
     );
 
     public BenchMeasurementRunner(
@@ -1954,7 +1956,12 @@ public sealed class BenchMeasurementRunner
             {
                 values[i] = TerminalVoltage(analysis.Tran, terminal, i);
             }
-            return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
+            return new BenchWaveform(
+                t,
+                values,
+                BenchNumericKind.VoltageV,
+                AnalysisName: analysisName
+            );
         }
 
         if (analysis.Pss is not null)
@@ -1965,7 +1972,12 @@ public sealed class BenchMeasurementRunner
             {
                 values[i] = TerminalVoltage(analysis.Pss, terminal, i);
             }
-            return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
+            return new BenchWaveform(
+                t,
+                values,
+                BenchNumericKind.VoltageV,
+                AnalysisName: analysisName
+            );
         }
 
         if (analysis.Ac is not null)
@@ -2015,7 +2027,8 @@ public sealed class BenchMeasurementRunner
             return new BenchWaveform(
                 analysis.TranCurrents.TimePoints,
                 signed,
-                BenchNumericKind.CurrentA
+                BenchNumericKind.CurrentA,
+                AnalysisName: analysisName
             );
         }
 
@@ -2032,7 +2045,8 @@ public sealed class BenchMeasurementRunner
             return new BenchWaveform(
                 analysis.PssCurrents.TimePoints,
                 signed,
-                BenchNumericKind.CurrentA
+                BenchNumericKind.CurrentA,
+                AnalysisName: analysisName
             );
         }
 
@@ -2777,6 +2791,14 @@ public sealed class BenchMeasurementRunner
             harmonicIndex = (int)k.Value;
         }
 
+        var maxHarmonic = ResolvePssHarmonicsForHarmonicPower(waveform);
+        if (harmonicIndex > maxHarmonic)
+        {
+            throw new InvalidOperationException(
+                $"harmonic_power: harmonic index '{harmonicIndex}' exceeds configured PSS harmonics '{maxHarmonic}'."
+            );
+        }
+
         var secondArg = args["impedance"];
         var harmonic = ComputeHarmonicPeakPhasor(waveform, harmonicIndex);
         double powerW;
@@ -2796,6 +2818,33 @@ public sealed class BenchMeasurementRunner
         }
 
         return new BenchNumber(BenchNumericKind.Scalar, powerW);
+    }
+
+    private int ResolvePssHarmonicsForHarmonicPower(BenchWaveform waveform)
+    {
+        var analysisName = waveform.AnalysisName;
+        if (analysisName is null)
+        {
+            throw new InvalidOperationException(
+                "harmonic_power: first argument must resolve to voltage(analysis, ...) or current(analysis, ...) expression."
+            );
+        }
+
+        if (!_analyses.TryGetValue(analysisName, out var analysis))
+        {
+            throw new InvalidOperationException(
+                $"harmonic_power: unknown analysis '{analysisName}'."
+            );
+        }
+
+        if (analysis.PssHarmonics is null)
+        {
+            throw new InvalidOperationException(
+                $"harmonic_power: analysis '{analysisName}' is missing PssHarmonics in runtime context."
+            );
+        }
+
+        return analysis.PssHarmonics.Value;
     }
 
     private BenchNumber EvalThd(MeasurementCall call, Dictionary<string, BenchValue> locals)

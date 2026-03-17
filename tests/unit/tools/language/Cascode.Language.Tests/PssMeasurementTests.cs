@@ -146,6 +146,7 @@ public sealed class PssMeasurementTests
                     StopHz: 0,
                     StartS: 0,
                     StopS: periodS,
+                    PssHarmonics: 20,
                     Pss: new PssDataset(
                         TimePoints: t,
                         NodeVoltages: new Dictionary<string, double[]>(
@@ -249,6 +250,7 @@ public sealed class PssMeasurementTests
                     StopHz: 0,
                     StartS: 0,
                     StopS: periodS,
+                    PssHarmonics: 20,
                     Pss: new PssDataset(
                         TimePoints: t,
                         NodeVoltages: new Dictionary<string, double[]>(
@@ -363,6 +365,7 @@ bench PssBuiltinsBench {{
                     StopHz: 0,
                     StartS: 0,
                     StopS: periodS,
+                    PssHarmonics: 5,
                     Pss: new PssDataset(
                         TimePoints: t,
                         NodeVoltages: new Dictionary<string, double[]>(
@@ -508,7 +511,7 @@ bench PssBuiltinTypeErrors {{
     }
 
     [Fact]
-    public void Pss_HarmonicPowerSupportsCurrentWaveformOverload()
+    public void Pss_HarmonicPowerRejectsWaveformsWithoutAnalysisOrigin()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -572,34 +575,214 @@ bench HarmonicPowerWaveformOverload {{
             new[] { new BenchNumber(BenchNumericKind.ImpedanceOhm, 50.0) }
         );
 
-        var availablePower = runner.RunMetricWithNamedArgs(
-            "AvailablePower",
-            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["vin"] = vinWaveform,
-                ["zs"] = zSource,
-            }
+        var availablePowerError = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetricWithNamedArgs(
+                "AvailablePower",
+                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["vin"] = vinWaveform,
+                    ["zs"] = zSource,
+                }
+            )
         );
-        var deliveredPower = runner.RunMetricWithNamedArgs(
-            "DeliveredPower",
-            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["vin"] = vinWaveform,
-                ["iin"] = iinWaveform,
-            }
-        );
-        var deliveredSecondHarmonicPower = runner.RunMetricWithNamedArgs(
-            "DeliveredSecondHarmonicPower",
-            new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["vin"] = vinWaveform,
-                ["iin"] = iinWaveform,
-            }
+        Assert.Contains(
+            "first argument must resolve to voltage(analysis, ...)",
+            availablePowerError.Message
         );
 
-        Assert.Equal(0.01, availablePower.Value, precision: 4);
-        Assert.Equal(0.005, deliveredPower.Value, precision: 4);
-        Assert.Equal(0.001, deliveredSecondHarmonicPower.Value, precision: 4);
+        var deliveredPowerError = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetricWithNamedArgs(
+                "DeliveredPower",
+                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["vin"] = vinWaveform,
+                    ["iin"] = iinWaveform,
+                }
+            )
+        );
+        Assert.Contains(
+            "first argument must resolve to voltage(analysis, ...)",
+            deliveredPowerError.Message
+        );
+
+        var deliveredSecondHarmonicPowerError = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetricWithNamedArgs(
+                "DeliveredSecondHarmonicPower",
+                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["vin"] = vinWaveform,
+                    ["iin"] = iinWaveform,
+                }
+            )
+        );
+        Assert.Contains(
+            "first argument must resolve to voltage(analysis, ...)",
+            deliveredSecondHarmonicPowerError.Message
+        );
+    }
+
+    [Fact]
+    public void Pss_HarmonicPowerRejectsIndexBeyondConfiguredHarmonics()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssHarmonicBounds {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=3)
+  }}
+
+  measurements {{
+    measurement ThirdHarmonicPower : W {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return harmonic_power(vout, 50Ohm, 3)
+    }}
+
+    measurement FourthHarmonicPower : W {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return harmonic_power(vout, 50Ohm, 4)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "PssHarmonicBounds");
+        const double periodS = 1e-6;
+        const int samples = 2001;
+        var t = new double[samples];
+        var vout = new double[samples];
+        for (var n = 0; n < samples; n++)
+        {
+            var tn = periodS * n / (samples - 1);
+            var phase = 2.0 * Math.PI * tn / periodS;
+            t[n] = tn;
+            vout[n] =
+                1.5 * Math.Sin(phase) + 0.8 * Math.Sin(2.0 * phase) + 0.25 * Math.Sin(3.0 * phase);
+        }
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: periodS,
+                    Pss: new PssDataset(
+                        TimePoints: t,
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUT"] = vout,
+                        }
+                    ),
+                    PssHarmonics: 3
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements: []
+        );
+
+        var third = runner.RunMetrics(new[] { "ThirdHarmonicPower" });
+        Assert.True(third["ThirdHarmonicPower"].Value > 0.0);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetrics(new[] { "FourthHarmonicPower" })
+        );
+        Assert.Contains("harmonic index '4' exceeds configured PSS harmonics '3'", ex.Message);
+    }
+
+    [Fact]
+    public void Pss_HarmonicPowerThrowsWhenAnalysisContextLacksPssHarmonics()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PssMissingHarmonicsInContext {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=3)
+  }}
+
+  measurements {{
+    measurement FundamentalPower : W {{
+      VoltageWaveform vout = voltage(pss, OUT)
+      return harmonic_power(vout, 50Ohm)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "PssMissingHarmonicsInContext"
+        );
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 1e-6,
+                    Pss: new PssDataset(
+                        TimePoints: new[] { 0.0, 1e-6 },
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUT"] = new[] { 0.0, 0.0 },
+                        }
+                    )
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements: []
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            runner.RunMetrics(new[] { "FundamentalPower" })
+        );
+        Assert.Contains("analysis 'pss' is missing PssHarmonics", ex.Message);
     }
 
     [Fact]
@@ -646,6 +829,7 @@ bench PssCurrentMissing {{
                     StopHz: 0,
                     StartS: 0,
                     StopS: 1e-6,
+                    PssHarmonics: 3,
                     Pss: new PssDataset(
                         TimePoints: new[] { 0.0, 1e-6 },
                         NodeVoltages: new Dictionary<string, double[]>(
@@ -700,9 +884,15 @@ bench PssCurrentMissing {{
             $@"VERSION {CascodeVersion.Current}
 
 bench PssMalformedWaveform {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=3)
+  }}
+
   measurements {{
-    measurement FundamentalPower(VoltageWaveform vout) : W {{
-      return harmonic_power(vout, 50Ohm)
+    measurement FundamentalPower : W {{
+      return harmonic_power(voltage(pss, OUT), 50Ohm)
     }}
   }}
 }}
@@ -721,25 +911,37 @@ bench PssMalformedWaveform {{
             functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
             analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
                 StringComparer.OrdinalIgnoreCase
-            ),
-            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 0,
+                    Pss: new PssDataset(
+                        TimePoints: new[] { 0.0 },
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUT"] = new[] { 0.25 },
+                        }
+                    ),
+                    PssHarmonics: 3
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
             env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
             harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
             constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            runner.RunMetricWithNamedArgs(
-                "FundamentalPower",
-                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["vout"] = new BenchWaveform(
-                        new[] { 0.0, 1e-6 },
-                        new[] { 0.25 },
-                        BenchNumericKind.VoltageV
-                    ),
-                }
-            )
+            runner.RunMetrics(new[] { "FundamentalPower" })
         );
         Assert.Contains("equal length and at least two samples", ex.Message);
     }
@@ -751,9 +953,15 @@ bench PssMalformedWaveform {{
             $@"VERSION {CascodeVersion.Current}
 
 bench PssNonIncreasingTime {{
+  resp OUT : analog
+
+  analysis {{
+    PSSAnalysis pss = new PSSAnalysis(guess_frequency=1MHz, stabilization_time=10us, harmonics=3)
+  }}
+
   measurements {{
-    measurement FundamentalPower(VoltageWaveform vout) : W {{
-      return harmonic_power(vout, 50Ohm)
+    measurement FundamentalPower : W {{
+      return harmonic_power(voltage(pss, OUT), 50Ohm)
     }}
   }}
 }}
@@ -772,25 +980,37 @@ bench PssNonIncreasingTime {{
             functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
             analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
                 StringComparer.OrdinalIgnoreCase
-            ),
-            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            )
+            {
+                ["pss"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "pss",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 2e-6,
+                    Pss: new PssDataset(
+                        TimePoints: new[] { 0.0, 1e-6, 1e-6, 2e-6 },
+                        NodeVoltages: new Dictionary<string, double[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["OUT"] = new[] { 0.0, 0.5, 0.5, 1.0 },
+                        }
+                    ),
+                    PssHarmonics: 3
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
             env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
             harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
             constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
         );
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            runner.RunMetricWithNamedArgs(
-                "FundamentalPower",
-                new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["vout"] = new BenchWaveform(
-                        new[] { 0.0, 1e-6, 1e-6, 2e-6 },
-                        new[] { 0.0, 0.5, 0.5, 1.0 },
-                        BenchNumericKind.VoltageV
-                    ),
-                }
-            )
+            runner.RunMetrics(new[] { "FundamentalPower" })
         );
         Assert.Contains("waveform time points must be strictly increasing", ex.Message);
         Assert.Contains("'0'", ex.Message);

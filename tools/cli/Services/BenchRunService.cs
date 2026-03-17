@@ -2107,7 +2107,8 @@ public class BenchRunService
             StopS: nodes.TimePoints[nodes.TimePoints.Length - 1],
             Ac: null,
             Pss: nodes,
-            PssCurrents: currents
+            PssCurrents: currents,
+            PssHarmonics: a.Harmonics
         );
     }
 
