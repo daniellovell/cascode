@@ -51,7 +51,7 @@ circuit RCRingOsc_Sky130 implements SingleEndedOscillator {
     size NCore = size(W=8u, L=180n, M=2)
     size PCore = size(W=16u, L=180n, M=2)
 
-    // Give the LC core a lightly isolated local supply, so autonomous PSS is numerically stable.
+    // Give the ring oscillator a lightly isolated local supply, so autonomous PSS is numerically stable.
     Resistor R_VDD = new ResistorIdeal(size(R=1)) {
       .P--VDD
       .N--vosc
