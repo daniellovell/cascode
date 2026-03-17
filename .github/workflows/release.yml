@@ -122,8 +122,14 @@ jobs:
             rid: osx-arm64
           - os: windows-latest
             rid: win-x64
+            msystem: MINGW64
+            msys2_packages: mingw-w64-x86_64-gcc
           - os: windows-latest
             rid: win-arm64
+            msystem: CLANGARM64
+            msys2_packages: >-
+              mingw-w64-clang-aarch64-clang
+              mingw-w64-clang-aarch64-gcc-compat
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -238,7 +244,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          msystem: MINGW64
+          msystem: ${{ matrix.msystem }}
           path-type: inherit
           install: >-
             autoconf
@@ -248,7 +254,7 @@ jobs:
             gawk
             libtool
             make
-            mingw-w64-x86_64-gcc
+            ${{ matrix.msys2_packages }}
       - name: build ngspice via installer (windows)
         if: startsWith(matrix.rid, 'win-')
         shell: msys2 {0}

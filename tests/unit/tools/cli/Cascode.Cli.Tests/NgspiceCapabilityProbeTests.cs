@@ -72,4 +72,40 @@ public sealed class NgspiceCapabilityProbeTests
             StringComparison.OrdinalIgnoreCase
         );
     }
+
+    [UnixOnlyFact]
+    public void ProbePssSupport_ReturnsFalse_WhenBinaryExitsNonZero()
+    {
+        using var tempDir = new TemporaryDirectory();
+        var ngspicePath = Path.Combine(tempDir.Path, "ngspice");
+        File.WriteAllText(
+            ngspicePath,
+            """
+            #!/bin/sh
+            if [ "$1" = "-b" ]; then
+              echo "Periodic Steady State Analysis Started"
+              echo "pss simulation(s) aborted" >&2
+              exit 7
+            fi
+            echo "** ngspice-45.2 : Circuit level simulation program"
+            """
+        );
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                ngspicePath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            );
+        }
+
+        var result = NgspiceCapabilityProbe.ProbePssSupport(ngspicePath);
+
+        Assert.False(result.SupportsPss);
+        Assert.Contains("ExitCode: 7", result.ProbeOutput);
+        Assert.Contains(
+            "Periodic Steady State Analysis Started",
+            result.ProbeOutput,
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
 }

@@ -39,6 +39,8 @@ public class BenchRunService
         "op_vds",
     };
 
+    private const double PssTimePointTolerance = 1e-12;
+
     private readonly ILogger<BenchRunService> _logger;
     private readonly Action<string>? _progress;
     private readonly IBenchProgressContext? _progressContext;
@@ -515,34 +517,92 @@ public class BenchRunService
         IReadOnlyDictionary<string, BenchPlan> planMap
     )
     {
-        var circuitsToRun = circuitsWithBenches
-            .Select(c => c.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var requiresPss = planMap.Values.Any(plan =>
-            circuitsToRun.Contains(plan.CircuitName)
-            && (
-                string.IsNullOrWhiteSpace(args.BenchName)
-                || plan.BindingName.Equals(args.BenchName, StringComparison.OrdinalIgnoreCase)
+        var requiresPss = circuitsWithBenches.Any(circuit =>
+        {
+            var instanceNames = GetInstanceNamesForCircuit(planMap, circuit.Name);
+            if (instanceNames.Count == 0)
+            {
+                return false;
+            }
+
+            BuildBenchBindingContextForCircuit(
+                planMap,
+                circuit.Name,
+                out var benchByBindingAlias,
+                out var bindingMeasurementExportsByBindingAlias
+            );
+            var instancesToRun = ResolveInstancesToRunForCircuit(
+                args.BenchName,
+                instanceNames,
+                planMap,
+                circuit.Name
+            );
+            var constraintsToEvaluate = circuit.Constraints?.Numeric is null
+                ? new List<NumericConstraint>()
+                : circuit.Constraints.Numeric.Where(c => instancesToRun.Contains(c.Bench)).ToList();
+
+            if (
+                !BenchDependencyGraph.TryBuild(
+                    circuit,
+                    constraintsToEvaluate,
+                    benchByBindingAlias,
+                    bindingMeasurementExportsByBindingAlias,
+                    out var graph,
+                    out _
+                )
             )
-            && plan.Analyses.Any(a => a.Type == BenchValueType.PSSAnalysis)
-        );
+            {
+                return false;
+            }
+            var finalInstancesToRun = ResolveFinalInstancesToRunForCircuit(
+                instancesToRun,
+                instanceNames,
+                graph
+            );
+            return finalInstancesToRun.Any(instanceName =>
+                planMap.TryGetValue(BuildPlanKey(circuit.Name, instanceName), out var plan)
+                && plan.Analyses.Any(a => a.Type == BenchValueType.PSSAnalysis)
+            );
+        });
         if (!requiresPss)
         {
             return null;
         }
 
-        var ngspice = NgspiceLocator.Resolve();
-        var probe = NgspiceCapabilityProbe.ProbePssSupport(ngspice.Path);
-        if (probe.SupportsPss)
-        {
-            return null;
-        }
-
-        return BuildValidationFailureResult(
-            args.Backend,
+        return ProbeNgspicePssSupportOrReturnError(
+            args,
             outputDir,
-            NgspiceNotFoundException.PssUnsupported(ngspice.Path, probe.ProbeOutput).Message
+            NgspiceLocator.Resolve,
+            NgspiceCapabilityProbe.ProbePssSupport
         );
+    }
+
+    private static MultiCircuitBenchRunResult? ProbeNgspicePssSupportOrReturnError(
+        BenchRunArgs args,
+        string outputDir,
+        Func<NgspiceLocator.NgspiceInfo> resolveNgspice,
+        Func<string, NgspiceCapabilityProbe.ProbeResult> probePssSupport
+    )
+    {
+        try
+        {
+            var ngspice = resolveNgspice();
+            var probe = probePssSupport(ngspice.Path);
+            if (probe.SupportsPss)
+            {
+                return null;
+            }
+
+            return BuildValidationFailureResult(
+                args.Backend,
+                outputDir,
+                NgspiceNotFoundException.PssUnsupported(ngspice.Path, probe.ProbeOutput).Message
+            );
+        }
+        catch (Exception ex)
+        {
+            return BuildValidationFailureResult(args.Backend, outputDir, ex.Message);
+        }
     }
 
     private CircuitBenchRunSummary RunCircuitBenches(
@@ -572,35 +632,12 @@ public class BenchRunService
             StringComparer.OrdinalIgnoreCase
         );
 
-        var benchByBindingAlias = new Dictionary<string, BenchDefinition>(
-            StringComparer.OrdinalIgnoreCase
+        BuildBenchBindingContextForCircuit(
+            planMap,
+            circuit.Name,
+            out var benchByBindingAlias,
+            out var bindingMeasurementExportsByBindingAlias
         );
-        var bindingMeasurementExportsByBindingAlias = new Dictionary<
-            string,
-            IReadOnlyDictionary<string, BenchBindingMeasurementExport>
-        >(StringComparer.OrdinalIgnoreCase);
-        foreach (var plan in planMap.Values)
-        {
-            if (!plan.CircuitName.Equals(circuit.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            benchByBindingAlias.TryAdd(plan.BindingName, plan.Bench);
-
-            var exports = plan.Binding.Statements.OfType<BenchBindingMeasurementExport>().ToList();
-            if (exports.Count > 0)
-            {
-                var byName = new Dictionary<string, BenchBindingMeasurementExport>(
-                    StringComparer.OrdinalIgnoreCase
-                );
-                foreach (var export in exports)
-                {
-                    byName[export.Name] = export;
-                }
-                bindingMeasurementExportsByBindingAlias[plan.BindingName] = byName;
-            }
-        }
 
         var constraintsToEvaluate = circuit.Constraints?.Numeric is null
             ? new List<NumericConstraint>()
@@ -696,17 +733,11 @@ public class BenchRunService
             return v.Value;
         }
 
-        var availableInstances = instanceNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var requiredInstances = graph
-            .InvocationsById.Values.Select(v => v.BenchInstanceName)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(availableInstances.Contains)
-            .ToList();
-        var finalInstancesToRun = instancesToRun
-            .Concat(requiredInstances)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var finalInstancesToRun = ResolveFinalInstancesToRunForCircuit(
+            instancesToRun,
+            instanceNames,
+            graph
+        );
 
         var preparedByInstance = new ConcurrentDictionary<string, BenchPrepared>(
             StringComparer.OrdinalIgnoreCase
@@ -1235,6 +1266,71 @@ public class BenchRunService
                 return plan.BindingName.Equals(targetBench, StringComparison.OrdinalIgnoreCase);
             })
             .ToList();
+    }
+
+    private static IReadOnlyList<string> ResolveFinalInstancesToRunForCircuit(
+        IReadOnlyList<string> selectedInstances,
+        IReadOnlyList<string> availableInstances,
+        BenchDependencyGraph graph
+    )
+    {
+        var availableSet = availableInstances.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var requiredInstances = graph
+            .InvocationsById.Values.Select(v => v.BenchInstanceName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(availableSet.Contains)
+            .ToList();
+
+        return selectedInstances
+            .Concat(requiredInstances)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static void BuildBenchBindingContextForCircuit(
+        IReadOnlyDictionary<string, BenchPlan> planMap,
+        string circuitName,
+        out Dictionary<string, BenchDefinition> benchByBindingAlias,
+        out Dictionary<
+            string,
+            IReadOnlyDictionary<string, BenchBindingMeasurementExport>
+        > bindingMeasurementExportsByBindingAlias
+    )
+    {
+        benchByBindingAlias = new Dictionary<string, BenchDefinition>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        bindingMeasurementExportsByBindingAlias = new Dictionary<
+            string,
+            IReadOnlyDictionary<string, BenchBindingMeasurementExport>
+        >(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var plan in planMap.Values)
+        {
+            if (!plan.CircuitName.Equals(circuitName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            benchByBindingAlias.TryAdd(plan.BindingName, plan.Bench);
+
+            var exports = plan.Binding.Statements.OfType<BenchBindingMeasurementExport>().ToList();
+            if (exports.Count == 0)
+            {
+                continue;
+            }
+
+            var byName = new Dictionary<string, BenchBindingMeasurementExport>(
+                StringComparer.OrdinalIgnoreCase
+            );
+            foreach (var export in exports)
+            {
+                byName[export.Name] = export;
+            }
+
+            bindingMeasurementExportsByBindingAlias[plan.BindingName] = byName;
+        }
     }
 
     private ComplianceReport AggregateCompliance(
@@ -2169,6 +2265,7 @@ public class BenchRunService
                     $"PSSAnalysis '{a.Name}' current waveform length ({currents.TimePoints.Length}) does not match node waveform length ({nodes.TimePoints.Length})."
                 );
             }
+            ValidatePssWaveformTimeAlignment(a.Name, nodes.TimePoints, currents.TimePoints);
         }
 
         return new BenchMeasurementRunner.AnalysisContext(
@@ -2197,16 +2294,69 @@ public class BenchRunService
             );
         }
 
+        if (!double.IsFinite(timePoints[0]))
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysisName}' produced a non-finite {waveformKind} time point at index 0."
+            );
+        }
+
+        var previous = timePoints[0];
+        for (var i = 1; i < timePoints.Count; i++)
+        {
+            var current = timePoints[i];
+            if (!double.IsFinite(current))
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{analysisName}' produced a non-finite {waveformKind} time point at index {i}."
+                );
+            }
+
+            if (current < previous && !ArePssTimePointsEquivalent(previous, current))
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{analysisName}' produced a non-monotonic {waveformKind} time axis at index {i}."
+                );
+            }
+
+            previous = current;
+        }
+
         if (
-            !double.IsFinite(timePoints[0])
-            || !double.IsFinite(timePoints[^1])
-            || timePoints[^1] <= timePoints[0]
+            ArePssTimePointsEquivalent(timePoints[0], timePoints[^1])
+            || timePoints[^1] < timePoints[0]
         )
         {
             throw new InvalidOperationException(
                 $"PSSAnalysis '{analysisName}' produced a non-increasing {waveformKind} time axis."
             );
         }
+    }
+
+    private static void ValidatePssWaveformTimeAlignment(
+        string analysisName,
+        IReadOnlyList<double> nodesTimePoints,
+        IReadOnlyList<double> currentsTimePoints
+    )
+    {
+        for (var i = 0; i < nodesTimePoints.Count; i++)
+        {
+            var nodeTime = nodesTimePoints[i];
+            var currentTime = currentsTimePoints[i];
+            if (!ArePssTimePointsEquivalent(nodeTime, currentTime))
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{analysisName}' current waveform timestamp at index {i} ({currentTime.ToString(CultureInfo.InvariantCulture)}) does not match node waveform timestamp ({nodeTime.ToString(CultureInfo.InvariantCulture)})."
+                );
+            }
+        }
+    }
+
+    private static bool ArePssTimePointsEquivalent(double left, double right)
+    {
+        var tolerance =
+            PssTimePointTolerance * Math.Max(1.0, Math.Max(Math.Abs(left), Math.Abs(right)));
+        return Math.Abs(left - right) <= tolerance;
     }
 
     private static IReadOnlyDictionary<string, BenchPlan> BuildPlanMap(CascodeDocument doc)

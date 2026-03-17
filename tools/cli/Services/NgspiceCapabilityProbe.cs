@@ -46,9 +46,11 @@ internal static class NgspiceCapabilityProbe
                 "-b",
                 Path.GetFileName(deckPath)
             );
-            var output = $"{run.Stdout}\n{run.Stderr}".Trim();
+            var output =
+                $"ExitCode: {run.ExitCode}\nStdout:\n{run.Stdout}\nStderr:\n{run.Stderr}".Trim();
             var supportsPss =
-                output.IndexOf(UnsupportedCommandMarker, StringComparison.OrdinalIgnoreCase) < 0
+                run.ExitCode == 0
+                && output.IndexOf(UnsupportedCommandMarker, StringComparison.OrdinalIgnoreCase) < 0
                 && output.IndexOf(UnsupportedHelpMarker, StringComparison.OrdinalIgnoreCase) < 0;
 
             return new ProbeResult(supportsPss, output);
