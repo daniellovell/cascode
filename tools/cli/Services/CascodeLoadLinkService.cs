@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cascode.Language;
@@ -12,7 +13,8 @@ internal static class CascodeLoadLinkService
         string InputPath,
         string ResolvedPath,
         string WorkspaceRoot,
-        CascodeDocument Document
+        CascodeDocument Document,
+        IReadOnlyList<string> SourcePaths
     );
 
     public static LoadedCascode LoadAndLinkIfNeeded(
@@ -80,7 +82,13 @@ internal static class CascodeLoadLinkService
 
         if (doc.Includes.Count == 0)
         {
-            loaded = new LoadedCascode(resolvedPath, resolvedPath, workspaceRoot, doc);
+            loaded = new LoadedCascode(
+                resolvedPath,
+                resolvedPath,
+                workspaceRoot,
+                doc,
+                new[] { resolvedPath }
+            );
             return true;
         }
 
@@ -123,7 +131,8 @@ internal static class CascodeLoadLinkService
             return false;
         }
 
-        loaded = new LoadedCascode(resolvedPath, linkedPath, workspaceRoot, linkedDoc);
+        var sourcePaths = link.SourcePaths.Count > 0 ? link.SourcePaths : new[] { resolvedPath };
+        loaded = new LoadedCascode(resolvedPath, linkedPath, workspaceRoot, linkedDoc, sourcePaths);
         return true;
     }
 

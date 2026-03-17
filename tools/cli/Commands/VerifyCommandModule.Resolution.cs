@@ -29,7 +29,7 @@ internal sealed partial class VerifyCommandModule
 
     private sealed record VerifyRunContext(
         string InputPath,
-        string ResolvedCascodePath,
+        IReadOnlyList<string> SourcePaths,
         IReadOnlyList<Circuit> AllElCircuits,
         IReadOnlyList<Circuit> VerifiableCircuits
     );
@@ -105,7 +105,7 @@ internal sealed partial class VerifyCommandModule
 
         context = new VerifyRunContext(
             inputPath,
-            loaded.ResolvedPath,
+            loaded.SourcePaths,
             elCircuits,
             BenchVerificationTargets.CollectVerifiableCircuits(loaded.Document)
         );
@@ -113,7 +113,7 @@ internal sealed partial class VerifyCommandModule
     }
 
     private static bool NeedsBenchRun(
-        string resolvedCascodePath,
+        IReadOnlyList<string> sourcePaths,
         IReadOnlyList<VerifyInput> inputs,
         out string reason
     )
@@ -121,6 +121,18 @@ internal sealed partial class VerifyCommandModule
         if (inputs.Count == 0)
         {
             reason = "no verification artifacts were resolved";
+            return true;
+        }
+
+        if (
+            !TryGetNewestSourceDependency(
+                sourcePaths,
+                out var newestSourcePath,
+                out var newestSourceWriteTimeUtc,
+                out reason
+            )
+        )
+        {
             return true;
         }
 
@@ -132,17 +144,53 @@ internal sealed partial class VerifyCommandModule
                 return true;
             }
 
-            if (
-                File.GetLastWriteTimeUtc(resolvedCascodePath) > File.GetLastWriteTimeUtc(input.Path)
-            )
+            if (newestSourceWriteTimeUtc > File.GetLastWriteTimeUtc(input.Path))
             {
                 reason =
-                    $"{InputKindLabel(input.Kind)} file '{input.Path}' is older than the Cascode source";
+                    $"{InputKindLabel(input.Kind)} file '{input.Path}' is older than source dependency '{newestSourcePath}'";
                 return true;
             }
         }
         reason = string.Empty;
         return false;
+    }
+
+    private static bool TryGetNewestSourceDependency(
+        IReadOnlyList<string> sourcePaths,
+        out string newestSourcePath,
+        out DateTime newestSourceWriteTimeUtc,
+        out string reason
+    )
+    {
+        newestSourcePath = string.Empty;
+        newestSourceWriteTimeUtc = default;
+        if (sourcePaths.Count == 0)
+        {
+            reason = "no Cascode source dependencies were resolved";
+            return false;
+        }
+
+        var foundSource = false;
+        foreach (var sourcePath in sourcePaths)
+        {
+            var fullPath = Path.GetFullPath(sourcePath);
+            if (!File.Exists(fullPath))
+            {
+                reason = $"Cascode source dependency '{fullPath}' does not exist";
+                return false;
+            }
+
+            var writeTimeUtc = File.GetLastWriteTimeUtc(fullPath);
+            if (!foundSource || writeTimeUtc > newestSourceWriteTimeUtc)
+            {
+                newestSourcePath = fullPath;
+                newestSourceWriteTimeUtc = writeTimeUtc;
+                foundSource = true;
+            }
+        }
+
+        reason = string.Empty;
+        return true;
     }
 
     private static string InputKindLabel(VerifyInputKind kind) =>

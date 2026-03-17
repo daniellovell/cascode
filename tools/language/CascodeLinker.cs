@@ -13,7 +13,10 @@ public sealed record CascodeLinkResult(
     string? LinkedCasPath,
     string? SynthYamlPath,
     IReadOnlyList<Diagnostic> Diagnostics
-);
+)
+{
+    public IReadOnlyList<string> SourcePaths { get; init; } = Array.Empty<string>();
+}
 
 public static class CascodeLinker
 {
@@ -208,7 +211,10 @@ public static class CascodeLinker
         diagnostics.AddRange(entryRead.Diagnostics);
         if (!entryRead.Success || entryRead.Document is null)
         {
-            return new CascodeLinkResult(false, null, null, diagnostics);
+            return new CascodeLinkResult(false, null, null, diagnostics)
+            {
+                SourcePaths = BuildSourcePaths(includedDocs),
+            };
         }
 
         includedDocs.Add(
@@ -231,7 +237,10 @@ public static class CascodeLinker
         CollectRequiredSymbols(entryRead.Document, required);
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
-            return new CascodeLinkResult(false, null, null, diagnostics);
+            return new CascodeLinkResult(false, null, null, diagnostics)
+            {
+                SourcePaths = BuildSourcePaths(includedDocs),
+            };
         }
 
         // Iteratively resolve references using include-provided candidates.
@@ -321,7 +330,10 @@ public static class CascodeLinker
         );
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
-            return new CascodeLinkResult(false, null, null, diagnostics);
+            return new CascodeLinkResult(false, null, null, diagnostics)
+            {
+                SourcePaths = BuildSourcePaths(includedDocs),
+            };
         }
 
         var validatedMerged = BuildValidatedMergedDocument(
@@ -332,7 +344,10 @@ public static class CascodeLinker
         );
         if (!validatedMerged)
         {
-            return new CascodeLinkResult(false, null, null, diagnostics);
+            return new CascodeLinkResult(false, null, null, diagnostics)
+            {
+                SourcePaths = BuildSourcePaths(includedDocs),
+            };
         }
 
         CascodeDocument linked =
@@ -369,7 +384,10 @@ public static class CascodeLinker
 
         logger?.LogInformation("Linked '{Entry}' -> '{Out}'", entryPath, linkedPath);
 
-        return new CascodeLinkResult(true, linkedPath, synthPath, diagnostics);
+        return new CascodeLinkResult(true, linkedPath, synthPath, diagnostics)
+        {
+            SourcePaths = BuildSourcePaths(includedDocs),
+        };
     }
 
     private sealed class RequiredSymbols
@@ -387,6 +405,17 @@ public static class CascodeLinker
         public required string Path { get; init; }
         public required CascodeDocument Document { get; init; }
         public required CascodeDocument SourceDocument { get; init; }
+    }
+
+    private static IReadOnlyList<string> BuildSourcePaths(
+        IReadOnlyList<LinkedDocument> includedDocs
+    )
+    {
+        return includedDocs
+            .Select(doc => Path.GetFullPath(doc.Path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private sealed class CandidateSelection
