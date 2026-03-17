@@ -4,6 +4,7 @@ using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Layout;
 using Cascode.Render.OrTools;
+using Cascode.Render.Routing;
 using Google.OrTools.Sat;
 
 internal static class CoarseGridPlacementSolver
@@ -19,6 +20,15 @@ internal static class CoarseGridPlacementSolver
     private const int PortBiasWeight = 5;
     private const int PortLaneWeight = 3;
     private const int RailTerminalWeight = 2;
+    private const int GateDriverPassiveDistanceWeight = 18;
+    private const int GateDriverPassiveSideWeight = 22;
+    private const int OutputCouplingPassiveDistanceWeight = 20;
+    private const int OutputCouplingPassiveSideWeight = 28;
+    private const int BiasPassiveClusterSpanWeight = 36;
+    private const int BiasPassiveConsumerWeight = 18;
+    private const int InlinePassiveChainShuntSpanWeight = 20;
+    private const int DirectGateBiasConsumerWeightMultiplier = 3;
+    private const int GateDriverBiasConsumerWeightMultiplier = 2;
 
     public static CoarseGridResult Solve(
         TopologyResult topology,
@@ -109,6 +119,9 @@ internal static class CoarseGridPlacementSolver
             graph
         );
         AddGroupConstraints(model, rowVars, columnVars, topology, symmetricPassivePairs, graph);
+        AddPointToPointDrainSourceStackConstraints(model, columnVars, graph);
+        AddMixedPolarityDrainAlignmentConstraints(model, columnVars, graph);
+        AddSupplyLoadAlignmentConstraints(model, columnVars, graph);
         AddHorizontalPassiveRowConstraints(
             model,
             rowVars,
@@ -126,7 +139,8 @@ internal static class CoarseGridPlacementSolver
                 columnVars,
                 horizontalPassiveIds,
                 hardPlacedIds,
-                estimatedAxis
+                estimatedAxis,
+                graph
             );
             AddMosfetEdgeColumnConstraints(
                 model,
@@ -186,6 +200,24 @@ internal static class CoarseGridPlacementSolver
             objectives
         );
         AddPortBiasObjectives(model, columnVars, graph, estimatedColumns, objectives);
+        AddGateDriverPassiveObjectives(model, columnVars, graph, estimatedColumns, objectives);
+        AddInlinePassiveChainShuntObjectives(
+            model,
+            columnVars,
+            graph,
+            estimatedColumns,
+            objectives
+        );
+        AddOutputCouplingPassiveObjectives(
+            model,
+            columnVars,
+            graph,
+            estimatedColumns,
+            estimatedAxis,
+            horizontalPassiveIds,
+            objectives
+        );
+        AddBiasPassiveClusterObjectives(model, columnVars, graph, estimatedColumns, objectives);
         AddSymmetryObjectives(
             model,
             columnVars,
@@ -249,8 +281,56 @@ internal static class CoarseGridPlacementSolver
             horizontalPassiveIds,
             symmetricPassivePairs
         );
-        var oriented = ApplyOrientationRules(
+        var refined = RefineGateDriverPassivePlacements(
             repaired,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var inlineRefined = RefineInlinePassiveChainPlacements(
+            refined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var biasRefined = RefineBiasPassiveClusterPlacements(
+            inlineRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var orderedBiasRefined = RefineBiasPassiveClusterOrderingPlacements(
+            biasRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var biasChainRefined = RefineBiasPassiveChainPlacements(
+            orderedBiasRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var outputCouplingRefined = RefineOutputCouplingPassivePlacements(
+            biasChainRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var oriented = ApplyOrientationRules(
+            outputCouplingRefined,
             graph,
             topology,
             horizontalPassiveIds,
@@ -262,6 +342,15 @@ internal static class CoarseGridPlacementSolver
             oriented.Values.Select(cell => cell.Column).Distinct().Count()
         );
         var symmetryAxis = Math.Max(0, columnCount / 2);
+        var basePlacement = new CoarseGridResult
+        {
+            RowCount = rowCount,
+            ColumnCount = columnCount,
+            DevicePlacements = oriented,
+            SymmetryAxis = symmetryAxis,
+            HorizontalPassiveIds = horizontalPassiveIds,
+        };
+        var portYHints = ApplyFeedthroughPortHints(solvedPortYHints, basePlacement, graph);
         return new CoarseGridResult
         {
             RowCount = rowCount,
@@ -269,18 +358,7 @@ internal static class CoarseGridPlacementSolver
             DevicePlacements = oriented,
             SymmetryAxis = symmetryAxis,
             HorizontalPassiveIds = horizontalPassiveIds,
-            PortYHints = ApplyFeedthroughPortHints(
-                solvedPortYHints,
-                new CoarseGridResult
-                {
-                    RowCount = rowCount,
-                    ColumnCount = columnCount,
-                    DevicePlacements = oriented,
-                    SymmetryAxis = symmetryAxis,
-                    HorizontalPassiveIds = horizontalPassiveIds,
-                },
-                graph
-            ),
+            PortYHints = AvoidBlockedStraightPortHints(basePlacement, graph, portYHints),
         };
     }
 
@@ -427,6 +505,66 @@ internal static class CoarseGridPlacementSolver
         }
     }
 
+    private static void AddPointToPointDrainSourceStackConstraints(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph
+    )
+    {
+        foreach (var pair in FindPointToPointDrainSourcePairs(graph))
+        {
+            if (
+                !columnVars.ContainsKey(pair.SourceDeviceId)
+                || !columnVars.ContainsKey(pair.DrainDeviceId)
+            )
+            {
+                continue;
+            }
+
+            model.Add(columnVars[pair.SourceDeviceId] == columnVars[pair.DrainDeviceId]);
+        }
+    }
+
+    private static void AddMixedPolarityDrainAlignmentConstraints(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph
+    )
+    {
+        foreach (var pair in FindMixedPolarityDrainPairs(graph))
+        {
+            if (
+                !columnVars.ContainsKey(pair.PmosDeviceId)
+                || !columnVars.ContainsKey(pair.NmosDeviceId)
+            )
+            {
+                continue;
+            }
+
+            model.Add(columnVars[pair.PmosDeviceId] == columnVars[pair.NmosDeviceId]);
+        }
+    }
+
+    private static void AddSupplyLoadAlignmentConstraints(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph
+    )
+    {
+        foreach (var pair in FindSupplyConnectedMosLoadPairs(graph))
+        {
+            if (
+                !columnVars.ContainsKey(pair.LoadDeviceId)
+                || !columnVars.ContainsKey(pair.MosDeviceId)
+            )
+            {
+                continue;
+            }
+
+            model.Add(columnVars[pair.LoadDeviceId] == columnVars[pair.MosDeviceId]);
+        }
+    }
+
     private static void AddSymmetryLayoutConstraints(
         CpModel model,
         IReadOnlyDictionary<string, IntVar> columnVars,
@@ -443,7 +581,12 @@ internal static class CoarseGridPlacementSolver
                 var (left, right) =
                     group.Type == SymmetryType.DiffPair
                         ? DetermineLeftRightByInputPort(members[0], members[1], graph)
-                        : DetermineLeftRightByNaming(members[0], members[1]);
+                        : DetermineLeftRightByPartnerDrainAlignment(
+                            members[0],
+                            members[1],
+                            groups,
+                            graph
+                        ) ?? DetermineLeftRightByNaming(members[0], members[1]);
                 model.Add(columnVars[left] < symmetryAxis);
                 model.Add(columnVars[right] > symmetryAxis);
                 model.Add(columnVars[left] + columnVars[right] == 2 * symmetryAxis);
@@ -855,12 +998,22 @@ internal static class CoarseGridPlacementSolver
         IReadOnlyDictionary<string, IntVar> columnVars,
         IReadOnlySet<string> horizontalPassiveIds,
         IReadOnlySet<string> hardPlacedDeviceIds,
-        int symmetryAxis
+        int symmetryAxis,
+        CircuitGraph graph
     )
     {
+        var exemptPassiveIds = GetFlowDirectedGatePassiveIds(graph)
+            .ToHashSet(StringComparer.Ordinal);
+        exemptPassiveIds.UnionWith(
+            FindOutputCouplingPassivePairs(graph).Select(pair => pair.PassiveDeviceId)
+        );
         foreach (var deviceId in horizontalPassiveIds)
         {
-            if (hardPlacedDeviceIds.Contains(deviceId) || !columnVars.ContainsKey(deviceId))
+            if (
+                hardPlacedDeviceIds.Contains(deviceId)
+                || exemptPassiveIds.Contains(deviceId)
+                || !columnVars.ContainsKey(deviceId)
+            )
             {
                 continue;
             }
@@ -868,6 +1021,241 @@ internal static class CoarseGridPlacementSolver
             var distance = model.NewIntVar(0, symmetryAxis, $"passiveDist_{deviceId}");
             model.AddAbsEquality(distance, columnVars[deviceId] - symmetryAxis);
             model.Add(distance == 1);
+        }
+    }
+
+    private static void AddOutputCouplingPassiveObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph,
+        int columnCount,
+        int symmetryAxis,
+        IReadOnlySet<string> horizontalPassiveIds,
+        List<LinearExpr> objectives
+    )
+    {
+        foreach (var pair in FindOutputCouplingPassivePairs(graph))
+        {
+            if (
+                !columnVars.TryGetValue(pair.PassiveDeviceId, out var passiveColumn)
+                || !columnVars.TryGetValue(pair.MosDeviceId, out var mosColumn)
+            )
+            {
+                continue;
+            }
+
+            var distancePenalty = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"outputCouplingDist_{Sanitize(pair.PassiveDeviceId)}_{Sanitize(pair.MosDeviceId)}"
+            );
+            model.AddAbsEquality(distancePenalty, passiveColumn - mosColumn);
+            objectives.Add(distancePenalty * OutputCouplingPassiveDistanceWeight);
+
+            var sidePreference = GetOutputCouplingSidePreference(pair, horizontalPassiveIds);
+            if (sidePreference == SignalSidePreference.None)
+            {
+                continue;
+            }
+
+            var sidePenalty = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"outputCouplingSide_{Sanitize(pair.PassiveDeviceId)}"
+            );
+            var zero = model.NewConstant(0);
+            if (sidePreference == SignalSidePreference.Left)
+            {
+                model.AddMaxEquality(sidePenalty, [passiveColumn - symmetryAxis, zero]);
+            }
+            else
+            {
+                model.AddMaxEquality(sidePenalty, [symmetryAxis - passiveColumn, zero]);
+            }
+
+            objectives.Add(sidePenalty * OutputCouplingPassiveSideWeight);
+        }
+    }
+
+    private static void AddGateDriverPassiveObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph,
+        int columnCount,
+        List<LinearExpr> objectives
+    )
+    {
+        var flowDirectedGatePassiveIds = GetFlowDirectedGatePassiveIds(graph);
+        var inputNetDistances = BfsNetDistances(graph, graph.InputPorts.Concat(graph.BiasPorts));
+        var outputNetDistances = BfsNetDistances(graph, graph.OutputPorts);
+        foreach (var pair in FindGatePassiveLinks(graph))
+        {
+            if (!flowDirectedGatePassiveIds.Contains(pair.PassiveDeviceId))
+            {
+                continue;
+            }
+
+            if (
+                !columnVars.TryGetValue(pair.PassiveDeviceId, out var passiveColumn)
+                || !columnVars.TryGetValue(pair.MosDeviceId, out var mosColumn)
+            )
+            {
+                continue;
+            }
+
+            var distancePenalty = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"gatePassiveDist_{Sanitize(pair.PassiveDeviceId)}_{Sanitize(pair.MosDeviceId)}"
+            );
+            model.AddAbsEquality(distancePenalty, passiveColumn - mosColumn);
+            objectives.Add(distancePenalty * GateDriverPassiveDistanceWeight);
+
+            var sidePreference = GetGatePassiveSidePreference(
+                pair.PassiveOtherNet,
+                graph,
+                inputNetDistances,
+                outputNetDistances
+            );
+            if (sidePreference == SignalSidePreference.None)
+            {
+                continue;
+            }
+
+            var sidePenalty = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"gatePassiveSide_{Sanitize(pair.PassiveDeviceId)}_{Sanitize(pair.MosDeviceId)}"
+            );
+            var zero = model.NewConstant(0);
+            if (sidePreference == SignalSidePreference.Left)
+            {
+                model.AddMaxEquality(sidePenalty, [passiveColumn - mosColumn, zero]);
+            }
+            else
+            {
+                model.AddMaxEquality(sidePenalty, [mosColumn - passiveColumn, zero]);
+            }
+
+            objectives.Add(sidePenalty * GateDriverPassiveSideWeight);
+        }
+    }
+
+    private static void AddBiasPassiveClusterObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph,
+        int columnCount,
+        List<LinearExpr> objectives
+    )
+    {
+        foreach (var cluster in FindRailConnectedPassiveClusters(graph))
+        {
+            var members = cluster
+                .DeviceIds.Where(columnVars.ContainsKey)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToArray();
+            if (members.Length < 2)
+            {
+                continue;
+            }
+
+            var maxColumn = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"biasClusterMax_{Sanitize(cluster.NetName)}"
+            );
+            var minColumn = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"biasClusterMin_{Sanitize(cluster.NetName)}"
+            );
+            model.AddMaxEquality(maxColumn, members.Select(id => columnVars[id]));
+            model.AddMinEquality(minColumn, members.Select(id => columnVars[id]));
+            objectives.Add((maxColumn - minColumn) * BiasPassiveClusterSpanWeight);
+
+            foreach (var consumerId in GetBiasClusterConsumerIds(cluster, graph))
+            {
+                if (!columnVars.TryGetValue(consumerId, out var consumerColumn))
+                {
+                    continue;
+                }
+
+                foreach (var memberId in members)
+                {
+                    var penalty = model.NewIntVar(
+                        0,
+                        columnCount - 1,
+                        $"biasClusterConsumer_{Sanitize(cluster.NetName)}_{Sanitize(memberId)}_{Sanitize(consumerId)}"
+                    );
+                    model.AddAbsEquality(penalty, columnVars[memberId] - consumerColumn);
+                    objectives.Add(
+                        penalty
+                            * BiasPassiveConsumerWeight
+                            * GetBiasConsumerPriorityWeight([cluster.NetName], consumerId, graph)
+                    );
+                }
+            }
+        }
+    }
+
+    private static void AddInlinePassiveChainShuntObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> columnVars,
+        CircuitGraph graph,
+        int columnCount,
+        List<LinearExpr> objectives
+    )
+    {
+        var inputNetDistances = BfsNetDistances(graph, graph.InputPorts.Concat(graph.BiasPorts));
+        var outputNetDistances = BfsNetDistances(graph, graph.OutputPorts);
+        var zero = model.NewConstant(0);
+        foreach (
+            var pair in FindInlinePassiveChainPairs(graph, inputNetDistances, outputNetDistances)
+        )
+        {
+            if (
+                !columnVars.TryGetValue(pair.UpstreamPassiveId, out var upstreamColumn)
+                || !columnVars.TryGetValue(pair.DownstreamPassiveId, out var downstreamColumn)
+            )
+            {
+                continue;
+            }
+
+            var minColumn = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"inlineShuntMin_{Sanitize(pair.JunctionNet)}"
+            );
+            var maxColumn = model.NewIntVar(
+                0,
+                columnCount - 1,
+                $"inlineShuntMax_{Sanitize(pair.JunctionNet)}"
+            );
+            model.AddMinEquality(minColumn, [upstreamColumn, downstreamColumn]);
+            model.AddMaxEquality(maxColumn, [upstreamColumn, downstreamColumn]);
+
+            foreach (var shuntId in FindRailConnectedPassiveIdsOnNet(pair.JunctionNet, graph))
+            {
+                if (!columnVars.TryGetValue(shuntId, out var shuntColumn))
+                {
+                    continue;
+                }
+
+                var leftPenalty = model.NewIntVar(
+                    0,
+                    columnCount - 1,
+                    $"inlineShuntLeft_{Sanitize(shuntId)}"
+                );
+                var rightPenalty = model.NewIntVar(
+                    0,
+                    columnCount - 1,
+                    $"inlineShuntRight_{Sanitize(shuntId)}"
+                );
+                model.AddMaxEquality(leftPenalty, [minColumn - shuntColumn, zero]);
+                model.AddMaxEquality(rightPenalty, [shuntColumn - maxColumn, zero]);
+                objectives.Add((leftPenalty + rightPenalty) * InlinePassiveChainShuntSpanWeight);
+            }
         }
     }
 
@@ -1109,6 +1497,17 @@ internal static class CoarseGridPlacementSolver
             )
             .SelectMany(group => group.DeviceIds)
             .ToHashSet(StringComparer.Ordinal);
+        var outputCouplingOutputTerminals = FindOutputCouplingPassivePairs(graph)
+            .ToDictionary(
+                pair => pair.PassiveDeviceId,
+                pair =>
+                    pair.PassiveSignalTerminal.Equals("P", StringComparison.OrdinalIgnoreCase)
+                        ? "N"
+                        : "P",
+                StringComparer.Ordinal
+            );
+        var inputNetDistances = BfsNetDistances(graph, graph.InputPorts.Concat(graph.BiasPorts));
+        var outputNetDistances = BfsNetDistances(graph, graph.OutputPorts);
 
         foreach (var (deviceId, placement) in placements)
         {
@@ -1118,7 +1517,10 @@ internal static class CoarseGridPlacementSolver
                     deviceId,
                     placement,
                     axisPlacement,
-                    graph
+                    graph,
+                    outputCouplingOutputTerminals,
+                    inputNetDistances,
+                    outputNetDistances
                 );
                 result[deviceId] = new GridCell(
                     placement.Row,
@@ -1153,21 +1555,104 @@ internal static class CoarseGridPlacementSolver
         string deviceId,
         GridCell placement,
         CoarseGridResult axisPlacement,
-        CircuitGraph graph
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, string> outputCouplingOutputTerminals,
+        IReadOnlyDictionary<string, int> inputNetDistances,
+        IReadOnlyDictionary<string, int> outputNetDistances
     )
     {
         var pNet = graph.GetNetForTerminal(deviceId, "P");
         var nNet = graph.GetNetForTerminal(deviceId, "N");
-        var pPrefersLeft = pNet != null && NetPrefersLeft(pNet, graph);
-        var nPrefersLeft = nNet != null && NetPrefersLeft(nNet, graph);
-        if (pPrefersLeft && !nPrefersLeft)
+        if (outputCouplingOutputTerminals.TryGetValue(deviceId, out var outputTerminal))
+        {
+            return outputTerminal.Equals("P", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var gatePassiveLink = FindGatePassiveLinks(graph)
+            .FirstOrDefault(link =>
+                string.Equals(link.PassiveDeviceId, deviceId, StringComparison.Ordinal)
+            );
+        if (gatePassiveLink is not null)
+        {
+            var otherTerminal = string.Equals(
+                graph.GetNetForTerminal(deviceId, "P"),
+                gatePassiveLink.PassiveOtherNet,
+                StringComparison.Ordinal
+            )
+                ? "P"
+                : "N";
+            var sidePreference = GetGatePassiveSidePreference(
+                gatePassiveLink.PassiveOtherNet,
+                graph,
+                inputNetDistances,
+                outputNetDistances
+            );
+            if (
+                IsGateBiasDistributionNet(
+                    gatePassiveLink.PassiveOtherNet,
+                    gatePassiveLink.PassiveDeviceId,
+                    graph
+                )
+                && axisPlacement.DevicePlacements.TryGetValue(
+                    gatePassiveLink.MosDeviceId,
+                    out var gatedMosCell
+                )
+            )
+            {
+                var gateTerminal = otherTerminal == "P" ? "N" : "P";
+                var mosIsOnOrLeftOfPassive = gatedMosCell.Column <= placement.Column;
+                return mosIsOnOrLeftOfPassive ? gateTerminal == "N" : gateTerminal == "P";
+            }
+
+            if (sidePreference == SignalSidePreference.Left)
+            {
+                return otherTerminal != "P";
+            }
+
+            if (sidePreference == SignalSidePreference.Right)
+            {
+                return otherTerminal == "P";
+            }
+        }
+
+        var pSidePreference =
+            pNet == null
+                ? SignalSidePreference.None
+                : GetNetSidePreference(pNet, graph, inputNetDistances, outputNetDistances);
+        var nSidePreference =
+            nNet == null
+                ? SignalSidePreference.None
+                : GetNetSidePreference(nNet, graph, inputNetDistances, outputNetDistances);
+        if (
+            pSidePreference == SignalSidePreference.Left
+            && nSidePreference != SignalSidePreference.Left
+        )
         {
             return false;
         }
 
-        if (nPrefersLeft && !pPrefersLeft)
+        if (
+            nSidePreference == SignalSidePreference.Left
+            && pSidePreference != SignalSidePreference.Left
+        )
         {
             return true;
+        }
+
+        if (
+            pSidePreference == SignalSidePreference.Right
+            && nSidePreference != SignalSidePreference.Right
+        )
+        {
+            return true;
+        }
+
+        if (
+            nSidePreference == SignalSidePreference.Right
+            && pSidePreference != SignalSidePreference.Right
+        )
+        {
+            return false;
         }
 
         return !PlacementAxis.IsLeftOfAxis(axisPlacement, placement.Column);
@@ -1316,6 +1801,59 @@ internal static class CoarseGridPlacementSolver
         return seenDevices;
     }
 
+    private static Dictionary<string, int> BfsNetDistances(
+        CircuitGraph graph,
+        IEnumerable<string> startNets
+    )
+    {
+        var queue = new Queue<(string Net, int Depth)>();
+        var seenNets = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var net in startNets.Distinct(StringComparer.Ordinal))
+        {
+            seenNets[net] = 0;
+            queue.Enqueue((net, 0));
+        }
+
+        while (queue.Count > 0)
+        {
+            var (net, depth) = queue.Dequeue();
+            if (!graph.NetConnections.TryGetValue(net, out var connections))
+            {
+                continue;
+            }
+
+            foreach (var connection in connections)
+            {
+                if (!graph.Devices.TryGetValue(connection.DeviceId, out var device))
+                {
+                    continue;
+                }
+
+                foreach (var nextNet in device.Bindings.Values)
+                {
+                    if (graph.IsSupplyOrGround(nextNet))
+                    {
+                        continue;
+                    }
+
+                    var nextDepth = depth + 1;
+                    if (
+                        seenNets.TryGetValue(nextNet, out var currentDepth)
+                        && currentDepth <= nextDepth
+                    )
+                    {
+                        continue;
+                    }
+
+                    seenNets[nextNet] = nextDepth;
+                    queue.Enqueue((nextNet, nextDepth));
+                }
+            }
+        }
+
+        return seenNets;
+    }
+
     private static CoarseGridResult BuildFallbackPlacement(
         TopologyResult topology,
         CircuitGraph graph,
@@ -1342,8 +1880,56 @@ internal static class CoarseGridPlacementSolver
             horizontalPassiveIds,
             Array.Empty<(string Left, string Right, string PivotNet)>()
         );
-        var compacted = ApplyOrientationRules(
+        var refined = RefineGateDriverPassivePlacements(
             repaired,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var inlineRefined = RefineInlinePassiveChainPlacements(
+            refined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var biasRefined = RefineBiasPassiveClusterPlacements(
+            inlineRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var orderedBiasRefined = RefineBiasPassiveClusterOrderingPlacements(
+            biasRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var biasChainRefined = RefineBiasPassiveChainPlacements(
+            orderedBiasRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var outputCouplingRefined = RefineOutputCouplingPassivePlacements(
+            biasChainRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var compacted = ApplyOrientationRules(
+            outputCouplingRefined,
             graph,
             topology,
             horizontalPassiveIds,
@@ -1355,6 +1941,19 @@ internal static class CoarseGridPlacementSolver
             compacted.Values.Select(cell => cell.Column).Distinct().Count()
         );
         var symmetryAxis = Math.Max(0, columnCount / 2);
+        var basePlacement = new CoarseGridResult
+        {
+            RowCount = rowCount,
+            ColumnCount = columnCount,
+            DevicePlacements = compacted,
+            SymmetryAxis = symmetryAxis,
+            HorizontalPassiveIds = horizontalPassiveIds,
+        };
+        var portYHints = ApplyFeedthroughPortHints(
+            ComputePortYHints(basePlacement, graph),
+            basePlacement,
+            graph
+        );
         return new CoarseGridResult
         {
             RowCount = rowCount,
@@ -1362,17 +1961,7 @@ internal static class CoarseGridPlacementSolver
             DevicePlacements = compacted,
             SymmetryAxis = symmetryAxis,
             HorizontalPassiveIds = horizontalPassiveIds,
-            PortYHints = ComputePortYHints(
-                new CoarseGridResult
-                {
-                    RowCount = rowCount,
-                    ColumnCount = columnCount,
-                    DevicePlacements = compacted,
-                    SymmetryAxis = symmetryAxis,
-                    HorizontalPassiveIds = horizontalPassiveIds,
-                },
-                graph
-            ),
+            PortYHints = AvoidBlockedStraightPortHints(basePlacement, graph, portYHints),
         };
     }
 
@@ -1421,10 +2010,1795 @@ internal static class CoarseGridPlacementSolver
                 continue;
             }
 
+            if (TryRepairPointToPointDrainSourceStackViolation(repaired, topology, graph))
+            {
+                continue;
+            }
+
+            if (TryRepairMixedPolarityDrainAlignmentViolation(repaired, topology, graph))
+            {
+                continue;
+            }
+
+            if (TryRepairSupplyLoadAlignmentViolation(repaired, topology, graph))
+            {
+                continue;
+            }
+
+            if (
+                TryRepairStraightConnectionViolation(
+                    repaired,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs
+                )
+            )
+            {
+                continue;
+            }
+
             return repaired;
         }
 
         return Compact(repaired);
+    }
+
+    private static Dictionary<string, GridCell> RefineGateDriverPassivePlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        var flowDirectedGatePassiveIds = GetFlowDirectedGatePassiveIds(graph);
+        var inputNetDistances = BfsNetDistances(graph, graph.InputPorts.Concat(graph.BiasPorts));
+        var outputNetDistances = BfsNetDistances(graph, graph.OutputPorts);
+        var fillRowsAfterTopoRow = ComputeFillRowPositions(horizontalPassiveIds, topology, graph);
+        var fillRowOffsets = BuildFillRowOffsets(topology.DeviceRows.Values, fillRowsAfterTopoRow);
+        foreach (var pair in FindGatePassiveLinks(graph))
+        {
+            if (
+                hardPlacedDeviceIds.Contains(pair.PassiveDeviceId)
+                || !horizontalPassiveIds.Contains(pair.PassiveDeviceId)
+                || !flowDirectedGatePassiveIds.Contains(pair.PassiveDeviceId)
+            )
+            {
+                continue;
+            }
+
+            var sidePreference = GetGatePassiveSidePreference(
+                pair.PassiveOtherNet,
+                graph,
+                inputNetDistances,
+                outputNetDistances
+            );
+            if (sidePreference == SignalSidePreference.None)
+            {
+                continue;
+            }
+
+            TryRefineGateDriverPassivePlacement(
+                refined,
+                pair,
+                sidePreference,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                fillRowsAfterTopoRow,
+                fillRowOffsets
+            );
+        }
+
+        return Compact(refined);
+    }
+
+    private static Dictionary<string, GridCell> RefineInlinePassiveChainPlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        var inputNetDistances = BfsNetDistances(graph, graph.InputPorts.Concat(graph.BiasPorts));
+        var outputNetDistances = BfsNetDistances(graph, graph.OutputPorts);
+        var fillRowsAfterTopoRow = ComputeFillRowPositions(horizontalPassiveIds, topology, graph);
+        var fillRowOffsets = BuildFillRowOffsets(topology.DeviceRows.Values, fillRowsAfterTopoRow);
+        foreach (
+            var pair in FindInlinePassiveChainPairs(graph, inputNetDistances, outputNetDistances)
+        )
+        {
+            if (
+                hardPlacedDeviceIds.Contains(pair.UpstreamPassiveId)
+                || !horizontalPassiveIds.Contains(pair.UpstreamPassiveId)
+                || !horizontalPassiveIds.Contains(pair.DownstreamPassiveId)
+            )
+            {
+                continue;
+            }
+
+            TryRefineInlinePassiveChainPlacement(
+                refined,
+                pair,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                hardPlacedDeviceIds,
+                fillRowsAfterTopoRow,
+                fillRowOffsets
+            );
+        }
+
+        return Compact(refined);
+    }
+
+    private static bool TryRefineGateDriverPassivePlacement(
+        Dictionary<string, GridCell> placements,
+        GatePassiveLink pair,
+        SignalSidePreference sidePreference,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<int> fillRowsAfterTopoRow,
+        int[] fillRowOffsets
+    )
+    {
+        if (
+            !placements.TryGetValue(pair.PassiveDeviceId, out var passiveCell)
+            || !placements.TryGetValue(pair.MosDeviceId, out var mosCell)
+        )
+        {
+            return false;
+        }
+
+        var currentScore = ScoreGateDriverPassivePlacement(
+            placements,
+            pair,
+            sidePreference,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs
+        );
+        foreach (
+            var row in GetGateDriverCandidateRows(
+                pair.PassiveDeviceId,
+                pair.MosDeviceId,
+                placements,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                fillRowsAfterTopoRow,
+                fillRowOffsets
+            )
+        )
+        {
+            foreach (var column in GetGateDriverCandidateColumns(mosCell.Column, sidePreference))
+            {
+                if (row == passiveCell.Row && column == passiveCell.Column)
+                {
+                    continue;
+                }
+
+                if (
+                    placements.Any(kv =>
+                        kv.Key != pair.PassiveDeviceId
+                        && kv.Value.Row == row
+                        && kv.Value.Column == column
+                    )
+                )
+                {
+                    continue;
+                }
+
+                var candidateCell = new GridCell(
+                    row,
+                    column,
+                    passiveCell.RotationQuarterTurns,
+                    passiveCell.MirrorX,
+                    passiveCell.MirrorY
+                );
+                placements[pair.PassiveDeviceId] = candidateCell;
+                var candidateScore = ScoreGateDriverPassivePlacement(
+                    placements,
+                    pair,
+                    sidePreference,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs
+                );
+                placements[pair.PassiveDeviceId] = passiveCell;
+                if (!IsBetterGateDriverPassivePlacement(currentScore, candidateScore))
+                {
+                    continue;
+                }
+
+                placements[pair.PassiveDeviceId] = candidateCell;
+                if (
+                    IsValidPostRepairPlacement(
+                        placements,
+                        graph,
+                        topology,
+                        horizontalPassiveIds,
+                        symmetricPassivePairs
+                    )
+                )
+                {
+                    return true;
+                }
+
+                placements[pair.PassiveDeviceId] = passiveCell;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryRefineInlinePassiveChainPlacement(
+        Dictionary<string, GridCell> placements,
+        InlinePassiveChainPair pair,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds,
+        IReadOnlySet<int> fillRowsAfterTopoRow,
+        int[] fillRowOffsets
+    )
+    {
+        if (
+            !placements.TryGetValue(pair.UpstreamPassiveId, out var upstreamCell)
+            || !placements.TryGetValue(pair.DownstreamPassiveId, out var downstreamCell)
+        )
+        {
+            return false;
+        }
+
+        var currentScore = ScoreInlinePassiveChainPlacement(
+            upstreamCell,
+            downstreamCell,
+            pair.UpstreamSidePreference
+        );
+        foreach (
+            var row in GetInlinePassiveChainCandidateRows(
+                pair.UpstreamPassiveId,
+                upstreamCell,
+                downstreamCell,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                fillRowsAfterTopoRow,
+                fillRowOffsets
+            )
+        )
+        {
+            foreach (
+                var column in GetInlinePassiveChainCandidateColumns(
+                    downstreamCell.Column,
+                    pair.UpstreamSidePreference,
+                    Math.Max(
+                        placements.Values.Max(cell => cell.Column) + 2,
+                        downstreamCell.Column + 2
+                    )
+                )
+            )
+            {
+                if (row == upstreamCell.Row && column == upstreamCell.Column)
+                {
+                    continue;
+                }
+
+                if (
+                    placements.Any(kv =>
+                        kv.Key != pair.UpstreamPassiveId
+                        && kv.Value.Row == row
+                        && kv.Value.Column == column
+                    )
+                )
+                {
+                    continue;
+                }
+
+                var candidateCell = new GridCell(
+                    row,
+                    column,
+                    upstreamCell.RotationQuarterTurns,
+                    upstreamCell.MirrorX,
+                    upstreamCell.MirrorY
+                );
+                var candidateScore = ScoreInlinePassiveChainPlacement(
+                    candidateCell,
+                    downstreamCell,
+                    pair.UpstreamSidePreference
+                );
+                if (!IsBetterInlinePassiveChainPlacement(currentScore, candidateScore))
+                {
+                    continue;
+                }
+
+                if (
+                    TryCommitInlinePassiveChainPlacement(
+                        placements,
+                        pair,
+                        graph,
+                        topology,
+                        horizontalPassiveIds,
+                        symmetricPassivePairs,
+                        hardPlacedDeviceIds,
+                        upstreamCell,
+                        candidateCell
+                    )
+                )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return TryResolveInlinePassiveChainRailShuntPlacement(
+            placements,
+            pair,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedDeviceIds,
+            upstreamCell
+        );
+    }
+
+    private static bool TryCommitInlinePassiveChainPlacement(
+        Dictionary<string, GridCell> placements,
+        InlinePassiveChainPair pair,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds,
+        GridCell upstreamOriginalCell,
+        GridCell upstreamCandidateCell
+    )
+    {
+        placements[pair.UpstreamPassiveId] = upstreamCandidateCell;
+        if (
+            IsValidPostRepairPlacement(
+                placements,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs
+            )
+        )
+        {
+            TryResolveInlinePassiveChainRailShuntPlacement(
+                placements,
+                pair,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                hardPlacedDeviceIds,
+                upstreamCandidateCell
+            );
+            return true;
+        }
+
+        if (
+            TryResolveInlinePassiveChainRailShuntPlacement(
+                placements,
+                pair,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                hardPlacedDeviceIds,
+                upstreamCandidateCell
+            )
+        )
+        {
+            return true;
+        }
+
+        placements[pair.UpstreamPassiveId] = upstreamOriginalCell;
+        return false;
+    }
+
+    private static bool TryResolveInlinePassiveChainRailShuntPlacement(
+        Dictionary<string, GridCell> placements,
+        InlinePassiveChainPair pair,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds,
+        GridCell upstreamCandidateCell
+    )
+    {
+        if (!placements.TryGetValue(pair.DownstreamPassiveId, out var downstreamCell))
+        {
+            return false;
+        }
+
+        var improved = false;
+        foreach (
+            var shuntId in FindRailConnectedPassiveIdsOnNet(pair.JunctionNet, graph)
+                .Where(id =>
+                    !hardPlacedDeviceIds.Contains(id)
+                    && id != pair.UpstreamPassiveId
+                    && id != pair.DownstreamPassiveId
+                    && placements.ContainsKey(id)
+                )
+        )
+        {
+            var shuntCell = placements[shuntId];
+            var railNet = GetRailConnectedNet(shuntId, graph);
+            if (railNet == null)
+            {
+                continue;
+            }
+
+            var towardGround = graph.Grounds.Contains(railNet);
+            var bestCell = shuntCell;
+            var bestScore = ScoreInlinePassiveChainRailPassivePlacement(
+                shuntCell,
+                upstreamCandidateCell,
+                downstreamCell,
+                towardGround
+            );
+            foreach (
+                var row in GetInlinePassiveChainRailPassiveCandidateRows(
+                    shuntCell,
+                    upstreamCandidateCell,
+                    downstreamCell,
+                    towardGround
+                )
+            )
+            {
+                foreach (
+                    var column in GetInlinePassiveChainRailPassiveCandidateColumns(
+                        shuntCell,
+                        upstreamCandidateCell,
+                        downstreamCell
+                    )
+                )
+                {
+                    if (row == shuntCell.Row && column == shuntCell.Column)
+                    {
+                        continue;
+                    }
+
+                    if (
+                        placements.Any(kv =>
+                            kv.Key != shuntId && kv.Value.Row == row && kv.Value.Column == column
+                        )
+                    )
+                    {
+                        continue;
+                    }
+
+                    var candidateCell = new GridCell(
+                        row,
+                        column,
+                        shuntCell.RotationQuarterTurns,
+                        shuntCell.MirrorX,
+                        shuntCell.MirrorY
+                    );
+                    placements[shuntId] = candidateCell;
+                    if (
+                        IsValidPostRepairPlacement(
+                            placements,
+                            graph,
+                            topology,
+                            horizontalPassiveIds,
+                            symmetricPassivePairs
+                        )
+                    )
+                    {
+                        var candidateScore = ScoreInlinePassiveChainRailPassivePlacement(
+                            candidateCell,
+                            upstreamCandidateCell,
+                            downstreamCell,
+                            towardGround
+                        );
+                        if (candidateScore.CompareTo(bestScore) < 0)
+                        {
+                            bestCell = candidateCell;
+                            bestScore = candidateScore;
+                        }
+                    }
+
+                    placements[shuntId] = shuntCell;
+                }
+            }
+
+            if (!bestCell.Equals(shuntCell))
+            {
+                placements[shuntId] = bestCell;
+                improved = true;
+            }
+        }
+
+        return improved;
+    }
+
+    private static IReadOnlyList<int> GetGateDriverCandidateRows(
+        string passiveId,
+        string mosId,
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<int> fillRowsAfterTopoRow,
+        int[] fillRowOffsets
+    )
+    {
+        var rows = new List<int>();
+        if (placements.TryGetValue(passiveId, out var passiveCell))
+        {
+            rows.Add(passiveCell.Row);
+        }
+
+        if (
+            horizontalPassiveIds.Contains(passiveId)
+            && placements.TryGetValue(mosId, out var mosCell)
+        )
+        {
+            rows.AddRange(
+                ComputeValidFillRowsForPassive(
+                        passiveId,
+                        fillRowsAfterTopoRow,
+                        fillRowOffsets,
+                        graph,
+                        topology
+                    )
+                    .OrderBy(row => Math.Abs(row - mosCell.Row))
+            );
+        }
+
+        return rows.Distinct().ToList();
+    }
+
+    private static IEnumerable<int> GetGateDriverCandidateColumns(
+        int mosColumn,
+        SignalSidePreference sidePreference
+    )
+    {
+        if (sidePreference == SignalSidePreference.Left)
+        {
+            for (var column = mosColumn; column >= 0; column--)
+            {
+                yield return column;
+            }
+
+            yield break;
+        }
+
+        for (var column = mosColumn; column <= mosColumn + 8; column++)
+        {
+            yield return column;
+        }
+    }
+
+    private static IReadOnlyList<int> GetInlinePassiveChainCandidateRows(
+        string upstreamPassiveId,
+        GridCell upstreamCell,
+        GridCell downstreamCell,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<int> fillRowsAfterTopoRow,
+        int[] fillRowOffsets
+    )
+    {
+        var rows = new List<int> { downstreamCell.Row, upstreamCell.Row };
+        if (horizontalPassiveIds.Contains(upstreamPassiveId))
+        {
+            rows.AddRange(
+                ComputeValidFillRowsForPassive(
+                        upstreamPassiveId,
+                        fillRowsAfterTopoRow,
+                        fillRowOffsets,
+                        graph,
+                        topology
+                    )
+                    .OrderBy(row => Math.Abs(row - downstreamCell.Row))
+            );
+        }
+
+        return rows.Distinct().ToList();
+    }
+
+    private static IEnumerable<int> GetInlinePassiveChainCandidateColumns(
+        int downstreamColumn,
+        SignalSidePreference upstreamSidePreference,
+        int searchLimit
+    )
+    {
+        if (upstreamSidePreference == SignalSidePreference.Left)
+        {
+            for (var column = downstreamColumn - 1; column >= 0; column--)
+            {
+                yield return column;
+            }
+
+            yield break;
+        }
+
+        if (upstreamSidePreference == SignalSidePreference.Right)
+        {
+            for (var column = downstreamColumn + 1; column <= searchLimit; column++)
+            {
+                yield return column;
+            }
+        }
+    }
+
+    private static IReadOnlyList<int> GetInlinePassiveChainRailPassiveCandidateRows(
+        GridCell shuntCell,
+        GridCell upstreamCell,
+        GridCell downstreamCell,
+        bool towardGround
+    )
+    {
+        var anchorRow = towardGround
+            ? Math.Max(Math.Max(shuntCell.Row, upstreamCell.Row), downstreamCell.Row)
+            : Math.Min(Math.Min(shuntCell.Row, upstreamCell.Row), downstreamCell.Row);
+        var rows = new List<int> { shuntCell.Row };
+        if (towardGround)
+        {
+            rows.Add(anchorRow + 1);
+            rows.Add(anchorRow + 2);
+            rows.Add(anchorRow + 3);
+        }
+        else
+        {
+            rows.Add(anchorRow - 1);
+            rows.Add(anchorRow - 2);
+            rows.Add(anchorRow - 3);
+        }
+
+        return rows.Distinct().ToList();
+    }
+
+    private static IReadOnlyList<int> GetInlinePassiveChainRailPassiveCandidateColumns(
+        GridCell shuntCell,
+        GridCell upstreamCell,
+        GridCell downstreamCell
+    )
+    {
+        var minColumn = Math.Min(upstreamCell.Column, downstreamCell.Column);
+        var maxColumn = Math.Max(upstreamCell.Column, downstreamCell.Column);
+        var spanCenter = (minColumn + maxColumn) / 2.0;
+        return Enumerable
+            .Range(minColumn, maxColumn - minColumn + 1)
+            .Append(shuntCell.Column)
+            .Distinct()
+            .OrderBy(column => column < minColumn || column > maxColumn ? 1 : 0)
+            .ThenBy(column => Math.Abs(column - spanCenter))
+            .ThenBy(column => Math.Abs(column - shuntCell.Column))
+            .ToList();
+    }
+
+    private static (
+        int OutsideSpanDistance,
+        int DirectionPenalty,
+        int Movement
+    ) ScoreInlinePassiveChainRailPassivePlacement(
+        GridCell shuntCell,
+        GridCell upstreamCell,
+        GridCell downstreamCell,
+        bool towardGround
+    )
+    {
+        var minColumn = Math.Min(upstreamCell.Column, downstreamCell.Column);
+        var maxColumn = Math.Max(upstreamCell.Column, downstreamCell.Column);
+        var anchorRow = towardGround
+            ? Math.Max(upstreamCell.Row, downstreamCell.Row)
+            : Math.Min(upstreamCell.Row, downstreamCell.Row);
+        var outsideSpanDistance =
+            shuntCell.Column < minColumn ? minColumn - shuntCell.Column
+            : shuntCell.Column > maxColumn ? shuntCell.Column - maxColumn
+            : 0;
+        var directionPenalty = towardGround
+            ? Math.Max(0, anchorRow - shuntCell.Row)
+            : Math.Max(0, shuntCell.Row - anchorRow);
+        var movement =
+            Math.Abs(shuntCell.Column - minColumn)
+            + Math.Abs(shuntCell.Column - maxColumn)
+            + Math.Abs(shuntCell.Row - anchorRow);
+        return (outsideSpanDistance, directionPenalty, movement);
+    }
+
+    private static (
+        int WrongSide,
+        int TerminalDistance,
+        int RowDistance
+    ) ScoreGateDriverPassivePlacement(
+        IReadOnlyDictionary<string, GridCell> placements,
+        GatePassiveLink pair,
+        SignalSidePreference sidePreference,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs
+    )
+    {
+        var oriented = ApplyOrientationRules(
+            placements,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs
+        );
+        var snapshot = BuildPlacementSnapshot(oriented, horizontalPassiveIds);
+        var passiveCell = placements[pair.PassiveDeviceId];
+        var mosCell = placements[pair.MosDeviceId];
+        var passiveGateTerminal = string.Equals(
+            graph.GetNetForTerminal(pair.PassiveDeviceId, "P"),
+            pair.PassiveOtherNet,
+            StringComparison.Ordinal
+        )
+            ? "N"
+            : "P";
+        var passiveTerminalX = GetTerminalX(
+            snapshot,
+            graph,
+            pair.PassiveDeviceId,
+            passiveGateTerminal
+        );
+        var mosGateX = GetTerminalX(snapshot, graph, pair.MosDeviceId, "G");
+        var wrongSide = sidePreference switch
+        {
+            SignalSidePreference.Left when passiveTerminalX > mosGateX => 1,
+            SignalSidePreference.Right when passiveTerminalX < mosGateX => 1,
+            _ => 0,
+        };
+        return (
+            wrongSide,
+            Math.Abs(passiveTerminalX - mosGateX),
+            Math.Abs(passiveCell.Row - mosCell.Row)
+        );
+    }
+
+    private static bool IsBetterGateDriverPassivePlacement(
+        (int WrongSide, int TerminalDistance, int RowDistance) current,
+        (int WrongSide, int TerminalDistance, int RowDistance) candidate
+    )
+    {
+        return candidate.WrongSide < current.WrongSide
+            || (
+                candidate.WrongSide == current.WrongSide
+                && (
+                    candidate.TerminalDistance < current.TerminalDistance
+                    || (
+                        candidate.TerminalDistance == current.TerminalDistance
+                        && candidate.RowDistance < current.RowDistance
+                    )
+                )
+            );
+    }
+
+    private static (
+        int WrongSide,
+        int RowDistance,
+        int ColumnGap,
+        int Movement
+    ) ScoreInlinePassiveChainPlacement(
+        GridCell upstreamCell,
+        GridCell downstreamCell,
+        SignalSidePreference upstreamSidePreference
+    )
+    {
+        var wrongSide = upstreamSidePreference switch
+        {
+            SignalSidePreference.Left when upstreamCell.Column >= downstreamCell.Column => 1,
+            SignalSidePreference.Right when upstreamCell.Column <= downstreamCell.Column => 1,
+            _ => 0,
+        };
+        var columnGap =
+            wrongSide == 0
+                ? Math.Max(0, Math.Abs(upstreamCell.Column - downstreamCell.Column) - 1)
+                : Math.Abs(upstreamCell.Column - downstreamCell.Column);
+        return (
+            wrongSide,
+            Math.Abs(upstreamCell.Row - downstreamCell.Row),
+            columnGap,
+            Math.Abs(upstreamCell.Row - downstreamCell.Row)
+                + Math.Abs(upstreamCell.Column - downstreamCell.Column)
+        );
+    }
+
+    private static bool IsBetterInlinePassiveChainPlacement(
+        (int WrongSide, int RowDistance, int ColumnGap, int Movement) current,
+        (int WrongSide, int RowDistance, int ColumnGap, int Movement) candidate
+    )
+    {
+        return candidate.WrongSide < current.WrongSide
+            || (
+                candidate.WrongSide == current.WrongSide
+                && (
+                    candidate.RowDistance < current.RowDistance
+                    || (
+                        candidate.RowDistance == current.RowDistance
+                        && (
+                            candidate.ColumnGap < current.ColumnGap
+                            || (
+                                candidate.ColumnGap == current.ColumnGap
+                                && candidate.Movement < current.Movement
+                            )
+                        )
+                    )
+                )
+            );
+    }
+
+    private static SignalSidePreference GetOutputCouplingSidePreference(
+        OutputCouplingPassivePair pair,
+        IReadOnlySet<string> horizontalPassiveIds
+    )
+    {
+        if (!horizontalPassiveIds.Contains(pair.PassiveDeviceId))
+        {
+            return SignalSidePreference.None;
+        }
+
+        return pair.PassiveSignalTerminal switch
+        {
+            "P" => SignalSidePreference.Right,
+            "N" => SignalSidePreference.Left,
+            _ => SignalSidePreference.None,
+        };
+    }
+
+    private static (
+        int Retreat,
+        int TerminalDistance,
+        int Movement
+    ) ScoreOutputCouplingPassivePlacement(
+        IReadOnlyDictionary<string, GridCell> placements,
+        OutputCouplingPassivePair pair,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        GridCell originalPassiveCell
+    )
+    {
+        var compacted = Compact(placements);
+        var oriented = ApplyOrientationRules(
+            compacted,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs
+        );
+        var snapshot = BuildPlacementSnapshot(oriented, horizontalPassiveIds);
+        var mosX = GetTerminalX(snapshot, graph, pair.MosDeviceId, pair.MosTerminal);
+        var signalX = GetTerminalX(
+            snapshot,
+            graph,
+            pair.PassiveDeviceId,
+            pair.PassiveSignalTerminal
+        );
+        var passiveCell = oriented[pair.PassiveDeviceId];
+        return (
+            Math.Max(0, mosX - signalX),
+            Math.Abs(signalX - mosX),
+            Math.Abs(passiveCell.Column - originalPassiveCell.Column)
+        );
+    }
+
+    private static bool IsBetterOutputCouplingPassivePlacement(
+        (int Retreat, int TerminalDistance, int Movement) candidate,
+        (int Retreat, int TerminalDistance, int Movement) current
+    )
+    {
+        return candidate.Retreat < current.Retreat
+            || (
+                candidate.Retreat == current.Retreat
+                && (
+                    candidate.TerminalDistance < current.TerminalDistance
+                    || (
+                        candidate.TerminalDistance == current.TerminalDistance
+                        && candidate.Movement < current.Movement
+                    )
+                )
+            );
+    }
+
+    private static int GetTerminalX(
+        CoarseGridResult placement,
+        CircuitGraph graph,
+        string deviceId,
+        string terminal
+    )
+    {
+        var cell = placement.DevicePlacements[deviceId];
+        var deviceType = graph.Devices[deviceId].DeviceType.ToLowerInvariant();
+        if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
+        {
+            var mos = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
+            return terminal switch
+            {
+                "G" => mos.GateX,
+                "D" or "S" => mos.AxisX,
+                _ => throw new InvalidOperationException(
+                    $"Unsupported MOS terminal '{terminal}' for '{deviceId}'."
+                ),
+            };
+        }
+
+        if (deviceType is "resistor" or "capacitor" or "inductor")
+        {
+            if (placement.HorizontalPassiveIds.Contains(deviceId))
+            {
+                var horizontal = DeviceGeometry.GetHorizontalPassivePlacement(
+                    cell.Row,
+                    cell.Column,
+                    placement.ColumnCount,
+                    pOnLeft: !cell.MirrorX
+                );
+                return terminal switch
+                {
+                    "P" => horizontal.PX,
+                    "N" => horizontal.NX,
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported passive terminal '{terminal}' for '{deviceId}'."
+                    ),
+                };
+            }
+
+            var vertical = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
+            return terminal switch
+            {
+                "P" or "N" => vertical.PX,
+                _ => throw new InvalidOperationException(
+                    $"Unsupported passive terminal '{terminal}' for '{deviceId}'."
+                ),
+            };
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported device type '{deviceType}' for '{deviceId}'."
+        );
+    }
+
+    private static bool IsValidPostRepairPlacement(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs
+    )
+    {
+        var compacted = Compact(placements);
+        var oriented = ApplyOrientationRules(
+            compacted,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs
+        );
+        if (HasRailEdgeClearanceViolation(oriented, graph, horizontalPassiveIds))
+        {
+            return false;
+        }
+
+        var snapshot = BuildPlacementSnapshot(oriented, horizontalPassiveIds);
+        return FindStraightConnectionViolation(snapshot, graph, portsOnly: false) == null;
+    }
+
+    private static bool HasRailEdgeClearanceViolation(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        IReadOnlySet<string> horizontalPassiveIds
+    )
+    {
+        foreach (var (deviceId, cell) in placements)
+        {
+            if (!graph.Devices.TryGetValue(deviceId, out var device))
+            {
+                continue;
+            }
+
+            foreach (var (terminal, netName) in device.Bindings)
+            {
+                if (!graph.IsSupplyOrGround(netName))
+                {
+                    continue;
+                }
+
+                var offset = GetTerminalOffset(
+                    new TerminalRef(deviceId, terminal),
+                    graph,
+                    horizontalPassiveIds
+                );
+                var blocksAbove = graph.Supplies.Contains(netName) && offset.DeltaRow < 0;
+                var blocksBelow = graph.Grounds.Contains(netName) && offset.DeltaRow > 0;
+                if (
+                    (
+                        blocksAbove
+                        && placements.Any(kv =>
+                            kv.Key != deviceId
+                            && kv.Value.Column == cell.Column
+                            && kv.Value.Row < cell.Row
+                        )
+                    )
+                    || (
+                        blocksBelow
+                        && placements.Any(kv =>
+                            kv.Key != deviceId
+                            && kv.Value.Column == cell.Column
+                            && kv.Value.Row > cell.Row
+                        )
+                    )
+                )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static Dictionary<string, GridCell> RefineBiasPassiveClusterPlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        foreach (var cluster in FindRailConnectedPassiveClusters(graph))
+        {
+            TryRefineBiasPassiveClusterPlacement(
+                refined,
+                cluster,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                hardPlacedDeviceIds
+            );
+        }
+
+        return Compact(refined);
+    }
+
+    private static Dictionary<string, GridCell> RefineBiasPassiveChainPlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        foreach (var chain in FindBiasPassiveChains(graph))
+        {
+            TryRefineBiasPassiveChainPlacement(
+                refined,
+                chain,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                hardPlacedDeviceIds
+            );
+        }
+
+        return Compact(refined);
+    }
+
+    private static Dictionary<string, GridCell> RefineBiasPassiveClusterOrderingPlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        var clusters = FindRailConnectedPassiveClusters(graph);
+        for (var leftIndex = 0; leftIndex < clusters.Count; leftIndex++)
+        {
+            for (var rightIndex = leftIndex + 1; rightIndex < clusters.Count; rightIndex++)
+            {
+                TrySwapInvertedBiasClusterWindows(
+                    refined,
+                    clusters[leftIndex],
+                    clusters[rightIndex],
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs,
+                    hardPlacedDeviceIds
+                );
+            }
+        }
+
+        return Compact(refined);
+    }
+
+    private static Dictionary<string, GridCell> RefineOutputCouplingPassivePlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        foreach (var pair in FindOutputCouplingPassivePairs(graph))
+        {
+            if (hardPlacedDeviceIds.Contains(pair.PassiveDeviceId))
+            {
+                continue;
+            }
+
+            TryRefineOutputCouplingPassivePlacement(
+                refined,
+                pair,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs
+            );
+        }
+
+        return Compact(refined);
+    }
+
+    private static bool TryRefineOutputCouplingPassivePlacement(
+        Dictionary<string, GridCell> placements,
+        OutputCouplingPassivePair pair,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs
+    )
+    {
+        if (
+            !placements.TryGetValue(pair.PassiveDeviceId, out var passiveCell)
+            || !placements.ContainsKey(pair.MosDeviceId)
+        )
+        {
+            return false;
+        }
+
+        var bestPlacements = placements.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value,
+            StringComparer.Ordinal
+        );
+        var bestScore = ScoreOutputCouplingPassivePlacement(
+            bestPlacements,
+            pair,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            passiveCell
+        );
+        var improved = false;
+        var searchLimit = placements.Values.Max(cell => cell.Column) + 2;
+        for (var column = 0; column <= searchLimit; column++)
+        {
+            if (column == passiveCell.Column)
+            {
+                continue;
+            }
+
+            if (
+                placements.Any(kv =>
+                    kv.Key != pair.PassiveDeviceId
+                    && kv.Value.Row == passiveCell.Row
+                    && kv.Value.Column == column
+                )
+            )
+            {
+                continue;
+            }
+
+            placements[pair.PassiveDeviceId] = new GridCell(
+                passiveCell.Row,
+                column,
+                passiveCell.RotationQuarterTurns,
+                passiveCell.MirrorX,
+                passiveCell.MirrorY
+            );
+            if (
+                !IsValidPostRepairPlacement(
+                    placements,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs
+                )
+            )
+            {
+                placements[pair.PassiveDeviceId] = passiveCell;
+                continue;
+            }
+
+            var candidateScore = ScoreOutputCouplingPassivePlacement(
+                placements,
+                pair,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                passiveCell
+            );
+            if (IsBetterOutputCouplingPassivePlacement(candidateScore, bestScore))
+            {
+                bestPlacements = placements.ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value,
+                    StringComparer.Ordinal
+                );
+                bestScore = candidateScore;
+                improved = true;
+            }
+
+            placements[pair.PassiveDeviceId] = passiveCell;
+        }
+
+        if (!improved)
+        {
+            return false;
+        }
+
+        placements.Clear();
+        foreach (var (deviceId, cell) in bestPlacements)
+        {
+            placements[deviceId] = cell;
+        }
+
+        return true;
+    }
+
+    private static bool TryRefineBiasPassiveClusterPlacement(
+        Dictionary<string, GridCell> placements,
+        RailConnectedPassiveCluster cluster,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var members = cluster
+            .DeviceIds.Where(placements.ContainsKey)
+            .OrderBy(id => placements[id].Row)
+            .ThenBy(id => placements[id].Column)
+            .ToArray();
+        if (members.Length < 2)
+        {
+            return false;
+        }
+
+        var currentSpan =
+            members.Max(id => placements[id].Column) - members.Min(id => placements[id].Column);
+        var minSpan = members.GroupBy(id => placements[id].Row).Max(group => group.Count()) - 1;
+        if (currentSpan < minSpan)
+        {
+            return false;
+        }
+
+        var consumerColumns = GetWeightedBiasConsumerIds(
+                [cluster.NetName],
+                GetBiasClusterConsumerIds(cluster, graph),
+                graph
+            )
+            .Where(placements.ContainsKey)
+            .Select(id => placements[id].Column)
+            .ToArray();
+        var searchLimit = placements.Values.Max(cell => cell.Column) + members.Length;
+        var currentScore = ScoreBiasClusterPlacement(
+            placements,
+            members,
+            consumerColumns,
+            placements
+        );
+        Dictionary<string, GridCell>? best = null;
+        var bestScore = currentScore;
+        for (var span = minSpan; span <= currentSpan; span++)
+        {
+            for (var start = 0; start + span <= searchLimit; start++)
+            {
+                var candidate = BuildBiasClusterWindowCandidate(
+                    placements,
+                    members,
+                    hardPlacedDeviceIds,
+                    consumerColumns,
+                    start,
+                    span,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs
+                );
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                var score = ScoreBiasClusterPlacement(
+                    candidate,
+                    members,
+                    consumerColumns,
+                    placements
+                );
+                if (score.CompareTo(bestScore) >= 0)
+                {
+                    continue;
+                }
+
+                best = candidate;
+                bestScore = score;
+            }
+        }
+
+        if (best == null || bestScore.CompareTo(currentScore) >= 0)
+        {
+            return false;
+        }
+
+        foreach (var member in members)
+        {
+            placements[member] = best[member];
+        }
+
+        return true;
+    }
+
+    private static bool TryRefineBiasPassiveChainPlacement(
+        Dictionary<string, GridCell> placements,
+        BiasPassiveChain chain,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var members = chain
+            .DeviceIds.Where(placements.ContainsKey)
+            .OrderBy(id => placements[id].Row)
+            .ThenBy(id => placements[id].Column)
+            .ToArray();
+        if (members.Length < 3)
+        {
+            return false;
+        }
+
+        var currentSpan =
+            members.Max(id => placements[id].Column) - members.Min(id => placements[id].Column);
+        var minSpan = members.GroupBy(id => placements[id].Row).Max(group => group.Count()) - 1;
+        if (currentSpan < minSpan)
+        {
+            return false;
+        }
+
+        var consumerColumns = chain
+            .ConsumerIds.Where(placements.ContainsKey)
+            .Select(id => placements[id].Column)
+            .ToArray();
+        var searchLimit = placements.Values.Max(cell => cell.Column) + members.Length;
+        var currentScore = ScoreBiasClusterPlacement(
+            placements,
+            members,
+            consumerColumns,
+            placements
+        );
+        Dictionary<string, GridCell>? best = null;
+        var bestScore = currentScore;
+        for (var span = minSpan; span <= currentSpan; span++)
+        {
+            for (var start = 0; start + span <= searchLimit; start++)
+            {
+                var candidate = BuildBiasClusterWindowCandidate(
+                    placements,
+                    members,
+                    hardPlacedDeviceIds,
+                    consumerColumns,
+                    start,
+                    span,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs
+                );
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                var score = ScoreBiasClusterPlacement(
+                    candidate,
+                    members,
+                    consumerColumns,
+                    placements
+                );
+                if (score.CompareTo(bestScore) >= 0)
+                {
+                    continue;
+                }
+
+                best = candidate;
+                bestScore = score;
+            }
+        }
+
+        if (best == null || bestScore.CompareTo(currentScore) >= 0)
+        {
+            return false;
+        }
+
+        foreach (var member in members)
+        {
+            placements[member] = best[member];
+        }
+
+        return true;
+    }
+
+    private static Dictionary<string, GridCell>? BuildBiasClusterWindowCandidate(
+        IReadOnlyDictionary<string, GridCell> placements,
+        IReadOnlyList<string> members,
+        IReadOnlySet<string> hardPlacedDeviceIds,
+        IReadOnlyList<int> consumerColumns,
+        int startColumn,
+        int span,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs
+    )
+    {
+        var windowColumns = Enumerable.Range(startColumn, span + 1).ToArray();
+        var memberSet = members.ToHashSet(StringComparer.Ordinal);
+        var candidate = placements.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value,
+            StringComparer.Ordinal
+        );
+        var usedCells = new HashSet<(int Row, int Column)>();
+        foreach (var member in members.Where(hardPlacedDeviceIds.Contains))
+        {
+            var cell = placements[member];
+            if (
+                cell.Column < startColumn
+                || cell.Column > startColumn + span
+                || placements.Any(kv =>
+                    !memberSet.Contains(kv.Key)
+                    && kv.Value.Row == cell.Row
+                    && kv.Value.Column == cell.Column
+                )
+                || !usedCells.Add((cell.Row, cell.Column))
+            )
+            {
+                return null;
+            }
+        }
+
+        var movableMembers = members
+            .Where(id => !hardPlacedDeviceIds.Contains(id))
+            .OrderBy(id => GetBiasClusterWindowMemberPriority(id, graph))
+            .ThenBy(id => placements[id].Row)
+            .ThenBy(id => placements[id].Column)
+            .ToArray();
+        return TryAssignBiasClusterWindowMembers(
+            index: 0,
+            movableMembers,
+            placements,
+            memberSet,
+            windowColumns,
+            consumerColumns,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            usedCells,
+            candidate
+        )
+            ? candidate
+            : null;
+    }
+
+    private static int GetBiasClusterWindowMemberPriority(string deviceId, CircuitGraph graph)
+    {
+        if (
+            graph.Devices.TryGetValue(deviceId, out var device)
+            && device.DeviceType.Equals("capacitor", StringComparison.OrdinalIgnoreCase)
+            && device.Bindings.Values.Any(graph.IsSupplyOrGround)
+        )
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static bool TryAssignBiasClusterWindowMembers(
+        int index,
+        IReadOnlyList<string> movableMembers,
+        IReadOnlyDictionary<string, GridCell> baseline,
+        IReadOnlySet<string> memberSet,
+        IReadOnlyList<int> windowColumns,
+        IReadOnlyList<int> consumerColumns,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        HashSet<(int Row, int Column)> usedCells,
+        Dictionary<string, GridCell> candidate
+    )
+    {
+        if (index >= movableMembers.Count)
+        {
+            return IsValidPostRepairPlacement(
+                candidate,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs
+            );
+        }
+
+        var member = movableMembers[index];
+        var currentCell = baseline[member];
+        var targetColumn =
+            consumerColumns.Count == 0
+                ? currentCell.Column
+                : (int)Math.Round(consumerColumns.Average(), MidpointRounding.AwayFromZero);
+        var validColumns = windowColumns
+            .Where(candidateColumn =>
+                !usedCells.Contains((currentCell.Row, candidateColumn))
+                && !baseline.Any(kv =>
+                    !memberSet.Contains(kv.Key)
+                    && kv.Value.Row == currentCell.Row
+                    && kv.Value.Column == candidateColumn
+                )
+            )
+            .OrderBy(candidateColumn => Math.Abs(candidateColumn - targetColumn))
+            .ThenBy(candidateColumn => Math.Abs(candidateColumn - currentCell.Column))
+            .ToArray();
+        foreach (var column in validColumns)
+        {
+            usedCells.Add((currentCell.Row, column));
+            candidate[member] = new GridCell(
+                currentCell.Row,
+                column,
+                currentCell.RotationQuarterTurns,
+                currentCell.MirrorX,
+                currentCell.MirrorY
+            );
+            if (
+                TryAssignBiasClusterWindowMembers(
+                    index + 1,
+                    movableMembers,
+                    baseline,
+                    memberSet,
+                    windowColumns,
+                    consumerColumns,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs,
+                    usedCells,
+                    candidate
+                )
+            )
+            {
+                return true;
+            }
+
+            candidate[member] = currentCell;
+            usedCells.Remove((currentCell.Row, column));
+        }
+
+        return false;
+    }
+
+    private static (int Span, int ConsumerDistance, int Movement) ScoreBiasClusterPlacement(
+        IReadOnlyDictionary<string, GridCell> candidate,
+        IReadOnlyList<string> members,
+        IReadOnlyList<int> consumerColumns,
+        IReadOnlyDictionary<string, GridCell> baseline
+    )
+    {
+        var span =
+            members.Max(id => candidate[id].Column) - members.Min(id => candidate[id].Column);
+        var consumerDistance = consumerColumns.Sum(consumerColumn =>
+            members.Sum(id => Math.Abs(candidate[id].Column - consumerColumn))
+        );
+        var movement = members.Sum(id => Math.Abs(candidate[id].Column - baseline[id].Column));
+        return (span, consumerDistance, movement);
+    }
+
+    private static bool TrySwapInvertedBiasClusterWindows(
+        Dictionary<string, GridCell> placements,
+        RailConnectedPassiveCluster leftCluster,
+        RailConnectedPassiveCluster rightCluster,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var leftMembers = leftCluster.DeviceIds.Where(placements.ContainsKey).ToArray();
+        var rightMembers = rightCluster.DeviceIds.Where(placements.ContainsKey).ToArray();
+        if (
+            leftMembers.Length < 2
+            || rightMembers.Length < 2
+            || leftMembers.Any(hardPlacedDeviceIds.Contains)
+            || rightMembers.Any(hardPlacedDeviceIds.Contains)
+            || leftMembers.Intersect(rightMembers, StringComparer.Ordinal).Any()
+        )
+        {
+            return false;
+        }
+
+        var leftConsumerColumns = GetWeightedBiasConsumerIds(
+                [leftCluster.NetName],
+                GetBiasClusterConsumerIds(leftCluster, graph),
+                graph
+            )
+            .Where(placements.ContainsKey)
+            .Select(id => placements[id].Column)
+            .ToArray();
+        var rightConsumerColumns = GetWeightedBiasConsumerIds(
+                [rightCluster.NetName],
+                GetBiasClusterConsumerIds(rightCluster, graph),
+                graph
+            )
+            .Where(placements.ContainsKey)
+            .Select(id => placements[id].Column)
+            .ToArray();
+        if (leftConsumerColumns.Length == 0 || rightConsumerColumns.Length == 0)
+        {
+            return false;
+        }
+
+        var leftCurrentCenter = leftMembers.Average(id => placements[id].Column);
+        var rightCurrentCenter = rightMembers.Average(id => placements[id].Column);
+        var leftConsumerCenter = leftConsumerColumns.Average();
+        var rightConsumerCenter = rightConsumerColumns.Average();
+        var inverted =
+            leftConsumerCenter < rightConsumerCenter
+                ? leftCurrentCenter > rightCurrentCenter
+                : leftConsumerCenter > rightConsumerCenter
+                    && leftCurrentCenter < rightCurrentCenter;
+        if (!inverted)
+        {
+            return false;
+        }
+
+        var leftMin = leftMembers.Min(id => placements[id].Column);
+        var rightMin = rightMembers.Min(id => placements[id].Column);
+        var candidate = placements.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value,
+            StringComparer.Ordinal
+        );
+        foreach (var member in leftMembers)
+        {
+            var cell = placements[member];
+            candidate[member] = new GridCell(
+                cell.Row,
+                rightMin + (cell.Column - leftMin),
+                cell.RotationQuarterTurns,
+                cell.MirrorX,
+                cell.MirrorY
+            );
+        }
+
+        foreach (var member in rightMembers)
+        {
+            var cell = placements[member];
+            candidate[member] = new GridCell(
+                cell.Row,
+                leftMin + (cell.Column - rightMin),
+                cell.RotationQuarterTurns,
+                cell.MirrorX,
+                cell.MirrorY
+            );
+        }
+
+        var candidateCells = leftMembers
+            .Concat(rightMembers)
+            .Select(member => (candidate[member].Row, candidate[member].Column))
+            .ToArray();
+        if (candidateCells.Distinct().Count() != candidateCells.Length)
+        {
+            return false;
+        }
+
+        if (
+            candidate.Any(kv =>
+                !leftMembers.Contains(kv.Key, StringComparer.Ordinal)
+                && !rightMembers.Contains(kv.Key, StringComparer.Ordinal)
+                && candidateCells.Contains((kv.Value.Row, kv.Value.Column))
+            )
+            || !IsValidPostRepairPlacement(
+                candidate,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs
+            )
+        )
+        {
+            return false;
+        }
+
+        var currentLeftScore = ScoreBiasClusterPlacement(
+            placements,
+            leftMembers,
+            leftConsumerColumns,
+            placements
+        );
+        var currentRightScore = ScoreBiasClusterPlacement(
+            placements,
+            rightMembers,
+            rightConsumerColumns,
+            placements
+        );
+        var candidateLeftScore = ScoreBiasClusterPlacement(
+            candidate,
+            leftMembers,
+            leftConsumerColumns,
+            placements
+        );
+        var candidateRightScore = ScoreBiasClusterPlacement(
+            candidate,
+            rightMembers,
+            rightConsumerColumns,
+            placements
+        );
+        var currentConsumerDistance =
+            currentLeftScore.ConsumerDistance + currentRightScore.ConsumerDistance;
+        var candidateConsumerDistance =
+            candidateLeftScore.ConsumerDistance + candidateRightScore.ConsumerDistance;
+        var currentMovement = currentLeftScore.Movement + currentRightScore.Movement;
+        var candidateMovement = candidateLeftScore.Movement + candidateRightScore.Movement;
+        if (
+            candidateConsumerDistance > currentConsumerDistance
+            || (
+                candidateConsumerDistance == currentConsumerDistance
+                && candidateMovement >= currentMovement
+            )
+        )
+        {
+            return false;
+        }
+
+        placements.Clear();
+        foreach (var (deviceId, cell) in candidate)
+        {
+            placements[deviceId] = cell;
+        }
+
+        return true;
     }
 
     private static bool TryMoveSplitSymmetricGroupToFreshRow(
@@ -1450,6 +3824,156 @@ internal static class CoarseGridPlacementSolver
             foreach (var member in members)
             {
                 placements[member] = new GridCell(freshRow, placements[member].Column);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryRepairPointToPointDrainSourceStackViolation(
+        Dictionary<string, GridCell> placements,
+        TopologyResult topology,
+        CircuitGraph graph
+    )
+    {
+        var groupedDevices = topology
+            .SymmetricGroups.SelectMany(group => group.DeviceIds)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var pair in FindPointToPointDrainSourcePairs(graph))
+        {
+            if (
+                !placements.TryGetValue(pair.SourceDeviceId, out var sourceCell)
+                || !placements.TryGetValue(pair.DrainDeviceId, out var drainCell)
+                || sourceCell.Column == drainCell.Column
+            )
+            {
+                continue;
+            }
+
+            var moveSource =
+                groupedDevices.Contains(pair.DrainDeviceId)
+                && !groupedDevices.Contains(pair.SourceDeviceId);
+            if (moveSource)
+            {
+                placements[pair.SourceDeviceId] = new GridCell(
+                    sourceCell.Row,
+                    drainCell.Column,
+                    sourceCell.RotationQuarterTurns,
+                    sourceCell.MirrorX,
+                    sourceCell.MirrorY
+                );
+            }
+            else
+            {
+                placements[pair.DrainDeviceId] = new GridCell(
+                    drainCell.Row,
+                    sourceCell.Column,
+                    drainCell.RotationQuarterTurns,
+                    drainCell.MirrorX,
+                    drainCell.MirrorY
+                );
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryRepairMixedPolarityDrainAlignmentViolation(
+        Dictionary<string, GridCell> placements,
+        TopologyResult topology,
+        CircuitGraph graph
+    )
+    {
+        var groupedDevices = topology
+            .SymmetricGroups.SelectMany(group => group.DeviceIds)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var pair in FindMixedPolarityDrainPairs(graph))
+        {
+            if (
+                !placements.TryGetValue(pair.PmosDeviceId, out var pmosCell)
+                || !placements.TryGetValue(pair.NmosDeviceId, out var nmosCell)
+                || pmosCell.Column == nmosCell.Column
+            )
+            {
+                continue;
+            }
+
+            var movePmos =
+                groupedDevices.Contains(pair.NmosDeviceId)
+                && !groupedDevices.Contains(pair.PmosDeviceId);
+            if (movePmos)
+            {
+                placements[pair.PmosDeviceId] = new GridCell(
+                    pmosCell.Row,
+                    nmosCell.Column,
+                    pmosCell.RotationQuarterTurns,
+                    pmosCell.MirrorX,
+                    pmosCell.MirrorY
+                );
+            }
+            else
+            {
+                placements[pair.NmosDeviceId] = new GridCell(
+                    nmosCell.Row,
+                    pmosCell.Column,
+                    nmosCell.RotationQuarterTurns,
+                    nmosCell.MirrorX,
+                    nmosCell.MirrorY
+                );
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryRepairSupplyLoadAlignmentViolation(
+        Dictionary<string, GridCell> placements,
+        TopologyResult topology,
+        CircuitGraph graph
+    )
+    {
+        var groupedDevices = topology
+            .SymmetricGroups.SelectMany(group => group.DeviceIds)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var pair in FindSupplyConnectedMosLoadPairs(graph))
+        {
+            if (
+                !placements.TryGetValue(pair.LoadDeviceId, out var loadCell)
+                || !placements.TryGetValue(pair.MosDeviceId, out var mosCell)
+                || loadCell.Column == mosCell.Column
+            )
+            {
+                continue;
+            }
+
+            if (
+                groupedDevices.Contains(pair.LoadDeviceId)
+                && !groupedDevices.Contains(pair.MosDeviceId)
+            )
+            {
+                placements[pair.MosDeviceId] = new GridCell(
+                    mosCell.Row,
+                    loadCell.Column,
+                    mosCell.RotationQuarterTurns,
+                    mosCell.MirrorX,
+                    mosCell.MirrorY
+                );
+            }
+            else
+            {
+                placements[pair.LoadDeviceId] = new GridCell(
+                    loadCell.Row,
+                    mosCell.Column,
+                    loadCell.RotationQuarterTurns,
+                    loadCell.MirrorX,
+                    loadCell.MirrorY
+                );
             }
 
             return true;
@@ -1518,6 +4042,85 @@ internal static class CoarseGridPlacementSolver
                 placements[deviceId] = new GridCell(cell.Row, freshColumn);
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private static bool TryRepairStraightConnectionViolation(
+        Dictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs
+    )
+    {
+        var oriented = ApplyOrientationRules(
+            placements,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs
+        );
+        var candidate = BuildPlacementSnapshot(oriented, horizontalPassiveIds);
+        var violation = FindStraightConnectionViolation(candidate, graph, portsOnly: false);
+        if (
+            violation == null
+            || !placements.TryGetValue(violation.BlockingDeviceId, out var blockingCell)
+        )
+        {
+            return false;
+        }
+
+        if (TryMoveStraightConnectionEndpoint(placements, graph, violation))
+        {
+            return true;
+        }
+
+        var isHorizontal = violation.Start.Y == violation.End.Y;
+        if (isHorizontal)
+        {
+            var freshRow = placements.Values.Max(existing => existing.Row) + 1;
+            placements[violation.BlockingDeviceId] = new GridCell(freshRow, blockingCell.Column);
+            return true;
+        }
+
+        var freshColumn = placements.Values.Max(existing => existing.Column) + 1;
+        placements[violation.BlockingDeviceId] = new GridCell(blockingCell.Row, freshColumn);
+        return true;
+    }
+
+    private static bool TryMoveStraightConnectionEndpoint(
+        Dictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        StraightConnectionViolation violation
+    )
+    {
+        var endpointIds = new[] { violation.Start.DeviceId, violation.End.DeviceId };
+        foreach (var endpointId in endpointIds)
+        {
+            if (
+                endpointId.StartsWith("PORT_", StringComparison.Ordinal)
+                || !placements.TryGetValue(endpointId, out var endpointCell)
+                || !graph.Devices.TryGetValue(endpointId, out var endpointDevice)
+                || !IsPassive(endpointDevice.DeviceType)
+            )
+            {
+                continue;
+            }
+
+            if (violation.Start.Y == violation.End.Y)
+            {
+                var freshRow = placements.Values.Max(existing => existing.Row) + 1;
+                placements[endpointId] = new GridCell(freshRow, endpointCell.Column);
+            }
+            else
+            {
+                var freshColumn = placements.Values.Max(existing => existing.Column) + 1;
+                placements[endpointId] = new GridCell(endpointCell.Row, freshColumn);
+            }
+
+            return true;
         }
 
         return false;
@@ -1599,6 +4202,18 @@ internal static class CoarseGridPlacementSolver
         return normalized is "nmos" or "nfet" or "pmos" or "pfet";
     }
 
+    private static bool IsNmosDevice(string deviceType)
+    {
+        var normalized = deviceType.ToLowerInvariant();
+        return normalized is "nmos" or "nfet";
+    }
+
+    private static bool IsPmosDevice(string deviceType)
+    {
+        var normalized = deviceType.ToLowerInvariant();
+        return normalized is "pmos" or "pfet";
+    }
+
     private static (string Left, string Right) DetermineLeftRightByInputPort(
         string first,
         string second,
@@ -1655,6 +4270,70 @@ internal static class CoarseGridPlacementSolver
         return string.Compare(first, second, StringComparison.Ordinal) <= 0
             ? (first, second)
             : (second, first);
+    }
+
+    private static (string Left, string Right)? DetermineLeftRightByPartnerDrainAlignment(
+        string first,
+        string second,
+        IReadOnlyList<SymmetricGroup> groups,
+        CircuitGraph graph
+    )
+    {
+        var firstPartner = GetUniqueMixedPolarityDrainPartner(first, graph);
+        var secondPartner = GetUniqueMixedPolarityDrainPartner(second, graph);
+        if (
+            firstPartner == null
+            || secondPartner == null
+            || string.Equals(firstPartner, secondPartner, StringComparison.Ordinal)
+        )
+        {
+            return null;
+        }
+
+        var partnerGroup = groups.FirstOrDefault(group =>
+            group.DeviceIds.Count == 2
+            && group.DeviceIds.Contains(firstPartner, StringComparer.Ordinal)
+            && group.DeviceIds.Contains(secondPartner, StringComparer.Ordinal)
+        );
+        if (partnerGroup == null)
+        {
+            return null;
+        }
+
+        var partnerOrder =
+            partnerGroup.Type == SymmetryType.DiffPair
+                ? DetermineLeftRightByInputPort(firstPartner, secondPartner, graph)
+                : DetermineLeftRightByNaming(firstPartner, secondPartner);
+        return string.Equals(partnerOrder.Left, firstPartner, StringComparison.Ordinal)
+            ? (first, second)
+            : (second, first);
+    }
+
+    private static string? GetUniqueMixedPolarityDrainPartner(string deviceId, CircuitGraph graph)
+    {
+        if (
+            !graph.Devices.TryGetValue(deviceId, out var device)
+            || !IsMosDevice(device.DeviceType)
+            || !device.Bindings.TryGetValue("D", out var drainNet)
+            || !graph.NetConnections.TryGetValue(drainNet, out var connections)
+        )
+        {
+            return null;
+        }
+
+        var isPmos = IsPmosDevice(device.DeviceType);
+        var partnerIds = connections
+            .Where(connection =>
+                connection.DeviceId != deviceId
+                && connection.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                && graph.Devices.TryGetValue(connection.DeviceId, out var partner)
+                && IsMosDevice(partner.DeviceType)
+                && (isPmos ? IsNmosDevice(partner.DeviceType) : IsPmosDevice(partner.DeviceType))
+            )
+            .Select(connection => connection.DeviceId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return partnerIds.Length == 1 ? partnerIds[0] : null;
     }
 
     private static bool IsLeftSideName(string deviceId)
@@ -1807,7 +4486,7 @@ internal static class CoarseGridPlacementSolver
                     cell.Row,
                     cell.Column,
                     placement.ColumnCount,
-                    PlacementAxis.IsLeftOfAxis(placement, cell.Column)
+                    pOnLeft: !cell.MirrorX
                 );
                 AddTerminalY(deviceId, "P", passive.PY);
                 AddTerminalY(deviceId, "N", passive.NY);
@@ -1900,7 +4579,7 @@ internal static class CoarseGridPlacementSolver
                         cell.Row,
                         cell.Column,
                         placement.ColumnCount,
-                        PlacementAxis.IsLeftOfAxis(placement, cell.Column)
+                        pOnLeft: !cell.MirrorX
                     )
                     .PY
                 : DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column).PY;
@@ -1929,6 +4608,256 @@ internal static class CoarseGridPlacementSolver
         return result;
     }
 
+    private static IReadOnlyDictionary<string, int> AvoidBlockedStraightPortHints(
+        CoarseGridResult placement,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, int> baseHints
+    )
+    {
+        var adjustedHints = new Dictionary<string, int>(baseHints, StringComparer.Ordinal);
+        var portAdjustments = new Dictionary<string, int>(StringComparer.Ordinal);
+        var portCount = graph.InputPorts.Count + graph.BiasPorts.Count + graph.OutputPorts.Count;
+        for (var iteration = 0; iteration < Math.Max(1, portCount * 4); iteration++)
+        {
+            var candidate = BuildPlacementSnapshot(
+                placement.DevicePlacements,
+                placement.HorizontalPassiveIds,
+                adjustedHints
+            );
+            var violation = FindStraightConnectionViolation(candidate, graph, portsOnly: true);
+            if (violation == null)
+            {
+                break;
+            }
+
+            var portTerminal = IsPortTerminal(violation.Start) ? violation.Start : violation.End;
+            var otherTerminal = ReferenceEquals(portTerminal, violation.Start)
+                ? violation.End
+                : violation.Start;
+            var portName = portTerminal.DeviceId[5..];
+            var attempt = portAdjustments.GetValueOrDefault(portName) + 1;
+            portAdjustments[portName] = attempt;
+            var direction = attempt % 2 == 1 ? 1 : -1;
+            var distance = ((attempt + 1) / 2) * DeviceGeometry.RoutingPitch;
+            adjustedHints[portName] = otherTerminal.Y + direction * distance;
+        }
+
+        return adjustedHints;
+    }
+
+    private static CoarseGridResult BuildPlacementSnapshot(
+        IReadOnlyDictionary<string, GridCell> placements,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyDictionary<string, int>? portYHints = null
+    )
+    {
+        var rowCount = Math.Max(1, placements.Values.Select(cell => cell.Row).Distinct().Count());
+        var columnCount = Math.Max(
+            1,
+            placements.Values.Select(cell => cell.Column).Distinct().Count()
+        );
+        return new CoarseGridResult
+        {
+            RowCount = rowCount,
+            ColumnCount = columnCount,
+            DevicePlacements = placements,
+            SymmetryAxis = Math.Max(0, columnCount / 2),
+            HorizontalPassiveIds = horizontalPassiveIds,
+            PortYHints = portYHints ?? new Dictionary<string, int>(StringComparer.Ordinal),
+        };
+    }
+
+    private static StraightConnectionViolation? FindStraightConnectionViolation(
+        CoarseGridResult placement,
+        CircuitGraph graph,
+        bool portsOnly
+    )
+    {
+        var routing = MazeRouter.Route(placement, graph);
+        var terminalsByDevice = routing
+            .TerminalPositions.GroupBy(t => t.DeviceId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+
+        foreach (var (netName, terminals) in GroupTerminalsByNet(graph, routing.TerminalPositions))
+        {
+            if (graph.IsSupplyOrGround(netName) || terminals.Count != 2)
+            {
+                continue;
+            }
+
+            var a = terminals[0];
+            var b = terminals[1];
+            if ((a.X != b.X && a.Y != b.Y) || (a.X == b.X && a.Y == b.Y))
+            {
+                continue;
+            }
+
+            var endpointIncludesPort = IsPortTerminal(a) || IsPortTerminal(b);
+            if (portsOnly != endpointIncludesPort)
+            {
+                continue;
+            }
+
+            foreach (var (deviceId, cell) in placement.DevicePlacements)
+            {
+                if (
+                    deviceId == a.DeviceId
+                    || deviceId == b.DeviceId
+                    || !IntersectsSegmentInterior(cell, graph.Devices[deviceId].DeviceType, a, b)
+                )
+                {
+                    continue;
+                }
+
+                var segment = new WireSegment(
+                    new GridPoint(a.X, a.Y),
+                    new GridPoint(b.X, b.Y),
+                    netName
+                );
+                var ownsNetOnSegment = terminalsByDevice
+                    .GetValueOrDefault(deviceId, [])
+                    .Any(t =>
+                        GetNetName(graph, t) == netName
+                        && IsPointOnSegment(new GridPoint(t.X, t.Y), segment)
+                    );
+                if (!ownsNetOnSegment)
+                {
+                    return new StraightConnectionViolation(netName, a, b, deviceId);
+                }
+            }
+
+            foreach (
+                var terminal in routing.TerminalPositions.Where(t =>
+                    GetNetName(graph, t) != netName
+                )
+            )
+            {
+                if (IsStrictlyOnSegment(new GridPoint(terminal.X, terminal.Y), a, b))
+                {
+                    return new StraightConnectionViolation(netName, a, b, terminal.DeviceId);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<string, List<TerminalPosition>> GroupTerminalsByNet(
+        CircuitGraph graph,
+        IReadOnlyList<TerminalPosition> terminalPositions
+    )
+    {
+        var result = new Dictionary<string, List<TerminalPosition>>(StringComparer.Ordinal);
+        foreach (var terminal in terminalPositions)
+        {
+            var netName = GetNetName(graph, terminal);
+            if (netName == null)
+            {
+                continue;
+            }
+
+            if (!result.TryGetValue(netName, out var list))
+            {
+                list = new List<TerminalPosition>();
+                result[netName] = list;
+            }
+
+            list.Add(terminal);
+        }
+
+        return result;
+    }
+
+    private static string? GetNetName(CircuitGraph graph, TerminalPosition terminal)
+    {
+        return IsPortTerminal(terminal)
+            ? terminal.DeviceId[5..]
+            : graph.GetNetForTerminal(terminal.DeviceId, terminal.Terminal);
+    }
+
+    private static bool IsPortTerminal(TerminalPosition terminal)
+    {
+        return terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal);
+    }
+
+    private static bool IntersectsSegmentInterior(
+        GridCell cell,
+        string deviceType,
+        TerminalPosition a,
+        TerminalPosition b
+    )
+    {
+        var colMargin = IsMosDevice(deviceType) ? 1 : 0;
+        var rowMargin = IsMosDevice(deviceType) ? 1 : 0;
+        var minX = (cell.Column - colMargin) * DeviceGeometry.CellWidth;
+        var maxX = (cell.Column + colMargin + 1) * DeviceGeometry.CellWidth;
+        var minY = DeviceGeometry.RailMargin + (cell.Row - rowMargin) * DeviceGeometry.CellHeight;
+        var maxY =
+            DeviceGeometry.RailMargin + (cell.Row + rowMargin + 1) * DeviceGeometry.CellHeight;
+
+        if (a.Y == b.Y)
+        {
+            var y = a.Y;
+            var left = Math.Min(a.X, b.X);
+            var right = Math.Max(a.X, b.X);
+            return y > minY && y < maxY && left < maxX && right > minX;
+        }
+
+        var x = a.X;
+        var top = Math.Min(a.Y, b.Y);
+        var bottom = Math.Max(a.Y, b.Y);
+        return x > minX && x < maxX && top < maxY && bottom > minY;
+    }
+
+    private static bool IsStrictlyOnSegment(GridPoint point, TerminalPosition a, TerminalPosition b)
+    {
+        if (point.X == a.X && point.Y == a.Y || point.X == b.X && point.Y == b.Y)
+        {
+            return false;
+        }
+
+        return IsPointOnSegment(
+            point,
+            new WireSegment(new GridPoint(a.X, a.Y), new GridPoint(b.X, b.Y), string.Empty)
+        );
+    }
+
+    private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
+    {
+        if (segment.From.X == segment.To.X)
+        {
+            if (point.X != segment.From.X)
+            {
+                return false;
+            }
+
+            var minY = Math.Min(segment.From.Y, segment.To.Y);
+            var maxY = Math.Max(segment.From.Y, segment.To.Y);
+            return point.Y >= minY && point.Y <= maxY;
+        }
+
+        if (segment.From.Y == segment.To.Y)
+        {
+            if (point.Y != segment.From.Y)
+            {
+                return false;
+            }
+
+            var minX = Math.Min(segment.From.X, segment.To.X);
+            var maxX = Math.Max(segment.From.X, segment.To.X);
+            return point.X >= minX && point.X <= maxX;
+        }
+
+        return false;
+    }
+
+    private sealed record StraightConnectionViolation(
+        string NetName,
+        TerminalPosition Start,
+        TerminalPosition End,
+        string BlockingDeviceId
+    );
+
     private static bool IsPositivePortName(string portName)
     {
         return portName.EndsWith(".P", StringComparison.OrdinalIgnoreCase)
@@ -1941,5 +4870,799 @@ internal static class CoarseGridPlacementSolver
         return graph.InputPorts.Contains(netName)
             || graph.BiasPorts.Contains(netName)
             || IsPositivePortName(netName);
+    }
+
+    private static SignalSidePreference GetNetSidePreference(
+        string netName,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, int> inputNetDistances,
+        IReadOnlyDictionary<string, int> outputNetDistances
+    )
+    {
+        if (graph.InputPorts.Contains(netName) || graph.BiasPorts.Contains(netName))
+        {
+            return SignalSidePreference.Left;
+        }
+
+        if (graph.OutputPorts.Contains(netName))
+        {
+            return SignalSidePreference.Right;
+        }
+
+        var inputDistance = inputNetDistances.GetValueOrDefault(netName, int.MaxValue / 2);
+        var outputDistance = outputNetDistances.GetValueOrDefault(netName, int.MaxValue / 2);
+        if (inputDistance < outputDistance)
+        {
+            return SignalSidePreference.Left;
+        }
+
+        if (outputDistance < inputDistance)
+        {
+            return SignalSidePreference.Right;
+        }
+
+        return SignalSidePreference.None;
+    }
+
+    private static SignalSidePreference GetGatePassiveSidePreference(
+        string otherNet,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, int> inputNetDistances,
+        IReadOnlyDictionary<string, int> outputNetDistances
+    )
+    {
+        if (FindRailConnectedPassiveIdsOnNet(otherNet, graph).Count > 0)
+        {
+            return SignalSidePreference.Left;
+        }
+
+        var sidePreference = GetNetSidePreference(
+            otherNet,
+            graph,
+            inputNetDistances,
+            outputNetDistances
+        );
+        return sidePreference;
+    }
+
+    private static IReadOnlyList<GatePassiveLink> FindGatePassiveLinks(CircuitGraph graph)
+    {
+        var result = new List<GatePassiveLink>();
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var mosIds = connections
+                .Where(connection =>
+                    connection.Terminal.Equals("G", StringComparison.OrdinalIgnoreCase)
+                    && graph.Devices.TryGetValue(connection.DeviceId, out var device)
+                    && IsMosDevice(device.DeviceType)
+                )
+                .Select(connection => connection.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (mosIds.Length != 1)
+            {
+                continue;
+            }
+
+            var mosId = mosIds[0];
+            foreach (
+                var passive in connections
+                    .Where(connection =>
+                        !IsIgnoredPlacementTerminal(connection.Terminal)
+                        && !string.Equals(connection.DeviceId, mosId, StringComparison.Ordinal)
+                        && graph.Devices.TryGetValue(connection.DeviceId, out var device)
+                        && IsPassive(device.DeviceType)
+                    )
+                    .Select(connection =>
+                    {
+                        var otherNet = GetPassiveOtherNet(
+                            graph.Devices[connection.DeviceId],
+                            connection.Terminal,
+                            netName
+                        );
+                        return (connection.DeviceId, OtherNet: otherNet);
+                    })
+                    .Where(candidate =>
+                        candidate.OtherNet != null && !graph.IsSupplyOrGround(candidate.OtherNet)
+                    )
+                    .DistinctBy(candidate => candidate.DeviceId)
+            )
+            {
+                result.Add(new GatePassiveLink(passive.DeviceId, mosId, passive.OtherNet!));
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsGateBiasDistributionNet(
+        string netName,
+        string gatePassiveId,
+        CircuitGraph graph
+    )
+    {
+        if (!graph.NetConnections.TryGetValue(netName, out var connections))
+        {
+            return false;
+        }
+
+        var sawRailPassive = false;
+        foreach (var connection in connections)
+        {
+            if (string.Equals(connection.DeviceId, gatePassiveId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (
+                !graph.Devices.TryGetValue(connection.DeviceId, out var device)
+                || !IsPassive(device.DeviceType)
+            )
+            {
+                return false;
+            }
+
+            if (device.Bindings.Values.Any(graph.IsSupplyOrGround))
+            {
+                sawRailPassive = true;
+                continue;
+            }
+
+            return false;
+        }
+
+        return sawRailPassive;
+    }
+
+    private static IReadOnlySet<string> GetFlowDirectedGatePassiveIds(CircuitGraph graph)
+    {
+        var inputNetDistances = BfsNetDistances(graph, graph.InputPorts.Concat(graph.BiasPorts));
+        var outputNetDistances = BfsNetDistances(graph, graph.OutputPorts);
+        return FindGatePassiveLinks(graph)
+            .Where(pair =>
+                GetGatePassiveSidePreference(
+                    pair.PassiveOtherNet,
+                    graph,
+                    inputNetDistances,
+                    outputNetDistances
+                ) != SignalSidePreference.None
+            )
+            .Select(pair => pair.PassiveDeviceId)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyList<InlinePassiveChainPair> FindInlinePassiveChainPairs(
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, int> inputNetDistances,
+        IReadOnlyDictionary<string, int> outputNetDistances
+    )
+    {
+        var result = new List<InlinePassiveChainPair>();
+        var flowDirectedGatePassiveIds = GetFlowDirectedGatePassiveIds(graph);
+        foreach (var pair in FindGatePassiveLinks(graph))
+        {
+            if (
+                !flowDirectedGatePassiveIds.Contains(pair.PassiveDeviceId)
+                || !graph.NetConnections.TryGetValue(pair.PassiveOtherNet, out var connections)
+            )
+            {
+                continue;
+            }
+
+            var upstreamCandidates = connections
+                .Where(connection =>
+                    connection.DeviceId != pair.PassiveDeviceId
+                    && !IsIgnoredPlacementTerminal(connection.Terminal)
+                    && graph.Devices.TryGetValue(connection.DeviceId, out var device)
+                    && IsPassive(device.DeviceType)
+                )
+                .Select(connection =>
+                {
+                    var otherNet = GetPassiveOtherNet(
+                        graph.Devices[connection.DeviceId],
+                        connection.Terminal,
+                        pair.PassiveOtherNet
+                    );
+                    return (connection.DeviceId, OtherNet: otherNet);
+                })
+                .Where(candidate =>
+                    candidate.OtherNet != null && !graph.IsSupplyOrGround(candidate.OtherNet)
+                )
+                .DistinctBy(candidate => candidate.DeviceId)
+                .ToArray();
+            if (upstreamCandidates.Length != 1)
+            {
+                continue;
+            }
+
+            var sidePreference = GetGatePassiveSidePreference(
+                upstreamCandidates[0].OtherNet!,
+                graph,
+                inputNetDistances,
+                outputNetDistances
+            );
+            if (sidePreference == SignalSidePreference.None)
+            {
+                continue;
+            }
+
+            result.Add(
+                new InlinePassiveChainPair(
+                    upstreamCandidates[0].DeviceId,
+                    pair.PassiveDeviceId,
+                    pair.PassiveOtherNet,
+                    sidePreference
+                )
+            );
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<string> FindRailConnectedPassiveIdsOnNet(
+        string netName,
+        CircuitGraph graph
+    )
+    {
+        if (!graph.NetConnections.TryGetValue(netName, out var connections))
+        {
+            return [];
+        }
+
+        return connections
+            .Where(connection =>
+                graph.Devices.TryGetValue(connection.DeviceId, out var device)
+                && IsPassive(device.DeviceType)
+                && device.Bindings.Values.Any(graph.IsSupplyOrGround)
+            )
+            .Select(connection => connection.DeviceId)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string? GetRailConnectedNet(string passiveId, CircuitGraph graph)
+    {
+        if (!graph.Devices.TryGetValue(passiveId, out var device))
+        {
+            return null;
+        }
+
+        return device.Bindings.Values.FirstOrDefault(graph.IsSupplyOrGround);
+    }
+
+    private static IReadOnlyList<BiasPassiveChain> FindBiasPassiveChains(CircuitGraph graph)
+    {
+        var result = new List<BiasPassiveChain>();
+        var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (deviceId, device) in graph.Devices)
+        {
+            if (device.Bindings.Values.Any(graph.IsSupplyOrGround) || !IsPassive(device.DeviceType))
+            {
+                continue;
+            }
+
+            var nets = device
+                .Bindings.Values.Where(netName => !graph.IsSupplyOrGround(netName))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (nets.Length != 2)
+            {
+                continue;
+            }
+
+            var leftClusterIds = FindRailConnectedPassiveIdsOnNet(nets[0], graph);
+            var rightClusterIds = FindRailConnectedPassiveIdsOnNet(nets[1], graph);
+            if (leftClusterIds.Count == 0 || rightClusterIds.Count == 0)
+            {
+                continue;
+            }
+
+            var members = leftClusterIds
+                .Concat([deviceId])
+                .Concat(rightClusterIds)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToArray();
+            var key = string.Join("|", members);
+            if (!seenKeys.Add(key))
+            {
+                continue;
+            }
+
+            result.Add(
+                new BiasPassiveChain(members, GetBiasPassiveChainConsumerIds(members, nets, graph))
+            );
+        }
+
+        foreach (var link in FindGatePassiveLinks(graph))
+        {
+            var clusterIds = FindRailConnectedPassiveIdsOnNet(link.PassiveOtherNet, graph);
+            if (clusterIds.Count == 0)
+            {
+                continue;
+            }
+
+            var members = clusterIds
+                .Concat([link.PassiveDeviceId])
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(id => id, StringComparer.Ordinal)
+                .ToArray();
+            var key = string.Join("|", members);
+            if (!seenKeys.Add(key))
+            {
+                continue;
+            }
+
+            result.Add(new BiasPassiveChain(members, [link.MosDeviceId]));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<string> GetBiasPassiveChainConsumerIds(
+        IReadOnlyList<string> members,
+        IReadOnlyList<string> nets,
+        CircuitGraph graph
+    )
+    {
+        var memberSet = members.ToHashSet(StringComparer.Ordinal);
+        var consumers = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var netName in nets)
+        {
+            if (!graph.NetConnections.TryGetValue(netName, out var connections))
+            {
+                continue;
+            }
+
+            foreach (var connection in connections)
+            {
+                if (!memberSet.Contains(connection.DeviceId))
+                {
+                    consumers.Add(connection.DeviceId);
+                }
+            }
+        }
+
+        return consumers.OrderBy(id => id, StringComparer.Ordinal).ToArray();
+    }
+
+    private static IReadOnlyList<RailConnectedPassiveCluster> FindRailConnectedPassiveClusters(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<RailConnectedPassiveCluster>();
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var deviceIds = connections
+                .Where(connection =>
+                    graph.Devices.TryGetValue(connection.DeviceId, out var device)
+                    && IsPassive(device.DeviceType)
+                    && device.Bindings.Values.Any(graph.IsSupplyOrGround)
+                )
+                .Select(connection => connection.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (deviceIds.Length < 2)
+            {
+                continue;
+            }
+
+            result.Add(new RailConnectedPassiveCluster(netName, deviceIds));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<string> GetBiasClusterConsumerIds(
+        RailConnectedPassiveCluster cluster,
+        CircuitGraph graph
+    )
+    {
+        if (!graph.NetConnections.TryGetValue(cluster.NetName, out var connections))
+        {
+            return [];
+        }
+
+        var clusterIds = cluster.DeviceIds.ToHashSet(StringComparer.Ordinal);
+        return connections
+            .Where(connection => !clusterIds.Contains(connection.DeviceId))
+            .Select(connection => connection.DeviceId)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetWeightedBiasConsumerIds(
+        IReadOnlyList<string> netNames,
+        IReadOnlyList<string> consumerIds,
+        CircuitGraph graph
+    )
+    {
+        var weighted = new List<string>();
+        foreach (var consumerId in consumerIds)
+        {
+            var weight = GetBiasConsumerPriorityWeight(netNames, consumerId, graph);
+            for (var i = 0; i < weight; i++)
+            {
+                weighted.Add(consumerId);
+            }
+        }
+
+        return weighted;
+    }
+
+    private static int GetBiasConsumerPriorityWeight(
+        IReadOnlyList<string> netNames,
+        string consumerId,
+        CircuitGraph graph
+    )
+    {
+        if (!graph.Devices.TryGetValue(consumerId, out var consumer))
+        {
+            return 1;
+        }
+
+        if (
+            IsMosDevice(consumer.DeviceType)
+            && consumer.Bindings.TryGetValue("G", out var gateNet)
+            && netNames.Contains(gateNet, StringComparer.Ordinal)
+        )
+        {
+            return DirectGateBiasConsumerWeightMultiplier;
+        }
+
+        if (!IsPassive(consumer.DeviceType))
+        {
+            return 1;
+        }
+
+        foreach (var netName in netNames)
+        {
+            foreach (
+                var binding in consumer.Bindings.Where(binding =>
+                    string.Equals(binding.Value, netName, StringComparison.Ordinal)
+                )
+            )
+            {
+                var otherNet = GetPassiveOtherNet(consumer, binding.Key, netName);
+                if (
+                    otherNet != null
+                    && !graph.IsSupplyOrGround(otherNet)
+                    && graph.NetConnections.TryGetValue(otherNet, out var connections)
+                    && connections.Any(connection =>
+                        !string.Equals(connection.DeviceId, consumerId, StringComparison.Ordinal)
+                        && string.Equals(
+                            connection.Terminal,
+                            "G",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        && graph.Devices.TryGetValue(connection.DeviceId, out var gatedDevice)
+                        && IsMosDevice(gatedDevice.DeviceType)
+                    )
+                )
+                {
+                    return GateDriverBiasConsumerWeightMultiplier;
+                }
+            }
+        }
+
+        return 1;
+    }
+
+    private static string? GetPassiveOtherNet(
+        DeviceDeclaration passive,
+        string connectedTerminal,
+        string excludedNet
+    )
+    {
+        var otherNets = passive
+            .Bindings.Where(binding =>
+                !binding.Key.Equals(connectedTerminal, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(binding.Value, excludedNet, StringComparison.Ordinal)
+            )
+            .Select(binding => binding.Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        return otherNets.Length == 1 ? otherNets[0] : null;
+    }
+
+    private static IReadOnlyList<DrainSourceStackPair> FindPointToPointDrainSourcePairs(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<DrainSourceStackPair>();
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var dsConnections = connections
+                .Where(conn =>
+                    graph.Devices.TryGetValue(conn.DeviceId, out var device)
+                    && IsMosDevice(device.DeviceType)
+                    && (
+                        conn.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                        || conn.Terminal.Equals("S", StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .ToList();
+            if (
+                dsConnections.Count != 2
+                || dsConnections.All(conn =>
+                    conn.Terminal.Equals(
+                        dsConnections[0].Terminal,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+            )
+            {
+                continue;
+            }
+
+            var sourceDeviceId = dsConnections
+                .Single(conn => conn.Terminal.Equals("S", StringComparison.OrdinalIgnoreCase))
+                .DeviceId;
+            var drainDeviceId = dsConnections
+                .Single(conn => conn.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase))
+                .DeviceId;
+            result.Add(new DrainSourceStackPair(sourceDeviceId, drainDeviceId, netName));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<MixedPolarityDrainPair> FindMixedPolarityDrainPairs(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<MixedPolarityDrainPair>();
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var drainConnections = connections
+                .Where(conn =>
+                    conn.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                    && graph.Devices.TryGetValue(conn.DeviceId, out var device)
+                    && IsMosDevice(device.DeviceType)
+                )
+                .ToList();
+            if (drainConnections.Count != 2)
+            {
+                continue;
+            }
+
+            var pmosConnections = drainConnections
+                .Where(conn =>
+                    graph.Devices.TryGetValue(conn.DeviceId, out var device)
+                    && IsPmosDevice(device.DeviceType)
+                )
+                .ToArray();
+            var nmosConnections = drainConnections
+                .Where(conn =>
+                    graph.Devices.TryGetValue(conn.DeviceId, out var device)
+                    && IsNmosDevice(device.DeviceType)
+                )
+                .ToArray();
+            if (pmosConnections.Length != 1 || nmosConnections.Length != 1)
+            {
+                continue;
+            }
+
+            result.Add(
+                new MixedPolarityDrainPair(
+                    pmosConnections[0].DeviceId,
+                    nmosConnections[0].DeviceId,
+                    netName
+                )
+            );
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<SupplyConnectedMosLoadPair> FindSupplyConnectedMosLoadPairs(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<SupplyConnectedMosLoadPair>();
+        foreach (var (deviceId, device) in graph.Devices)
+        {
+            if (!IsPassive(device.DeviceType))
+            {
+                continue;
+            }
+
+            var supplyBinding = device.Bindings.FirstOrDefault(binding =>
+                graph.Supplies.Contains(binding.Value)
+            );
+            if (string.IsNullOrEmpty(supplyBinding.Key))
+            {
+                continue;
+            }
+
+            var signalNet = device
+                .Bindings.Where(binding =>
+                    !string.Equals(binding.Key, supplyBinding.Key, StringComparison.Ordinal)
+                )
+                .Select(binding => binding.Value)
+                .Distinct(StringComparer.Ordinal)
+                .SingleOrDefault();
+            if (
+                signalNet == null
+                || graph.IsSupplyOrGround(signalNet)
+                || !graph.NetConnections.TryGetValue(signalNet, out var connections)
+            )
+            {
+                continue;
+            }
+
+            var mosDeviceIds = connections
+                .Where(connection =>
+                    connection.DeviceId != deviceId
+                    && graph.Devices.TryGetValue(connection.DeviceId, out var connectedDevice)
+                    && IsMosDevice(connectedDevice.DeviceType)
+                    && (
+                        connection.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                        || connection.Terminal.Equals("S", StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .Select(connection => connection.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (mosDeviceIds.Length != 1)
+            {
+                continue;
+            }
+
+            result.Add(new SupplyConnectedMosLoadPair(deviceId, mosDeviceIds[0], signalNet));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<OutputCouplingPassivePair> FindOutputCouplingPassivePairs(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<OutputCouplingPassivePair>();
+        foreach (var (deviceId, device) in graph.Devices)
+        {
+            if (!IsPassive(device.DeviceType))
+            {
+                continue;
+            }
+
+            var outputBinding = device.Bindings.FirstOrDefault(binding =>
+                graph.OutputPorts.Contains(binding.Value)
+            );
+            if (string.IsNullOrEmpty(outputBinding.Key))
+            {
+                continue;
+            }
+
+            var signalNet = device
+                .Bindings.Where(binding =>
+                    !string.Equals(binding.Key, outputBinding.Key, StringComparison.Ordinal)
+                )
+                .Select(binding => binding.Value)
+                .Distinct(StringComparer.Ordinal)
+                .SingleOrDefault();
+            if (
+                signalNet == null
+                || graph.IsSupplyOrGround(signalNet)
+                || !graph.NetConnections.TryGetValue(signalNet, out var connections)
+            )
+            {
+                continue;
+            }
+
+            var mosConnections = connections
+                .Where(connection =>
+                    connection.DeviceId != deviceId
+                    && graph.Devices.TryGetValue(connection.DeviceId, out var connectedDevice)
+                    && IsMosDevice(connectedDevice.DeviceType)
+                    && (
+                        connection.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                        || connection.Terminal.Equals("S", StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .ToArray();
+            var mosDeviceIds = mosConnections
+                .Select(connection => connection.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (mosDeviceIds.Length != 1)
+            {
+                continue;
+            }
+
+            var mosConnection = mosConnections.First(connection =>
+                connection.DeviceId == mosDeviceIds[0]
+            );
+
+            result.Add(
+                new OutputCouplingPassivePair(
+                    deviceId,
+                    mosConnection.DeviceId,
+                    mosConnection.Terminal,
+                    outputBinding.Key.Equals("P", StringComparison.OrdinalIgnoreCase) ? "N" : "P",
+                    signalNet
+                )
+            );
+        }
+
+        return result;
+    }
+
+    private sealed record DrainSourceStackPair(
+        string SourceDeviceId,
+        string DrainDeviceId,
+        string NetName
+    );
+
+    private sealed record MixedPolarityDrainPair(
+        string PmosDeviceId,
+        string NmosDeviceId,
+        string NetName
+    );
+
+    private sealed record GatePassiveLink(
+        string PassiveDeviceId,
+        string MosDeviceId,
+        string PassiveOtherNet
+    );
+
+    private sealed record InlinePassiveChainPair(
+        string UpstreamPassiveId,
+        string DownstreamPassiveId,
+        string JunctionNet,
+        SignalSidePreference UpstreamSidePreference
+    );
+
+    private sealed record SupplyConnectedMosLoadPair(
+        string LoadDeviceId,
+        string MosDeviceId,
+        string SignalNet
+    );
+
+    private sealed record OutputCouplingPassivePair(
+        string PassiveDeviceId,
+        string MosDeviceId,
+        string MosTerminal,
+        string PassiveSignalTerminal,
+        string SignalNet
+    );
+
+    private sealed record RailConnectedPassiveCluster(
+        string NetName,
+        IReadOnlyList<string> DeviceIds
+    );
+
+    private sealed record BiasPassiveChain(
+        IReadOnlyList<string> DeviceIds,
+        IReadOnlyList<string> ConsumerIds
+    );
+
+    private enum SignalSidePreference
+    {
+        None,
+        Left,
+        Right,
     }
 }

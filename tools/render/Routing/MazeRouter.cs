@@ -69,7 +69,14 @@ public static partial class MazeRouter
             placement.RowCount * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
 
         var terminals = ComputeTerminalPositions(placement, graph, canvasWidth, canvasHeight);
-        var terminalsByNet = GroupTerminalsByNet(terminals, graph);
+        var routeTerminals = ComputeRouteTerminalPositions(placement, graph, terminals);
+        var terminalsByNet = GroupTerminalsByNet(routeTerminals, graph);
+        var actualTerminalsByNet = GroupTerminalsByNet(terminals, graph);
+        var terminalStubSegmentsByNet = ComputeTerminalStubSegmentsByNet(
+            terminals,
+            routeTerminals,
+            graph
+        );
         var obstacles = ObstacleMap.FromPlacement(placement, graph);
         var occupied = new OccupiedSegments();
 
@@ -80,7 +87,8 @@ public static partial class MazeRouter
         foreach (var supply in graph.Supplies)
         {
             var terms = terminalsByNet.GetValueOrDefault(supply, new List<TerminalPosition>());
-            var segs = RouteRail(supply, terms, canvasWidth, DeviceGeometry.RailMargin / 2);
+            var segs = terminalStubSegmentsByNet.GetValueOrDefault(supply, []).ToList();
+            segs.AddRange(RouteRail(supply, terms, canvasWidth, DeviceGeometry.RailMargin / 2));
             AddSegments(segs, supply, occupied, allSegments, segmentsByNet);
         }
 
@@ -88,7 +96,8 @@ public static partial class MazeRouter
         {
             var terms = terminalsByNet.GetValueOrDefault(ground, new List<TerminalPosition>());
             var railY = canvasHeight - DeviceGeometry.RailMargin / 2;
-            var segs = RouteRail(ground, terms, canvasWidth, railY);
+            var segs = terminalStubSegmentsByNet.GetValueOrDefault(ground, []).ToList();
+            segs.AddRange(RouteRail(ground, terms, canvasWidth, railY));
             AddSegments(segs, ground, occupied, allSegments, segmentsByNet);
         }
 
@@ -107,7 +116,7 @@ public static partial class MazeRouter
 
         foreach (var netName in signalNets)
         {
-            var terms = terminalsByNet[netName];
+            var terms = OrderRouteTerminalsForNet(netName, terminalsByNet[netName], graph);
             if (terms.Count < 2)
             {
                 continue;
@@ -133,6 +142,12 @@ public static partial class MazeRouter
                 segs = RouteNetWithWaypoints(
                     netName,
                     terms,
+                    graph,
+                    actualTerminalsByNet
+                        .GetValueOrDefault(netName, [])
+                        .Select(ToGridPoint)
+                        .ToHashSet(),
+                    terminalStubSegmentsByNet.GetValueOrDefault(netName, []),
                     routeConstraint.Waypoints,
                     obstacles,
                     occupied,
@@ -141,7 +156,20 @@ public static partial class MazeRouter
             }
             else
             {
-                segs = RouteNet(netName, terms, obstacles, occupied, forbiddenPoints);
+                segs = RouteNet(
+                    netName,
+                    terms,
+                    graph,
+                    actualTerminalsByNet
+                        .GetValueOrDefault(netName, [])
+                        .Select(ToGridPoint)
+                        .ToHashSet(),
+                    terminalStubSegmentsByNet.GetValueOrDefault(netName, []),
+                    obstacles,
+                    occupied,
+                    forbiddenPoints,
+                    FindPreferredHubIndex(netName, terms, graph)
+                );
             }
 
             AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
@@ -211,12 +239,16 @@ public static partial class MazeRouter
     private static List<WireSegment> RouteNet(
         string netName,
         List<TerminalPosition> terminals,
+        CircuitGraph graph,
+        IReadOnlySet<GridPoint> terminalPoints,
+        IReadOnlyList<WireSegment> terminalStubs,
         IReadOnlyList<Obstacle> obstacles,
         OccupiedSegments occupied,
-        IReadOnlySet<GridPoint> forbiddenPoints
+        IReadOnlySet<GridPoint> forbiddenPoints,
+        int preferredHubIndex
     )
     {
-        var rawSegments = new List<WireSegment>();
+        var rawSegments = terminalStubs.ToList();
 
         if (terminals.Count < 2)
         {
@@ -227,28 +259,54 @@ public static partial class MazeRouter
         // This prevents ghost segments from polluting the shared occupied map
         // when they get pruned later by merge/prune operations.
         var overlay = new OverlayOccupiedSegments(occupied);
-        var remainingTerminals = terminals.ToList();
+        foreach (var stub in terminalStubs)
+        {
+            overlay.Add(stub);
+        }
 
+        var remainingTerminals = terminals.ToList();
+        var routingForbiddenPoints = BuildRoutingForbiddenPoints(
+            forbiddenPoints,
+            terminalPoints,
+            terminals
+        );
         RouteBoundarySegmentsFirst(
             netName,
             terminals,
             remainingTerminals,
             obstacles,
             overlay,
-            forbiddenPoints,
+            routingForbiddenPoints,
             rawSegments
         );
 
         // Build MST of the remaining terminals
-        var mstEdges = ComputeMST(remainingTerminals);
+        var mstEdges =
+            preferredHubIndex >= 0
+                ? BuildPreferredHubEdges(remainingTerminals, preferredHubIndex)
+                : ComputeMST(remainingTerminals);
 
         // Route each edge
         foreach (var (fromIdx, toIdx) in mstEdges)
         {
             var from = new GridPoint(remainingTerminals[fromIdx].X, remainingTerminals[fromIdx].Y);
             var to = new GridPoint(remainingTerminals[toIdx].X, remainingTerminals[toIdx].Y);
+            var preferHorizontalFirst = ShouldPreferHorizontalFirst(
+                netName,
+                graph,
+                remainingTerminals[fromIdx],
+                remainingTerminals[toIdx]
+            );
 
-            var path = PathFinder.FindPath(from, to, netName, obstacles, overlay, forbiddenPoints);
+            var path = PathFinder.FindPath(
+                from,
+                to,
+                netName,
+                obstacles,
+                overlay,
+                routingForbiddenPoints,
+                preferHorizontalFirst
+            );
             rawSegments.AddRange(path);
 
             // Add path segments to overlay so subsequent edges avoid them
@@ -259,19 +317,10 @@ public static partial class MazeRouter
         }
 
         // Post-process to merge overlapping collinear segments
-        var mergedSegments = MergeCollinearSegments(rawSegments, netName);
-
-        // Build set of terminal points for this net
-        var terminalPoints = terminals.Select(t => new GridPoint(t.X, t.Y)).ToHashSet();
+        var mergedSegments = MergeCollinearSegments(rawSegments, netName, terminalPoints);
 
         // Eliminate redundant parallel horizontal paths
-        var cleanedSegments = EliminateRedundantParallelPaths(
-            mergedSegments,
-            netName,
-            terminalPoints
-        );
-
-        return cleanedSegments;
+        return EliminateRedundantParallelPaths(mergedSegments, netName, terminalPoints);
     }
 
     private static void RouteBoundarySegmentsFirst(
@@ -345,6 +394,9 @@ public static partial class MazeRouter
     private static List<WireSegment> RouteNetWithWaypoints(
         string netName,
         List<TerminalPosition> terminals,
+        CircuitGraph graph,
+        IReadOnlySet<GridPoint> terminalPoints,
+        IReadOnlyList<WireSegment> terminalStubs,
         IReadOnlyList<GridPoint> waypoints,
         IReadOnlyList<Obstacle> obstacles,
         OccupiedSegments occupied,
@@ -353,11 +405,31 @@ public static partial class MazeRouter
     {
         if (waypoints.Count == 0 || terminals.Count < 2)
         {
-            return RouteNet(netName, terminals, obstacles, occupied, forbiddenPoints);
+            return RouteNet(
+                netName,
+                terminals,
+                graph,
+                terminalPoints,
+                terminalStubs,
+                obstacles,
+                occupied,
+                forbiddenPoints,
+                preferredHubIndex: -1
+            );
         }
 
-        var rawSegments = new List<WireSegment>();
+        var rawSegments = terminalStubs.ToList();
         var overlay = new OverlayOccupiedSegments(occupied);
+        foreach (var stub in terminalStubs)
+        {
+            overlay.Add(stub);
+        }
+        var routingForbiddenPoints = BuildRoutingForbiddenPoints(
+            forbiddenPoints,
+            terminalPoints,
+            terminals
+        );
+        var preferHorizontalFirst = ShouldPreferHorizontalFirst(netName, graph);
 
         var startTerminalIndex = SelectClosestTerminalIndex(terminals, waypoints[0], null);
         var endTerminalIndex = SelectClosestTerminalIndex(
@@ -380,7 +452,8 @@ public static partial class MazeRouter
                 netName,
                 obstacles,
                 overlay,
-                forbiddenPoints
+                routingForbiddenPoints,
+                preferHorizontalFirst
             );
             rawSegments.AddRange(segmentPath);
             foreach (var seg in segmentPath)
@@ -409,7 +482,8 @@ public static partial class MazeRouter
                 netName,
                 obstacles,
                 overlay,
-                forbiddenPoints
+                routingForbiddenPoints,
+                preferHorizontalFirst
             );
             rawSegments.AddRange(segmentPath);
             foreach (var seg in segmentPath)
@@ -418,9 +492,206 @@ public static partial class MazeRouter
             }
         }
 
-        var merged = MergeCollinearSegments(rawSegments, netName);
-        var terminalPoints = terminals.Select(t => new GridPoint(t.X, t.Y)).ToHashSet();
+        var merged = MergeCollinearSegments(rawSegments, netName, terminalPoints);
         return EliminateRedundantParallelPaths(merged, netName, terminalPoints);
+    }
+
+    private static IReadOnlySet<GridPoint> BuildRoutingForbiddenPoints(
+        IReadOnlySet<GridPoint> forbiddenPoints,
+        IReadOnlySet<GridPoint> terminalPoints,
+        IReadOnlyList<TerminalPosition> terminals
+    )
+    {
+        var result = new HashSet<GridPoint>(forbiddenPoints);
+        result.UnionWith(terminalPoints);
+        foreach (var terminal in terminals)
+        {
+            result.Remove(ToGridPoint(terminal));
+        }
+
+        return result;
+    }
+
+    private static int FindPreferredHubIndex(
+        string netName,
+        IReadOnlyList<TerminalPosition> terminals,
+        CircuitGraph graph
+    )
+    {
+        if (terminals.Count < 3)
+        {
+            return -1;
+        }
+
+        if (
+            graph.OutputPorts.Contains(netName)
+            || terminals.Any(terminal =>
+                terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+            )
+        )
+        {
+            return -1;
+        }
+
+        var priorities = terminals
+            .Select(terminal => GetTerminalSeedPriority(netName, terminal, graph))
+            .ToArray();
+        if (priorities.Length < 2 || priorities[0] >= priorities[1])
+        {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    private static List<(int, int)> BuildPreferredHubEdges(
+        IReadOnlyList<TerminalPosition> terminals,
+        int hubIndex
+    )
+    {
+        return Enumerable
+            .Range(0, terminals.Count)
+            .Where(index => index != hubIndex)
+            .OrderBy(index => BiasedDistance(terminals[hubIndex], terminals[index]))
+            .Select(index => (hubIndex, index))
+            .ToList();
+    }
+
+    private static List<TerminalPosition> OrderRouteTerminalsForNet(
+        string netName,
+        IReadOnlyList<TerminalPosition> terminals,
+        CircuitGraph graph
+    )
+    {
+        if (
+            graph.OutputPorts.Contains(netName)
+            || terminals.Any(terminal =>
+                terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+            )
+        )
+        {
+            return terminals.ToList();
+        }
+
+        return terminals
+            .OrderBy(terminal => GetTerminalSeedPriority(netName, terminal, graph))
+            .ThenBy(terminal => terminal.X)
+            .ThenBy(terminal => terminal.Y)
+            .ToList();
+    }
+
+    private static bool ShouldPreferHorizontalFirst(string netName, CircuitGraph graph)
+    {
+        return !graph.OutputPorts.Contains(netName);
+    }
+
+    private static bool ShouldPreferHorizontalFirst(
+        string netName,
+        CircuitGraph graph,
+        TerminalPosition from,
+        TerminalPosition to
+    )
+    {
+        if (graph.OutputPorts.Contains(netName))
+        {
+            return false;
+        }
+
+        if (IsMosGateToPassiveConnection(from, to, graph))
+        {
+            return Math.Abs(to.X - from.X) >= Math.Abs(to.Y - from.Y);
+        }
+
+        return true;
+    }
+
+    private static bool IsMosGateToPassiveConnection(
+        TerminalPosition from,
+        TerminalPosition to,
+        CircuitGraph graph
+    )
+    {
+        return (IsMosGateTerminal(from, graph) && IsPassiveTerminal(to, graph))
+            || (IsMosGateTerminal(to, graph) && IsPassiveTerminal(from, graph));
+    }
+
+    private static bool IsMosGateTerminal(TerminalPosition terminal, CircuitGraph graph)
+    {
+        return terminal.Terminal == "G"
+            && graph.Devices.TryGetValue(terminal.DeviceId, out var device)
+            && device.DeviceType.ToLowerInvariant() is "nmos" or "nfet" or "pmos" or "pfet";
+    }
+
+    private static bool IsPassiveTerminal(TerminalPosition terminal, CircuitGraph graph)
+    {
+        return terminal.Terminal is "P" or "N"
+            && graph.Devices.TryGetValue(terminal.DeviceId, out var device)
+            && device.DeviceType.ToLowerInvariant() is "resistor" or "capacitor" or "inductor";
+    }
+
+    private static int GetTerminalSeedPriority(
+        string netName,
+        TerminalPosition terminal,
+        CircuitGraph graph
+    )
+    {
+        if (terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
+        {
+            return 5;
+        }
+
+        if (
+            graph.Devices.TryGetValue(terminal.DeviceId, out var activeDevice)
+            && activeDevice.DeviceType.ToLowerInvariant() is "nmos" or "nfet" or "pmos" or "pfet"
+            && terminal.Terminal == "G"
+            && !graph.OutputPorts.Contains(netName)
+        )
+        {
+            return 0;
+        }
+
+        if (
+            !graph.Devices.TryGetValue(terminal.DeviceId, out var device)
+            || device.DeviceType.ToLowerInvariant() is not ("resistor" or "capacitor" or "inductor")
+            || terminal.Terminal is not ("P" or "N")
+        )
+        {
+            return 3;
+        }
+
+        var oppositeTerminal = terminal.Terminal == "P" ? "N" : "P";
+        var oppositeNet = graph.GetNetForTerminal(terminal.DeviceId, oppositeTerminal);
+        if (oppositeNet == null)
+        {
+            return 3;
+        }
+
+        if (graph.InputPorts.Contains(oppositeNet) || graph.BiasPorts.Contains(oppositeNet))
+        {
+            return 0;
+        }
+
+        if (graph.OutputPorts.Contains(netName))
+        {
+            return 1;
+        }
+
+        if (graph.IsSupplyOrGround(oppositeNet))
+        {
+            return 4;
+        }
+
+        var hasMosConsumer = graph
+            .NetConnections.GetValueOrDefault(oppositeNet, [])
+            .Any(connection =>
+                graph.Devices.TryGetValue(connection.DeviceId, out var connectedDevice)
+                && connectedDevice.DeviceType.ToLowerInvariant()
+                    is "nmos"
+                        or "nfet"
+                        or "pmos"
+                        or "pfet"
+            );
+        return hasMosConsumer ? 1 : 2;
     }
 
     /// <summary>

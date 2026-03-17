@@ -195,12 +195,12 @@ public static class DeviceGeometry
     /// <param name="row">Grid row</param>
     /// <param name="col">Grid column</param>
     /// <param name="columnCount">Total number of columns in the grid</param>
-    /// <param name="isLeftOfAxis">True if this device is left of the symmetry axis</param>
+    /// <param name="pOnLeft">True if the P terminal should be on the left side</param>
     public static HorizontalPassivePlacement GetHorizontalPassivePlacement(
         int row,
         int col,
         int columnCount,
-        bool isLeftOfAxis
+        bool pOnLeft
     )
     {
         var baseX = GetCellCenterX(col);
@@ -214,7 +214,7 @@ public static class DeviceGeometry
         // N terminal is toward the center
         int pX,
             nX;
-        if (isLeftOfAxis)
+        if (pOnLeft)
         {
             // Left of axis: P on left, N on right (toward center)
             pX = RoundToInt(baseX - PassiveWidth / 2.0);
@@ -280,8 +280,7 @@ public static class DeviceGeometry
         {
             if (isHorizontalPassive)
             {
-                var isLeftOfAxis = col < symmetryAxis;
-                var p = GetHorizontalPassivePlacement(row, col, columnCount, isLeftOfAxis);
+                var p = GetHorizontalPassivePlacement(row, col, columnCount, pOnLeft: !mirrorX);
                 x = p.X;
                 y = p.Y;
                 terminals["P"] = (p.PX, p.PY);
@@ -361,14 +360,12 @@ public static class DeviceGeometry
                 var halfWidthRatio = (PassiveWidth / 2.0) / CellWidth;
                 if (terminal == "P")
                 {
-                    // P terminal is on outer edge
-                    return (isLeftOfAxis ? -halfWidthRatio : halfWidthRatio, 0);
+                    return (mirrorX ? halfWidthRatio : -halfWidthRatio, 0);
                 }
 
                 if (terminal == "N")
                 {
-                    // N terminal is toward center
-                    return (isLeftOfAxis ? halfWidthRatio : -halfWidthRatio, 0);
+                    return (mirrorX ? -halfWidthRatio : halfWidthRatio, 0);
                 }
             }
             else

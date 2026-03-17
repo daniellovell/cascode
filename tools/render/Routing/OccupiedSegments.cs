@@ -1,5 +1,7 @@
 namespace Cascode.Render.Routing;
 
+using Cascode.Render.Layout;
+
 /// <summary>
 /// Interface for checking occupied segments during routing.
 /// </summary>
@@ -12,7 +14,8 @@ public interface IOccupiedSegments
 
     /// <summary>
     /// Checks if a proposed segment would illegally overlap with existing segments.
-    /// Returns true if the segment would run coincident with a segment from a different net.
+    /// Returns true if the segment would run coincident with a segment from a different net
+    /// or in a visually indistinguishable parallel lane nearby.
     /// </summary>
     bool WouldOverlap(int x1, int y1, int x2, int y2, string netName);
 }
@@ -23,6 +26,8 @@ public interface IOccupiedSegments
 /// </summary>
 public sealed class OccupiedSegments : IOccupiedSegments
 {
+    internal const int MinimumParallelClearance = DeviceGeometry.RoutingPitch / 2 + 1;
+
     private readonly List<(int X1, int Y1, int X2, int Y2, string Net)> _segments = new();
 
     /// <summary>
@@ -56,7 +61,8 @@ public sealed class OccupiedSegments : IOccupiedSegments
 
     /// <summary>
     /// Checks if a proposed segment would illegally overlap with existing segments.
-    /// Returns true if the segment would run coincident with a segment from a different net.
+    /// Returns true if the segment would run coincident with a segment from a different net
+    /// or in a nearby parallel lane that would visually collapse into the same route.
     /// Single-point crossings are allowed. Same-net overlap is allowed.
     /// </summary>
     public bool WouldOverlap(int x1, int y1, int x2, int y2, string netName)
@@ -68,7 +74,7 @@ public sealed class OccupiedSegments : IOccupiedSegments
                 continue; // Same net, overlap is fine
             }
 
-            if (SegmentsCoincide(x1, y1, x2, y2, ox1, oy1, ox2, oy2))
+            if (SegmentsConflict(x1, y1, x2, y2, ox1, oy1, ox2, oy2))
             {
                 return true;
             }
@@ -133,6 +139,72 @@ public sealed class OccupiedSegments : IOccupiedSegments
         // One horizontal, one vertical: can only cross at a point, never coincide
         return false;
     }
+
+    internal static bool SegmentsConflict(
+        int ax1,
+        int ay1,
+        int ax2,
+        int ay2,
+        int bx1,
+        int by1,
+        int bx2,
+        int by2
+    )
+    {
+        return SegmentsCoincide(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2)
+            || SegmentsRunTooClose(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2);
+    }
+
+    private static bool SegmentsRunTooClose(
+        int ax1,
+        int ay1,
+        int ax2,
+        int ay2,
+        int bx1,
+        int by1,
+        int bx2,
+        int by2
+    )
+    {
+        var aHorizontal = ay1 == ay2;
+        var bHorizontal = by1 == by2;
+
+        if (aHorizontal && bHorizontal)
+        {
+            var clearance = Math.Abs(ay1 - by1);
+            if (clearance >= MinimumParallelClearance)
+            {
+                return false;
+            }
+
+            var aMinX = Math.Min(ax1, ax2);
+            var aMaxX = Math.Max(ax1, ax2);
+            var bMinX = Math.Min(bx1, bx2);
+            var bMaxX = Math.Max(bx1, bx2);
+            var overlapStart = Math.Max(aMinX, bMinX);
+            var overlapEnd = Math.Min(aMaxX, bMaxX);
+            return overlapEnd > overlapStart;
+        }
+
+        if (!aHorizontal && !bHorizontal)
+        {
+            var clearance = Math.Abs(ax1 - bx1);
+            if (clearance >= MinimumParallelClearance)
+            {
+                return false;
+            }
+
+            var aMinY = Math.Min(ay1, ay2);
+            var aMaxY = Math.Max(ay1, ay2);
+            var bMinY = Math.Min(by1, by2);
+            var bMaxY = Math.Max(by1, by2);
+            var overlapStart = Math.Max(aMinY, bMinY);
+            var overlapEnd = Math.Min(aMaxY, bMaxY);
+            return overlapEnd > overlapStart;
+        }
+
+        return false;
+    }
 }
 
 /// <summary>
@@ -183,7 +255,7 @@ internal sealed class OverlayOccupiedSegments : IOccupiedSegments
                 continue; // Same net, overlap is fine
             }
 
-            if (OccupiedSegments.SegmentsCoincide(x1, y1, x2, y2, ox1, oy1, ox2, oy2))
+            if (OccupiedSegments.SegmentsConflict(x1, y1, x2, y2, ox1, oy1, ox2, oy2))
             {
                 return true;
             }

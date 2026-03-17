@@ -370,6 +370,10 @@ public sealed class StressRenderRegressionTests
         AssertRailEdgeClearances(scenario);
         AssertGateFacingRules(scenario);
         AssertSymmetricGroupConstraints(scenario);
+        AssertPointToPointDrainSourceChainsStayVertical(scenario);
+        AssertMixedPolarityDrainPairsStayVertical(scenario);
+        AssertSupplyLoadsStayAboveTheirMos(scenario);
+        AssertStraightConnectionClearanceRules(scenario);
         AssertBranchingHorizontalPassivesStayHorizontal(scenario);
     }
 
@@ -663,6 +667,61 @@ public sealed class StressRenderRegressionTests
         }
     }
 
+    private static void AssertPointToPointDrainSourceChainsStayVertical(RenderScenario scenario)
+    {
+        foreach (var pair in FindPointToPointDrainSourcePairs(scenario.Graph))
+        {
+            var top = scenario.Placement.DevicePlacements[pair.TopDeviceId];
+            var bottom = scenario.Placement.DevicePlacements[pair.BottomDeviceId];
+            Assert.True(
+                top.Column == bottom.Column,
+                FailurePrefix(
+                    scenario,
+                    $"Devices '{pair.TopDeviceId}' and '{pair.BottomDeviceId}' share point-to-point drain/source net '{pair.NetName}' but are not vertically stacked."
+                )
+            );
+        }
+    }
+
+    private static void AssertMixedPolarityDrainPairsStayVertical(RenderScenario scenario)
+    {
+        foreach (var pair in FindMixedPolarityDrainPairs(scenario.Graph))
+        {
+            var pmos = scenario.Placement.DevicePlacements[pair.PmosDeviceId];
+            var nmos = scenario.Placement.DevicePlacements[pair.NmosDeviceId];
+            Assert.True(
+                pmos.Column == nmos.Column,
+                FailurePrefix(
+                    scenario,
+                    $"Devices '{pair.PmosDeviceId}' and '{pair.NmosDeviceId}' share drain net '{pair.NetName}' but are not vertically aligned."
+                )
+            );
+        }
+    }
+
+    private static void AssertSupplyLoadsStayAboveTheirMos(RenderScenario scenario)
+    {
+        foreach (var pair in FindSupplyConnectedMosLoadPairs(scenario.Graph))
+        {
+            var load = scenario.Placement.DevicePlacements[pair.LoadDeviceId];
+            var mos = scenario.Placement.DevicePlacements[pair.MosDeviceId];
+            Assert.True(
+                load.Column == mos.Column,
+                FailurePrefix(
+                    scenario,
+                    $"VDD-connected load '{pair.LoadDeviceId}' on net '{pair.SignalNet}' is not vertically aligned with MOS '{pair.MosDeviceId}'."
+                )
+            );
+            Assert.True(
+                load.Row < mos.Row,
+                FailurePrefix(
+                    scenario,
+                    $"VDD-connected load '{pair.LoadDeviceId}' on net '{pair.SignalNet}' is not above MOS '{pair.MosDeviceId}'."
+                )
+            );
+        }
+    }
+
     private static string? GetTerminalEdge(
         RenderScenario scenario,
         string deviceId,
@@ -779,6 +838,166 @@ public sealed class StressRenderRegressionTests
         return deviceType.ToLowerInvariant() is "nmos" or "nfet" or "pmos" or "pfet";
     }
 
+    private static bool IsNmos(string deviceType)
+    {
+        return deviceType.ToLowerInvariant() is "nmos" or "nfet";
+    }
+
+    private static bool IsPmos(string deviceType)
+    {
+        return deviceType.ToLowerInvariant() is "pmos" or "pfet";
+    }
+
+    private static IReadOnlyList<DrainSourcePair> FindPointToPointDrainSourcePairs(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<DrainSourcePair>();
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var dsConnections = connections
+                .Where(conn =>
+                    graph.Devices.TryGetValue(conn.DeviceId, out var device)
+                    && IsMos(device.DeviceType)
+                    && (
+                        conn.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                        || conn.Terminal.Equals("S", StringComparison.OrdinalIgnoreCase)
+                    )
+                )
+                .ToList();
+            if (
+                dsConnections.Count != 2
+                || dsConnections.All(conn =>
+                    conn.Terminal.Equals(
+                        dsConnections[0].Terminal,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+            )
+            {
+                continue;
+            }
+
+            var top = dsConnections.Single(conn =>
+                conn.Terminal.Equals("S", StringComparison.OrdinalIgnoreCase)
+            );
+            var bottom = dsConnections.Single(conn =>
+                conn.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+            );
+            result.Add(new DrainSourcePair(top.DeviceId, bottom.DeviceId, netName));
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<MixedDrainPair> FindMixedPolarityDrainPairs(CircuitGraph graph)
+    {
+        var result = new List<MixedDrainPair>();
+        foreach (var (netName, connections) in graph.NetConnections)
+        {
+            if (graph.IsSupplyOrGround(netName))
+            {
+                continue;
+            }
+
+            var drainConnections = connections
+                .Where(conn =>
+                    conn.Terminal.Equals("D", StringComparison.OrdinalIgnoreCase)
+                    && graph.Devices.TryGetValue(conn.DeviceId, out var device)
+                    && IsMos(device.DeviceType)
+                )
+                .ToList();
+            if (drainConnections.Count != 2)
+            {
+                continue;
+            }
+
+            var pmosConnections = drainConnections
+                .Where(conn => IsPmos(graph.Devices[conn.DeviceId].DeviceType))
+                .ToArray();
+            var nmosConnections = drainConnections
+                .Where(conn => IsNmos(graph.Devices[conn.DeviceId].DeviceType))
+                .ToArray();
+            if (pmosConnections.Length != 1 || nmosConnections.Length != 1)
+            {
+                continue;
+            }
+
+            result.Add(
+                new MixedDrainPair(
+                    pmosConnections[0].DeviceId,
+                    nmosConnections[0].DeviceId,
+                    netName
+                )
+            );
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<SupplyConnectedMosLoadPair> FindSupplyConnectedMosLoadPairs(
+        CircuitGraph graph
+    )
+    {
+        var result = new List<SupplyConnectedMosLoadPair>();
+        foreach (var (deviceId, device) in graph.Devices)
+        {
+            var type = device.DeviceType.ToLowerInvariant();
+            if (type is not ("resistor" or "capacitor" or "inductor"))
+            {
+                continue;
+            }
+
+            var supplyBinding = device.Bindings.FirstOrDefault(binding =>
+                graph.Supplies.Contains(binding.Value)
+            );
+            if (string.IsNullOrEmpty(supplyBinding.Key))
+            {
+                continue;
+            }
+
+            var signalNet = device
+                .Bindings.Where(binding =>
+                    !string.Equals(binding.Key, supplyBinding.Key, StringComparison.Ordinal)
+                )
+                .Select(binding => binding.Value)
+                .Distinct(StringComparer.Ordinal)
+                .SingleOrDefault();
+            if (
+                signalNet == null
+                || graph.IsSupplyOrGround(signalNet)
+                || !graph.NetConnections.TryGetValue(signalNet, out var connections)
+            )
+            {
+                continue;
+            }
+
+            var mosDeviceIds = connections
+                .Where(connection =>
+                    connection.DeviceId != deviceId
+                    && graph.Devices.TryGetValue(connection.DeviceId, out var connectedDevice)
+                    && IsMos(connectedDevice.DeviceType)
+                    && connection.Terminal is "D" or "S"
+                )
+                .Select(connection => connection.DeviceId)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (mosDeviceIds.Length != 1)
+            {
+                continue;
+            }
+
+            result.Add(new SupplyConnectedMosLoadPair(deviceId, mosDeviceIds[0], signalNet));
+        }
+
+        return result;
+    }
+
     private static bool IsStrictlyOnSegment(GridPoint point, TerminalPosition a, TerminalPosition b)
     {
         if (point.X == a.X && point.Y == a.Y || point.X == b.X && point.Y == b.Y)
@@ -857,5 +1076,19 @@ public sealed class StressRenderRegressionTests
         CoarseGridResult Placement,
         RoutingResult Routing,
         string Svg
+    );
+
+    private sealed record DrainSourcePair(
+        string TopDeviceId,
+        string BottomDeviceId,
+        string NetName
+    );
+
+    private sealed record MixedDrainPair(string PmosDeviceId, string NmosDeviceId, string NetName);
+
+    private sealed record SupplyConnectedMosLoadPair(
+        string LoadDeviceId,
+        string MosDeviceId,
+        string SignalNet
     );
 }

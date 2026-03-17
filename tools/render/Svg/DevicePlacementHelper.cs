@@ -54,7 +54,6 @@ internal static class DevicePlacementHelper
         else if (DeviceTypeHelper.IsPassive(deviceType))
         {
             var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = PlacementAxis.IsLeftOfAxis(placement, cell.Column);
 
             if (isHorizontalPassive)
             {
@@ -62,7 +61,7 @@ internal static class DevicePlacementHelper
                     cell.Row,
                     cell.Column,
                     placement.ColumnCount,
-                    isLeftOfAxis
+                    pOnLeft: !cell.MirrorX
                 );
                 x = p.X;
                 y = p.Y;

@@ -9,6 +9,15 @@ using Cascode.Render.Placement;
 /// </summary>
 public static partial class MazeRouter
 {
+    private enum TerminalBreakoutPreference
+    {
+        None,
+        PerpendicularToHorizontalPassive,
+        OutwardFromVerticalTerminal,
+        InwardFromVerticalTerminal,
+        SidewaysFromVerticalPassive,
+    }
+
     /// <summary>
     /// Computes terminal positions for all devices and ports.
     /// </summary>
@@ -65,7 +74,6 @@ public static partial class MazeRouter
             else if (deviceType is "resistor" or "capacitor" or "inductor")
             {
                 var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-                var isLeftOfAxis = PlacementAxis.IsLeftOfAxis(placement, cell.Column);
 
                 if (isHorizontalPassive)
                 {
@@ -73,7 +81,7 @@ public static partial class MazeRouter
                         cell.Row,
                         cell.Column,
                         placement.ColumnCount,
-                        isLeftOfAxis
+                        pOnLeft: !cell.MirrorX
                     );
                     positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
                     positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
@@ -166,7 +174,7 @@ public static partial class MazeRouter
                         cell.Row,
                         cell.Column,
                         placement.ColumnCount,
-                        PlacementAxis.IsLeftOfAxis(placement, cell.Column)
+                        pOnLeft: !cell.MirrorX
                     )
                     .PY
                 : DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column).PY;
@@ -314,5 +322,721 @@ public static partial class MazeRouter
         }
 
         return byNet;
+    }
+
+    private static List<TerminalPosition> ComputeRouteTerminalPositions(
+        CoarseGridResult placement,
+        CircuitGraph graph,
+        List<TerminalPosition> terminals
+    )
+    {
+        var terminalsByNet = GroupTerminalsByNet(terminals, graph);
+        var mstDegreesByNet = ComputeTerminalMstDegreesByNet(terminalsByNet);
+        var allTerminalPoints = terminals
+            .Select(terminal => new GridPoint(terminal.X, terminal.Y))
+            .ToHashSet();
+        var routeTerminals = new List<TerminalPosition>(terminals.Count);
+        var chosenStubs = new List<WireSegment>();
+        foreach (var terminal in terminals)
+        {
+            var netName = terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                ? terminal.DeviceId[5..]
+                : graph.GetNetForTerminal(terminal.DeviceId, terminal.Terminal);
+            var isBranchingSignalNet =
+                netName != null
+                && !graph.IsSupplyOrGround(netName)
+                && terminalsByNet.GetValueOrDefault(netName, []).Count > 2;
+            var peerTerminals =
+                netName != null
+                    ? terminalsByNet
+                        .GetValueOrDefault(netName, [])
+                        .Where(other =>
+                            other.DeviceId != terminal.DeviceId
+                            || other.Terminal != terminal.Terminal
+                        )
+                        .ToArray()
+                    : Array.Empty<TerminalPosition>();
+            var mstDegree =
+                netName != null
+                && mstDegreesByNet.TryGetValue(netName, out var netDegrees)
+                && netDegrees.TryGetValue((terminal.DeviceId, terminal.Terminal), out var degree)
+                    ? degree
+                    : 0;
+            var breakoutPreference = GetTerminalBreakoutPreference(
+                terminal,
+                netName,
+                isBranchingSignalNet,
+                mstDegree,
+                placement,
+                graph,
+                peerTerminals
+            );
+            if (
+                terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                || (
+                    breakoutPreference == TerminalBreakoutPreference.None
+                    && (
+                        !isBranchingSignalNet
+                        || (
+                            mstDegree <= 1
+                            && IsSeriesPassiveTerminal(terminal, graph)
+                            && ShouldKeepLeafSeriesPassiveTerminalAtDeviceTerminal(netName!, graph)
+                        )
+                    )
+                )
+                || !placement.DevicePlacements.TryGetValue(terminal.DeviceId, out var cell)
+            )
+            {
+                routeTerminals.Add(terminal);
+                continue;
+            }
+
+            var centerX = DeviceGeometry.GetCellCenterX(cell.Column);
+            var centerY = DeviceGeometry.GetCellCenterY(cell.Row);
+            var deltaX = terminal.X - centerX;
+            var deltaY = terminal.Y - centerY;
+            var routed = SelectRouteTerminalPosition(
+                terminal,
+                netName!,
+                cell,
+                placement,
+                deltaX,
+                deltaY,
+                breakoutPreference,
+                GetPreferredPerpendicularVerticalDirection(
+                    terminal,
+                    netName!,
+                    cell,
+                    placement,
+                    breakoutPreference,
+                    graph
+                ),
+                peerTerminals,
+                allTerminalPoints,
+                chosenStubs
+            );
+            routeTerminals.Add(routed);
+            if (routed.X != terminal.X || routed.Y != terminal.Y)
+            {
+                chosenStubs.Add(
+                    new WireSegment(
+                        new GridPoint(terminal.X, terminal.Y),
+                        new GridPoint(routed.X, routed.Y),
+                        netName!
+                    )
+                );
+            }
+        }
+
+        return routeTerminals;
+    }
+
+    private static Dictionary<
+        string,
+        Dictionary<(string DeviceId, string Terminal), int>
+    > ComputeTerminalMstDegreesByNet(
+        IReadOnlyDictionary<string, List<TerminalPosition>> terminalsByNet
+    )
+    {
+        var degreesByNet = new Dictionary<
+            string,
+            Dictionary<(string DeviceId, string Terminal), int>
+        >(StringComparer.Ordinal);
+        foreach (var (netName, netTerminals) in terminalsByNet)
+        {
+            var degrees = netTerminals.ToDictionary(
+                terminal => (terminal.DeviceId, terminal.Terminal),
+                _ => 0
+            );
+            foreach (var (fromIndex, toIndex) in ComputeMST(netTerminals))
+            {
+                degrees[(netTerminals[fromIndex].DeviceId, netTerminals[fromIndex].Terminal)]++;
+                degrees[(netTerminals[toIndex].DeviceId, netTerminals[toIndex].Terminal)]++;
+            }
+
+            degreesByNet[netName] = degrees;
+        }
+
+        return degreesByNet;
+    }
+
+    private static TerminalPosition SelectRouteTerminalPosition(
+        TerminalPosition terminal,
+        string netName,
+        GridCell cell,
+        CoarseGridResult placement,
+        double deltaX,
+        double deltaY,
+        TerminalBreakoutPreference breakoutPreference,
+        int preferredPerpendicularVerticalDirection,
+        IReadOnlyList<TerminalPosition> peerTerminals,
+        IReadOnlySet<GridPoint> allTerminalPoints,
+        IReadOnlyList<WireSegment> chosenStubs
+    )
+    {
+        foreach (var pitchMultiplier in new[] { 1, 2 })
+        {
+            foreach (
+                var candidate in RankRouteTerminalCandidates(
+                    terminal,
+                    cell,
+                    placement,
+                    deltaX,
+                    deltaY,
+                    breakoutPreference,
+                    preferredPerpendicularVerticalDirection,
+                    peerTerminals,
+                    pitchMultiplier
+                )
+            )
+            {
+                if (
+                    !IsValidRouteTerminalCandidate(
+                        terminal,
+                        netName,
+                        candidate,
+                        allTerminalPoints,
+                        chosenStubs
+                    )
+                )
+                {
+                    continue;
+                }
+
+                return candidate;
+            }
+        }
+
+        return terminal;
+    }
+
+    private static IEnumerable<TerminalPosition> RankRouteTerminalCandidates(
+        TerminalPosition terminal,
+        GridCell cell,
+        CoarseGridResult placement,
+        double deltaX,
+        double deltaY,
+        TerminalBreakoutPreference breakoutPreference,
+        int preferredPerpendicularVerticalDirection,
+        IReadOnlyList<TerminalPosition> peerTerminals,
+        int pitchMultiplier
+    )
+    {
+        if (
+            breakoutPreference == TerminalBreakoutPreference.None
+            && ComputePeerBoundsDistance(terminal, peerTerminals) == 0
+        )
+        {
+            foreach (
+                var candidate in GetRouteTerminalCandidates(
+                        terminal,
+                        cell,
+                        placement,
+                        deltaX,
+                        deltaY,
+                        preferredPerpendicularVerticalDirection,
+                        pitchMultiplier
+                    )
+                    .DistinctBy(candidate => (candidate.X, candidate.Y))
+            )
+            {
+                yield return candidate;
+            }
+
+            yield break;
+        }
+
+        var rankedCandidates = GetRouteTerminalCandidates(
+                terminal,
+                cell,
+                placement,
+                deltaX,
+                deltaY,
+                preferredPerpendicularVerticalDirection,
+                pitchMultiplier
+            )
+            .DistinctBy(candidate => (candidate.X, candidate.Y))
+            .Select(
+                (candidate, index) =>
+                    new
+                    {
+                        Candidate = candidate,
+                        Index = index,
+                        Score = ScoreRouteTerminalCandidate(
+                            terminal,
+                            candidate,
+                            peerTerminals,
+                            breakoutPreference,
+                            deltaX,
+                            deltaY
+                        ),
+                    }
+            )
+            .OrderBy(item => item.Score.BreakoutPenalty)
+            .ThenBy(item => item.Score.MovesAwayFromPeerBounds)
+            .ThenBy(item => item.Score.PeerBoundsDistance)
+            .ThenBy(item => item.Score.TotalPeerDistance)
+            .ThenByDescending(item => item.Score.AlignedPeerCount)
+            .ThenBy(item => item.Score.StubLength)
+            .ThenBy(item => item.Index);
+        foreach (var candidate in rankedCandidates)
+        {
+            yield return candidate.Candidate;
+        }
+    }
+
+    private static IEnumerable<TerminalPosition> GetRouteTerminalCandidates(
+        TerminalPosition terminal,
+        GridCell cell,
+        CoarseGridResult placement,
+        double deltaX,
+        double deltaY,
+        int preferredPerpendicularVerticalDirection,
+        int pitchMultiplier
+    )
+    {
+        var pitch = DeviceGeometry.RoutingPitch * pitchMultiplier;
+        if (Math.Abs(deltaX) >= Math.Abs(deltaY) && deltaX != 0)
+        {
+            yield return new TerminalPosition(
+                terminal.DeviceId,
+                terminal.Terminal,
+                terminal.X + Math.Sign(deltaX) * pitch,
+                terminal.Y
+            );
+
+            var preferredDirection =
+                preferredPerpendicularVerticalDirection != 0
+                    ? preferredPerpendicularVerticalDirection
+                : cell.Row <= placement.RowCount / 2 ? -1
+                : 1;
+            yield return new TerminalPosition(
+                terminal.DeviceId,
+                terminal.Terminal,
+                terminal.X,
+                terminal.Y + preferredDirection * pitch
+            );
+            yield return new TerminalPosition(
+                terminal.DeviceId,
+                terminal.Terminal,
+                terminal.X,
+                terminal.Y - preferredDirection * pitch
+            );
+            yield break;
+        }
+
+        if (deltaY != 0)
+        {
+            yield return new TerminalPosition(
+                terminal.DeviceId,
+                terminal.Terminal,
+                terminal.X,
+                terminal.Y + Math.Sign(deltaY) * pitch
+            );
+
+            var preferredDirection = cell.Column <= placement.SymmetryAxis ? -1 : 1;
+            yield return new TerminalPosition(
+                terminal.DeviceId,
+                terminal.Terminal,
+                terminal.X + preferredDirection * pitch,
+                terminal.Y
+            );
+            yield return new TerminalPosition(
+                terminal.DeviceId,
+                terminal.Terminal,
+                terminal.X - preferredDirection * pitch,
+                terminal.Y
+            );
+        }
+    }
+
+    private static bool IsValidRouteTerminalCandidate(
+        TerminalPosition terminal,
+        string netName,
+        TerminalPosition candidate,
+        IReadOnlySet<GridPoint> allTerminalPoints,
+        IReadOnlyList<WireSegment> chosenStubs
+    )
+    {
+        var stub = new WireSegment(
+            new GridPoint(terminal.X, terminal.Y),
+            new GridPoint(candidate.X, candidate.Y),
+            string.Empty
+        );
+        if (
+            allTerminalPoints.Any(point =>
+                (point.X != terminal.X || point.Y != terminal.Y)
+                && (
+                    point.X == candidate.X && point.Y == candidate.Y
+                    || IsStrictlyOnStub(point, stub)
+                )
+            )
+        )
+        {
+            return false;
+        }
+
+        return !chosenStubs.Any(existing =>
+            !string.Equals(existing.NetName, netName, StringComparison.Ordinal)
+            && OccupiedSegments.SegmentsCoincide(
+                stub.From.X,
+                stub.From.Y,
+                stub.To.X,
+                stub.To.Y,
+                existing.From.X,
+                existing.From.Y,
+                existing.To.X,
+                existing.To.Y
+            )
+        );
+    }
+
+    private static (
+        int BreakoutPenalty,
+        int MovesAwayFromPeerBounds,
+        int PeerBoundsDistance,
+        int TotalPeerDistance,
+        int AlignedPeerCount,
+        int StubLength
+    ) ScoreRouteTerminalCandidate(
+        TerminalPosition terminal,
+        TerminalPosition candidate,
+        IReadOnlyList<TerminalPosition> peerTerminals,
+        TerminalBreakoutPreference breakoutPreference,
+        double deltaX,
+        double deltaY
+    )
+    {
+        if (peerTerminals.Count == 0)
+        {
+            return (
+                BreakoutPenalty: ComputeBreakoutPenalty(
+                    terminal,
+                    candidate,
+                    breakoutPreference,
+                    deltaX,
+                    deltaY
+                ),
+                MovesAwayFromPeerBounds: 0,
+                PeerBoundsDistance: 0,
+                TotalPeerDistance: 0,
+                AlignedPeerCount: 0,
+                StubLength: Math.Abs(candidate.X - terminal.X) + Math.Abs(candidate.Y - terminal.Y)
+            );
+        }
+
+        var originalPeerBoundsDistance = ComputePeerBoundsDistance(terminal, peerTerminals);
+        var candidatePeerBoundsDistance = ComputePeerBoundsDistance(candidate, peerTerminals);
+        return (
+            BreakoutPenalty: ComputeBreakoutPenalty(
+                terminal,
+                candidate,
+                breakoutPreference,
+                deltaX,
+                deltaY
+            ),
+            MovesAwayFromPeerBounds: candidatePeerBoundsDistance > originalPeerBoundsDistance
+                ? 1
+                : 0,
+            PeerBoundsDistance: candidatePeerBoundsDistance,
+            TotalPeerDistance: peerTerminals.Sum(peer =>
+                Math.Abs(candidate.X - peer.X) + Math.Abs(candidate.Y - peer.Y)
+            ),
+            AlignedPeerCount: peerTerminals.Count(peer =>
+                peer.X == candidate.X || peer.Y == candidate.Y
+            ),
+            StubLength: Math.Abs(candidate.X - terminal.X) + Math.Abs(candidate.Y - terminal.Y)
+        );
+    }
+
+    private static TerminalBreakoutPreference GetTerminalBreakoutPreference(
+        TerminalPosition terminal,
+        string? netName,
+        bool isBranchingSignalNet,
+        int mstDegree,
+        CoarseGridResult placement,
+        CircuitGraph graph,
+        IReadOnlyList<TerminalPosition> peerTerminals
+    )
+    {
+        if (
+            netName == null
+            || graph.IsSupplyOrGround(netName)
+            || peerTerminals.Count == 0
+            || !graph.Devices.TryGetValue(terminal.DeviceId, out var device)
+        )
+        {
+            return TerminalBreakoutPreference.None;
+        }
+
+        var deviceType = device.DeviceType.ToLowerInvariant();
+        if (
+            placement.HorizontalPassiveIds.Contains(terminal.DeviceId)
+            && deviceType is "resistor" or "capacitor" or "inductor"
+            && !(graph.OutputPorts.Contains(netName!) && deviceType == "capacitor")
+            && (
+                ShouldBreakOutFromHorizontalPassiveTerminal(terminal, peerTerminals)
+                || (
+                    isBranchingSignalNet
+                    && HorizontalExitRunsIntoPeerTerminal(terminal, placement, peerTerminals)
+                )
+            )
+        )
+        {
+            return TerminalBreakoutPreference.PerpendicularToHorizontalPassive;
+        }
+
+        if (
+            !placement.HorizontalPassiveIds.Contains(terminal.DeviceId)
+            && deviceType is "resistor" or "capacitor" or "inductor"
+            && terminal.Terminal is "P" or "N"
+            && isBranchingSignalNet
+            && !IsPassiveShuntToRail(terminal, graph)
+            && peerTerminals.Any(peer => peer.X != terminal.X)
+        )
+        {
+            return mstDegree <= 1
+                ? TerminalBreakoutPreference.InwardFromVerticalTerminal
+                : TerminalBreakoutPreference.SidewaysFromVerticalPassive;
+        }
+
+        if (
+            !placement.HorizontalPassiveIds.Contains(terminal.DeviceId)
+            && deviceType is "resistor" or "capacitor" or "inductor"
+            && terminal.Terminal is "P" or "N"
+            && isBranchingSignalNet
+            && IsPassiveShuntToRail(terminal, graph)
+            && peerTerminals.Any(peer => peer.X != terminal.X)
+        )
+        {
+            if (deviceType == "capacitor" && peerTerminals.Any(peer => peer.X == terminal.X))
+            {
+                return TerminalBreakoutPreference.SidewaysFromVerticalPassive;
+            }
+
+            return TerminalBreakoutPreference.OutwardFromVerticalTerminal;
+        }
+
+        if (
+            deviceType is "nmos" or "nfet" or "pmos" or "pfet"
+            && terminal.Terminal is "D" or "S"
+            && isBranchingSignalNet
+            && !graph.OutputPorts.Contains(netName!)
+            && peerTerminals.Any(peer => peer.X != terminal.X)
+        )
+        {
+            return TerminalBreakoutPreference.OutwardFromVerticalTerminal;
+        }
+
+        return TerminalBreakoutPreference.None;
+    }
+
+    private static bool IsPassiveShuntToRail(TerminalPosition terminal, CircuitGraph graph)
+    {
+        var oppositeTerminal = terminal.Terminal == "P" ? "N" : "P";
+        var oppositeNet = graph.GetNetForTerminal(terminal.DeviceId, oppositeTerminal);
+        return oppositeNet != null && graph.IsSupplyOrGround(oppositeNet);
+    }
+
+    private static bool IsSeriesPassiveTerminal(TerminalPosition terminal, CircuitGraph graph)
+    {
+        if (!graph.Devices.TryGetValue(terminal.DeviceId, out var device))
+        {
+            return false;
+        }
+
+        var deviceType = device.DeviceType.ToLowerInvariant();
+        return deviceType is "resistor" or "capacitor" or "inductor"
+            && terminal.Terminal is "P" or "N"
+            && !IsPassiveShuntToRail(terminal, graph);
+    }
+
+    private static bool ShouldKeepLeafSeriesPassiveTerminalAtDeviceTerminal(
+        string netName,
+        CircuitGraph graph
+    )
+    {
+        return graph.OutputPorts.Contains(netName);
+    }
+
+    private static bool ShouldBreakOutFromHorizontalPassiveTerminal(
+        TerminalPosition terminal,
+        IReadOnlyList<TerminalPosition> peerTerminals
+    )
+    {
+        return terminal.Terminal switch
+        {
+            "P" => peerTerminals.Count > 0 && peerTerminals.All(peer => peer.X > terminal.X),
+            "N" => peerTerminals.Count > 0 && peerTerminals.All(peer => peer.X < terminal.X),
+            _ => false,
+        };
+    }
+
+    private static int GetPreferredPerpendicularVerticalDirection(
+        TerminalPosition terminal,
+        string netName,
+        GridCell cell,
+        CoarseGridResult placement,
+        TerminalBreakoutPreference breakoutPreference,
+        CircuitGraph graph
+    )
+    {
+        if (
+            breakoutPreference != TerminalBreakoutPreference.PerpendicularToHorizontalPassive
+            || !graph.OutputPorts.Contains(netName)
+            || !graph.Devices.TryGetValue(terminal.DeviceId, out var device)
+            || device.DeviceType.ToLowerInvariant() == "capacitor"
+        )
+        {
+            return 0;
+        }
+
+        return cell.Row <= placement.RowCount / 2 ? 1 : -1;
+    }
+
+    private static bool HorizontalExitRunsIntoPeerTerminal(
+        TerminalPosition terminal,
+        CoarseGridResult placement,
+        IReadOnlyList<TerminalPosition> peerTerminals
+    )
+    {
+        if (!placement.DevicePlacements.TryGetValue(terminal.DeviceId, out var cell))
+        {
+            return false;
+        }
+
+        var centerX = DeviceGeometry.GetCellCenterX(cell.Column);
+        var horizontalDirection = terminal.X >= centerX ? 1 : -1;
+        var exitX = terminal.X + horizontalDirection * DeviceGeometry.RoutingPitch;
+        var minX = Math.Min(terminal.X, exitX);
+        var maxX = Math.Max(terminal.X, exitX);
+        return peerTerminals.Any(peer =>
+            peer.Y == terminal.Y
+            && Math.Sign(peer.X - terminal.X) == horizontalDirection
+            && peer.X >= minX
+            && peer.X <= maxX
+        );
+    }
+
+    private static int ComputeBreakoutPenalty(
+        TerminalPosition terminal,
+        TerminalPosition candidate,
+        TerminalBreakoutPreference breakoutPreference,
+        double deltaX,
+        double deltaY
+    )
+    {
+        return breakoutPreference switch
+        {
+            TerminalBreakoutPreference.PerpendicularToHorizontalPassive => candidate.X == terminal.X
+                ? 0
+                : 1,
+            TerminalBreakoutPreference.SidewaysFromVerticalPassive => candidate.Y == terminal.Y
+                ? 0
+                : 1,
+            TerminalBreakoutPreference.OutwardFromVerticalTerminal => candidate.Y != terminal.Y
+            && Math.Sign(candidate.Y - terminal.Y) == Math.Sign(deltaY)
+                ? 0
+                : 1,
+            TerminalBreakoutPreference.InwardFromVerticalTerminal => candidate.Y != terminal.Y
+            && Math.Sign(candidate.Y - terminal.Y) == -Math.Sign(deltaY)
+                ? 0
+                : 1,
+            _ => 0,
+        };
+    }
+
+    private static int ComputePeerBoundsDistance(
+        TerminalPosition terminal,
+        IReadOnlyList<TerminalPosition> peerTerminals
+    )
+    {
+        if (peerTerminals.Count == 0)
+        {
+            return 0;
+        }
+
+        var minX = peerTerminals.Min(peer => peer.X);
+        var maxX = peerTerminals.Max(peer => peer.X);
+        var minY = peerTerminals.Min(peer => peer.Y);
+        var maxY = peerTerminals.Max(peer => peer.Y);
+        var deltaX =
+            terminal.X < minX ? minX - terminal.X
+            : terminal.X > maxX ? terminal.X - maxX
+            : 0;
+        var deltaY =
+            terminal.Y < minY ? minY - terminal.Y
+            : terminal.Y > maxY ? terminal.Y - maxY
+            : 0;
+        return deltaX + deltaY;
+    }
+
+    private static bool IsStrictlyOnStub(GridPoint point, WireSegment stub)
+    {
+        if (
+            point.X == stub.From.X && point.Y == stub.From.Y
+            || point.X == stub.To.X && point.Y == stub.To.Y
+        )
+        {
+            return false;
+        }
+
+        if (stub.From.X == stub.To.X && point.X == stub.From.X)
+        {
+            var minY = Math.Min(stub.From.Y, stub.To.Y);
+            var maxY = Math.Max(stub.From.Y, stub.To.Y);
+            return point.Y > minY && point.Y < maxY;
+        }
+
+        if (stub.From.Y == stub.To.Y && point.Y == stub.From.Y)
+        {
+            var minX = Math.Min(stub.From.X, stub.To.X);
+            var maxX = Math.Max(stub.From.X, stub.To.X);
+            return point.X > minX && point.X < maxX;
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyDictionary<string, List<WireSegment>> ComputeTerminalStubSegmentsByNet(
+        IReadOnlyList<TerminalPosition> terminals,
+        IReadOnlyList<TerminalPosition> routeTerminals,
+        CircuitGraph graph
+    )
+    {
+        var stubsByNet = new Dictionary<string, List<WireSegment>>(StringComparer.Ordinal);
+        for (var i = 0; i < terminals.Count; i++)
+        {
+            var terminal = terminals[i];
+            var routeTerminal = routeTerminals[i];
+            if (terminal.X == routeTerminal.X && terminal.Y == routeTerminal.Y)
+            {
+                continue;
+            }
+
+            var netName = terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                ? terminal.DeviceId[5..]
+                : graph.GetNetForTerminal(terminal.DeviceId, terminal.Terminal);
+            if (netName == null)
+            {
+                continue;
+            }
+
+            if (!stubsByNet.TryGetValue(netName, out var stubs))
+            {
+                stubs = new List<WireSegment>();
+                stubsByNet[netName] = stubs;
+            }
+
+            stubs.Add(
+                new WireSegment(
+                    new GridPoint(terminal.X, terminal.Y),
+                    new GridPoint(routeTerminal.X, routeTerminal.Y),
+                    netName
+                )
+            );
+        }
+
+        return stubsByNet;
     }
 }

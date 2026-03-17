@@ -69,7 +69,7 @@ public static partial class MazeRouter
 
         var result = segments.Where(s => !toRemove.Contains(s)).ToList();
         result.AddRange(toAdd);
-        result = MergeCollinearSegments(result, netName);
+        result = MergeCollinearSegments(result, netName, terminalPoints);
         result = RemoveOrphanedStubs(result, terminalPoints);
 
         return result;
@@ -246,7 +246,8 @@ public static partial class MazeRouter
     /// </summary>
     private static List<WireSegment> MergeCollinearSegments(
         List<WireSegment> segments,
-        string netName
+        string netName,
+        IReadOnlySet<GridPoint> terminalPoints
     )
     {
         if (segments.Count <= 1)
@@ -262,8 +263,8 @@ public static partial class MazeRouter
         // Group horizontal segments by Y coordinate
         var horizontalByY = GroupHorizontalSegmentsByY(segments);
 
-        MergeVerticalSegments(verticalByX, horizontalByY, netName, result);
-        MergeHorizontalSegments(horizontalByY, verticalByX, netName, result);
+        MergeVerticalSegments(verticalByX, horizontalByY, netName, terminalPoints, result);
+        MergeHorizontalSegments(horizontalByY, verticalByX, netName, terminalPoints, result);
 
         return result;
     }
@@ -302,6 +303,7 @@ public static partial class MazeRouter
         Dictionary<int, List<WireSegment>> verticalByX,
         Dictionary<int, List<WireSegment>> horizontalByY,
         string netName,
+        IReadOnlySet<GridPoint> terminalPoints,
         List<WireSegment> result
     )
     {
@@ -315,6 +317,21 @@ public static partial class MazeRouter
             {
                 yPoints.Add(seg.From.Y);
                 yPoints.Add(seg.To.Y);
+            }
+
+            foreach (var point in terminalPoints.Where(point => point.X == x))
+            {
+                if (
+                    vertSegs.Any(seg =>
+                    {
+                        var minY = Math.Min(seg.From.Y, seg.To.Y);
+                        var maxY = Math.Max(seg.From.Y, seg.To.Y);
+                        return point.Y >= minY && point.Y <= maxY;
+                    })
+                )
+                {
+                    yPoints.Add(point.Y);
+                }
             }
 
             // Add intersection points with horizontal segments
@@ -376,6 +393,7 @@ public static partial class MazeRouter
         Dictionary<int, List<WireSegment>> horizontalByY,
         Dictionary<int, List<WireSegment>> verticalByX,
         string netName,
+        IReadOnlySet<GridPoint> terminalPoints,
         List<WireSegment> result
     )
     {
@@ -389,6 +407,21 @@ public static partial class MazeRouter
             {
                 xPoints.Add(seg.From.X);
                 xPoints.Add(seg.To.X);
+            }
+
+            foreach (var point in terminalPoints.Where(point => point.Y == y))
+            {
+                if (
+                    horSegs.Any(seg =>
+                    {
+                        var minX = Math.Min(seg.From.X, seg.To.X);
+                        var maxX = Math.Max(seg.From.X, seg.To.X);
+                        return point.X >= minX && point.X <= maxX;
+                    })
+                )
+                {
+                    xPoints.Add(point.X);
+                }
             }
 
             // Add intersection points with vertical segments

@@ -75,6 +75,7 @@ If the problem becomes intractable, consider identifying different building bloc
 9. For a point-to-point non-rail connection that resolves to a straight horizontal or vertical segment at coarse-placement time, no terminal on any third device may lie strictly on that segment unless that terminal is bound to the same net. This constraint is terminal-based rather than anchor-based: it blocks off-net terminals from sitting on another signal's straight connection even when the owning device is not itself an endpoint of that signal.
 10. A detected symmetric passive pair must occupy the same row and distinct columns.
 11. A passive classified as horizontal by topology analysis must remain horizontal when it touches a branching non-rail net, except when it is part of a detected symmetric passive pair. Even for symmetric pairs, the direct-connection clearance rule above still applies: if rotating the passive vertical would place the component between two terminals on a straight shared signal without also putting one of its own same-net terminals on that segment, that orientation is illegal.
+12. When a non-rail net connects exactly one MOS drain terminal and one MOS source terminal, those two devices must share a column so the stack renders vertically. Nets that branch to multiple MOS drain/source terminals are exempt; symmetry-driven cases such as a centered tail device beneath a differential pair are handled by the group rules above instead.
 
 ### Soft Constraints
 
