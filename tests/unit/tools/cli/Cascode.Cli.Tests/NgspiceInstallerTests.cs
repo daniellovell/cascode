@@ -72,6 +72,47 @@ public sealed class NgspiceInstallerTests : IDisposable
         Assert.Equal("v1.2.3", releaseClient.LastReleaseTagRequested);
     }
 
+    [UnixOnlyFact]
+    public void Install_DefaultMode_RejectsReleaseBinaryWithoutPssSupport()
+    {
+        var runtime = CreateRuntime(isWindows: false, isLinux: true, rid: "linux-x64");
+        runtime.SupportsPss = false;
+        runtime.DownloadBytesByUrl["https://example.invalid/ngspice.tar.gz"] =
+            Encoding.UTF8.GetBytes("release-archive");
+        runtime.DownloadBytesByUrl["https://example.invalid/checksums.txt"] =
+            Encoding.UTF8.GetBytes(
+                $"{Sha256Hex("release-archive")}  {ReleaseArchiveName("linux-x64")}\n"
+            );
+
+        var releaseClient = new FakeGitHubReleaseClient
+        {
+            ReleaseByTag =
+            {
+                ["v1.2.3"] = new GitHubRelease(
+                    "v1.2.3",
+                    new[]
+                    {
+                        new GitHubReleaseAsset(
+                            ReleaseArchiveName("linux-x64"),
+                            "https://example.invalid/ngspice.tar.gz"
+                        ),
+                        new GitHubReleaseAsset(
+                            ReleaseChecksumName(),
+                            "https://example.invalid/checksums.txt"
+                        ),
+                    }
+                ),
+            },
+        };
+
+        var result = new NgspiceInstaller(runtime, releaseClient, () => "1.2.3").Install(
+            new SimulatorInstallOptions(Force: true)
+        );
+
+        Assert.False(result.Success);
+        Assert.Contains("does not support PSS", result.Message);
+    }
+
     [Fact]
     public void Install_UsesSourceMode_WhenRequested()
     {
@@ -307,7 +348,7 @@ public sealed class NgspiceInstallerTests : IDisposable
     }
 
     [Fact]
-    public void Install_FromSource_Fails_OnWindows_WhenSevenZipMissing()
+    public void Install_FromSource_Fails_OnWindows_WhenBuildToolchainMissing()
     {
         var runtime = CreateRuntime(isWindows: true, isLinux: false, rid: "win-x64");
         WriteSourceManifest(
@@ -322,8 +363,8 @@ public sealed class NgspiceInstallerTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal(SimulatorInstallModes.SourceBuild, result.InstallMode);
-        Assert.Contains("Missing required tool: 7z", result.Message);
-        Assert.Contains("winget install 7zip.7zip", result.Message);
+        Assert.Contains("Missing required build tools", result.Message);
+        Assert.Contains("MSYS2", result.Message);
     }
 
     [UnixOnlyFact]
@@ -352,6 +393,42 @@ public sealed class NgspiceInstallerTests : IDisposable
         var (major, minor) = NgspiceLocator.QueryVersionForPath(expectedExe);
         Assert.Equal(45, major);
         Assert.Equal(2, minor);
+    }
+
+    [Fact]
+    public void Install_FromSource_Succeeds_OnWindows_WhenBashToolchainAvailable()
+    {
+        var runtime = CreateRuntime(isWindows: true, isLinux: false, rid: "win-x64");
+        runtime.AvailableTools.UnionWith(
+            new[]
+            {
+                "bash",
+                "bison",
+                "flex",
+                "autoconf",
+                "automake",
+                "libtool",
+                "make",
+                "gcc",
+                "g++",
+            }
+        );
+        runtime.DownloadBytes = Encoding.UTF8.GetBytes("source-archive-bytes");
+        WriteSourceManifest(
+            runtime.BaseDirectory,
+            sourceHash: Sha256Hex(runtime.DownloadBytes),
+            windowsHash: Sha256Hex("windows")
+        );
+
+        var result = new NgspiceInstaller(runtime).Install(
+            new SimulatorInstallOptions(Force: true, FromSource: true)
+        );
+        var expectedExe = NgspiceInstallLayout.GetExecutablePath(runtime.CascodeHome, "win-x64");
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal(SimulatorInstallModes.SourceBuild, result.InstallMode);
+        Assert.Equal(expectedExe, result.InstallPath);
+        Assert.True(File.Exists(expectedExe));
     }
 
     [UnixOnlyFact]
@@ -447,6 +524,8 @@ public sealed class NgspiceInstallerTests : IDisposable
 
         public byte[] DownloadBytes { get; set; } = Encoding.UTF8.GetBytes("default-download");
 
+        public bool SupportsPss { get; set; } = true;
+
         public Dictionary<string, byte[]> DownloadBytesByUrl { get; } = new(StringComparer.Ordinal);
 
         public string? ConfigurePrefix { get; private set; }
@@ -465,6 +544,54 @@ public sealed class NgspiceInstallerTests : IDisposable
             Action<CommandOutputLine>? onOutput = null
         )
         {
+            if (
+                string.Equals(
+                    Path.GetFileName(fileName),
+                    "bash",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                var script = args.LastOrDefault() ?? string.Empty;
+                if (script.Contains("/configure", StringComparison.Ordinal))
+                {
+                    onOutput?.Invoke(new CommandOutputLine(false, "checking build system type..."));
+                    ConfigurePrefix = ExtractQuotedArgument(script, "--prefix=");
+                    return new CommandRunResult(0, string.Empty, string.Empty);
+                }
+
+                if (script.Contains("make -j", StringComparison.Ordinal))
+                {
+                    onOutput?.Invoke(new CommandOutputLine(false, "all-recursive"));
+                    return new CommandRunResult(0, string.Empty, string.Empty);
+                }
+
+                if (script.Contains("make install", StringComparison.Ordinal))
+                {
+                    onOutput?.Invoke(new CommandOutputLine(false, "installing ngspice"));
+                    if (ConfigurePrefix is null)
+                    {
+                        return new CommandRunResult(1, string.Empty, "missing prefix");
+                    }
+
+                    var binDir = Path.Combine(ConfigurePrefix, "bin");
+                    Directory.CreateDirectory(binDir);
+                    var ngspicePath = Path.Combine(binDir, "ngspice");
+                    File.WriteAllText(ngspicePath, BuildStubScript(SupportsPss));
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        File.SetUnixFileMode(
+                            ngspicePath,
+                            UnixFileMode.UserRead
+                                | UnixFileMode.UserWrite
+                                | UnixFileMode.UserExecute
+                        );
+                    }
+
+                    return new CommandRunResult(0, string.Empty, string.Empty);
+                }
+            }
+
             if (string.Equals(Path.GetFileName(fileName), "configure", StringComparison.Ordinal))
             {
                 onOutput?.Invoke(new CommandOutputLine(false, "checking build system type..."));
@@ -496,7 +623,7 @@ public sealed class NgspiceInstallerTests : IDisposable
                 var binDir = Path.Combine(ConfigurePrefix, "bin");
                 Directory.CreateDirectory(binDir);
                 var ngspicePath = Path.Combine(binDir, "ngspice");
-                File.WriteAllText(ngspicePath, "#!/bin/sh\necho '" + VersionBanner() + "'\n");
+                File.WriteAllText(ngspicePath, BuildStubScript(SupportsPss));
                 if (!OperatingSystem.IsWindows())
                 {
                     File.SetUnixFileMode(
@@ -560,18 +687,12 @@ public sealed class NgspiceInstallerTests : IDisposable
             WriteReleaseArchiveContents(destination, executableName: "ngspice.exe");
         }
 
-        private static void WriteReleaseArchiveContents(string destination, string executableName)
+        private void WriteReleaseArchiveContents(string destination, string executableName)
         {
             var bin = Path.Combine(destination, ReleaseArchiveDirectoryName(), "bin");
             Directory.CreateDirectory(bin);
             var binaryPath = Path.Combine(bin, executableName);
-            if (executableName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            {
-                File.WriteAllText(binaryPath, "stub");
-                return;
-            }
-
-            File.WriteAllText(binaryPath, "#!/bin/sh\necho '" + VersionBanner() + "'\n");
+            File.WriteAllText(binaryPath, BuildStubScript(SupportsPss));
             if (!OperatingSystem.IsWindows())
             {
                 File.SetUnixFileMode(
@@ -590,6 +711,47 @@ public sealed class NgspiceInstallerTests : IDisposable
                 path,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
             );
+        }
+
+        private static string BuildStubScript(bool supportsPss)
+        {
+            var pssOutput = supportsPss
+                ? "echo 'Periodic Steady State Analysis Started'; echo 'pss simulation(s) aborted'"
+                : "echo 'pss: no such command available in ngspice'; echo 'Sorry, no help for pss.'";
+            return "#!/bin/sh\n"
+                + "if [ \"$1\" = \"--version\" ] || [ \"$1\" = \"-v\" ]; then\n"
+                + $"  echo '{VersionBanner()}'\n"
+                + "  exit 0\n"
+                + "fi\n"
+                + "if [ \"$1\" = \"-b\" ]; then\n"
+                + $"  {pssOutput}\n"
+                + "  exit 0\n"
+                + "fi\n"
+                + $"echo '{VersionBanner()}'\n";
+        }
+
+        private static string? ExtractQuotedArgument(string script, string prefix)
+        {
+            var index = script.IndexOf(prefix, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return null;
+            }
+
+            index += prefix.Length;
+            if (index >= script.Length)
+            {
+                return null;
+            }
+
+            if (script[index] == '\'')
+            {
+                var end = script.IndexOf('\'', index + 1);
+                return end > index ? script[(index + 1)..end] : null;
+            }
+
+            var terminator = script.IndexOf(' ', index);
+            return terminator < 0 ? script[index..] : script[index..terminator];
         }
     }
 

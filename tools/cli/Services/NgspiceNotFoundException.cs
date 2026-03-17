@@ -22,4 +22,10 @@ internal sealed class NgspiceNotFoundException : InvalidOperationException
         new(
             $"Could not determine ngspice version. Cascode requires ngspice {NgspiceLocator.RequiredMajor}.\n\n{InstallInstructions}"
         );
+
+    internal static NgspiceNotFoundException PssUnsupported(string path, string probeOutput) =>
+        new(
+            $"ngspice at '{path}' does not support PSS, but this command requires a PSS-capable build."
+                + $"\n\nProbe output: {probeOutput}\n\n{InstallInstructions}"
+        );
 }

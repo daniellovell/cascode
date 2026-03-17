@@ -44,7 +44,7 @@ public sealed class NgspiceVersionGateIntegrationTests : IDisposable
     [Fact]
     public async Task BenchRun_WithWrongNgspiceVersion_ReportsVersionMismatch()
     {
-        CreateNgspiceStub(s_wrongMajor);
+        CreateNgspiceStub(s_wrongMajor, supportsPss: false);
 
         var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
@@ -128,18 +128,55 @@ public sealed class NgspiceVersionGateIntegrationTests : IDisposable
         Assert.Contains("cascode install ngspice", combined, StringComparison.OrdinalIgnoreCase);
     }
 
-    private void CreateNgspiceStub(int fakeMajor)
+    [Fact]
+    public async Task BenchRun_WithVersionCorrectButNoPssSupport_ReportsPssRequirement()
+    {
+        CreateNgspiceStub(NgspiceLocator.RequiredMajor, supportsPss: false);
+
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/LCSeries.cas");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            env =>
+            {
+                env["PATH"] = _stubDir + Path.PathSeparator + (env["PATH"] ?? "");
+            },
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+
+        Assert.NotEqual(0, result.ExitCode);
+        var combined = result.Stdout + "\n" + result.Stderr;
+        Assert.Contains("does not support PSS", combined, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cascode install ngspice", combined, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void CreateNgspiceStub(int fakeMajor, bool supportsPss)
     {
         var versionLine = $"** ngspice-{fakeMajor} : Circuit level simulation program";
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var batPath = Path.Combine(_stubDir, "ngspice.bat");
-            File.WriteAllText(batPath, $"@echo off\r\necho {versionLine}\r\n");
+            File.WriteAllText(
+                batPath,
+                supportsPss
+                    ? $"@echo off\r\nif \"%1\"==\"-b\" (\r\n  echo Periodic Steady State Analysis Started\r\n  echo pss simulation(s) aborted\r\n  exit /b 0\r\n)\r\necho {versionLine}\r\n"
+                    : $"@echo off\r\nif \"%1\"==\"-b\" (\r\n  echo pss: no such command available in ngspice\r\n  echo Sorry, no help for pss.\r\n  exit /b 0\r\n)\r\necho {versionLine}\r\n"
+            );
         }
         else
         {
             var shPath = Path.Combine(_stubDir, "ngspice");
-            File.WriteAllText(shPath, $"#!/bin/sh\necho '{versionLine}'\n");
+            File.WriteAllText(
+                shPath,
+                supportsPss
+                    ? $"#!/bin/sh\nif [ \"$1\" = \"-b\" ]; then\n  echo 'Periodic Steady State Analysis Started'\n  echo 'pss simulation(s) aborted'\n  exit 0\nfi\necho '{versionLine}'\n"
+                    : $"#!/bin/sh\nif [ \"$1\" = \"-b\" ]; then\n  echo 'pss: no such command available in ngspice'\n  echo 'Sorry, no help for pss.'\n  exit 0\nfi\necho '{versionLine}'\n"
+            );
             File.SetUnixFileMode(
                 shPath,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute

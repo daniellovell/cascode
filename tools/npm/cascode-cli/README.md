@@ -15,12 +15,15 @@ How it works
       cascode install ngspice
 
   This default path downloads a prebuilt ngspice package from the same GitHub release tag as the
-  installed Cascode CLI version. To force source mode, run:
+  installed Cascode CLI version and rejects binaries that do not support `pss`. To force source mode,
+  run:
 
       cascode install ngspice --from-source
 
   Source builds require the native toolchain that the CLI installer expects:
-  `7z` on Windows, or `bison`, `flex`, `autoconf`, `automake`, `libtool`, `make`, and `cc` on Unix.
+  MSYS2/MinGW with `bash`, `autoconf`, `automake`, `bison`, `flex`, `gawk`, `libtool`, `make`,
+  `gcc`, and `g++` on Windows, or `bison`, `flex`, `autoconf`, `automake`, `libtool`, `make`, and
+  `cc` on Unix.
 
 Environment variables
 - `CASCODE_DOWNLOAD_BASE` (optional): override the GitHub Releases base URL, e.g.

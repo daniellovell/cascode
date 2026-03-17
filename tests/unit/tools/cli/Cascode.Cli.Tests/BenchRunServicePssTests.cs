@@ -34,7 +34,7 @@ public sealed class BenchRunServicePssTests
             plan.InstanceName,
             analysis.Name
         );
-        File.WriteAllText(nodesPath, "0 1.0\n1e-6 0.5\n");
+        File.WriteAllText(nodesPath, "0 1.0\n1e-6 0.5\n2e-6 0.25\n");
 
         var currentsPath = BenchRuntimePaths.GetPssCurrentsWrdataPath(
             tempDir.Path,
@@ -49,6 +49,37 @@ public sealed class BenchRunServicePssTests
         );
         var inner = Assert.IsType<InvalidOperationException>(ex.InnerException);
         Assert.Equal("PSSAnalysis 'pss' produced no current waveform points.", inner.Message);
+    }
+
+    [Fact]
+    public void CreatePssAnalysisContext_ThrowsWhenNodeWrdataHasSinglePoint()
+    {
+        using var tempDir = new TemporaryDirectory();
+        var analysis = new BenchPlanAnalysis(
+            BenchValueType.PSSAnalysis,
+            "pss",
+            "time",
+            Samples: 0,
+            StartHz: 0,
+            StopHz: 0
+        );
+        var plan = CreatePlan(requiresCurrents: false);
+        var testbenchPath = Path.Combine(tempDir.Path, "Top_bench.sp");
+        File.WriteAllText(testbenchPath, "* dummy");
+
+        var nodesPath = BenchRuntimePaths.GetPssWrdataPath(
+            tempDir.Path,
+            plan.CircuitName,
+            plan.InstanceName,
+            analysis.Name
+        );
+        File.WriteAllText(nodesPath, "0 1.0\n");
+
+        var ex = Assert.Throws<TargetInvocationException>(() =>
+            InvokeCreatePssAnalysisContext(analysis, plan, testbenchPath)
+        );
+        var inner = Assert.IsType<InvalidOperationException>(ex.InnerException);
+        Assert.Equal("PSSAnalysis 'pss' produced fewer than two waveform points.", inner.Message);
     }
 
     [Fact]
@@ -73,7 +104,7 @@ public sealed class BenchRunServicePssTests
             plan.InstanceName,
             analysis.Name
         );
-        File.WriteAllText(nodesPath, "0 1.0\n1e-6 0.5\n");
+        File.WriteAllText(nodesPath, "0 1.0\n1e-6 0.5\n2e-6 0.25\n");
 
         var currentsPath = BenchRuntimePaths.GetPssCurrentsWrdataPath(
             tempDir.Path,
@@ -81,14 +112,14 @@ public sealed class BenchRunServicePssTests
             plan.InstanceName,
             analysis.Name
         );
-        File.WriteAllText(currentsPath, "0 0.1\n");
+        File.WriteAllText(currentsPath, "0 0.1\n1e-6 0.2\n");
 
         var ex = Assert.Throws<TargetInvocationException>(() =>
             InvokeCreatePssAnalysisContext(analysis, plan, testbenchPath)
         );
         var inner = Assert.IsType<InvalidOperationException>(ex.InnerException);
         Assert.Equal(
-            "PSSAnalysis 'pss' current waveform length (1) does not match node waveform length (2).",
+            "PSSAnalysis 'pss' current waveform length (2) does not match node waveform length (3).",
             inner.Message
         );
     }

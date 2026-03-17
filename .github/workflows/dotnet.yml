@@ -144,6 +144,23 @@ jobs:
           )"
           echo "$(dirname "$install_path")" >> "$GITHUB_PATH"
 
+      - name: Install MSYS2 build deps (windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: MINGW64
+          path-type: inherit
+          install: >-
+            autoconf
+            automake
+            bison
+            flex
+            gawk
+            libtool
+            make
+            mingw-w64-x86_64-gcc
+
       - name: Install ngspice via CLI (windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -162,6 +179,47 @@ jobs:
       - name: Verify ngspice installation
         run: ngspice --version
 
+      - name: Verify ngspice PSS support (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          deck="$(mktemp)"
+          cat > "$deck" <<'EOF'
+          * ngspice pss smoke
+          V1 in 0 0
+          R1 in 0 1k
+          .control
+          pss 1MEG 1u in 64 3 20 1e-3
+          quit
+          .endc
+          .end
+          EOF
+          output="$(ngspice -b "$deck" 2>&1)"
+          printf '%s\n' "$output"
+          [[ "$output" == *"Periodic Steady State Analysis Started"* ]]
+
+      - name: Verify ngspice PSS support (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $deck = Join-Path $env:RUNNER_TEMP "ngspice-pss-smoke.cir"
+          @'
+          * ngspice pss smoke
+          V1 in 0 0
+          R1 in 0 1k
+          .control
+          pss 1MEG 1u in 64 3 20 1e-3
+          quit
+          .endc
+          .end
+          '@ | Set-Content -Path $deck
+          $output = & ngspice -b $deck 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch 'Periodic Steady State Analysis Started') {
+            throw 'ngspice installation is missing PSS support'
+          }
+
       - name: Build (Release)
         run: dotnet build Cascode.sln --configuration Release --nologo --no-restore
 
@@ -176,12 +234,7 @@ jobs:
 
       - name: Test with Coverage
         shell: bash -el {0}
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage" --filter "Category!=Simulation"
-          else
-            dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
-          fi
+        run: dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
 
       - name: Upload Test Results
         if: always()

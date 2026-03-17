@@ -78,11 +78,15 @@ cascode install ngspice
 ```
 
 `cascode install ngspice` installs the prebuilt ngspice package from the same GitHub release tag
-as your installed Cascode CLI version. If you need a local build instead, use:
+as your installed Cascode CLI version and rejects binaries that do not support `pss`. If you need a
+local build instead, use:
 
 ```sh
 cascode install ngspice --from-source
 ```
+
+On Windows, source builds require an MSYS2/MinGW toolchain with `bash`, `autoconf`, `automake`,
+`bison`, `flex`, `gawk`, `libtool`, `make`, `gcc`, and `g++` on `PATH`.
 
 ### Latest vs pre-release
 

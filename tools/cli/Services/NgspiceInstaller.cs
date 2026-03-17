@@ -14,19 +14,12 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
 {
     private static readonly string PinnedVersion = NgspiceInstallLayout.Version;
     private static readonly string SourceArchiveName = "ngspice-" + PinnedVersion + ".tar.gz";
-    private static readonly string WindowsArchiveName = "ngspice-" + PinnedVersion + "_64.7z";
     private static readonly string SourceArchiveUrl =
         "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
         + PinnedVersion
         + "/ngspice-"
         + PinnedVersion
         + ".tar.gz/download";
-    private static readonly string WindowsArchiveUrl =
-        "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/"
-        + PinnedVersion
-        + "/ngspice-"
-        + PinnedVersion
-        + "_64.7z/download";
 
     private static readonly Regex ReleaseVersionPattern = new(
         @"^\d+\.\d+\.\d+(?:-[0-9A-Za-z\.-]+)?$",
@@ -331,18 +324,16 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         Action<string>? log
     )
     {
-        if (_runtime.FindTool("7z") is not string sevenZip)
+        var missing = MissingWindowsBuildDependencies();
+        if (missing.Count > 0)
         {
-            return Fail(
-                "Missing required tool: 7z.\nInstall it with: winget install 7zip.7zip",
-                SimulatorInstallModes.SourceBuild
-            );
+            return Fail(BuildWindowsDependencyMessage(missing), SimulatorInstallModes.SourceBuild);
         }
 
         var archive = DownloadAndVerifyArchive(
             tempRoot,
-            WindowsArchiveName,
-            WindowsArchiveUrl,
+            SourceArchiveName,
+            SourceArchiveUrl,
             checksums,
             SimulatorInstallModes.SourceBuild,
             log
@@ -350,36 +341,46 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         if (!archive.Success)
             return archive;
 
-        var extractDir = Path.Combine(tempRoot, "extract");
-        Directory.CreateDirectory(extractDir);
-
-        log?.Invoke($"7z: extracting {WindowsArchiveName}");
-        var extract = _runtime.RunCommand(
-            sevenZip,
-            new[] { "x", archive.InstallPath!, $"-o{extractDir}", "-y" },
-            workingDirectory: null,
-            onOutput: line => LogCommandOutput(log, "7z", line)
+        var sourceDir = ExtractSourceDirectory(
+            tempRoot,
+            archive.InstallPath!,
+            out var extractError,
+            log
         );
-        if (extract.ExitCode != 0)
+        if (sourceDir is null)
         {
             return Fail(
-                $"Failed to extract {WindowsArchiveName}: {TrimOutput(extract.Stderr)}",
+                extractError ?? "ngspice source extraction produced no source directory.",
                 SimulatorInstallModes.SourceBuild
             );
         }
 
-        var extractedExe = Directory
-            .EnumerateFiles(extractDir, "ngspice.exe", SearchOption.AllDirectories)
-            .FirstOrDefault();
-        if (extractedExe is null)
+        var buildPrefix = Path.Combine(tempRoot, "install");
+        Directory.CreateDirectory(buildPrefix);
+
+        var buildError = BuildWindowsSource(sourceDir, buildPrefix, log);
+        if (buildError is not null)
+        {
+            return Fail(buildError, SimulatorInstallModes.SourceBuild);
+        }
+
+        var builtExe = Path.Combine(buildPrefix, "bin", "ngspice");
+        if (!File.Exists(builtExe))
+        {
+            builtExe = Path.Combine(buildPrefix, "bin", "ngspice.exe");
+        }
+        if (!File.Exists(builtExe))
         {
             return Fail(
-                $"Could not find ngspice.exe in extracted archive {WindowsArchiveName}.",
+                "ngspice build succeeded but binary was not found under install prefix.",
                 SimulatorInstallModes.SourceBuild
             );
         }
 
-        CopyDirectoryContents(Path.GetDirectoryName(extractedExe)!, installBin);
+        Directory.CreateDirectory(installBin);
+        File.Copy(builtExe, installExe, overwrite: true);
+        _runtime.EnsureExecutable(installExe);
+
         if (!TryValidateBinary(installExe, out var validationError))
         {
             return Fail(
@@ -388,9 +389,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             );
         }
 
-        var note = rid == "win-arm64" ? " (using win-x64 ngspice binary)" : string.Empty;
         return Success(
-            $"Installed ngspice {NgspiceInstallLayout.Version} to {installExe}{note}",
+            $"Installed ngspice {NgspiceInstallLayout.Version} to {installExe} ({rid})",
             installExe,
             SimulatorInstallModes.SourceBuild
         );
@@ -639,6 +639,71 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         return null;
     }
 
+    private string? BuildWindowsSource(string sourceDir, string prefix, Action<string>? log)
+    {
+        var bash = _runtime.FindTool("bash");
+        if (string.IsNullOrWhiteSpace(bash))
+        {
+            return "Missing required build tool: bash.";
+        }
+
+        var buildDir = Path.Combine(prefix, "build");
+        Directory.CreateDirectory(buildDir);
+
+        var sourceDirPosix = ToPosixPathForBash(sourceDir);
+        var buildDirPosix = ToPosixPathForBash(buildDir);
+        var prefixPosix = ToPosixPathForBash(prefix);
+        var jobs = Math.Max(1, _runtime.ProcessorCount);
+
+        string? RunBashStep(string stepName, string script, string failurePrefix)
+        {
+            CommandRunResult result;
+            try
+            {
+                log?.Invoke($"{stepName}: starting");
+                result = _runtime.RunCommand(
+                    bash,
+                    new[] { "-lc", script },
+                    workingDirectory: null,
+                    onOutput: line => LogCommandOutput(log, stepName, line)
+                );
+            }
+            catch (Exception ex)
+            {
+                return $"{failurePrefix} launch failed: {ex.Message}";
+            }
+
+            return result.ExitCode == 0
+                ? null
+                : $"{failurePrefix} failed: {TrimOutput(result.Stderr)}";
+        }
+
+        var configureScript =
+            $"set -euo pipefail; mkdir -p '{buildDirPosix}'; cd '{buildDirPosix}'; "
+            + $"'{sourceDirPosix}/configure' --prefix='{prefixPosix}' --without-x --without-readline --disable-openmp --enable-xspice --enable-pss CFLAGS='-O2'";
+        var configureError = RunBashStep("configure", configureScript, "ngspice configure");
+        if (configureError is not null)
+        {
+            return configureError;
+        }
+
+        var makeError = RunBashStep(
+            "make",
+            $"set -euo pipefail; cd '{buildDirPosix}'; make -j{jobs}",
+            "ngspice build"
+        );
+        if (makeError is not null)
+        {
+            return makeError;
+        }
+
+        return RunBashStep(
+            "make install",
+            $"set -euo pipefail; cd '{buildDirPosix}'; make install",
+            "ngspice install"
+        );
+    }
+
     /// <summary>
     /// Detects missing toolchain dependencies for Unix source builds.
     /// </summary>
@@ -659,6 +724,32 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         return missing;
     }
 
+    private List<string> MissingWindowsBuildDependencies()
+    {
+        var required = new[]
+        {
+            "bash",
+            "bison",
+            "flex",
+            "autoconf",
+            "automake",
+            "libtool",
+            "make",
+            "gcc",
+            "g++",
+        };
+        var missing = new List<string>();
+        foreach (var tool in required)
+        {
+            if (_runtime.FindTool(tool) is null)
+            {
+                missing.Add(tool);
+            }
+        }
+
+        return missing;
+    }
+
     /// <summary>
     /// Builds a user-actionable dependency installation hint.
     /// </summary>
@@ -671,6 +762,13 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         }
 
         return $"Missing required build tools: {joined}.\nInstall with: brew install bison flex autoconf automake libtool coreutils gnu-sed findutils gawk";
+    }
+
+    private static string BuildWindowsDependencyMessage(IReadOnlyList<string> missing)
+    {
+        var joined = string.Join(", ", missing);
+        return $"Missing required build tools: {joined}.\n"
+            + "Install MSYS2 plus the MinGW toolchain and autotools, then ensure its usr/bin and mingw64/bin are on PATH.";
     }
 
     /// <summary>
@@ -769,6 +867,15 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                 return false;
             }
 
+            var probe = NgspiceCapabilityProbe.ProbePssSupport(binaryPath);
+            if (!probe.SupportsPss)
+            {
+                error =
+                    "binary does not support PSS; `cascode install ngspice` requires a PSS-capable build. "
+                    + $"Probe output: {TrimOutput(probe.ProbeOutput)}";
+                return false;
+            }
+
             error = string.Empty;
             return true;
         }
@@ -789,6 +896,19 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             var destination = Path.Combine(targetDir, Path.GetFileName(file));
             File.Copy(file, destination, overwrite: true);
         }
+    }
+
+    private static string ToPosixPathForBash(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        if (fullPath.Length >= 2 && char.IsLetter(fullPath[0]) && fullPath[1] == ':')
+        {
+            var drive = char.ToLowerInvariant(fullPath[0]);
+            var remainder = fullPath[2..].Replace('\\', '/');
+            return $"/{drive}{remainder}";
+        }
+
+        return fullPath.Replace('\\', '/');
     }
 
     private static string TrimOutput(string? text)

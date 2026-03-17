@@ -154,6 +154,11 @@ measurement OutputPower : W {
 Reference implementations are in [`lib/std/bench/PSSBenches.cas`](../../lib/std/bench/PSSBenches.cas):
 `SEOscPSS`, `DiffOscPSS`, `SEToSEPSS`, and `DiffToDiffPSS`.
 
+Before running a PSS bench, install ngspice through the CLI. `cascode install ngspice` now enforces
+that the resolved binary supports `pss`; benches fail fast if the simulator is present but lacks that
+capability. On Windows, `cascode install ngspice --from-source` expects an MSYS2/MinGW toolchain on
+`PATH`.
+
 ### Common pitfalls
 
 - PSS bench fill blocks do not provide input or output common-mode biasing — `VSIN` sources are

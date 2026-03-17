@@ -31,6 +31,10 @@ If you need to compile/install from source instead, run:
 cascode install ngspice --from-source
 ```
 
+Both install paths enforce a PSS-capable `ngspice` binary. If the resolved build does not support
+`pss`, the installer fails instead of accepting a version-correct but incomplete simulator. On
+Windows, source builds require an MSYS2/MinGW toolchain on `PATH`.
+
 ## Run a complete example (RC lowpass)
 
 The repo includes a small, self-contained EL example with a declarative bench:

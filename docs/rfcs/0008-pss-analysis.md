@@ -15,6 +15,11 @@ PSS analysis finds the periodic steady-state response of a nonlinear circuit dri
 
 PSS benches follow the `TranBenches` harness pattern: explicit `VSIN` sources and `Impedor` terminations in the fill block, with no `Port` primitives. The oscillating node is always the output terminal, resolved at emission time.
 
+Operationally, Cascode requires an ngspice build with PSS enabled. The CLI installer now treats PSS
+support as part of simulator validity: `cascode install ngspice` succeeds only when the installed
+binary exposes a working `pss` command, and PSS bench execution fails fast if the resolved simulator
+lacks that capability.
+
 ---
 
 ## 1. PSSAnalysis

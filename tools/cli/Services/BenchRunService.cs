@@ -381,12 +381,34 @@ public class BenchRunService
             };
         }
 
+        Progress("bench-plan: compile start");
+        var planStep = timing.Step("bench-plan: compile");
+        var planMap = BuildPlanMap(doc);
+        planStep.Stop();
+        Progress(
+            $"bench-plan: compile done ({planStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
+
+        var pssSupportResult = EnsurePssSupportOrReturnError(
+            circuitsWithBenches,
+            args,
+            outputDir,
+            planMap
+        );
+        if (pssSupportResult != null)
+        {
+            return pssSupportResult with
+            {
+                Summary = pssSupportResult.Summary with { Timing = timing.Build() },
+            };
+        }
+
         var circuitSummaries = RunBenchPhase(
             circuitsWithBenches,
             args,
             outputDir,
-            doc,
             emit.Emit.TestbenchPaths,
+            planMap,
             timing
         );
 
@@ -465,19 +487,11 @@ public class BenchRunService
         IReadOnlyList<Circuit> circuitsWithBenches,
         BenchRunArgs args,
         string outputDir,
-        CascodeDocument doc,
         IReadOnlyList<string> testbenchPaths,
+        IReadOnlyDictionary<string, BenchPlan> planMap,
         BenchRunTimingCollector timing
     )
     {
-        Progress("bench-plan: compile start");
-        var planStep = timing.Step("bench-plan: compile");
-        var planMap = BuildPlanMap(doc);
-        planStep.Stop();
-        Progress(
-            $"bench-plan: compile done ({planStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
-        );
-
         var circuitSummaries = new List<CircuitBenchRunSummary>();
         foreach (var circuit in circuitsWithBenches)
         {
@@ -492,6 +506,43 @@ public class BenchRunService
             circuitSummaries.Add(circuitSummary);
         }
         return circuitSummaries;
+    }
+
+    private MultiCircuitBenchRunResult? EnsurePssSupportOrReturnError(
+        IReadOnlyList<Circuit> circuitsWithBenches,
+        BenchRunArgs args,
+        string outputDir,
+        IReadOnlyDictionary<string, BenchPlan> planMap
+    )
+    {
+        var circuitsToRun = circuitsWithBenches
+            .Select(c => c.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var requiresPss = planMap.Values.Any(plan =>
+            circuitsToRun.Contains(plan.CircuitName)
+            && (
+                string.IsNullOrWhiteSpace(args.BenchName)
+                || plan.BindingName.Equals(args.BenchName, StringComparison.OrdinalIgnoreCase)
+            )
+            && plan.Analyses.Any(a => a.Type == BenchValueType.PSSAnalysis)
+        );
+        if (!requiresPss)
+        {
+            return null;
+        }
+
+        var ngspice = NgspiceLocator.Resolve();
+        var probe = NgspiceCapabilityProbe.ProbePssSupport(ngspice.Path);
+        if (probe.SupportsPss)
+        {
+            return null;
+        }
+
+        return BuildValidationFailureResult(
+            args.Backend,
+            outputDir,
+            NgspiceNotFoundException.PssUnsupported(ngspice.Path, probe.ProbeOutput).Message
+        );
     }
 
     private CircuitBenchRunSummary RunCircuitBenches(
@@ -1344,6 +1395,25 @@ public class BenchRunService
         return formatted;
     }
 
+    private static MultiCircuitBenchRunResult BuildValidationFailureResult(
+        BenchBackendType backend,
+        string outputDir,
+        params string[] validationErrors
+    )
+    {
+        return new MultiCircuitBenchRunResult(
+            2,
+            new MultiCircuitBenchRunSummary(
+                backend,
+                outputDir,
+                Array.Empty<CircuitBenchRunSummary>(),
+                null,
+                new ComplianceReport(),
+                ValidationErrors: validationErrors
+            )
+        );
+    }
+
     /// <summary>
     /// Aggregates results from all circuit bench runs into final summary.
     /// Always succeeds; returns complete MultiCircuitBenchRunResult.
@@ -2064,6 +2134,7 @@ public class BenchRunService
                 $"PSSAnalysis '{a.Name}' produced no waveform points."
             );
         }
+        ValidatePssWaveformPoints(a.Name, nodes.TimePoints, "waveform");
 
         PssDataset? currents = null;
         var currentSources = plan
@@ -2091,6 +2162,7 @@ public class BenchRunService
                     $"PSSAnalysis '{a.Name}' produced no current waveform points."
                 );
             }
+            ValidatePssWaveformPoints(a.Name, currents.TimePoints, "current waveform");
             if (currents.TimePoints.Length != nodes.TimePoints.Length)
             {
                 throw new InvalidOperationException(
@@ -2110,6 +2182,31 @@ public class BenchRunService
             PssCurrents: currents,
             PssHarmonics: a.Harmonics
         );
+    }
+
+    private static void ValidatePssWaveformPoints(
+        string analysisName,
+        IReadOnlyList<double> timePoints,
+        string waveformKind
+    )
+    {
+        if (timePoints.Count < 2)
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysisName}' produced fewer than two {waveformKind} points."
+            );
+        }
+
+        if (
+            !double.IsFinite(timePoints[0])
+            || !double.IsFinite(timePoints[^1])
+            || timePoints[^1] <= timePoints[0]
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysisName}' produced a non-increasing {waveformKind} time axis."
+            );
+        }
     }
 
     private static IReadOnlyDictionary<string, BenchPlan> BuildPlanMap(CascodeDocument doc)

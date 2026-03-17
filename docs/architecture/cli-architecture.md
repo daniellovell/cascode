@@ -53,6 +53,9 @@ Interactive shell
 
 Configuration and persistence
 - `CASCODE_HOME` controls writable CLI state such as config, ngspice installs, and workspace-local metadata.
+- `install ngspice` is capability-gated, not version-gated alone: the command only succeeds when the
+  installed binary supports `pss`, because PSS benches, verification autoruns, and characterization
+  all depend on the same simulator contract.
 - PDK matching rules live at `CASCODE_HOME/config/pdk-matching-patterns.yml`.
 - `pdk scan` regenerates the workspace database for the selected PDK root; the CLI does not migrate older `pdk.db` files.
 
