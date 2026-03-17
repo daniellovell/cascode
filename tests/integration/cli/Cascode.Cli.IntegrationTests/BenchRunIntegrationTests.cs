@@ -15,8 +15,6 @@ namespace Cascode.Cli.IntegrationTests;
 
 public sealed class BenchRunIntegrationTests : IDisposable
 {
-    private static readonly TimeSpan s_verifyTimeout = TimeSpan.FromSeconds(30);
-
     private readonly string _repoRoot;
     private readonly string _outputDir;
     private readonly CascodeHomeScope _cascodeHome;
@@ -482,7 +480,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     private async Task VerifyAsync(string cascodePath, string resultsPath)
     {
         var verify = await CliIntegrationTestHelper.RunCliAsync(
-            s_verifyTimeout,
+            TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
             cascodePath,
