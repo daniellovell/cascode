@@ -166,11 +166,31 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          json_output="$(./tools/cli/bin/Release/$DOTNET_TFM/Cascode.Cli.exe install ngspice --from-source --json)"
-          printf '%s\n' "$json_output"
-          install_path="$(printf '%s\n' "$json_output" | python - <<'PY'
-          import json, sys
-          payload = json.load(sys.stdin)
+          mkdir -p build
+          install_log="build/ngspice-install-windows.log"
+          rm -f "$install_log"
+          set +e
+          ./tools/cli/bin/Release/$DOTNET_TFM/Cascode.Cli.exe install ngspice --from-source --json >"$install_log" 2>&1
+          install_exit=$?
+          set -e
+          cat "$install_log"
+          if [ "$install_exit" -ne 0 ]; then
+            exit "$install_exit"
+          fi
+          install_path="$(python - "$install_log" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          log_path = pathlib.Path(sys.argv[1])
+          line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+
+          try:
+              payload = json.loads(line)
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+              sys.exit(1)
+
           install_path = payload.get("InstallPath")
           if payload.get("Success") and install_path:
               print(install_path, end="")
@@ -179,6 +199,7 @@ jobs:
               sys.exit(1)
           PY
           )"
+          printf 'NGSPICE_INSTALL_PATH=%s\n' "$install_path" >> "$GITHUB_ENV"
           python - "$install_path" <<'PY'
           import os
           import sys
@@ -190,7 +211,17 @@ jobs:
           PY
 
       - name: Verify ngspice installation
+        if: runner.os != 'Windows'
         run: ngspice --version
+
+      - name: Verify ngspice installation (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path $env:NGSPICE_INSTALL_PATH)) {
+            throw "ngspice binary missing: $env:NGSPICE_INSTALL_PATH"
+          }
+          Write-Host $env:NGSPICE_INSTALL_PATH
 
       - name: Verify ngspice PSS support (unix)
         if: runner.os != 'Windows'
@@ -227,7 +258,7 @@ jobs:
           .endc
           .end
           '@ | Set-Content -Path $deck
-          $output = & ngspice -b $deck 2>&1 | Out-String
+          $output = & $env:NGSPICE_INSTALL_PATH -b $deck 2>&1 | Out-String
           Write-Host $output
           if ($output -notmatch 'Periodic Steady State Analysis Started') {
             throw 'ngspice installation is missing PSS support'

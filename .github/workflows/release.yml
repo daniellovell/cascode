@@ -267,11 +267,31 @@ jobs:
           import os
           os.makedirs(os.environ["CASCODE_HOME"], exist_ok=True)
           PY
-          json_output="$(dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json)"
-          printf '%s\n' "$json_output"
-          install_path="$(printf '%s\n' "$json_output" | python - <<'PY'
-          import json, sys
-          payload = json.load(sys.stdin)
+          mkdir -p build
+          install_log="build/ngspice-install-windows.log"
+          rm -f "$install_log"
+          set +e
+          dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json >"$install_log" 2>&1
+          install_exit=$?
+          set -e
+          cat "$install_log"
+          if [ "$install_exit" -ne 0 ]; then
+            exit "$install_exit"
+          fi
+          install_path="$(python - "$install_log" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          log_path = pathlib.Path(sys.argv[1])
+          line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+
+          try:
+              payload = json.loads(line)
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+              sys.exit(1)
+
           install_path = payload.get("InstallPath")
           if payload.get("Success") and install_path:
               print(install_path, end="")
