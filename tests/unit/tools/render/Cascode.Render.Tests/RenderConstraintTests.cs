@@ -390,6 +390,35 @@ public sealed class RenderConstraintTests
     }
 
     [Fact]
+    public void Place_TwoStageLna_GateBiasShunts_StayOnTheConsumerSideOfTheBiasEntry()
+    {
+        var circuit = LoadCircuitFromRepo(
+            "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas"
+        );
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var rg2Row = placement.DevicePlacements["RG2"].Row;
+        var rgb2TopRow = placement.DevicePlacements["RGB2_TOP"].Row;
+        var rgb2BotRow = placement.DevicePlacements["RGB2_BOT"].Row;
+        var cgb2Row = placement.DevicePlacements["CGB2"].Row;
+
+        Assert.True(
+            rgb2TopRow <= rg2Row,
+            $"Expected the VDD leg RGB2_TOP to stay above or level with RG2 so the bias path descends into the second-stage gate neighborhood.{Environment.NewLine}{DescribePlacement(placement)}"
+        );
+        Assert.True(
+            rgb2BotRow >= rg2Row,
+            $"Expected the GND leg RGB2_BOT to stay at or below RG2 so the vgb2 branch does not climb back up after RGB2_TOP.{Environment.NewLine}{DescribePlacement(placement)}"
+        );
+        Assert.True(
+            cgb2Row >= rg2Row,
+            $"Expected the GND shunt CGB2 to stay at or below RG2 so the vgb2 branch does not detour back up through the second-stage bias network.{Environment.NewLine}{DescribePlacement(placement)}"
+        );
+    }
+
+    [Fact]
     public void Place_GateBiasPassive_ExposesItsGateTerminalTowardTheGatedMos()
     {
         var circuit = LoadCircuitFromRepo(

@@ -321,8 +321,16 @@ internal static class CoarseGridPlacementSolver
             symmetricPassivePairs,
             hardPlacedIds
         );
-        var outputCouplingRefined = RefineOutputCouplingPassivePlacements(
+        var gateBiasDistributionRefined = RefineGateBiasDistributionPlacements(
             biasChainRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            symmetricPassivePairs,
+            hardPlacedIds
+        );
+        var outputCouplingRefined = RefineOutputCouplingPassivePlacements(
+            gateBiasDistributionRefined,
             graph,
             topology,
             horizontalPassiveIds,
@@ -1920,8 +1928,16 @@ internal static class CoarseGridPlacementSolver
             Array.Empty<(string Left, string Right, string PivotNet)>(),
             new HashSet<string>(StringComparer.Ordinal)
         );
-        var outputCouplingRefined = RefineOutputCouplingPassivePlacements(
+        var gateBiasDistributionRefined = RefineGateBiasDistributionPlacements(
             biasChainRefined,
+            graph,
+            topology,
+            horizontalPassiveIds,
+            Array.Empty<(string Left, string Right, string PivotNet)>(),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        var outputCouplingRefined = RefineOutputCouplingPassivePlacements(
+            gateBiasDistributionRefined,
             graph,
             topology,
             horizontalPassiveIds,
@@ -3104,6 +3120,37 @@ internal static class CoarseGridPlacementSolver
         return Compact(refined);
     }
 
+    private static Dictionary<string, GridCell> RefineGateBiasDistributionPlacements(
+        IReadOnlyDictionary<string, GridCell> placements,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        var refined = placements.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        foreach (var link in FindGatePassiveLinks(graph))
+        {
+            if (!IsGateBiasDistributionNet(link.PassiveOtherNet, link.PassiveDeviceId, graph))
+            {
+                continue;
+            }
+
+            TryRefineGateBiasDistributionPlacement(
+                refined,
+                link,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                hardPlacedDeviceIds
+            );
+        }
+
+        return Compact(refined);
+    }
+
     private static Dictionary<string, GridCell> RefineBiasPassiveClusterOrderingPlacements(
         IReadOnlyDictionary<string, GridCell> placements,
         CircuitGraph graph,
@@ -3460,6 +3507,122 @@ internal static class CoarseGridPlacementSolver
         return true;
     }
 
+    private static bool TryRefineGateBiasDistributionPlacement(
+        Dictionary<string, GridCell> placements,
+        GatePassiveLink link,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        IReadOnlySet<string> hardPlacedDeviceIds
+    )
+    {
+        if (!placements.TryGetValue(link.PassiveDeviceId, out var gatePassiveCell))
+        {
+            return false;
+        }
+
+        var members = FindRailConnectedPassiveIdsOnNet(link.PassiveOtherNet, graph)
+            .Where(id => placements.ContainsKey(id) && !horizontalPassiveIds.Contains(id))
+            .ToArray();
+        if (members.Length == 0)
+        {
+            return false;
+        }
+
+        var memberSet = members.ToHashSet(StringComparer.Ordinal);
+        var referenceRow = gatePassiveCell.Row;
+        var baseline = placements.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value,
+            StringComparer.Ordinal
+        );
+        var currentScore = ScoreGateBiasDistributionPlacement(
+            placements,
+            members,
+            referenceRow,
+            graph,
+            baseline
+        );
+        var candidate = placements.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value,
+            StringComparer.Ordinal
+        );
+        var usedCells = new HashSet<(int Row, int Column)>();
+        foreach (var (deviceId, cell) in placements)
+        {
+            if (!memberSet.Contains(deviceId) || hardPlacedDeviceIds.Contains(deviceId))
+            {
+                usedCells.Add((cell.Row, cell.Column));
+            }
+        }
+
+        var movableMembers = members
+            .Where(id => !hardPlacedDeviceIds.Contains(id))
+            .OrderByDescending(id =>
+                GetGateBiasDistributionSidePenalty(
+                    placements[id].Row,
+                    referenceRow,
+                    GetGateBiasPreferredRowDirection(id, graph)
+                )
+            )
+            .ThenByDescending(id => Math.Abs(placements[id].Row - referenceRow))
+            .ToArray();
+        if (movableMembers.Length == 0)
+        {
+            return false;
+        }
+
+        var searchLimit = Math.Max(
+            placements.Values.Max(cell => cell.Row) + movableMembers.Length,
+            referenceRow + movableMembers.Length + 1
+        );
+        Dictionary<string, GridCell>? best = null;
+        var bestScore = currentScore;
+        if (
+            TryAssignGateBiasDistributionRows(
+                index: 0,
+                movableMembers,
+                baseline,
+                referenceRow,
+                searchLimit,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs,
+                usedCells,
+                candidate
+            )
+        )
+        {
+            var score = ScoreGateBiasDistributionPlacement(
+                candidate,
+                members,
+                referenceRow,
+                graph,
+                baseline
+            );
+            if (score.CompareTo(bestScore) < 0)
+            {
+                best = candidate.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+                bestScore = score;
+            }
+        }
+
+        if (best == null || bestScore.CompareTo(currentScore) >= 0)
+        {
+            return false;
+        }
+
+        foreach (var member in members)
+        {
+            placements[member] = best[member];
+        }
+
+        return true;
+    }
+
     private static Dictionary<string, GridCell>? BuildBiasClusterWindowCandidate(
         IReadOnlyDictionary<string, GridCell> placements,
         IReadOnlyList<string> members,
@@ -3618,6 +3781,79 @@ internal static class CoarseGridPlacementSolver
         return false;
     }
 
+    private static bool TryAssignGateBiasDistributionRows(
+        int index,
+        IReadOnlyList<string> movableMembers,
+        IReadOnlyDictionary<string, GridCell> baseline,
+        int referenceRow,
+        int searchLimit,
+        CircuitGraph graph,
+        TopologyResult topology,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyList<(string Left, string Right, string PivotNet)> symmetricPassivePairs,
+        HashSet<(int Row, int Column)> usedCells,
+        Dictionary<string, GridCell> candidate
+    )
+    {
+        if (index >= movableMembers.Count)
+        {
+            return IsValidPostRepairPlacement(
+                candidate,
+                graph,
+                topology,
+                horizontalPassiveIds,
+                symmetricPassivePairs
+            );
+        }
+
+        var member = movableMembers[index];
+        var currentCell = baseline[member];
+        var preferredDirection = GetGateBiasPreferredRowDirection(member, graph);
+        var candidateRows = Enumerable
+            .Range(0, searchLimit + 1)
+            .Where(row => !usedCells.Contains((row, currentCell.Column)))
+            .OrderBy(row =>
+                GetGateBiasDistributionSidePenalty(row, referenceRow, preferredDirection)
+            )
+            .ThenBy(row => Math.Abs(row - currentCell.Row))
+            .ThenBy(row => Math.Abs(row - referenceRow))
+            .ToArray();
+        foreach (var row in candidateRows)
+        {
+            usedCells.Add((row, currentCell.Column));
+            candidate[member] = new GridCell(
+                row,
+                currentCell.Column,
+                currentCell.RotationQuarterTurns,
+                currentCell.MirrorX,
+                currentCell.MirrorY
+            );
+            if (
+                TryAssignGateBiasDistributionRows(
+                    index + 1,
+                    movableMembers,
+                    baseline,
+                    referenceRow,
+                    searchLimit,
+                    graph,
+                    topology,
+                    horizontalPassiveIds,
+                    symmetricPassivePairs,
+                    usedCells,
+                    candidate
+                )
+            )
+            {
+                return true;
+            }
+
+            candidate[member] = currentCell;
+            usedCells.Remove((row, currentCell.Column));
+        }
+
+        return false;
+    }
+
     private static (int Span, int ConsumerDistance, int Movement) ScoreBiasClusterPlacement(
         IReadOnlyDictionary<string, GridCell> candidate,
         IReadOnlyList<string> members,
@@ -3632,6 +3868,67 @@ internal static class CoarseGridPlacementSolver
         );
         var movement = members.Sum(id => Math.Abs(candidate[id].Column - baseline[id].Column));
         return (span, consumerDistance, movement);
+    }
+
+    private static (
+        int SidePenalty,
+        int Movement,
+        int RowSpan,
+        int ReferenceDistance
+    ) ScoreGateBiasDistributionPlacement(
+        IReadOnlyDictionary<string, GridCell> candidate,
+        IReadOnlyList<string> members,
+        int referenceRow,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, GridCell> baseline
+    )
+    {
+        var sidePenalty = members.Sum(id =>
+            GetGateBiasDistributionSidePenalty(
+                candidate[id].Row,
+                referenceRow,
+                GetGateBiasPreferredRowDirection(id, graph)
+            )
+        );
+        var movement = members.Sum(id => Math.Abs(candidate[id].Row - baseline[id].Row));
+        var rowSpan = members.Max(id => candidate[id].Row) - members.Min(id => candidate[id].Row);
+        var referenceDistance = members.Sum(id => Math.Abs(candidate[id].Row - referenceRow));
+        return (sidePenalty, movement, rowSpan, referenceDistance);
+    }
+
+    private static int GetGateBiasPreferredRowDirection(string passiveId, CircuitGraph graph)
+    {
+        var railNet = GetRailConnectedNet(passiveId, graph);
+        if (railNet == null)
+        {
+            return 0;
+        }
+
+        if (graph.Supplies.Contains(railNet))
+        {
+            return -1;
+        }
+
+        if (graph.Grounds.Contains(railNet))
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static int GetGateBiasDistributionSidePenalty(
+        int row,
+        int referenceRow,
+        int preferredDirection
+    )
+    {
+        return preferredDirection switch
+        {
+            < 0 => Math.Max(0, row - referenceRow),
+            > 0 => Math.Max(0, referenceRow - row),
+            _ => 0,
+        };
     }
 
     private static bool TrySwapInvertedBiasClusterWindows(
