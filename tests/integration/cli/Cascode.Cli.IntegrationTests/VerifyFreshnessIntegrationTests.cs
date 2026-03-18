@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -193,7 +194,7 @@ public sealed class VerifyFreshnessIntegrationTests : IDisposable
     private static string BuildTopSource(string libraryName, string helperName, string circuitName)
     {
         return $$"""
-            VERSION 4.0
+            VERSION {{CascodeVersion.Current}}
 
             include lib.std
             include {{libraryName}}
