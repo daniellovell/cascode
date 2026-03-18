@@ -168,10 +168,9 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         }
 
         if (
-            !TryResolveVerifyInputs(
-                parsed,
+            !TryResolveFreshRunInputs(
                 runContext,
-                benchRunResult.Summary.OutputDir,
+                benchRunResult,
                 out var refreshedInputs,
                 out var resolutionNote
             )
