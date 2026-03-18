@@ -144,7 +144,7 @@ public class MazeRouterTests
         return deviceType switch
         {
             "nmos" or "nfet" or "pmos" or "pfet" => new[] { "G", "D", "S" },
-            "resistor" or "capacitor" => new[] { "P", "N" },
+            "resistor" or "capacitor" or "inductor" => new[] { "P", "N" },
             _ => Array.Empty<string>(),
         };
     }
