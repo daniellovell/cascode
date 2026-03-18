@@ -144,6 +144,18 @@ internal sealed partial class VerifyCommandModule
                 return true;
             }
 
+            var freshness = BenchArtifactProvenanceStore.EvaluateFreshness(input.Path, sourcePaths);
+            if (freshness.Status == ArtifactFreshnessStatus.Stale)
+            {
+                reason = $"{InputKindLabel(input.Kind)} file '{input.Path}' {freshness.Reason}";
+                return true;
+            }
+
+            if (freshness.Status == ArtifactFreshnessStatus.Fresh)
+            {
+                continue;
+            }
+
             if (newestSourceWriteTimeUtc > File.GetLastWriteTimeUtc(input.Path))
             {
                 reason =
@@ -366,6 +378,74 @@ internal sealed partial class VerifyCommandModule
             .ToArray();
         resolutionNote =
             $"Discovered {inputs.Count} canonical results artifact(s) in '{rootDirectory}'.";
+        return true;
+    }
+
+    private static bool TryResolveFreshRunInputs(
+        VerifyRunContext runContext,
+        BenchRunService.MultiCircuitBenchRunResult benchRunResult,
+        out IReadOnlyList<VerifyInput> inputs,
+        out string resolutionNote
+    )
+    {
+        inputs = Array.Empty<VerifyInput>();
+        resolutionNote = string.Empty;
+
+        var verifiableCircuitNames = runContext
+            .VerifiableCircuits.Select(c => c.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (verifiableCircuitNames.Length == 0)
+        {
+            resolutionNote =
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations.";
+            return false;
+        }
+
+        var summariesByCircuit = benchRunResult
+            .Summary.CircuitSummaries.GroupBy(
+                summary => summary.CircuitName,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                group => group.Key,
+                group => group.Last(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        var resolved = new List<VerifyInput>(verifiableCircuitNames.Length);
+        var missingCircuits = new List<string>();
+        foreach (var circuitName in verifiableCircuitNames)
+        {
+            if (
+                !summariesByCircuit.TryGetValue(circuitName, out var summary)
+                || string.IsNullOrWhiteSpace(summary.CombinedResultsPath)
+            )
+            {
+                missingCircuits.Add(circuitName);
+                continue;
+            }
+
+            var resultsPath = Path.GetFullPath(summary.CombinedResultsPath);
+            if (!File.Exists(resultsPath))
+            {
+                missingCircuits.Add(circuitName);
+                continue;
+            }
+
+            resolved.Add(new VerifyInput(VerifyInputKind.Results, resultsPath));
+        }
+
+        if (missingCircuits.Count > 0)
+        {
+            resolutionNote =
+                $"Bench pipeline did not produce fresh combined results for circuit(s): {string.Join(", ", missingCircuits)}.";
+            return false;
+        }
+
+        inputs = resolved;
+        resolutionNote = $"Using {inputs.Count} fresh artifact(s) produced by the bench pipeline.";
         return true;
     }
 

@@ -90,7 +90,8 @@ public class BenchRunService
     public sealed record CircuitBenchRunSummary(
         string CircuitName,
         IReadOnlyList<BenchRunBenchSummary> Benches,
-        ComplianceReport Compliance
+        ComplianceReport Compliance,
+        string? CombinedResultsPath = null
     );
 
     /// <summary>
@@ -291,7 +292,8 @@ public class BenchRunService
     private (
         CascodeDocument Doc,
         BenchRunArgs Args,
-        IReadOnlyList<Circuit> Circuits
+        IReadOnlyList<Circuit> Circuits,
+        IReadOnlyList<string> SourcePaths
     ) PerformLoadAndLink(
         string workspaceRoot,
         BenchRunArgs args,
@@ -315,7 +317,7 @@ public class BenchRunService
         var verifiableCircuits = BenchVerificationTargets.CollectVerifiableCircuits(
             loaded.Document
         );
-        return (loaded.Document, updatedArgs, verifiableCircuits);
+        return (loaded.Document, updatedArgs, verifiableCircuits, loaded.SourcePaths);
     }
 
     /// <summary>
@@ -330,7 +332,7 @@ public class BenchRunService
     {
         var timing = new BenchRunTimingCollector();
         var paths = ResolveInputAndOutputPaths(args);
-        var (doc, updatedArgs, verifiableCircuits) = PerformLoadAndLink(
+        var (doc, updatedArgs, verifiableCircuits, sourcePaths) = PerformLoadAndLink(
             workspaceRoot,
             args,
             paths,
@@ -387,6 +389,7 @@ public class BenchRunService
             outputDir,
             doc,
             emit.Emit.TestbenchPaths,
+            sourcePaths,
             timing
         );
 
@@ -467,6 +470,7 @@ public class BenchRunService
         string outputDir,
         CascodeDocument doc,
         IReadOnlyList<string> testbenchPaths,
+        IReadOnlyList<string> sourcePaths,
         BenchRunTimingCollector timing
     )
     {
@@ -487,6 +491,7 @@ public class BenchRunService
                 outputDir,
                 testbenchPaths,
                 planMap,
+                sourcePaths,
                 timing
             );
             circuitSummaries.Add(circuitSummary);
@@ -500,6 +505,7 @@ public class BenchRunService
         string outputDir,
         IReadOnlyList<string> testbenchPaths,
         IReadOnlyDictionary<string, BenchPlan> planMap,
+        IReadOnlyList<string> sourcePaths,
         BenchRunTimingCollector timing
     )
     {
@@ -1032,6 +1038,7 @@ public class BenchRunService
                 resultsPath,
                 JsonSerializer.Serialize(results, _jsonSerializerOptions)
             );
+            BenchArtifactProvenanceStore.Write(resultsPath, sourcePaths);
 
             var tracePath = Path.Combine(
                 Path.GetDirectoryName(prepared.TestbenchPath)!,
@@ -1048,6 +1055,7 @@ public class BenchRunService
                 prepared.TracePoints.ToList(),
                 results
             );
+            BenchArtifactProvenanceStore.Write(tracePath, sourcePaths);
 
             if (prepared.TracePoints.Count > 0)
             {
@@ -1104,10 +1112,16 @@ public class BenchRunService
             circuitMeasurements
         );
 
+        string? combinedResultsPath = null;
         // Write combined results file (for verify command compatibility)
         if (finalInstancesToRun.Count > 0 && circuitMeasurements.Count > 0)
         {
-            BenchTraceWriter.WriteCombinedResults(outputDir, circuit.Name, combinedResults);
+            combinedResultsPath = BenchTraceWriter.WriteCombinedResults(
+                outputDir,
+                circuit.Name,
+                combinedResults
+            );
+            BenchArtifactProvenanceStore.Write(combinedResultsPath, sourcePaths);
         }
 
         var compliance = ComplianceChecker.Check(circuit, combinedResults);
@@ -1117,7 +1131,12 @@ public class BenchRunService
             .Select(n => benchSummaries[n])
             .ToList();
 
-        return new CircuitBenchRunSummary(circuit.Name, orderedSummaries, compliance);
+        return new CircuitBenchRunSummary(
+            circuit.Name,
+            orderedSummaries,
+            compliance,
+            combinedResultsPath
+        );
     }
 
     /// <summary>
