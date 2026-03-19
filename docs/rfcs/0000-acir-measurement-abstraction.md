@@ -542,6 +542,18 @@ The `measurements {}` block defines typed measurement expressions:
 
 ```cascode
 measurements {
+  measurement Gain(Frequency f) : dB {
+    TransferFunction H = transfer(ac, IN, OUT)
+    GainSpectrum G = db20(H.Mag())
+    return G.ValueAt(f)
+  }
+
+  measurement Gain(Frequency from, Frequency to) : dB {
+    TransferFunction H = transfer(ac, IN, OUT)
+    GainSpectrum G = db20(H.Mag())
+    return G.From(from).To(to)
+  }
+
   measurement PassbandGain : dB {
     TransferFunction H = transfer(ac, IN, OUT)
     GainSpectrum G = db20(H.Mag())
@@ -600,7 +612,7 @@ measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
 
 **Invocation syntax (explicit call syntax always):**
 - Non-parameterized: `LowpassBandwidth()` (parentheses required)
-- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` (named arguments)
+- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` or `Gain(f=1MHz)` (named arguments)
 
 **In constraints:**
 ```cascode
@@ -911,6 +923,18 @@ bench DiffToSETransfer {
   }
 
   measurements {
+    measurement Gain(Frequency f) : dB {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.ValueAt(f)
+    }
+
+    measurement Gain(Frequency from, Frequency to) : dB {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.From(from).To(to)
+    }
+
     measurement PassbandGain : dB {
       TransferFunction H = transfer(ac, IN, OUT)
       GainSpectrum G = db20(H.Mag())
