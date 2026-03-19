@@ -1,7 +1,8 @@
 # Connectors and `attach`
 
 This guide explains connector-driven structural composition. The authoritative syntax for connectors
-and `attach` is in `spec/language/Ch03_Syntax_Reference.md` and `spec/language/Ch02_Core_Concepts.md`.
+and `attach` is in [spec/language/Ch03_Syntax_Reference.md](../../spec/language/Ch03_Syntax_Reference.md)
+and [spec/language/Ch02_Core_Concepts.md](../../spec/language/Ch02_Core_Concepts.md).
 
 ## Connectors in interfaces
 
@@ -52,14 +53,14 @@ This is a deliberate rule: partial bundle wiring is a common source of silent er
 
 ## Where to look for working examples
 
-- Interface connectors: `lib/std/amp/Common.cas`
-- Interface bench bindings (separate from connectors): `lib/std/amp/SingleEndedOpAmp.cas`
-- Hierarchical attach patterns: `tests/golden/cas/hierarchy/**`
-  - `tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai` is a compact, readable example.
+- Interface connectors: [lib/std/amp/AmpCommon.cas](../../lib/std/amp/AmpCommon.cas)
+- Interface bench bindings (separate from connectors): [lib/std/amp/SingleEndedOpAmp.cas](../../lib/std/amp/SingleEndedOpAmp.cas)
+- Hierarchical attach patterns: [tests/golden/cas/hierarchy](../../tests/golden/cas/hierarchy)
+  [tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai](../../tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai) is a compact, readable example.
 
 ## Worked example: CurrentMirrorLike → DiffPairLike
 
-Connector declaration (from `lib/std/amp/Common.cas`):
+Connector declaration (from [lib/std/amp/AmpCommon.cas](../../lib/std/amp/AmpCommon.cas)):
 
 ```cascode
 interface CurrentMirrorLike {
