@@ -229,6 +229,11 @@ public static class RenderBlockValidator
             }
         }
 
+        foreach (var port in CircuitPortExpander.Expand(circuit))
+        {
+            nets.Add(port.Name);
+        }
+
         return nets;
     }
 

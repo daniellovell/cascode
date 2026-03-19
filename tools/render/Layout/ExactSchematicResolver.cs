@@ -221,10 +221,7 @@ public static class ExactSchematicResolver
                 anchors[deviceId] = position;
                 foreach (var (terminal, point) in terminalPixels)
                 {
-                    anchors[$"{deviceId}.{terminal}"] = new RenderUnitPoint(
-                        ToRenderUnits(point.X),
-                        ToRenderUnits(point.Y)
-                    );
+                    anchors[$"{deviceId}.{terminal}"] = new RenderUnitPoint(point.X, point.Y);
                 }
 
                 unresolved.Remove(deviceId);
@@ -259,10 +256,7 @@ public static class ExactSchematicResolver
                     RenderUnitPoint
                 >(
                     $"{placement.Key}.{terminal.Key}",
-                    new RenderUnitPoint(
-                        ToRenderUnits(terminal.Value.X),
-                        ToRenderUnits(terminal.Value.Y)
-                    )
+                    new RenderUnitPoint(terminal.Value.X, terminal.Value.Y)
                 ))
             )
             .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
@@ -336,10 +330,7 @@ public static class ExactSchematicResolver
         var anchors = new Dictionary<string, RenderUnitPoint>(StringComparer.Ordinal)
         {
             ["canvas origin"] = new RenderUnitPoint(0, 0),
-            ["canvas center"] = new RenderUnitPoint(
-                ToRenderUnits(canvasWidth / 2),
-                ToRenderUnits(canvasHeight / 2)
-            ),
+            ["canvas center"] = new RenderUnitPoint(canvasWidth / 2, canvasHeight / 2),
         };
 
         foreach (var placement in devicePlacements)
@@ -347,10 +338,7 @@ public static class ExactSchematicResolver
             anchors[placement.Key] = placement.Value.Position;
             foreach (var (terminal, point) in placement.Value.TerminalPixels)
             {
-                anchors[$"{placement.Key}.{terminal}"] = new RenderUnitPoint(
-                    ToRenderUnits(point.X),
-                    ToRenderUnits(point.Y)
-                );
+                anchors[$"{placement.Key}.{terminal}"] = new RenderUnitPoint(point.X, point.Y);
             }
         }
 
@@ -369,25 +357,48 @@ public static class ExactSchematicResolver
     )
     {
         var result = new Dictionary<string, List<WireSegment>>(StringComparer.Ordinal);
+        var netNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in graph.NetConnections.Where(e => e.Value.Count > 0))
+        {
+            netNames.Add(entry.Key);
+        }
+
         foreach (
-            var netName in graph
-                .NetConnections.Where(entry => entry.Value.Count > 0)
-                .Select(entry => entry.Key)
-                .OrderBy(name => name, StringComparer.Ordinal)
+            var portNet in graph.InputPorts.Concat(graph.OutputPorts).Concat(graph.BiasPorts)
         )
+        {
+            netNames.Add(portNet);
+        }
+
+        foreach (var netName in netNames.OrderBy(name => name, StringComparer.Ordinal))
         {
             if (!renderByName.TryGetValue(netName, out var entry) || entry.Segments.Count == 0)
             {
-                throw new InvalidOperationException(
-                    $"Manual render requires at least one seg for net '{netName}'."
-                );
+                var requiresSegments =
+                    graph.NetConnections.TryGetValue(netName, out var conns) && conns.Count > 0;
+                if (!requiresSegments)
+                {
+                    requiresSegments =
+                        graph.InputPorts.Contains(netName)
+                        || graph.OutputPorts.Contains(netName)
+                        || graph.BiasPorts.Contains(netName);
+                }
+
+                if (requiresSegments)
+                {
+                    throw new InvalidOperationException(
+                        $"Manual render requires at least one seg for net '{netName}'."
+                    );
+                }
+
+                continue;
             }
 
             var resolvedSegments = ResolveSegments(entry.Segments, anchors, netName);
             result[netName] = resolvedSegments
                 .Select(segment => new WireSegment(
-                    new GridPoint(ToPixels(segment.From.X), ToPixels(segment.From.Y)),
-                    new GridPoint(ToPixels(segment.To.X), ToPixels(segment.To.Y)),
+                    new GridPoint(segment.From.X, segment.From.Y),
+                    new GridPoint(segment.To.X, segment.To.Y),
                     netName
                 ))
                 .ToList();
@@ -426,8 +437,8 @@ public static class ExactSchematicResolver
                 new TerminalPosition(
                     $"PORT_{portName}",
                     "P",
-                    ToPixels(placement.Position.X),
-                    ToPixels(placement.Position.Y)
+                    placement.Position.X,
+                    placement.Position.Y
                 )
             );
         }
@@ -519,7 +530,7 @@ public static class ExactSchematicResolver
         );
     }
 
-    private static (double X, double Y) TransformSymbolPoint(
+    private static (int X, int Y) TransformSymbolPoint(
         double x,
         double y,
         ParsedSymbol parsed,
@@ -535,8 +546,8 @@ public static class ExactSchematicResolver
             parsed.Terminals.Count > 0
                 ? parsed.Terminals.Values.Average(terminal => terminal.Y)
                 : parsed.ViewBox[1] + parsed.ViewBox[3] / 2.0;
-        var dx = (x - centerX) / DeviceGeometry.RoutingPitch;
-        var dy = (y - centerY) / DeviceGeometry.RoutingPitch;
+        var dx = x - centerX;
+        var dy = y - centerY;
         if (orientation.MirrorX)
         {
             dx = -dx;
@@ -547,7 +558,10 @@ public static class ExactSchematicResolver
         var sin = Math.Sin(angle);
         var rotatedX = dx * cos - dy * sin;
         var rotatedY = dx * sin + dy * cos;
-        return (X: ToPixelsExact(position.X + rotatedX), Y: ToPixelsExact(position.Y + rotatedY));
+        return (
+            X: (int)Math.Round(position.X + rotatedX, MidpointRounding.AwayFromZero),
+            Y: (int)Math.Round(position.Y + rotatedY, MidpointRounding.AwayFromZero)
+        );
     }
 
     private static List<GridPoint> BuildJunctions(
@@ -697,8 +711,8 @@ public static class ExactSchematicResolver
             device => device.DeviceId,
             device =>
             {
-                var xPixels = ToPixels(device.Position.X);
-                var yPixels = ToPixels(device.Position.Y);
+                var xPixels = device.Position.X;
+                var yPixels = device.Position.Y;
                 var row = Math.Max(
                     0,
                     (int)
@@ -756,16 +770,10 @@ public static class ExactSchematicResolver
     {
         var points = new List<GridPoint>();
         points.AddRange(
-            devices.Select(device => new GridPoint(
-                ToPixels(device.Position.X),
-                ToPixels(device.Position.Y)
-            ))
+            devices.Select(device => new GridPoint(device.Position.X, device.Position.Y))
         );
         points.AddRange(
-            ports.Select(port => new GridPoint(
-                ToPixels(port.Position.X),
-                ToPixels(port.Position.Y)
-            ))
+            ports.Select(port => new GridPoint(port.Position.X, port.Position.Y))
         );
         points.AddRange(segments.SelectMany(segment => new[] { segment.From, segment.To }));
 
@@ -816,8 +824,8 @@ public static class ExactSchematicResolver
             terminal => terminal.Key,
             terminal =>
             {
-                var dx = (terminal.Value.X - centroidX) / DeviceGeometry.RoutingPitch;
-                var dy = (terminal.Value.Y - centroidY) / DeviceGeometry.RoutingPitch;
+                var dx = terminal.Value.X - centroidX;
+                var dy = terminal.Value.Y - centroidY;
                 if (orientation.MirrorX)
                 {
                     dx = -dx;
@@ -829,7 +837,7 @@ public static class ExactSchematicResolver
                     Math.Round(position.X + rotatedX, MidpointRounding.AwayFromZero);
                 var snappedRuY = (int)
                     Math.Round(position.Y + rotatedY, MidpointRounding.AwayFromZero);
-                return new GridPoint(ToPixels(snappedRuX), ToPixels(snappedRuY));
+                return new GridPoint(snappedRuX, snappedRuY);
             },
             StringComparer.Ordinal
         );
@@ -916,12 +924,4 @@ public static class ExactSchematicResolver
         return normalized < 0 ? normalized + 360 : normalized;
     }
 
-    private static int ToPixels(int renderUnits) => renderUnits * DeviceGeometry.RoutingPitch;
-
-    private static int ToPixelsExact(double renderUnits) =>
-        (int)Math.Round(renderUnits * DeviceGeometry.RoutingPitch, MidpointRounding.AwayFromZero);
-
-    private static int ToRenderUnits(int pixels) =>
-        (int)
-            Math.Round(pixels / (double)DeviceGeometry.RoutingPitch, MidpointRounding.AwayFromZero);
 }

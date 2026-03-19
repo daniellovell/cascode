@@ -286,8 +286,8 @@ internal static class SchematicConstraintResolver
         var points = new List<GridPoint>(segments.Count + 1);
         foreach (var segment in segments)
         {
-            var from = new GridPoint(ToPixels(segment.From.X), ToPixels(segment.From.Y));
-            var to = new GridPoint(ToPixels(segment.To.X), ToPixels(segment.To.Y));
+            var from = new GridPoint(segment.From.X, segment.From.Y);
+            var to = new GridPoint(segment.To.X, segment.To.Y);
             if (points.Count == 0 || points[^1] != from)
             {
                 points.Add(from);
@@ -355,8 +355,8 @@ internal static class SchematicConstraintResolver
             ["canvas origin"] = new PointValue { X = 0, Y = 0 },
             ["canvas center"] = new PointValue
             {
-                X = ToRenderUnits(routing.CanvasWidth / 2),
-                Y = ToRenderUnits(routing.CanvasHeight / 2),
+                X = routing.CanvasWidth / 2,
+                Y = routing.CanvasHeight / 2,
             },
         };
 
@@ -364,8 +364,8 @@ internal static class SchematicConstraintResolver
         {
             map[deviceId] = new PointValue
             {
-                X = ToRenderUnits((int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column))),
-                Y = ToRenderUnits((int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row))),
+                X = (int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column)),
+                Y = (int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row)),
             };
         }
 
@@ -376,16 +376,16 @@ internal static class SchematicConstraintResolver
                 var portName = terminal.DeviceId[5..];
                 map[portName] = new PointValue
                 {
-                    X = ToRenderUnits(terminal.X),
-                    Y = ToRenderUnits(terminal.Y),
+                    X = terminal.X,
+                    Y = terminal.Y,
                 };
                 continue;
             }
 
             map[$"{terminal.DeviceId}.{terminal.Terminal}"] = new PointValue
             {
-                X = ToRenderUnits(terminal.X),
-                Y = ToRenderUnits(terminal.Y),
+                X = terminal.X,
+                Y = terminal.Y,
             };
         }
 
@@ -403,24 +403,4 @@ internal static class SchematicConstraintResolver
         return map;
     }
 
-    /// <summary>
-    /// Converts a length in pixels to render-space routing units.
-    /// </summary>
-    /// <param name="pixels">Length in pixels.</param>
-    /// <returns>The equivalent length in render units, rounded to the nearest integer with .5 values rounded away from zero.</returns>
-    private static int ToRenderUnits(int pixels)
-    {
-        return (int)
-            Math.Round(pixels / (double)DeviceGeometry.RoutingPitch, MidpointRounding.AwayFromZero);
-    }
-
-    /// <summary>
-    /// Convert render units to pixels.
-    /// </summary>
-    /// <param name="renderUnits">The value in render units.</param>
-    /// <returns>The equivalent value in pixels.</returns>
-    private static int ToPixels(int renderUnits)
-    {
-        return renderUnits * DeviceGeometry.RoutingPitch;
-    }
 }

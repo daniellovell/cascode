@@ -220,13 +220,13 @@ internal static class SchematicWorkflowService
                     {
                         From = new PointValue
                         {
-                            X = segment.From.X / (double)DeviceGeometry.RoutingPitch,
-                            Y = segment.From.Y / (double)DeviceGeometry.RoutingPitch,
+                            X = segment.From.X,
+                            Y = segment.From.Y,
                         },
                         To = new PointValue
                         {
-                            X = segment.To.X / (double)DeviceGeometry.RoutingPitch,
-                            Y = segment.To.Y / (double)DeviceGeometry.RoutingPitch,
+                            X = segment.To.X,
+                            Y = segment.To.Y,
                         },
                     })
                     .ToArray(),

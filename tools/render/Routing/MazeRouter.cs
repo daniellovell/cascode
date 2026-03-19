@@ -130,6 +130,12 @@ public static partial class MazeRouter
             var terms = terminalsByNet[netName];
             if (terms.Count < 2)
             {
+                if (terms.Count == 1)
+                {
+                    var stubSegs = RouteSingleTerminalSignalNet(netName, terms[0], canvasWidth);
+                    AddSegments(stubSegs, netName, occupied, allSegments, segmentsByNet);
+                }
+
                 continue;
             }
 
@@ -180,6 +186,48 @@ public static partial class MazeRouter
         };
 
         return (result, occupied);
+    }
+
+    /// <summary>
+    /// Emits a short Manhattan stub so a single-terminal signal net (for example an input port with no fill
+    /// connections) still has drawable geometry that includes the terminal.
+    /// </summary>
+    private static List<WireSegment> RouteSingleTerminalSignalNet(
+        string netName,
+        TerminalPosition term,
+        int canvasWidth
+    )
+    {
+        const int stub = 10;
+        var x = term.X;
+        var y = term.Y;
+        if (x <= 0)
+        {
+            return
+            [
+                new WireSegment(new GridPoint(0, y), new GridPoint(stub, y), netName),
+            ];
+        }
+
+        if (x >= canvasWidth)
+        {
+            return
+            [
+                new WireSegment(
+                    new GridPoint(canvasWidth, y),
+                    new GridPoint(canvasWidth - stub, y),
+                    netName
+                ),
+            ];
+        }
+
+        var stubEndX = Math.Min(x + stub, canvasWidth);
+        if (stubEndX == x)
+        {
+            stubEndX = Math.Max(x - stub, 0);
+        }
+
+        return [new WireSegment(new GridPoint(x, y), new GridPoint(stubEndX, y), netName)];
     }
 
     /// <summary>

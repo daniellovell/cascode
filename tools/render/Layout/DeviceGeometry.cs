@@ -8,7 +8,7 @@ public static class DeviceGeometry
     public const int CellWidth = 45;
     public const int CellHeight = 50;
     public const int RailMargin = 15;
-    public const int RoutingPitch = 10;
+    public const int RoutingPitch = 1;
 
     public const double MosfetWidth = 17.0;
     public const double MosfetHeight = 26.0;

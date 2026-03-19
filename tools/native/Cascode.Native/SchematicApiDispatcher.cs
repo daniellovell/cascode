@@ -85,6 +85,7 @@ internal static class SchematicApiDispatcher
         session.Documents[documentId] = state;
 
         var mode = ParseRenderMode(root.TryGetString("mode"));
+        SchematicDocumentBuilder.SyncCircuitRenderFromForcedMode(FindCircuit(state), mode);
         var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation: false);
         return ApiJson.SerializeDocument(render);
     }
@@ -949,6 +950,7 @@ internal static class SchematicApiDispatcher
         bool allowRelaxation
     )
     {
+        SchematicDocumentBuilder.SyncCircuitRenderFromForcedMode(FindCircuit(state), mode);
         var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation);
         return new JsonObject
         {

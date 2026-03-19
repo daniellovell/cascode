@@ -139,13 +139,13 @@ internal static partial class SchematicLayoutProjection
                     {
                         From = new PointValue
                         {
-                            X = ToRenderUnitsExact(segment.From.X),
-                            Y = ToRenderUnitsExact(segment.From.Y),
+                            X = segment.From.X,
+                            Y = segment.From.Y,
                         },
                         To = new PointValue
                         {
-                            X = ToRenderUnitsExact(segment.To.X),
-                            Y = ToRenderUnitsExact(segment.To.Y),
+                            X = segment.To.X,
+                            Y = segment.To.Y,
                         },
                     })
                     .ToArray(),
@@ -155,8 +155,8 @@ internal static partial class SchematicLayoutProjection
                     )
                     .Select(junction => new PointValue
                     {
-                        X = ToRenderUnitsExact(junction.X),
-                        Y = ToRenderUnitsExact(junction.Y),
+                        X = junction.X,
+                        Y = junction.Y,
                     })
                     .ToArray(),
             })
@@ -201,8 +201,8 @@ internal static partial class SchematicLayoutProjection
                 terminal => terminal.Terminal,
                 terminal => new PointValue
                 {
-                    X = ToRenderUnitsExact(terminal.X),
-                    Y = ToRenderUnitsExact(terminal.Y),
+                    X = terminal.X,
+                    Y = terminal.Y,
                 },
                 StringComparer.Ordinal
             );
@@ -228,27 +228,21 @@ internal static partial class SchematicLayoutProjection
             {
                 position = new PointValue
                 {
-                    X = devTerminals.Average(t => ToRenderUnitsExact(t.X)),
-                    Y = devTerminals.Average(t => ToRenderUnitsExact(t.Y)),
+                    X = devTerminals.Average(t => (double)t.X),
+                    Y = devTerminals.Average(t => (double)t.Y),
                 };
             }
             else
             {
                 position = new PointValue
                 {
-                    X = ToRenderUnitsExact(
-                        (int)
-                            Math.Round(
-                                DeviceGeometry.GetCellCenterX(cell.Column),
-                                MidpointRounding.AwayFromZero
-                            )
+                    X = Math.Round(
+                        DeviceGeometry.GetCellCenterX(cell.Column),
+                        MidpointRounding.AwayFromZero
                     ),
-                    Y = ToRenderUnitsExact(
-                        (int)
-                            Math.Round(
-                                DeviceGeometry.GetCellCenterY(cell.Row),
-                                MidpointRounding.AwayFromZero
-                            )
+                    Y = Math.Round(
+                        DeviceGeometry.GetCellCenterY(cell.Row),
+                        MidpointRounding.AwayFromZero
                     ),
                 };
             }
@@ -310,9 +304,9 @@ internal static partial class SchematicLayoutProjection
     /// </summary>
     private static SymbolCatalogEntry ConvertParsedSymbol(ParsedSymbol parsed)
     {
-        // Scale factor: SVG units → render units (pixels / RoutingPitch)
-        double sx = 1.0 / DeviceGeometry.RoutingPitch;
-        double sy = 1.0 / DeviceGeometry.RoutingPitch;
+        // SVG symbol coordinates are already in world pixels (RoutingPitch = 1).
+        const double sx = 1.0;
+        const double sy = 1.0;
 
         // Center at terminal centroid so that catalog offsets align exactly with
         // routing terminal positions when added to the device position (also a
@@ -582,54 +576,37 @@ internal static partial class SchematicLayoutProjection
                 }
                 : defaultOrientation;
 
-        // Device position resolution order:
+        // Device position = terminal centroid from routing.
         //
-        // 1. Hard render-block placement (manual mode). Uses the explicit position
-        //    from the render block so the snapshot round-trip is lossless.
-        //    Without this, RefreshManualRoutingIfNeeded would recompute the position
-        //    as a terminal centroid, which can drift by a render unit due to rounding,
-        //    causing ValidateManualConnectivity to fail with "disconnected terminal
-        //    geometry" on subsequent render.
+        // Always derived from the actual routed terminal pixel positions so that
+        // catalog terminal offsets (also centered at terminal centroid) match
+        // routing-derived wire endpoints exactly. This is critical for manual mode:
+        // the render-block hard placement is an integer-rounded position used for
+        // routing, but the layout device position must be the centroid of the
+        // RESULTING terminal positions — otherwise the symbol artwork (drawn from
+        // device.position + catalog offsets) drifts from the routing terminals.
         //
-        // 2. Terminal centroid from routing. Aligns the device center with the
-        //    average of its routed terminal pixel positions, so catalog terminal
-        //    offsets (also centered at terminal centroid) match routing-derived
-        //    wire endpoints exactly.
-        //
-        // 3. Cell center fallback when no routing terminals are available.
+        // Falls back to cell center when no routing terminals are available.
         PointValue position;
-        if (
-            render?.Place is
-            { Strength: RenderConstraintStrength.Hard, Point: RenderAbsPoint absPlace }
-        )
-        {
-            position = new PointValue { X = absPlace.X, Y = absPlace.Y };
-        }
-        else if (terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0)
+        if (terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0)
         {
             position = new PointValue
             {
-                X = terminals.Average(t => ToRenderUnitsExact(t.X)),
-                Y = terminals.Average(t => ToRenderUnitsExact(t.Y)),
+                X = terminals.Average(t => (double)t.X),
+                Y = terminals.Average(t => (double)t.Y),
             };
         }
         else
         {
             position = new PointValue
             {
-                X = ToRenderUnitsExact(
-                    (int)
-                        Math.Round(
-                            DeviceGeometry.GetCellCenterX(cell.Column),
-                            MidpointRounding.AwayFromZero
-                        )
+                X = Math.Round(
+                    DeviceGeometry.GetCellCenterX(cell.Column),
+                    MidpointRounding.AwayFromZero
                 ),
-                Y = ToRenderUnitsExact(
-                    (int)
-                        Math.Round(
-                            DeviceGeometry.GetCellCenterY(cell.Row),
-                            MidpointRounding.AwayFromZero
-                        )
+                Y = Math.Round(
+                    DeviceGeometry.GetCellCenterY(cell.Row),
+                    MidpointRounding.AwayFromZero
                 ),
             };
         }
@@ -681,8 +658,8 @@ internal static partial class SchematicLayoutProjection
             Name = portName,
             Position = new PointValue
             {
-                X = ToRenderUnitsExact(terminal.X),
-                Y = ToRenderUnitsExact(terminal.Y),
+                X = terminal.X,
+                Y = terminal.Y,
             },
             Side = side,
             Orientation = orientation,
@@ -792,19 +769,13 @@ internal static partial class SchematicLayoutProjection
         string deviceId
     )
     {
-        const double rp = DeviceGeometry.RoutingPitch;
-
         if (deviceType is "resistor" or "capacitor")
         {
             var horizontal = placement.HorizontalPassiveIds.Contains(deviceId);
             // Symbol SVG is canonical horizontal (PassiveWidth x PassiveHeight).
             // Vertical passives are rotated 90°, swapping width/height.
-            var width = horizontal
-                ? DeviceGeometry.PassiveWidth / rp
-                : DeviceGeometry.PassiveHeight / rp;
-            var height = horizontal
-                ? DeviceGeometry.PassiveHeight / rp
-                : DeviceGeometry.PassiveWidth / rp;
+            var width = horizontal ? DeviceGeometry.PassiveWidth : DeviceGeometry.PassiveHeight;
+            var height = horizontal ? DeviceGeometry.PassiveHeight : DeviceGeometry.PassiveWidth;
             return new BboxValue
             {
                 X = position.X - width / 2,
@@ -814,8 +785,8 @@ internal static partial class SchematicLayoutProjection
             };
         }
 
-        var mosW = DeviceGeometry.MosfetWidth / rp;
-        var mosH = DeviceGeometry.MosfetHeight / rp;
+        var mosW = DeviceGeometry.MosfetWidth;
+        var mosH = DeviceGeometry.MosfetHeight;
         // The MOSFET symbol is asymmetric: Gate sits at topLeft+0.5px while
         // Drain/Source sit at topLeft+16.5px. Centering the bbox on the centroid
         // clips the Gate terminal. Use GetMosfetBboxOrigin to derive the correct
@@ -830,22 +801,6 @@ internal static partial class SchematicLayoutProjection
             Width = mosW,
             Height = mosH,
         };
-    }
-
-    /// <summary>
-    /// Convert a pixel measurement to exact render units (no rounding).
-    /// Used for positions, terminals, and wire endpoints where sub-pixel precision
-    /// is needed to align symbols with routing.
-    /// </summary>
-    private static double ToRenderUnitsExact(int pixels)
-    {
-        return pixels / (double)DeviceGeometry.RoutingPitch;
-    }
-
-    /// <inheritdoc cref="ToRenderUnitsExact(int)"/>
-    private static double ToRenderUnitsExact(double pixels)
-    {
-        return pixels / DeviceGeometry.RoutingPitch;
     }
 
     [GeneratedRegex(@"([MmLlHhVvCcSsQqTtAaZz])|([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)")]

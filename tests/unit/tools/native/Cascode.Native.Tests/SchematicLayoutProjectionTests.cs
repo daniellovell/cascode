@@ -97,13 +97,13 @@ public sealed class SchematicLayoutProjectionTests
 
         var nmos = catalog["nmos"];
 
-        // ViewBox should be in render units (17.1/10 ≈ 1.71, 26/10 = 2.6)
+        // ViewBox matches SVG extent in world pixels (RoutingPitch = 1).
         Assert.Equal(0, nmos.ViewBox[0]);
         Assert.Equal(0, nmos.ViewBox[1]);
-        Assert.InRange(nmos.ViewBox[2], 1.5, 2.0); // ~1.71
-        Assert.InRange(nmos.ViewBox[3], 2.4, 2.8); // ~2.6
+        Assert.InRange(nmos.ViewBox[2], 16.0, 18.0);
+        Assert.InRange(nmos.ViewBox[3], 25.0, 27.0);
 
-        // Terminals should be centered at origin and in render units
+        // Terminals centered at origin; offsets are pixel distances from centroid
         var termG = nmos.Terminals["G"];
         var termD = nmos.Terminals["D"];
         var termS = nmos.Terminals["S"];
@@ -117,9 +117,8 @@ public sealed class SchematicLayoutProjectionTests
         Assert.True(termD.Y < 0, $"D.Y should be negative (above center), got {termD.Y}");
         Assert.True(termS.Y > 0, $"S.Y should be positive (below center), got {termS.Y}");
 
-        // All coordinates should be small (render units, not SVG units)
-        Assert.InRange(Math.Abs(termG.X), 0.5, 1.5);
-        Assert.InRange(Math.Abs(termD.Y), 0.5, 2.0);
+        Assert.InRange(Math.Abs(termG.X), 9.0, 12.0);
+        Assert.InRange(Math.Abs(termD.Y), 5.0, 15.0);
     }
 
     [Fact]
@@ -200,7 +199,7 @@ public sealed class SchematicLayoutProjectionTests
         var nmosCatalog = catalog["nmos"];
         var cacheTerminals = cache.TerminalPoints["M1"];
 
-        const double tolerance = 0.1; // 0.1 render units = 1 pixel
+        const double tolerance = 0.1; // sub-pixel in world pixels
 
         foreach (var (termName, catalogTerm) in nmosCatalog.Terminals)
         {
@@ -553,5 +552,131 @@ public sealed class SchematicLayoutProjectionTests
 
         Assert.Equal(DeviceGeometry.MosfetWidth / rp, bbox.Width, 4);
         Assert.Equal(DeviceGeometry.MosfetHeight / rp, bbox.Height, 4);
+    }
+
+    /// <summary>
+    /// Regression: after auto-to-manual promotion, the render-block stores a
+    /// rounded device position. When BuildLayoutDevice used that rounded position
+    /// directly (path 1), the symbol artwork (drawn from device.position +
+    /// catalog offsets) drifted from the routing terminals. The fix is to always
+    /// derive the layout device position from the terminal centroid (path 2).
+    ///
+    /// This test verifies that the layout device position equals the centroid of
+    /// the routing terminal positions even when a hard render-block placement
+    /// provides a different (rounded) value.
+    /// </summary>
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(1, 0, false)]
+    public void BuildLayoutDevice_ManualHardPlacement_PositionIsTerminalCentroid(
+        int row, int col, bool mirrorX)
+    {
+        double rp = DeviceGeometry.RoutingPitch;
+
+        var mosfet = DeviceGeometry.GetMosfetPlacement(row, col, mirrorX);
+        var autoTerminals = new[]
+        {
+            new TerminalPosition("M1", "G", mosfet.GateX, mosfet.GateY),
+            new TerminalPosition("M1", "D", mosfet.DrainX, mosfet.DrainY),
+            new TerminalPosition("M1", "S", mosfet.SourceX, mosfet.SourceY),
+        };
+
+        double centroidX = autoTerminals.Average(t => t.X / rp);
+        double centroidY = autoTerminals.Average(t => t.Y / rp);
+
+        int roundedX = (int)Math.Round(centroidX, MidpointRounding.AwayFromZero);
+        int roundedY = (int)Math.Round(centroidY, MidpointRounding.AwayFromZero);
+
+        var circuit = new Circuit
+        {
+            Name = "ManualTest", Level = CascodeLevel.EL, Ports = [],
+            Fill = new FillBlock
+            {
+                Devices =
+                [
+                    new DeviceDeclaration
+                    {
+                        Id = "M1", DeviceType = "nmos", Primitive = "nfet_01v8",
+                    },
+                ],
+            },
+        };
+
+        var render = new RenderBlock
+        {
+            Mode = RenderLayoutMode.Manual,
+            Entities =
+            [
+                new RenderEntity
+                {
+                    Name = "M1",
+                    Kind = RenderEntityKind.Device,
+                    Place = new RenderPlacement
+                    {
+                        Point = new RenderAbsPoint(roundedX, roundedY),
+                        Strength = RenderConstraintStrength.Hard,
+                    },
+                    Orientation = new RenderOrientation
+                    {
+                        Rotate = 0,
+                        MirrorX = mirrorX,
+                    },
+                },
+            ],
+        };
+
+        var placement = new CoarseGridResult
+        {
+            RowCount = row + 1, ColumnCount = col + 1,
+            DevicePlacements = new Dictionary<string, GridCell>
+            {
+                ["M1"] = new GridCell(row, col, mirrorX),
+            },
+            SymmetryAxis = 0,
+            HorizontalPassiveIds = new HashSet<string>(),
+        };
+
+        var routing = new RoutingResult
+        {
+            Segments = [], Junctions = [],
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(StringComparer.Ordinal),
+            CanvasWidth = 200, CanvasHeight = 200,
+            TerminalPositions = autoTerminals,
+        };
+
+        var layout = SchematicLayoutProjection.BuildLayout(circuit, render, placement, routing);
+        var device = Assert.Single(layout.Devices);
+
+        double expectedX = autoTerminals.Average(t => t.X / rp);
+        double expectedY = autoTerminals.Average(t => t.Y / rp);
+
+        Assert.Equal(expectedX, device.Position.X, 4);
+        Assert.Equal(expectedY, device.Position.Y, 4);
+
+        var catalog = SchematicLayoutProjection.BuildSymbolCatalog(
+            new StructuralInfo
+            {
+                Devices = [new StructuralDevice { Id = "M1", Type = "nmos", Terminals = ["G", "D", "S"], Primitive = "nfet_01v8", Size = new Dictionary<string, string>() }],
+                Ports = [], Nets = [], Supplies = [], Grounds = [],
+            });
+        var cache = SchematicLayoutProjection.BuildRenderCache(circuit, placement, routing);
+        var nmosCatalog = catalog["nmos"];
+        var cacheTerminals = cache.TerminalPoints["M1"];
+        const double alignTolerance = 0.1;
+
+        foreach (var (termName, catalogTerm) in nmosCatalog.Terminals)
+        {
+            var cacheTerm = cacheTerminals[termName];
+            var worldX = catalogTerm.X + device.Position.X;
+            var worldY = catalogTerm.Y + device.Position.Y;
+            Assert.True(
+                Math.Abs(worldX - cacheTerm.X) < alignTolerance,
+                $"{termName}.X: symbol({worldX:F4}) vs cache({cacheTerm.X:F4}), gap={Math.Abs(worldX - cacheTerm.X):F4}"
+            );
+            Assert.True(
+                Math.Abs(worldY - cacheTerm.Y) < alignTolerance,
+                $"{termName}.Y: symbol({worldY:F4}) vs cache({cacheTerm.Y:F4}), gap={Math.Abs(worldY - cacheTerm.Y):F4}"
+            );
+        }
     }
 }

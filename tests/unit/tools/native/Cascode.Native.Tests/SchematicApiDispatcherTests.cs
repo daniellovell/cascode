@@ -3,6 +3,9 @@ using System.Text.Json.Nodes;
 using Cascode.Language;
 using Cascode.Language.Validation;
 using Cascode.Native;
+using Cascode.Render.Analysis;
+using Cascode.Render.Placement;
+using Cascode.Render.Routing;
 
 namespace Cascode.Native.Tests;
 
@@ -235,7 +238,7 @@ public sealed class SchematicApiDispatcherTests
                         ["opId"] = "op-1",
                         ["type"] = "moveDevice",
                         ["deviceId"] = "M1",
-                        // moveDevice expects integer render-unit positions
+                        // moveDevice expects integer pixel positions (layout coordinates)
                         ["x"] = (int)Math.Round(m1Position.GetProperty("x").GetDouble()),
                         ["y"] = (int)Math.Round(m1Position.GetProperty("y").GetDouble()),
                     }
@@ -838,15 +841,15 @@ public sealed class SchematicApiDispatcherTests
                 {
                     ["kind"] = "terminal",
                     ["token"] = "M1.G",
-                    ["x"] = 6,
-                    ["y"] = 5,
+                    ["x"] = 60,
+                    ["y"] = 50,
                 },
                 ["end"] = new JsonObject
                 {
                     ["kind"] = "netAnchor",
                     ["token"] = "OUT",
-                    ["x"] = 12,
-                    ["y"] = 5,
+                    ["x"] = 120,
+                    ["y"] = 50,
                 },
             }
         );
@@ -1094,8 +1097,8 @@ public sealed class SchematicApiDispatcherTests
                         ["opId"] = "move-r1",
                         ["type"] = "moveDevice",
                         ["deviceId"] = "R1",
-                        ["x"] = (int)Math.Round(resistorPosition.GetProperty("x").GetDouble()) + 4,
-                        ["y"] = (int)Math.Round(resistorPosition.GetProperty("y").GetDouble()) + 2,
+                        ["x"] = (int)Math.Round(resistorPosition.GetProperty("x").GetDouble()) + 40,
+                        ["y"] = (int)Math.Round(resistorPosition.GetProperty("y").GetDouble()) + 20,
                     }
                 ),
             }
@@ -1187,6 +1190,28 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void DocumentOpen_WithAutoMode_NormalizesInMemoryRenderBlockToAuto()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildManualSourceWithOverlappingPorts(),
+                ["mode"] = "auto",
+            }
+        );
+
+        var state = session.State.Documents["doc1"];
+        var circuit = state.Document.Circuits.Single(c => c.Name == state.CircuitName);
+        Assert.NotNull(circuit.Render);
+        Assert.Equal(RenderLayoutMode.Auto, circuit.Render.Mode);
+        Assert.NotEmpty(circuit.Render.Entities);
+    }
+
+    [Fact]
     public void RenderSchematic_PersistManualOnAutoDocument_SnapshotsCompleteManualRender()
     {
         using var session = ApiSession.Create();
@@ -1238,6 +1263,8 @@ public sealed class SchematicApiDispatcherTests
             }
         );
 
+        var outSegmentsJson = BuildSampleAmpOutNetSegmentsJson();
+
         var applied = Dispatch(
             session.State,
             "schematic.applyOperations",
@@ -1251,18 +1278,7 @@ public sealed class SchematicApiDispatcherTests
                         ["opId"] = "op-1",
                         ["type"] = "setNetSegments",
                         ["net"] = "OUT",
-                        ["segments"] = new JsonArray(
-                            new JsonObject
-                            {
-                                ["from"] = new JsonObject { ["x"] = 8, ["y"] = 3 },
-                                ["to"] = new JsonObject { ["x"] = 8, ["y"] = 8 },
-                            },
-                            new JsonObject
-                            {
-                                ["from"] = new JsonObject { ["x"] = 8, ["y"] = 3 },
-                                ["to"] = new JsonObject { ["x"] = 14, ["y"] = 3 },
-                            }
-                        ),
+                        ["segments"] = outSegmentsJson,
                     }
                 ),
             }
@@ -1270,7 +1286,39 @@ public sealed class SchematicApiDispatcherTests
 
         var circuit = ParseCircuit(applied.RootElement.GetProperty("sourceText").GetString()!);
         var outEntry = Assert.Single(circuit.Render!.Entities, entry => entry.Name == "OUT");
-        Assert.Equal(2, outEntry.Segments.Count);
+        Assert.Equal(outSegmentsJson.Count, outEntry.Segments.Count);
+    }
+
+    /// <summary>
+    /// Auto-router segments for OUT on <see cref="BuildSampleSource"/> (pixel grid); used so setNetSegments tests stay aligned with placement.
+    /// </summary>
+    private static JsonArray BuildSampleAmpOutNetSegmentsJson()
+    {
+        var read = CascodeReader.TryParse(
+            BuildSampleSource(withRenderBlock: false),
+            "sample-amp.cas"
+        );
+        Assert.True(read.Success);
+        var circuit = read.Document!.Circuits.Single(c => c.Name == "Amp");
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var routing = MazeRouter.Route(placement, graph);
+        var outSegs = routing.SegmentsByNet["OUT"];
+        Assert.NotEmpty(outSegs);
+        var nodes = new JsonArray();
+        foreach (var s in outSegs)
+        {
+            nodes.Add(
+                new JsonObject
+                {
+                    ["from"] = new JsonObject { ["x"] = s.From.X, ["y"] = s.From.Y },
+                    ["to"] = new JsonObject { ["x"] = s.To.X, ["y"] = s.To.Y },
+                }
+            );
+        }
+
+        return nodes;
     }
 
     private static JsonDocument Dispatch(SessionState session, string method, JsonObject payload)
@@ -1382,7 +1430,7 @@ public sealed class SchematicApiDispatcherTests
             ? @"
   render {
     M1 place abs 0 0 soft
-    M2 place abs 20 20 hint
+    M2 place abs 200 200 hint
   }
 "
             : string.Empty;
@@ -1434,7 +1482,7 @@ circuit Amp {{
         double m2Y
     )
     {
-        // Cascode language only supports integer render-unit positions,
+        // Cascode language only supports integer pixel positions for abs placement,
         // so round the exact layout coordinates when writing source text.
         var m1Xi = (int)Math.Round(m1X);
         var m1Yi = (int)Math.Round(m1Y);
@@ -1523,7 +1571,7 @@ circuit ManualNative {{
       side right
       seg ref R1.N ref OUT
     }}
-    R1 place abs 10 5 hard
+    R1 place abs 100 50 hard
   }}
 }}
 ";
@@ -1558,11 +1606,11 @@ circuit ManualDeleteFailure {{
       seg ref IN ref R1.P
     }}
     OUT {{
-      place ref R1.N 2 0 hard
+      place ref R1.N 20 0 hard
       side right
       seg ref R1.N ref OUT
     }}
-    R1 place abs 10 5 hard
+    R1 place abs 100 50 hard
   }}
 }}
 ";

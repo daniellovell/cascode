@@ -98,18 +98,18 @@ public sealed class SourceApiDispatcherTests
               render {
                 mode manual
                 IN {
-                  place abs 0 10 hard
+                  place abs 0 100 hard
                   side left
                   route ortho hard
                   seg ref IN ref R1.P
                 }
                 OUT {
-                  place abs 20 0 hard
+                  place abs 200 0 hard
                   side right
                   route ortho hard
                   seg ref R1.N ref OUT
                 }
-                R1 place abs 10 5 hard
+                R1 place abs 100 50 hard
               }
             }
             """;
@@ -139,8 +139,8 @@ public sealed class SourceApiDispatcherTests
                                 ["point"] = new JsonObject
                                 {
                                     ["kind"] = "abs",
-                                    ["x"] = 10,
-                                    ["y"] = 10,
+                                    ["x"] = 100,
+                                    ["y"] = 100,
                                 },
                                 ["strength"] = "hard",
                             },

@@ -290,12 +290,20 @@ internal static class ManualRenderSnapshotBuilder
             }
         }
 
+        var netNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in graph.NetConnections.Where(e => e.Value.Count > 0))
+        {
+            netNames.Add(entry.Key);
+        }
+
         foreach (
-            var netName in graph
-                .NetConnections.Where(entry => entry.Value.Count > 0)
-                .Select(entry => entry.Key)
-                .OrderBy(name => name, StringComparer.Ordinal)
+            var portNet in graph.InputPorts.Concat(graph.OutputPorts).Concat(graph.BiasPorts)
         )
+        {
+            netNames.Add(portNet);
+        }
+
+        foreach (var netName in netNames.OrderBy(name => name, StringComparer.Ordinal))
         {
             if (!entities.TryGetValue(netName, out var entity) || entity.Segments.Count == 0)
             {

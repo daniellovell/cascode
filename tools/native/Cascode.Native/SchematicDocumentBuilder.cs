@@ -14,6 +14,21 @@ internal static class SchematicDocumentBuilder
     /// A SchematicDocumentResponse containing document identifiers, the circuit name, render source metadata, structural projection, layout projection, render cache, and diagnostics.
     /// </returns>
     /// <exception cref="ApiException">Thrown with code "CASAPI-INVALID-REQUEST" when the circuit named by state.CircuitName is not found in state.Document.</exception>
+    /// <summary>
+    /// When the API forces <c>auto</c> or <c>manual</c> mode, updates <paramref name="circuit"/>.<c>Render</c> to the
+    /// effective render block used for solving so later calls (for example manual snapshot capture) see the same semantics
+    /// as the last render. Call before <see cref="Build"/> for forced modes; no-op for <see cref="RenderSchematicMode.RespectDocument"/>.
+    /// </summary>
+    internal static void SyncCircuitRenderFromForcedMode(Circuit circuit, RenderSchematicMode mode)
+    {
+        if (mode == RenderSchematicMode.RespectDocument)
+        {
+            return;
+        }
+
+        circuit.Render = BuildEffectiveRender(circuit.Render, mode);
+    }
+
     public static SchematicDocumentResponse Build(
         DocumentState state,
         RenderSchematicMode mode,

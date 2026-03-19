@@ -67,7 +67,7 @@ circuit ManualArbitrary {{
 
         var result = ExactSchematicResolver.Resolve(circuit, graph, circuit.Render!);
 
-        Assert.Contains(result.Routing.Junctions, point => point.X == 80 && point.Y == 40);
+        Assert.Contains(result.Routing.Junctions, point => point.X == 8 && point.Y == 4);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ circuit SnapshotDiff {{
         Assert.Single(result.Routing.SegmentsByNet["IN.P"]);
         Assert.Single(result.Routing.SegmentsByNet["IN.N"]);
         Assert.Equal(3, result.Routing.SegmentsByNet["OUT"].Count);
-        Assert.Contains(result.Routing.Junctions, point => point.X == 120 && point.Y == 40);
+        Assert.Contains(result.Routing.Junctions, point => point.X == 12 && point.Y == 4);
     }
 
     private static Circuit ParseCircuit(string source)

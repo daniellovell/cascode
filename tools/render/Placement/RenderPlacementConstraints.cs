@@ -46,17 +46,14 @@ internal static class RenderCoordinateMapper
     /// </returns>
     internal static (int Row, int Col) MapRenderUnitsToCell(int xRu, int yRu)
     {
-        var xPx = xRu * DeviceGeometry.RoutingPitch;
-        var yPx = yRu * DeviceGeometry.RoutingPitch;
-
         var col = (int)
             Math.Round(
-                (xPx - DeviceGeometry.CellWidth / 2.0) / DeviceGeometry.CellWidth,
+                (xRu - DeviceGeometry.CellWidth / 2.0) / DeviceGeometry.CellWidth,
                 MidpointRounding.AwayFromZero
             );
         var row = (int)
             Math.Round(
-                (yPx - DeviceGeometry.RailMargin - DeviceGeometry.CellHeight / 2.0)
+                (yRu - DeviceGeometry.RailMargin - DeviceGeometry.CellHeight / 2.0)
                     / DeviceGeometry.CellHeight,
                 MidpointRounding.AwayFromZero
             );
