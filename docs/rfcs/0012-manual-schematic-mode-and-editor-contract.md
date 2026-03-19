@@ -9,7 +9,7 @@ Last Updated: 2026-03-16
 
 ## Purpose
 
-Define the current canonical contract between Cascode language/render/native layers and the Designer editor for schematic authoring in `auto` and `manual` modes.
+Define the current canonical contract between Cascode language/render/native layers and editor clients for schematic authoring in `auto` and `manual` modes.
 
 This RFC supersedes historical manual-routing behavior that referenced waypoint (`wp`) semantics.
 
