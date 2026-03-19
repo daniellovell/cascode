@@ -1,0 +1,120 @@
+VERSION 4.1
+
+include lib.std
+include lib.pdk.sky130.devices.nfet_01v8
+include lib.pdk.sky130.devices.pfet_01v8
+
+circuit Inverter(size NmosSize, size PmosSize) {
+  level EL
+  inline
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    PMOS MP = new pfet_01v8(PmosSize) {
+      .B--VDD
+      .D--OUT
+      .G--IN
+      .S--VDD
+    }
+
+    NMOS MN = new nfet_01v8(NmosSize) {
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }
+  }
+}
+
+circuit RCRingOsc_Sky130 implements SingleEndedOscillator {
+  level EL
+
+  supply VDD
+  ground GND
+  output OUT : analog
+
+  env {
+    LoadImpedance = 1GOhm
+  }
+
+  fill {
+    net vosc : analog
+    net v1 : analog
+    net v2 : analog
+    net v3 : analog
+    net v4 : analog
+
+    size NCore = size(W=8u, L=180n, M=2)
+    size PCore = size(W=16u, L=180n, M=2)
+
+    // Give the ring oscillator a lightly isolated local supply, so autonomous PSS is numerically stable.
+    Resistor R_VDD = new ResistorIdeal(size(R=1)) {
+      .P--VDD
+      .N--vosc
+    }
+
+    Inverter stage1 = new Inverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .IN--OUT
+      .OUT--v1
+    }
+
+    Inverter stage2 = new Inverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .IN--v1
+      .OUT--v2
+    }
+
+    Inverter stage3 = new Inverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .IN--v2
+      .OUT--v3
+    }
+
+    Inverter stage4 = new Inverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .IN--v3
+      .OUT--v4
+    }
+
+    Inverter stage5 = new Inverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .IN--v4
+      .OUT--OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      c_fundamental_frequency_min =
+        pss_bench(guess_frequency=3.8GHz)::FundamentalFrequency >= 3.7GHz
+      c_fundamental_frequency_max =
+        pss_bench(guess_frequency=3.8GHz)::FundamentalFrequency <= 3.9GHz
+      c_output_swing = tran_bench(stim_freq=3.8GHz)::OutputSwing() at net::OUT >= 1.75V
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
