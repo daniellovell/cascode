@@ -56,7 +56,12 @@ public static class ExactSchematicResolver
         );
         var devicePlacements = ResolveDevicePlacements(graph, renderByName);
         var portPlacements = ResolvePortPlacements(circuit, renderByName, devicePlacements);
-        var anchors = BuildAnchorMap(devicePlacements, portPlacements);
+        var anchors = BuildAnchorMap(
+            devicePlacements,
+            portPlacements,
+            placementContext.CanvasWidth,
+            placementContext.CanvasHeight
+        );
         var segmentsByNet = ResolveNetSegments(graph, renderByName, anchors);
         ValidateManualConnectivity(graph, placementContext.TerminalPositions, segmentsByNet);
 
@@ -323,12 +328,18 @@ public static class ExactSchematicResolver
 
     private static Dictionary<string, RenderUnitPoint> BuildAnchorMap(
         IReadOnlyDictionary<string, DevicePlacement> devicePlacements,
-        IReadOnlyDictionary<string, PortPlacement> portPlacements
+        IReadOnlyDictionary<string, PortPlacement> portPlacements,
+        int canvasWidth,
+        int canvasHeight
     )
     {
         var anchors = new Dictionary<string, RenderUnitPoint>(StringComparer.Ordinal)
         {
             ["canvas origin"] = new RenderUnitPoint(0, 0),
+            ["canvas center"] = new RenderUnitPoint(
+                ToRenderUnits(canvasWidth / 2),
+                ToRenderUnits(canvasHeight / 2)
+            ),
         };
 
         foreach (var placement in devicePlacements)

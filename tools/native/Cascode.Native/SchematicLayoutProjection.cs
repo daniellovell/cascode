@@ -559,7 +559,7 @@ internal static partial class SchematicLayoutProjection
     /// <param name="placement">Coarse placement results used to compute device bounding boxes and orientation defaults.</param>
     /// <param name="renderByName">Lookup of render entities by name; when present for the device, its orientation overrides defaults.</param>
     /// <param name="terminalsByDevice">Routing terminal positions grouped by device ID, used to compute the terminal centroid as device position.</param>
-    /// <returns>A LayoutDevice with Id, Position (terminal centroid in render units), Orientation (from render entity or cell), and computed Bbox.</returns>
+    /// <returns>A LayoutDevice with Id, Position (from render block placement, terminal centroid, or cell center), Orientation (from render entity or cell), and computed Bbox.</returns>
     private static LayoutDevice BuildLayoutDevice(
         Circuit circuit,
         string deviceId,
@@ -582,11 +582,31 @@ internal static partial class SchematicLayoutProjection
                 }
                 : defaultOrientation;
 
-        // Position is the centroid of the device's routing terminal positions.
-        // This ensures catalog terminal offsets (also centered at terminal centroid)
-        // align exactly with routing-derived wire endpoints.
+        // Device position resolution order:
+        //
+        // 1. Hard render-block placement (manual mode). Uses the explicit position
+        //    from the render block so the snapshot round-trip is lossless.
+        //    Without this, RefreshManualRoutingIfNeeded would recompute the position
+        //    as a terminal centroid, which can drift by a render unit due to rounding,
+        //    causing ValidateManualConnectivity to fail with "disconnected terminal
+        //    geometry" on subsequent render.
+        //
+        // 2. Terminal centroid from routing. Aligns the device center with the
+        //    average of its routed terminal pixel positions, so catalog terminal
+        //    offsets (also centered at terminal centroid) match routing-derived
+        //    wire endpoints exactly.
+        //
+        // 3. Cell center fallback when no routing terminals are available.
         PointValue position;
-        if (terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0)
+        if (
+            render?.Place is { Strength: RenderConstraintStrength.Hard, Point: RenderAbsPoint absPlace }
+        )
+        {
+            position = new PointValue { X = absPlace.X, Y = absPlace.Y };
+        }
+        else if (
+            terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0
+        )
         {
             position = new PointValue
             {
@@ -596,7 +616,6 @@ internal static partial class SchematicLayoutProjection
         }
         else
         {
-            // Fallback to cell center when no routing terminals are available
             position = new PointValue
             {
                 X = ToRenderUnitsExact(
