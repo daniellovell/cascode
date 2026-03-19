@@ -599,14 +599,13 @@ internal static partial class SchematicLayoutProjection
         // 3. Cell center fallback when no routing terminals are available.
         PointValue position;
         if (
-            render?.Place is { Strength: RenderConstraintStrength.Hard, Point: RenderAbsPoint absPlace }
+            render?.Place is
+            { Strength: RenderConstraintStrength.Hard, Point: RenderAbsPoint absPlace }
         )
         {
             position = new PointValue { X = absPlace.X, Y = absPlace.Y };
         }
-        else if (
-            terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0
-        )
+        else if (terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0)
         {
             position = new PointValue
             {
