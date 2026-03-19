@@ -1,11 +1,10 @@
 import {
   apiVersion,
-  applyOps,
   createSession,
   destroySession,
+  invoke,
   lastErrorJson,
   native,
-  open,
   schemaVersion
 } from "../src/index.js";
 
@@ -15,10 +14,10 @@ const schema: string = schemaVersion();
 const err: string | null = lastErrorJson(session);
 void err;
 
-const opened = open(native, session, { documentId: "doc", text: "VERSION 4.0\n" }) as {
+const opened = invoke(native, session, "document.open", { documentId: "doc", text: "VERSION 4.0\n" }) as {
   revision: number;
 };
-const applied = applyOps(native, session, {
+const applied = invoke(native, session, "schematic.applyOperations", {
   documentId: "doc",
   baseRevision: opened.revision,
   operations: [{ opId: "op1", type: "movePort", port: "IN", x: 1, y: 1 }]

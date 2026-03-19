@@ -6,12 +6,12 @@ const cascode = require(workerData.packageRoot);
 
 const session = cascode.createSession("{}");
 try {
-  const opened = cascode.open(cascode.native, session, {
+  const opened = cascode.invoke(cascode.native, session, "document.open", {
     documentId: "doc-edit",
     text: workerData.source
   });
 
-  const updated = cascode.applyOps(cascode.native, session, {
+  const updated = cascode.invoke(cascode.native, session, "schematic.applyOperations", {
     documentId: "doc-edit",
     baseRevision: opened.revision,
     operations: [

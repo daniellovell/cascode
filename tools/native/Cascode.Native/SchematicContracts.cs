@@ -26,7 +26,14 @@ internal sealed class RoutePreviewResponse
     public string Schema { get; init; } = "cascode.routePreview/1.0";
     public required bool Valid { get; init; }
     public required IReadOnlyList<SegmentValue> Segments { get; init; }
+    public required IReadOnlyList<RoutePreviewNet> Nets { get; init; }
     public string? Diagnostic { get; init; }
+}
+
+internal sealed class RoutePreviewNet
+{
+    public required string Name { get; init; }
+    public required IReadOnlyList<SegmentValue> Segments { get; init; }
 }
 
 internal sealed class RenderSourceInfo

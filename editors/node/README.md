@@ -36,26 +36,34 @@ RID examples: `win-x64`, `linux-x64`, `darwin-x64`, `darwin-arm64`.
 
 ## API
 
-The package exports low-level session management and convenience wrappers for each native method.
+The package exports raw session management plus two transport primitives:
+
+- `call(session, method, requestJson)` for direct JSON transport
+- `invoke(native, session, method, request)` for parsed request/response calls
 
 ```js
 const cascode = require("@cascode/cascode-js");
 
 const session = cascode.createSession();
-const doc = cascode.open(cascode.native, session, { path: "my_circuit.cas" });
-const schematic = cascode.render(cascode.native, session, { documentId: doc.documentId });
+const opened = cascode.invoke(cascode.native, session, "document.open", {
+  documentId: "my_circuit.cas",
+  text: "VERSION 4.0\n",
+});
+const schematic = cascode.invoke(cascode.native, session, "render.schematic", {
+  documentId: opened.document.documentId,
+});
 cascode.destroySession(session);
 ```
 
-Session lifecycle: `createSession`, `destroySession`, `call`, `lastErrorJson`, `apiVersion`, `schemaVersion`.
+Session lifecycle: `createSession`, `destroySession`, `lastErrorJson`, `apiVersion`, `schemaVersion`.
 
-Document operations: `open`, `updateText`, `close`.
+Native method names remain string-based. Common calls include:
 
-Schematic: `render`, `applyOps`.
-
-Analysis: `erc`, `emit`, `verify`.
-
-Jobs (long-running): `jobStart`, `jobPoll`, `jobCancel`.
+- document lifecycle: `"document.open"`, `"document.updateText"`, `"document.close"`
+- schematic rendering and previews: `"render.schematic"`, `"schematic.previewRoute"`
+- analysis: `"erc.run"`, `"emit.run"`, `"verify.run"`
+- jobs: `"job.start"`, `"job.poll"`, `"job.cancel"`
+- source editing: `"source.rewriteSchematic"`
 
 `stdlibPath` provides the absolute path to the bundled standard library.
 

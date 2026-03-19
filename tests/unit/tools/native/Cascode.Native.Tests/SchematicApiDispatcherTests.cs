@@ -159,6 +159,50 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void CaptureManualSnapshot_OnAutoDocument_RoundTripsThroughSourceRewriteToCompleteManualRender()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        using var snapshot = Dispatch(
+            session.State,
+            "schematic.captureManualSnapshot",
+            new JsonObject { ["documentId"] = "doc1", ["baseRevision"] = 1 }
+        );
+        using var rewritten = Dispatch(
+            session.State,
+            "source.rewriteSchematic",
+            new JsonObject
+            {
+                ["path"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+                ["circuit"] = "Amp",
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["type"] = "applyRenderSnapshot",
+                        ["mode"] = "manual",
+                        ["entities"] = JsonNode.Parse(
+                            snapshot.RootElement.GetProperty("entities").GetRawText()
+                        )!,
+                    }
+                ),
+            }
+        );
+
+        var circuit = ParseCircuit(rewritten.RootElement.GetProperty("sourceText").GetString()!);
+        AssertCompleteManualRender(circuit);
+    }
+
+    [Fact]
     public void ApplyOperations_UpdatesRenderAndPinsUntouchedEntriesOnFirstMutation()
     {
         using var session = ApiSession.Create();

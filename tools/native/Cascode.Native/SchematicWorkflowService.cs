@@ -74,14 +74,21 @@ internal static class SchematicWorkflowService
                 allowRelaxation: false
             );
             var affectedNets = ResolveAffectedNetNames(render.Graph, start, target);
-            var segments = BuildSegments(render.Routing, affectedNets);
-            return segments.Count > 0
-                ? new RoutePreviewResponse { Valid = true, Segments = segments }
+            var nets = BuildNetGroups(render.Routing, affectedNets);
+            var segments = nets.SelectMany(net => net.Segments).ToArray();
+            return segments.Length > 0
+                ? new RoutePreviewResponse
+                {
+                    Valid = true,
+                    Segments = segments,
+                    Nets = nets,
+                }
                 : new RoutePreviewResponse
                 {
                     Valid = false,
                     Diagnostic = "No routed preview is available for the current target.",
                     Segments = Array.Empty<SegmentValue>(),
+                    Nets = Array.Empty<RoutePreviewNet>(),
                 };
         }
         catch (ApiException ex)
@@ -91,6 +98,7 @@ internal static class SchematicWorkflowService
                 Valid = false,
                 Diagnostic = ex.Message,
                 Segments = Array.Empty<SegmentValue>(),
+                Nets = Array.Empty<RoutePreviewNet>(),
             };
         }
         catch (InvalidOperationException ex)
@@ -100,6 +108,7 @@ internal static class SchematicWorkflowService
                 Valid = false,
                 Diagnostic = ex.Message,
                 Segments = Array.Empty<SegmentValue>(),
+                Nets = Array.Empty<RoutePreviewNet>(),
             };
         }
     }
@@ -113,41 +122,40 @@ internal static class SchematicWorkflowService
                 Valid = false,
                 Diagnostic = "Route preview requires a non-zero-length target.",
                 Segments = Array.Empty<SegmentValue>(),
+                Nets = Array.Empty<RoutePreviewNet>(),
             };
         }
 
         if (start.X == target.X || start.Y == target.Y)
         {
+            var segment = new SegmentValue
+            {
+                From = new PointValue { X = start.X, Y = start.Y },
+                To = new PointValue { X = target.X, Y = target.Y },
+            };
             return new RoutePreviewResponse
             {
                 Valid = true,
-                Segments = new[]
-                {
-                    new SegmentValue
-                    {
-                        From = new PointValue { X = start.X, Y = start.Y },
-                        To = new PointValue { X = target.X, Y = target.Y },
-                    },
-                },
+                Segments = new[] { segment },
+                Nets = Array.Empty<RoutePreviewNet>(),
             };
         }
 
+        var first = new SegmentValue
+        {
+            From = new PointValue { X = start.X, Y = start.Y },
+            To = new PointValue { X = target.X, Y = start.Y },
+        };
+        var second = new SegmentValue
+        {
+            From = new PointValue { X = target.X, Y = start.Y },
+            To = new PointValue { X = target.X, Y = target.Y },
+        };
         return new RoutePreviewResponse
         {
             Valid = true,
-            Segments = new[]
-            {
-                new SegmentValue
-                {
-                    From = new PointValue { X = start.X, Y = start.Y },
-                    To = new PointValue { X = target.X, Y = start.Y },
-                },
-                new SegmentValue
-                {
-                    From = new PointValue { X = target.X, Y = start.Y },
-                    To = new PointValue { X = target.X, Y = target.Y },
-                },
-            },
+            Segments = new[] { first, second },
+            Nets = Array.Empty<RoutePreviewNet>(),
         };
     }
 
@@ -196,26 +204,32 @@ internal static class SchematicWorkflowService
         }
     }
 
-    private static IReadOnlyList<SegmentValue> BuildSegments(
+    private static IReadOnlyList<RoutePreviewNet> BuildNetGroups(
         RoutingResult routing,
         IReadOnlyList<string> netNames
     )
     {
         return netNames
             .Where(netName => routing.SegmentsByNet.ContainsKey(netName))
-            .SelectMany(netName => routing.SegmentsByNet[netName])
-            .Select(segment => new SegmentValue
+            .Select(netName => new RoutePreviewNet
             {
-                From = new PointValue
-                {
-                    X = segment.From.X / (double)DeviceGeometry.RoutingPitch,
-                    Y = segment.From.Y / (double)DeviceGeometry.RoutingPitch,
-                },
-                To = new PointValue
-                {
-                    X = segment.To.X / (double)DeviceGeometry.RoutingPitch,
-                    Y = segment.To.Y / (double)DeviceGeometry.RoutingPitch,
-                },
+                Name = netName,
+                Segments = routing
+                    .SegmentsByNet[netName]
+                    .Select(segment => new SegmentValue
+                    {
+                        From = new PointValue
+                        {
+                            X = segment.From.X / (double)DeviceGeometry.RoutingPitch,
+                            Y = segment.From.Y / (double)DeviceGeometry.RoutingPitch,
+                        },
+                        To = new PointValue
+                        {
+                            X = segment.To.X / (double)DeviceGeometry.RoutingPitch,
+                            Y = segment.To.Y / (double)DeviceGeometry.RoutingPitch,
+                        },
+                    })
+                    .ToArray(),
             })
             .ToArray();
     }

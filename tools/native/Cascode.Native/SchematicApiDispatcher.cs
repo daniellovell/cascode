@@ -25,11 +25,13 @@ internal static class SchematicApiDispatcher
             "document.open" => DocumentOpen(session, requestJson),
             "document.updateText" => DocumentUpdateText(session, requestJson),
             "document.close" => DocumentClose(session, requestJson),
+            "source.rewriteSchematic" => SourceApiDispatcher.RewriteSchematic(requestJson),
             "convert.toStructural" => ConvertToStructural(session, requestJson),
             "convert.toCas" => ConvertToCas(session, requestJson),
             "render.schematic" => RenderSchematic(session, requestJson),
             "schematic.applyOperations" => ApplyOperations(session, requestJson),
             "schematic.applyPlacementEdits" => ApplyPlacementEdits(session, requestJson),
+            "schematic.captureManualSnapshot" => CaptureManualSnapshot(session, requestJson),
             "schematic.previewRoute" => PreviewRoute(session, requestJson),
             "schematic.applyRouteEdit" => ApplyRouteEdit(session, requestJson),
             "job.start" => JobStart(session, requestJson),
@@ -290,6 +292,25 @@ internal static class SchematicApiDispatcher
             (draft, changed) =>
                 SchematicWorkflowService.ApplyPlacementEdits(draft, operations, changed)
         );
+    }
+
+    private static string CaptureManualSnapshot(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+
+        var state = GetDocumentState(session, root.RequireString("documentId"));
+        EnsureRevision(state, TryGetInt(root, "baseRevision"));
+        var snapshot = ManualRenderSnapshotService.Build(state, FindCircuit(state));
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.manualSnapshot/1.0",
+            ["documentId"] = state.DocumentId,
+            ["revision"] = state.Revision,
+            ["mode"] = "manual",
+            ["entities"] = SerializeRenderEntities(snapshot.Entities),
+        }.ToJsonString(ApiJson.Options);
     }
 
     private static string PreviewRoute(SessionState session, string requestJson)
@@ -978,6 +999,158 @@ internal static class SchematicApiDispatcher
             _ => throw new ApiException(
                 "CASAPI-INVALID-REQUEST",
                 $"Invalid route endpoint kind '{kind}' for '{fieldName}'."
+            ),
+        };
+    }
+
+    private static JsonArray SerializeRenderEntities(IEnumerable<RenderEntity> entities)
+    {
+        return new JsonArray(entities.Select(SerializeRenderEntity).ToArray());
+    }
+
+    private static JsonNode SerializeRenderEntity(RenderEntity entity)
+    {
+        var json = new JsonObject { ["name"] = entity.Name };
+        if (entity.Place is { } place)
+        {
+            var placeJson = new JsonObject { ["point"] = SerializeRenderPoint(place.Point) };
+            if (SerializeStrength(place.Strength) is { } placeStrength)
+            {
+                placeJson["strength"] = placeStrength;
+            }
+
+            json["place"] = placeJson;
+        }
+
+        if (entity.Orientation is { } orientation)
+        {
+            json["orientation"] = new JsonObject
+            {
+                ["rotate"] = orientation.Rotate,
+                ["mirrorX"] = orientation.MirrorX,
+            };
+        }
+
+        if (entity.Side is { } side)
+        {
+            json["side"] = SerializePortSide(side);
+        }
+
+        if (entity.Route is { } route)
+        {
+            var routeJson = new JsonObject { ["mode"] = SerializeRouteMode(route.Mode) };
+            if (SerializeStrength(route.Strength) is { } routeStrength)
+            {
+                routeJson["strength"] = routeStrength;
+            }
+
+            json["route"] = routeJson;
+        }
+
+        if (entity.Segments.Count > 0)
+        {
+            json["segments"] = new JsonArray(
+                entity.Segments.Select(SerializeRenderSegment).ToArray()
+            );
+        }
+
+        if (entity.ZIndex is { } zIndex)
+        {
+            json["zIndex"] = zIndex;
+        }
+
+        return json;
+    }
+
+    private static JsonNode SerializeRenderSegment(RenderSegment segment)
+    {
+        return new JsonObject
+        {
+            ["from"] = SerializeRenderPoint(segment.From),
+            ["to"] = SerializeRenderPoint(segment.To),
+        };
+    }
+
+    private static JsonNode SerializeRenderPoint(RenderPointExpression point)
+    {
+        return point switch
+        {
+            RenderAbsPoint abs => new JsonObject
+            {
+                ["kind"] = "abs",
+                ["x"] = abs.X,
+                ["y"] = abs.Y,
+            },
+            RenderRefPoint @ref => SerializeRenderRefPoint(@ref),
+            RenderRelPoint relative => new JsonObject
+            {
+                ["kind"] = "rel",
+                ["dx"] = relative.Dx,
+                ["dy"] = relative.Dy,
+            },
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render point type '{point.GetType().Name}'."
+            ),
+        };
+    }
+
+    private static JsonNode SerializeRenderRefPoint(RenderRefPoint point)
+    {
+        var json = new JsonObject { ["kind"] = "ref", ["anchor"] = point.Anchor };
+        if (point.Dx != 0)
+        {
+            json["dx"] = point.Dx;
+        }
+
+        if (point.Dy != 0)
+        {
+            json["dy"] = point.Dy;
+        }
+
+        return json;
+    }
+
+    private static string? SerializeStrength(RenderConstraintStrength? strength)
+    {
+        return strength switch
+        {
+            RenderConstraintStrength.Hard => "hard",
+            RenderConstraintStrength.Soft => "soft",
+            RenderConstraintStrength.Hint => "hint",
+            null => null,
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render strength '{strength}'."
+            ),
+        };
+    }
+
+    private static string SerializePortSide(RenderPortSide side)
+    {
+        return side switch
+        {
+            RenderPortSide.Left => "left",
+            RenderPortSide.Right => "right",
+            RenderPortSide.Top => "top",
+            RenderPortSide.Bottom => "bottom",
+            RenderPortSide.Auto => "auto",
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render port side '{side}'."
+            ),
+        };
+    }
+
+    private static string SerializeRouteMode(RenderRouteMode mode)
+    {
+        return mode switch
+        {
+            RenderRouteMode.Auto => "auto",
+            RenderRouteMode.Ortho => "ortho",
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render route mode '{mode}'."
             ),
         };
     }

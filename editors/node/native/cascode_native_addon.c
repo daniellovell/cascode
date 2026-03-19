@@ -73,11 +73,13 @@ typedef struct cascode_exports_s {
   cascode_session_call_fn document_open;
   cascode_session_call_fn document_update_text;
   cascode_session_call_fn document_close;
+  cascode_session_call_fn source_rewrite_schematic;
   cascode_session_call_fn convert_to_structural;
   cascode_session_call_fn convert_to_cas;
   cascode_session_call_fn render_schematic;
   cascode_session_call_fn schematic_apply_ops;
   cascode_session_call_fn schematic_apply_placement_edits;
+  cascode_session_call_fn schematic_capture_manual_snapshot;
   cascode_session_call_fn schematic_preview_route;
   cascode_session_call_fn schematic_apply_route_edit;
   cascode_session_call_fn erc_run;
@@ -383,6 +385,9 @@ static bool load_exports(void) {
   if (!resolve_symbol((void**)&g_exports.document_close,
                       "cascode_document_close"))
     goto done;
+  if (!resolve_symbol((void**)&g_exports.source_rewrite_schematic,
+                      "cascode_source_rewrite_schematic"))
+    goto done;
   if (!resolve_symbol((void**)&g_exports.convert_to_structural,
                       "cascode_convert_to_structural"))
     goto done;
@@ -397,6 +402,9 @@ static bool load_exports(void) {
     goto done;
   if (!resolve_symbol((void**)&g_exports.schematic_apply_placement_edits,
                       "cascode_schematic_apply_placement_edits"))
+    goto done;
+  if (!resolve_symbol((void**)&g_exports.schematic_capture_manual_snapshot,
+                      "cascode_schematic_capture_manual_snapshot"))
     goto done;
   if (!resolve_symbol((void**)&g_exports.schematic_preview_route,
                       "cascode_schematic_preview_route"))
@@ -670,12 +678,15 @@ static cascode_session_call_fn resolve_method_fn(const char* method_name) {
       {"document.open", g_exports.document_open},
       {"document.updateText", g_exports.document_update_text},
       {"document.close", g_exports.document_close},
+      {"source.rewriteSchematic", g_exports.source_rewrite_schematic},
       {"convert.toStructural", g_exports.convert_to_structural},
       {"convert.toCas", g_exports.convert_to_cas},
       {"render.schematic", g_exports.render_schematic},
       {"schematic.applyOperations", g_exports.schematic_apply_ops},
       {"schematic.applyPlacementEdits",
        g_exports.schematic_apply_placement_edits},
+      {"schematic.captureManualSnapshot",
+       g_exports.schematic_capture_manual_snapshot},
       {"schematic.previewRoute", g_exports.schematic_preview_route},
       {"schematic.applyRouteEdit", g_exports.schematic_apply_route_edit},
       {"erc.run", g_exports.erc_run},

@@ -117,6 +117,18 @@ public static unsafe class NativeExports
     }
 
     /// <summary>
+    /// Dispatches a "source.rewriteSchematic" request for the specified session.
+    /// </summary>
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <see cref="IntPtr.Zero"/> if an error occurred.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_source_rewrite_schematic")]
+    public static IntPtr SourceRewriteSchematic(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "source.rewriteSchematic");
+    }
+
+    /// <summary>
     /// Invokes the "convert.toStructural" API for the specified session using the given JSON request.
     /// </summary>
     /// <param name="session">Session identifier returned by CreateSession.</param>
@@ -174,6 +186,18 @@ public static unsafe class NativeExports
     public static IntPtr SchematicApplyPlacementEdits(int session, byte* requestJson)
     {
         return Invoke(session, requestJson, "schematic.applyPlacementEdits");
+    }
+
+    /// <summary>
+    /// Dispatches a "schematic.captureManualSnapshot" request for the specified session.
+    /// </summary>
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <see cref="IntPtr.Zero"/> if an error occurred.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_capture_manual_snapshot")]
+    public static IntPtr SchematicCaptureManualSnapshot(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "schematic.captureManualSnapshot");
     }
 
     /// <summary>
