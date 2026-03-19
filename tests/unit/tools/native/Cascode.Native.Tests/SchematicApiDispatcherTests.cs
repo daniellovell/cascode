@@ -1190,6 +1190,41 @@ public sealed class SchematicApiDispatcherTests
     }
 
     [Fact]
+    public void DocumentOpen_ManualRender_StaleNetConnectivity_ReturnsDiagnosticsAndLayout()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "docStale",
+                ["text"] = BuildBranchingManualStaleConnectivitySource(),
+            }
+        );
+
+        var document = opened.RootElement;
+        Assert.Equal(
+            "manual",
+            document.GetProperty("renderSource").GetProperty("mode").GetString()
+        );
+
+        Assert.Contains(
+            document.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic =>
+                diagnostic.GetProperty("entityRefs").TryGetProperty("netName", out var netProp)
+                && netProp.GetString() == "n1"
+                && diagnostic.GetProperty("code").GetString()
+                    is "CASRENDER-MANUAL-NET-DISCONNECTED"
+                        or "CASRENDER-MANUAL-NET-DANGLING-SEGMENTS"
+                        or "CASRENDER-MANUAL-NET-TERMINAL-OFF-WIRE"
+        );
+
+        var nets = document.GetProperty("layout").GetProperty("nets").EnumerateArray().ToList();
+        Assert.NotEmpty(nets);
+    }
+
+    [Fact]
     public void DocumentOpen_WithAutoMode_NormalizesInMemoryRenderBlockToAuto()
     {
         using var session = ApiSession.Create();
@@ -1534,6 +1569,66 @@ circuit Amp {{
   }}
   render {{
 {m1Render}{m2Render}  }}
+}}
+";
+    }
+
+    private static string BuildBranchingManualStaleConnectivitySource()
+    {
+        return $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit ManualBranch {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  input TAP : analog
+  fill {{
+    net n1 : analog
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--n1
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--n1
+      .N--OUT
+    }}
+    Resistor R3 = new ResistorIdeal(size(R=1k)) {{
+      .P--TAP
+      .N--n1
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 4 hard
+      side left
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      seg ref R2.N ref OUT
+    }}
+    TAP {{
+      place abs 8 12 hard
+      side left
+      seg ref TAP ref R3.P
+    }}
+    R1 place abs 4 4 hard
+    R2 place abs 12 4 hard
+    R3 place abs 8 8 hard
+    n1 {{
+      seg ref R1.N ref R2.P
+      seg ref R3.N abs 8 0
+    }}
+  }}
 }}
 ";
     }

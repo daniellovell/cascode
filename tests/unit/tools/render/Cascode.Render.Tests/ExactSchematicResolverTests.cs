@@ -71,16 +71,24 @@ circuit ManualArbitrary {{
     }
 
     [Fact]
-    public void Resolve_ManualCrossingWithoutSharedEndpoint_FailsConnectivity()
+    public void Resolve_ManualCrossingWithoutSharedEndpoint_EmitsDiagnosticAndReroutes()
     {
         var circuit = ParseCircuit(BuildBranchingManualSource("seg ref R3.N abs 8 0"));
         var graph = CircuitGraph.Build(circuit);
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
-            ExactSchematicResolver.Resolve(circuit, graph, circuit.Render!)
-        );
+        var result = ExactSchematicResolver.Resolve(circuit, graph, circuit.Render!);
 
-        Assert.Contains("disconnected terminal geometry", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            result.Diagnostics,
+            diagnostic =>
+                diagnostic.Severity == RenderDiagnosticSeverity.Warning
+                && diagnostic.EntityRefs?.NetName == "n1"
+                && diagnostic.Code
+                    is "CASRENDER-MANUAL-NET-DISCONNECTED"
+                        or "CASRENDER-MANUAL-NET-DANGLING-SEGMENTS"
+                        or "CASRENDER-MANUAL-NET-TERMINAL-OFF-WIRE"
+        );
+        Assert.NotEmpty(result.Routing.Segments);
     }
 
     [Fact]

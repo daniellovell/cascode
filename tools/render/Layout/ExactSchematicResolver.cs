@@ -62,43 +62,70 @@ public static class ExactSchematicResolver
             placementContext.CanvasWidth,
             placementContext.CanvasHeight
         );
-        var segmentsByNet = ResolveNetSegments(graph, renderByName, anchors);
-        ValidateManualConnectivity(graph, placementContext.TerminalPositions, segmentsByNet);
 
-        var allSegments = segmentsByNet.Values.SelectMany(segments => segments).ToList();
-        var junctions = BuildJunctions(segmentsByNet);
+        var salvageDiagnostics = new List<RenderDiagnostic>();
+        var validExactByNet = PartitionManualNetsForSalvage(
+            graph,
+            renderByName,
+            anchors,
+            placementContext.TerminalPositions,
+            salvageDiagnostics
+        );
+
+        var routed = ExactPlacementRouter.Route(graph, placementContext, constraints: null);
+
+        var mergedSegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(
+            StringComparer.Ordinal
+        );
+        foreach (var (netName, segments) in routed.SegmentsByNet)
+        {
+            mergedSegmentsByNet[netName] = segments;
+        }
+
+        foreach (var (netName, segments) in validExactByNet)
+        {
+            mergedSegmentsByNet[netName] = segments;
+        }
+
+        var allSegments = mergedSegmentsByNet.Values.SelectMany(segments => segments).ToList();
+        var listDict = mergedSegmentsByNet.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value.ToList(),
+            StringComparer.Ordinal
+        );
+        var junctions = BuildJunctions(listDict);
         var canvasWidth = Math.Max(
-            placementContext.CanvasWidth,
+            routed.CanvasWidth,
             allSegments.Count == 0
-                ? placementContext.CanvasWidth
+                ? routed.CanvasWidth
                 : allSegments.Max(segment => Math.Max(segment.From.X, segment.To.X))
                     + DeviceGeometry.CellWidth
         );
         var canvasHeight = Math.Max(
-            placementContext.CanvasHeight,
+            routed.CanvasHeight,
             allSegments.Count == 0
-                ? placementContext.CanvasHeight
+                ? routed.CanvasHeight
                 : allSegments.Max(segment => Math.Max(segment.From.Y, segment.To.Y))
                     + DeviceGeometry.CellHeight
         );
 
+        var mergedRouting = new RoutingResult
+        {
+            Segments = allSegments,
+            Junctions = junctions,
+            SegmentsByNet = mergedSegmentsByNet,
+            CanvasWidth = canvasWidth,
+            CanvasHeight = canvasHeight,
+            TerminalPositions = routed.TerminalPositions,
+        };
+
+        var allDiagnostics = placementContext.Diagnostics.Concat(salvageDiagnostics).ToList();
+
         return new ExactSchematicResult
         {
             Placement = placementContext.Placement,
-            Routing = new RoutingResult
-            {
-                Segments = allSegments,
-                Junctions = junctions,
-                SegmentsByNet = segmentsByNet.ToDictionary(
-                    entry => entry.Key,
-                    entry => (IReadOnlyList<WireSegment>)entry.Value,
-                    StringComparer.Ordinal
-                ),
-                CanvasWidth = canvasWidth,
-                CanvasHeight = canvasHeight,
-                TerminalPositions = placementContext.TerminalPositions,
-            },
-            Diagnostics = placementContext.Diagnostics,
+            Routing = mergedRouting,
+            Diagnostics = allDiagnostics,
         };
     }
 
@@ -350,13 +377,25 @@ public static class ExactSchematicResolver
         return anchors;
     }
 
-    private static Dictionary<string, List<WireSegment>> ResolveNetSegments(
+    private static Dictionary<string, List<WireSegment>> PartitionManualNetsForSalvage(
         CircuitGraph graph,
         IReadOnlyDictionary<string, RenderEntity> renderByName,
-        IReadOnlyDictionary<string, RenderUnitPoint> anchors
+        IReadOnlyDictionary<string, RenderUnitPoint> anchors,
+        IReadOnlyList<TerminalPosition> terminalPositions,
+        List<RenderDiagnostic> diagnosticsOut
     )
     {
-        var result = new Dictionary<string, List<WireSegment>>(StringComparer.Ordinal);
+        var terminalsByNet = terminalPositions
+            .GroupBy(
+                terminal =>
+                    terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                        ? terminal.DeviceId[5..]
+                        : graph.GetNetForTerminal(terminal.DeviceId, terminal.Terminal)
+                            ?? string.Empty,
+                StringComparer.Ordinal
+            )
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+
         var netNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in graph.NetConnections.Where(e => e.Value.Count > 0))
         {
@@ -370,41 +409,100 @@ public static class ExactSchematicResolver
             netNames.Add(portNet);
         }
 
+        var validExactByNet = new Dictionary<string, List<WireSegment>>(StringComparer.Ordinal);
+
         foreach (var netName in netNames.OrderBy(name => name, StringComparer.Ordinal))
         {
-            if (!renderByName.TryGetValue(netName, out var entry) || entry.Segments.Count == 0)
+            var requiresSegments =
+                graph.NetConnections.TryGetValue(netName, out var conns) && conns.Count > 0;
+            if (!requiresSegments)
             {
-                var requiresSegments =
-                    graph.NetConnections.TryGetValue(netName, out var conns) && conns.Count > 0;
-                if (!requiresSegments)
-                {
-                    requiresSegments =
-                        graph.InputPorts.Contains(netName)
-                        || graph.OutputPorts.Contains(netName)
-                        || graph.BiasPorts.Contains(netName);
-                }
+                requiresSegments =
+                    graph.InputPorts.Contains(netName)
+                    || graph.OutputPorts.Contains(netName)
+                    || graph.BiasPorts.Contains(netName);
+            }
 
-                if (requiresSegments)
-                {
-                    throw new InvalidOperationException(
-                        $"Manual render requires at least one seg for net '{netName}'."
-                    );
-                }
-
+            if (!requiresSegments)
+            {
                 continue;
             }
 
-            var resolvedSegments = ResolveSegments(entry.Segments, anchors, netName);
-            result[netName] = resolvedSegments
-                .Select(segment => new WireSegment(
-                    new GridPoint(segment.From.X, segment.From.Y),
-                    new GridPoint(segment.To.X, segment.To.Y),
-                    netName
-                ))
-                .ToList();
+            if (!renderByName.TryGetValue(netName, out var renderEntity) || renderEntity.Segments.Count == 0)
+            {
+                diagnosticsOut.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-MANUAL-NET-MISSING-SEG",
+                        Message =
+                            $"Manual render had no explicit segments for net '{netName}'; routing was recomputed.",
+                        EntityRefs = new RenderDiagnosticEntityRefs { NetName = netName },
+                    }
+                );
+                continue;
+            }
+
+            List<WireSegment> wireSegments;
+            try
+            {
+                var resolvedSegments = ResolveSegments(renderEntity.Segments, anchors, netName);
+                wireSegments = resolvedSegments
+                    .Select(segment => new WireSegment(
+                        new GridPoint(segment.From.X, segment.From.Y),
+                        new GridPoint(segment.To.X, segment.To.Y),
+                        netName
+                    ))
+                    .ToList();
+            }
+            catch (InvalidOperationException ex)
+            {
+                diagnosticsOut.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-MANUAL-NET-SEGMENT-INVALID",
+                        Message = ex.Message,
+                        EntityRefs = new RenderDiagnosticEntityRefs { NetName = netName },
+                    }
+                );
+                continue;
+            }
+
+            var hasTerminals =
+                terminalsByNet.TryGetValue(netName, out var netTerminals) && netTerminals.Count > 0;
+            if (
+                hasTerminals
+                && !TryValidateManualNetWireConnectivity(
+                    netName,
+                    netTerminals!,
+                    wireSegments,
+                    out var connectivityCode,
+                    out var connectivityMessage
+                )
+            )
+            {
+                diagnosticsOut.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = connectivityCode,
+                        Message = connectivityMessage,
+                        EntityRefs = new RenderDiagnosticEntityRefs { NetName = netName },
+                    }
+                );
+                continue;
+            }
+
+            if (wireSegments.Count == 0)
+            {
+                continue;
+            }
+
+            validExactByNet[netName] = wireSegments;
         }
 
-        return result;
+        return validExactByNet;
     }
 
     private static List<TerminalPosition> BuildTerminalPositions(
@@ -592,112 +690,104 @@ public static class ExactSchematicResolver
         return junctions.OrderBy(point => point.X).ThenBy(point => point.Y).ToList();
     }
 
-    private static void ValidateManualConnectivity(
-        CircuitGraph graph,
-        IReadOnlyList<TerminalPosition> terminalPositions,
-        IReadOnlyDictionary<string, List<WireSegment>> segmentsByNet
+    private static bool TryValidateManualNetWireConnectivity(
+        string netName,
+        IReadOnlyList<TerminalPosition> terminals,
+        IReadOnlyList<WireSegment> segments,
+        out string code,
+        out string message
     )
     {
-        var terminalsByNet = terminalPositions
-            .GroupBy(
-                terminal =>
-                    terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
-                        ? terminal.DeviceId[5..]
-                        : graph.GetNetForTerminal(terminal.DeviceId, terminal.Terminal)
-                            ?? string.Empty,
-                StringComparer.Ordinal
-            )
-            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+        var nodes = segments
+            .SelectMany(segment => new[] { segment.From, segment.To })
+            .Concat(terminals.Select(terminal => new GridPoint(terminal.X, terminal.Y)))
+            .Distinct()
+            .ToDictionary(point => point, _ => new HashSet<GridPoint>());
 
-        foreach (var (netName, segments) in segmentsByNet)
+        foreach (var segment in segments)
         {
-            if (!terminalsByNet.TryGetValue(netName, out var terminals))
-            {
-                continue;
-            }
+            nodes[segment.From].Add(segment.To);
+            nodes[segment.To].Add(segment.From);
+        }
 
-            var nodes = segments
-                .SelectMany(segment => new[] { segment.From, segment.To })
-                .Concat(terminals.Select(terminal => new GridPoint(terminal.X, terminal.Y)))
-                .Distinct()
-                .ToDictionary(point => point, _ => new HashSet<GridPoint>());
-
+        foreach (var point in nodes.Keys.ToArray())
+        {
             foreach (var segment in segments)
             {
-                nodes[segment.From].Add(segment.To);
-                nodes[segment.To].Add(segment.From);
-            }
-
-            foreach (var point in nodes.Keys.ToArray())
-            {
-                foreach (var segment in segments)
+                if (IsPointOnSegmentInterior(point, segment))
                 {
-                    if (IsPointOnSegmentInterior(point, segment))
-                    {
-                        nodes[point].Add(segment.From);
-                        nodes[point].Add(segment.To);
-                        nodes[segment.From].Add(point);
-                        nodes[segment.To].Add(point);
-                    }
-                }
-            }
-
-            var terminalPoints = new List<GridPoint>(terminals.Count);
-            foreach (var terminal in terminals)
-            {
-                var point = new GridPoint(terminal.X, terminal.Y);
-                if (!segments.Any(segment => IsPointOnSegmentInclusive(point, segment)))
-                {
-                    throw new InvalidOperationException(
-                        $"Manual render net '{netName}' does not connect terminal '{terminal.DeviceId}.{terminal.Terminal}'."
-                    );
-                }
-
-                terminalPoints.Add(point);
-            }
-
-            if (terminalPoints.Count == 0)
-            {
-                continue;
-            }
-
-            var visited = new HashSet<GridPoint>();
-            var queue = new Queue<GridPoint>();
-            queue.Enqueue(terminalPoints[0]);
-            visited.Add(terminalPoints[0]);
-
-            while (queue.Count > 0)
-            {
-                var current = queue.Dequeue();
-                foreach (var neighbor in nodes[current])
-                {
-                    if (visited.Add(neighbor))
-                    {
-                        queue.Enqueue(neighbor);
-                    }
-                }
-            }
-
-            foreach (var point in terminalPoints)
-            {
-                if (!visited.Contains(point))
-                {
-                    throw new InvalidOperationException(
-                        $"Manual render net '{netName}' contains disconnected terminal geometry."
-                    );
-                }
-            }
-
-            foreach (var node in nodes.Keys)
-            {
-                if (!visited.Contains(node))
-                {
-                    throw new InvalidOperationException(
-                        $"Manual render net '{netName}' contains dangling explicit segments."
-                    );
+                    nodes[point].Add(segment.From);
+                    nodes[point].Add(segment.To);
+                    nodes[segment.From].Add(point);
+                    nodes[segment.To].Add(point);
                 }
             }
         }
+
+        var terminalPoints = new List<GridPoint>(terminals.Count);
+        foreach (var terminal in terminals)
+        {
+            var point = new GridPoint(terminal.X, terminal.Y);
+            if (!segments.Any(segment => IsPointOnSegmentInclusive(point, segment)))
+            {
+                code = "CASRENDER-MANUAL-NET-TERMINAL-OFF-WIRE";
+                message =
+                    $"Manual render net '{netName}' does not connect terminal '{terminal.DeviceId}.{terminal.Terminal}'.";
+                return false;
+            }
+
+            terminalPoints.Add(point);
+        }
+
+        if (terminalPoints.Count == 0)
+        {
+            code = string.Empty;
+            message = string.Empty;
+            return true;
+        }
+
+        var visited = new HashSet<GridPoint>();
+        var queue = new Queue<GridPoint>();
+        queue.Enqueue(terminalPoints[0]);
+        visited.Add(terminalPoints[0]);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            foreach (var neighbor in nodes[current])
+            {
+                if (visited.Add(neighbor))
+                {
+                    queue.Enqueue(neighbor);
+                }
+            }
+        }
+
+        foreach (var point in terminalPoints)
+        {
+            if (!visited.Contains(point))
+            {
+                code = "CASRENDER-MANUAL-NET-DISCONNECTED";
+                message =
+                    $"Manual render net '{netName}' contains disconnected terminal geometry.";
+                return false;
+            }
+        }
+
+        foreach (var node in nodes.Keys)
+        {
+            if (!visited.Contains(node))
+            {
+                code = "CASRENDER-MANUAL-NET-DANGLING-SEGMENTS";
+                message =
+                    $"Manual render net '{netName}' contains dangling explicit segments.";
+                return false;
+            }
+        }
+
+        code = string.Empty;
+        message = string.Empty;
+        return true;
     }
 
     private static CoarseGridResult BuildPlacement(
