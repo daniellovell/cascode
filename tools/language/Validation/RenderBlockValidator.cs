@@ -46,7 +46,7 @@ public static class RenderBlockValidator
     {
         ArgumentNullException.ThrowIfNull(circuit);
 
-        if (circuit.Render is null || circuit.Render.Entities.Count == 0)
+        if (circuit.Render is null)
         {
             return new RenderBlockValidationResult
             {
@@ -59,12 +59,18 @@ public static class RenderBlockValidator
         var devicesByName =
             circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
             ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
-        var ports = circuit.Ports.Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+        var ports = CircuitPortExpander
+            .Expand(circuit)
+            .Select(port => port.Name)
+            .ToHashSet(StringComparer.Ordinal);
         var nets = BuildNetSet(circuit);
 
         var entities = new List<RenderEntity>(circuit.Render.Entities.Count);
         foreach (var entry in circuit.Render.Entities)
         {
+            var isDevice = devicesByName.ContainsKey(entry.Name);
+            var isPort = ports.Contains(entry.Name);
+            var isNet = nets.Contains(entry.Name);
             var kind = ResolveKind(entry.Name, devicesByName, ports, nets);
             if (kind == RenderEntityKind.Unknown)
             {
@@ -91,40 +97,44 @@ public static class RenderBlockValidator
             switch (kind)
             {
                 case RenderEntityKind.Device:
-                    normalized.Place = ValidatePlacement(
-                        entry.Place,
-                        devicesByName,
-                        ports,
-                        allowRelative: false,
-                        messages,
-                        entry
-                    );
-                    normalized.Orientation = entry.Orientation;
-                    normalized.ZIndex = entry.ZIndex;
-                    break;
-
                 case RenderEntityKind.Port:
-                    normalized.Place = ValidatePlacement(
-                        entry.Place,
-                        devicesByName,
-                        ports,
-                        allowRelative: false,
-                        messages,
-                        entry
-                    );
-                    normalized.Side = entry.Side;
-                    break;
-
                 case RenderEntityKind.Net:
-                    normalized.Route = entry.Route;
-                    var points = ValidateWaypoints(
-                        entry.Waypoints,
-                        devicesByName,
-                        ports,
-                        messages,
-                        entry
-                    );
-                    normalized.Waypoints.AddRange(points);
+                    if (isDevice || isPort)
+                    {
+                        normalized.Place = ValidatePlacement(
+                            entry.Place,
+                            devicesByName,
+                            ports,
+                            allowRelative: false,
+                            messages,
+                            entry
+                        );
+                    }
+
+                    if (isDevice)
+                    {
+                        normalized.Orientation = entry.Orientation;
+                        normalized.ZIndex = entry.ZIndex;
+                    }
+
+                    if (isPort)
+                    {
+                        normalized.Side = entry.Side;
+                    }
+
+                    if (isNet)
+                    {
+                        normalized.Route = entry.Route;
+                        var segments = ValidateSegments(
+                            entry.Segments,
+                            devicesByName,
+                            ports,
+                            messages,
+                            entry
+                        );
+                        normalized.Segments.AddRange(segments);
+                    }
+
                     break;
             }
 
@@ -134,9 +144,17 @@ public static class RenderBlockValidator
             }
         }
 
+        if (circuit.Render.Mode == RenderLayoutMode.Manual)
+        {
+            ValidateManualCompleteness(entities, devicesByName, ports, nets, messages);
+        }
+
         return new RenderBlockValidationResult
         {
-            Render = entities.Count == 0 ? null : new RenderBlock { Entities = entities },
+            Render =
+                entities.Count == 0 && circuit.Render.Mode == RenderLayoutMode.Auto
+                    ? null
+                    : new RenderBlock { Mode = circuit.Render.Mode, Entities = entities },
             Messages = messages,
         };
     }
@@ -183,7 +201,7 @@ public static class RenderBlockValidator
     /// Builds a set of all net identifiers referenced by the given circuit.
     /// </summary>
     /// <param name="circuit">The circuit to extract net identifiers from.</param>
-    /// <returns>A set containing net IDs declared in circuit.Fill.Nets, supply names, ground names, port names, and net names from device bindings.</returns>
+    /// <returns>A set containing net IDs declared in circuit.Fill.Nets, supply names, ground names, and net names from device bindings.</returns>
     private static IReadOnlySet<string> BuildNetSet(Circuit circuit)
     {
         var nets = new HashSet<string>(StringComparer.Ordinal);
@@ -203,17 +221,17 @@ public static class RenderBlockValidator
             nets.Add(ground);
         }
 
-        foreach (var port in circuit.Ports)
-        {
-            nets.Add(port.Name);
-        }
-
         foreach (var device in circuit.Fill?.Devices ?? Enumerable.Empty<DeviceDeclaration>())
         {
             foreach (var (_, netName) in device.Bindings)
             {
                 nets.Add(netName);
             }
+        }
+
+        foreach (var port in CircuitPortExpander.Expand(circuit))
+        {
+            nets.Add(port.Name);
         }
 
         return nets;
@@ -261,37 +279,40 @@ public static class RenderBlockValidator
     }
 
     /// <summary>
-    /// Filter and validate a sequence of waypoint expressions, removing any points with invalid anchors.
+    /// Filter and validate a sequence of segment expressions, removing any segments with invalid anchors.
     /// </summary>
-    /// <param name="points">Waypoint expressions to validate.</param>
+    /// <param name="segments">Segment expressions to validate.</param>
     /// <param name="devicesByName">Device declarations keyed by device id, used to validate reference anchors.</param>
     /// <param name="ports">Set of valid port names used to validate reference anchors.</param>
-    /// <param name="messages">List to append validation messages describing removed waypoints.</param>
+    /// <param name="messages">List to append validation messages describing removed segments.</param>
     /// <param name="entityName">Name of the render entity (used in validation messages).</param>
-    /// <returns>A list containing only the waypoint expressions that passed validation; if <paramref name="points"/> was empty, the same empty list is returned.</returns>
-    private static IReadOnlyList<RenderPointExpression> ValidateWaypoints(
-        IReadOnlyList<RenderPointExpression> points,
+    /// <returns>A list containing only the segments that passed validation; if <paramref name="segments"/> was empty, the same empty list is returned.</returns>
+    private static IReadOnlyList<RenderSegment> ValidateSegments(
+        IReadOnlyList<RenderSegment> segments,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
         IReadOnlySet<string> ports,
         List<RenderValidationMessage> messages,
         RenderEntity entry
     )
     {
-        if (points.Count == 0)
+        if (segments.Count == 0)
         {
-            return points;
+            return segments;
         }
 
-        var valid = new List<RenderPointExpression>(points.Count);
-        foreach (var point in points)
+        var valid = new List<RenderSegment>(segments.Count);
+        foreach (var segment in segments)
         {
-            if (!TryValidatePoint(point, devicesByName, ports, allowRelative: true))
+            if (
+                !TryValidatePoint(segment.From, devicesByName, ports, allowRelative: true)
+                || !TryValidatePoint(segment.To, devicesByName, ports, allowRelative: true)
+            )
             {
                 messages.Add(
                     new RenderValidationMessage
                     {
                         Text =
-                            $"A waypoint for net '{entry.Name}' was removed due to an invalid anchor.",
+                            $"A segment for net '{entry.Name}' was removed due to an invalid anchor.",
                         Line = entry.SourceLine,
                         Column = entry.SourceColumn,
                     }
@@ -299,10 +320,71 @@ public static class RenderBlockValidator
                 continue;
             }
 
-            valid.Add(point);
+            valid.Add(segment);
         }
 
         return valid;
+    }
+
+    private static void ValidateManualCompleteness(
+        IReadOnlyList<RenderEntity> entities,
+        IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
+        IReadOnlySet<string> ports,
+        IReadOnlySet<string> nets,
+        List<RenderValidationMessage> messages
+    )
+    {
+        var entitiesByName = entities.ToDictionary(entity => entity.Name, StringComparer.Ordinal);
+
+        foreach (var deviceId in devicesByName.Keys)
+        {
+            if (!entitiesByName.TryGetValue(deviceId, out var entity) || entity.Place is null)
+            {
+                messages.Add(
+                    new RenderValidationMessage
+                    {
+                        Text = $"Manual render requires an explicit place for device '{deviceId}'.",
+                    }
+                );
+            }
+        }
+
+        foreach (var portName in ports)
+        {
+            if (!entitiesByName.TryGetValue(portName, out var entity) || entity.Place is null)
+            {
+                messages.Add(
+                    new RenderValidationMessage
+                    {
+                        Text = $"Manual render requires an explicit place for port '{portName}'.",
+                    }
+                );
+                continue;
+            }
+
+            if (entity.Side is null)
+            {
+                messages.Add(
+                    new RenderValidationMessage
+                    {
+                        Text = $"Manual render requires an explicit side for port '{portName}'.",
+                    }
+                );
+            }
+        }
+
+        foreach (var netName in nets)
+        {
+            if (!entitiesByName.TryGetValue(netName, out var entity) || entity.Segments.Count == 0)
+            {
+                messages.Add(
+                    new RenderValidationMessage
+                    {
+                        Text = $"Manual render requires at least one seg for net '{netName}'.",
+                    }
+                );
+            }
+        }
     }
 
     /// <summary>
@@ -408,7 +490,7 @@ public static class RenderBlockValidator
     /// Determine whether a render entity contains any meaningful rendering data.
     /// </summary>
     /// <param name="entity">The render entity to inspect.</param>
-    /// <returns>`true` if the entity has a placement, orientation, Z-index, side, route, or one or more waypoints; `false` otherwise.</returns>
+    /// <returns>`true` if the entity has a placement, orientation, Z-index, side, route, or one or more segments; `false` otherwise.</returns>
     private static bool HasEffectiveData(RenderEntity entity)
     {
         return entity.Place is not null
@@ -416,6 +498,6 @@ public static class RenderBlockValidator
             || entity.ZIndex is not null
             || entity.Side is not null
             || entity.Route is not null
-            || entity.Waypoints.Count > 0;
+            || entity.Segments.Count > 0;
     }
 }

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cascode.Language;
-using Cascode.Language.Validation;
 using Cascode.Workspace;
 
 namespace Cascode.Native;
@@ -25,20 +24,16 @@ internal static class SchematicApiDispatcher
             "document.open" => DocumentOpen(session, requestJson),
             "document.updateText" => DocumentUpdateText(session, requestJson),
             "document.close" => DocumentClose(session, requestJson),
-            "convert.toStructural" => ConvertToStructural(session, requestJson),
-            "convert.toCas" => ConvertToCas(session, requestJson),
+            "source.rewriteSchematic" => SourceApiDispatcher.RewriteSchematic(requestJson),
             "render.schematic" => RenderSchematic(session, requestJson),
-            "schematic.applyOperations" => ApplyOperations(session, requestJson),
+            "schematic.captureManualSnapshot" => CaptureManualSnapshot(session, requestJson),
+            "schematic.previewRoute" => PreviewRoute(session, requestJson),
             "job.start" => JobStart(session, requestJson),
             "job.poll" => JobPoll(session, requestJson),
             "job.cancel" => JobCancel(session, requestJson),
-            "erc.run" => RunErc(session, requestJson),
-            "emit.run" => RunEmit(session, requestJson),
-            "verify.run" => PassThroughStub("cascode.verify/1.0"),
             "pdk.setDir" => PdkSetDir(session, requestJson),
             "pdk.scan" => PdkScan(session, requestJson),
             "pdk.emitPrimitives" => PdkEmitPrimitives(session, requestJson),
-            "command.execute" => PassThroughStub("cascode.command/1.0"),
             _ => throw new ApiException(
                 "CASAPI-INVALID-REQUEST",
                 $"Unknown API method '{method}'."
@@ -80,6 +75,7 @@ internal static class SchematicApiDispatcher
         session.Documents[documentId] = state;
 
         var mode = ParseRenderMode(root.TryGetString("mode"));
+        SchematicDocumentBuilder.SyncCircuitRenderFromForcedMode(FindCircuit(state), mode);
         var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation: false);
         return ApiJson.SerializeDocument(render);
     }
@@ -99,34 +95,33 @@ internal static class SchematicApiDispatcher
         var baseRevision = TryGetInt(root, "baseRevision");
         EnsureRevision(state, baseRevision);
 
-        var sourceText = root.RequireString("text");
-        var read = CascodeReader.TryParse(sourceText, "<api>");
-        EnsureParseSuccess(read);
-
-        var selectedCircuit = SelectCircuit(
-            read.Document!,
-            root.TryGetString("circuit") ?? state.CircuitName
-        );
-
-        state.SourceText = sourceText;
-        state.Document = read.Document!;
-        state.CircuitName = selectedCircuit.Name;
-        state.Revision++;
-        state.ChangedEntities = Array.Empty<string>();
-
-        var render = SchematicDocumentBuilder.Build(
+        return DocumentStateTransactions.Commit(
             state,
-            RenderSchematicMode.RespectRenderBlock,
-            allowRelaxation: false
-        );
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.document.update/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
+            draft =>
+            {
+                var sourceText = root.RequireString("text");
+                var read = CascodeReader.TryParse(sourceText, "<api>");
+                EnsureParseSuccess(read);
 
-        return response.ToJsonString(ApiJson.Options);
+                var selectedCircuit = SelectCircuit(
+                    read.Document!,
+                    root.TryGetString("circuit") ?? draft.CircuitName
+                );
+
+                draft.SourceText = sourceText;
+                draft.Document = read.Document!;
+                draft.CircuitName = selectedCircuit.Name;
+                draft.Revision++;
+                draft.ChangedEntities = Array.Empty<string>();
+
+                return BuildRenderedDocumentResponse(
+                    "cascode.document.update/1.0",
+                    draft,
+                    RenderSchematicMode.RespectDocument,
+                    allowRelaxation: false
+                );
+            }
+        );
     }
 
     /// <summary>
@@ -148,59 +143,13 @@ internal static class SchematicApiDispatcher
     }
 
     /// <summary>
-    /// Produce a structural representation response for the specified document.
-    /// </summary>
-    /// <param name="session">Session state containing the document to convert.</param>
-    /// <param name="requestJson">Request JSON which must include the `documentId` field.</param>
-    /// <returns>A JSON string with schema "cascode.structural/1.0" containing `documentId`, `revision`, and the serialized structural node.</returns>
-    private static string ConvertToStructural(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var state = GetDocumentState(session, doc.RootElement.RequireString("documentId"));
-
-        var render = SchematicDocumentBuilder.Build(
-            state,
-            RenderSchematicMode.RespectRenderBlock,
-            allowRelaxation: false
-        );
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.structural/1.0",
-            ["documentId"] = state.DocumentId,
-            ["revision"] = state.Revision,
-            ["structural"] = ApiJson.SerializeStructuralNode(render.Structural),
-        };
-
-        return response.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Produces the cascode source representation for a document.
-    /// </summary>
-    /// <param name="requestJson">A JSON payload that must include a "documentId" field identifying the document to convert.</param>
-    /// <returns>A JSON string with schema "cascode.source/1.0" containing the documentId, the document's revision, and the current sourceText.</returns>
-    private static string ConvertToCas(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var state = GetDocumentState(session, doc.RootElement.RequireString("documentId"));
-
-        return new JsonObject
-        {
-            ["schema"] = "cascode.source/1.0",
-            ["documentId"] = state.DocumentId,
-            ["revision"] = state.Revision,
-            ["sourceText"] = state.SourceText,
-        }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
     /// Renders a document's schematic according to the provided request and returns the API response as JSON.
     /// </summary>
     /// <param name="session">The current session state containing documents and jobs.</param>
     /// <param name="requestJson">A JSON request that must include "documentId" and may include "mode", "allowConstraintRelaxation", and "persist".</param>
     /// <returns>A JSON string conforming to the "cascode.render/1.0" schema containing the rendered document node and the document's sourceText.</returns>
     /// <remarks>
-    /// If the request specifies mode = RerenderFromScratch and persist = true, the document's circuit is replaced with a copy that has no render block, the sourceText is updated, and the document revision is incremented.
+    /// If the request specifies mode = auto or manual and persist = true, the selected circuit's render mode is rewritten in source and the document revision is incremented.
     /// </remarks>
     private static string RenderSchematic(SessionState session, string requestJson)
     {
@@ -212,31 +161,53 @@ internal static class SchematicApiDispatcher
         var allowRelaxation = TryGetBool(root, "allowConstraintRelaxation") ?? false;
         var persist = TryGetBool(root, "persist") ?? false;
 
-        if (mode == RenderSchematicMode.RerenderFromScratch && persist)
+        if (mode != RenderSchematicMode.RespectDocument && persist)
         {
-            var updated = CopyCircuitWithRender(FindCircuit(state), render: null);
-            state.Document = ReplaceCircuit(state.Document, updated);
-            state.SourceText = SerializeSource(state.Document);
-            state.Revision++;
+            return DocumentStateTransactions.Commit(
+                state,
+                draft =>
+                {
+                    var circuit = FindCircuit(draft);
+                    var updated = CopyCircuitWithRender(
+                        circuit,
+                        BuildPersistedRender(draft, circuit, mode)
+                    );
+                    draft.Document = ReplaceCircuit(draft.Document, updated);
+                    draft.SourceText = SerializeSource(draft.Document);
+                    draft.Revision++;
+                    return BuildRenderedDocumentResponse(
+                        "cascode.render/1.0",
+                        draft,
+                        mode,
+                        allowRelaxation
+                    );
+                }
+            );
         }
 
-        var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation);
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.render/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
-
-        return response.ToJsonString(ApiJson.Options);
+        return BuildRenderedDocumentResponse("cascode.render/1.0", state, mode, allowRelaxation);
     }
 
-    /// <summary>
-    /// Applies a list of schematic operations to the named document, updates its state and source, and returns the new render.
-    /// </summary>
-    /// <param name="requestJson">JSON request containing "documentId", optional "baseRevision", and an "operations" array of schematic operations to apply.</param>
-    /// <returns>A JSON string with schema "cascode.apply/1.0" containing the updated document render ("document") and the updated source text ("sourceText").</returns>
-    private static string ApplyOperations(SessionState session, string requestJson)
+    private static string CaptureManualSnapshot(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+
+        var state = GetDocumentState(session, root.RequireString("documentId"));
+        EnsureRevision(state, TryGetInt(root, "baseRevision"));
+        var snapshot = ManualRenderSnapshotService.Build(state, FindCircuit(state));
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.manualSnapshot/1.0",
+            ["documentId"] = state.DocumentId,
+            ["revision"] = state.Revision,
+            ["mode"] = "manual",
+            ["entities"] = SerializeRenderEntities(snapshot.Entities),
+        }.ToJsonString(ApiJson.Options);
+    }
+
+    private static string PreviewRoute(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
         var root = doc.RootElement;
@@ -244,34 +215,13 @@ internal static class SchematicApiDispatcher
         var state = GetDocumentState(session, root.RequireString("documentId"));
         EnsureRevision(state, TryGetInt(root, "baseRevision"));
 
-        var changed = new HashSet<string>(StringComparer.Ordinal);
-        var operations = root.TryGetProperty("operations", out var operationsEl)
-            ? operationsEl.EnumerateArray().ToArray()
-            : Array.Empty<JsonElement>();
-
-        foreach (var operation in operations)
-        {
-            SchematicOperationApplier.Apply(state, operation, changed);
-        }
-
-        state.Revision++;
-        state.ChangedEntities = changed.OrderBy(name => name, StringComparer.Ordinal).ToArray();
-
-        var render = SchematicDocumentBuilder.Build(
+        var preview = SchematicWorkflowService.PreviewRoute(
             state,
-            RenderSchematicMode.RespectRenderBlock,
-            allowRelaxation: false
+            root.RequireString("mode"),
+            ParseRouteEndpoint(root.RequireProperty("start"), "start"),
+            ParseRouteEndpoint(root.RequireProperty("target"), "target")
         );
-        state.SourceText = SerializeSource(state.Document);
-
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.apply/1.0",
-            ["document"] = ApiJson.SerializeDocumentNode(render),
-            ["sourceText"] = state.SourceText,
-        };
-
-        return response.ToJsonString(ApiJson.Options);
+        return ApiJson.SerializeRoutePreview(preview);
     }
 
     /// <summary>
@@ -353,182 +303,6 @@ internal static class SchematicApiDispatcher
             ["schema"] = "cascode.job.cancel/1.0",
             ["jobId"] = jobId,
             ["ok"] = true,
-        }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Runs ERC on the specified document, linking includes using session search roots.
-    /// </summary>
-    private static string RunErc(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-        var documentId = root.TryGetString("documentId") ?? "doc_1";
-        var requirePdk = TryGetBool(root, "requirePdk") ?? false;
-
-        var state = GetDocumentState(session, documentId);
-        var searchRoots = session.GetSearchRoots();
-
-        CascodeDocument linked;
-        if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
-        {
-            var tmpDir = Path.Combine(
-                Path.GetTempPath(),
-                "cascode-erc",
-                Guid.NewGuid().ToString("N")
-            );
-            Directory.CreateDirectory(tmpDir);
-            var tmpFile = Path.Combine(tmpDir, "entry.cas");
-            File.WriteAllText(tmpFile, state.SourceText);
-            var linkResult = CascodeLinker.LinkFile(
-                tmpFile,
-                tmpDir,
-                searchRoots,
-                CascodeLinkOptions.Default,
-                null
-            );
-
-            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
-            {
-                var diagnosticsArray = new JsonArray(
-                    linkResult.Diagnostics.Select(d => (JsonNode?)d.Message).ToArray()
-                );
-                return new JsonObject
-                {
-                    ["schema"] = "cascode.erc/1.0",
-                    ["ok"] = false,
-                    ["diagnostics"] = diagnosticsArray,
-                }.ToJsonString(ApiJson.Options);
-            }
-
-            var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
-            var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
-            linked =
-                linkedRead.Success && linkedRead.Document is not null
-                    ? linkedRead.Document
-                    : state.Document;
-        }
-        else
-        {
-            linked = state.Document;
-        }
-
-        var combinedResult = ElectricalRuleChecker.Check(linked, requirePdk);
-
-        var errors = new JsonArray();
-        foreach (var error in combinedResult.GetErrors())
-            errors.Add((JsonNode?)error.ToString());
-        var warnings = new JsonArray();
-        foreach (var warning in combinedResult.GetWarnings())
-            warnings.Add((JsonNode?)warning.ToString());
-
-        return new JsonObject
-        {
-            ["schema"] = "cascode.erc/1.0",
-            ["ok"] = !combinedResult.HasErrors,
-            ["errorCount"] = combinedResult.ErrorCount,
-            ["warningCount"] = combinedResult.WarningCount,
-            ["errors"] = errors,
-            ["warnings"] = warnings,
-        }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Runs SPICE emit on the specified document, linking includes using session search roots.
-    /// </summary>
-    private static string RunEmit(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-        var documentId = root.TryGetString("documentId") ?? "doc_1";
-
-        var state = GetDocumentState(session, documentId);
-        var searchRoots = session.GetSearchRoots();
-
-        CascodeDocument linked;
-        if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
-        {
-            var tmpDir = Path.Combine(
-                Path.GetTempPath(),
-                "cascode-emit",
-                Guid.NewGuid().ToString("N")
-            );
-            Directory.CreateDirectory(tmpDir);
-            var tmpFile = Path.Combine(tmpDir, "entry.cas");
-            File.WriteAllText(tmpFile, state.SourceText);
-            var linkResult = CascodeLinker.LinkFile(
-                tmpFile,
-                tmpDir,
-                searchRoots,
-                CascodeLinkOptions.Default,
-                null
-            );
-
-            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
-            {
-                var diagnosticsArray = new JsonArray(
-                    linkResult.Diagnostics.Select(d => (JsonNode?)d.Message).ToArray()
-                );
-                return new JsonObject
-                {
-                    ["schema"] = "cascode.emit/1.0",
-                    ["ok"] = false,
-                    ["diagnostics"] = diagnosticsArray,
-                }.ToJsonString(ApiJson.Options);
-            }
-
-            var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
-            var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
-            linked =
-                linkedRead.Success && linkedRead.Document is not null
-                    ? linkedRead.Document
-                    : state.Document;
-        }
-        else
-        {
-            linked = state.Document;
-        }
-
-        var outputDir = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-emit-out",
-            Guid.NewGuid().ToString("N")
-        );
-        Directory.CreateDirectory(outputDir);
-
-        var emitResult = SpiceEmitter.ValidateAndEmit(linked, outputDir);
-
-        if (!emitResult.Success)
-        {
-            var validationErrors = new JsonArray();
-            foreach (var error in emitResult.Validation.GetErrors())
-                validationErrors.Add((JsonNode?)error.ToString());
-
-            return new JsonObject
-            {
-                ["schema"] = "cascode.emit/1.0",
-                ["ok"] = false,
-                ["errors"] = validationErrors,
-            }.ToJsonString(ApiJson.Options);
-        }
-
-        var files = new JsonArray();
-        foreach (var f in emitResult.Emit.DesignPaths)
-            files.Add((JsonNode?)f);
-        foreach (var f in emitResult.Emit.TestbenchPaths)
-            files.Add((JsonNode?)f);
-
-        var netlist =
-            emitResult.Emit.DesignPaths.Count > 0
-                ? File.ReadAllText(emitResult.Emit.DesignPaths[0])
-                : null;
-
-        return new JsonObject
-        {
-            ["schema"] = "cascode.emit/1.0",
-            ["ok"] = true,
-            ["files"] = files,
-            ["netlist"] = netlist,
         }.ToJsonString(ApiJson.Options);
     }
 
@@ -635,16 +409,6 @@ internal static class SchematicApiDispatcher
             ["message"] = result.Message,
             ["files"] = files,
         }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Creates a minimal API response JSON object with the provided schema and an OK flag.
-    /// </summary>
-    /// <param name="schema">The schema identifier to include in the response (e.g. "cascode.job/1.0").</param>
-    /// <returns>A JSON string containing the given schema and an `ok` field set to `true`.</returns>
-    private static string PassThroughStub(string schema)
-    {
-        return new JsonObject { ["schema"] = schema, ["ok"] = true }.ToJsonString(ApiJson.Options);
     }
 
     /// <summary>
@@ -838,22 +602,242 @@ internal static class SchematicApiDispatcher
         return writer.ToString();
     }
 
+    private static string BuildRenderedDocumentResponse(
+        string schema,
+        DocumentState state,
+        RenderSchematicMode mode,
+        bool allowRelaxation
+    )
+    {
+        SchematicDocumentBuilder.SyncCircuitRenderFromForcedMode(FindCircuit(state), mode);
+        var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation);
+        return new JsonObject
+        {
+            ["schema"] = schema,
+            ["document"] = ApiJson.SerializeDocumentNode(render),
+            ["sourceText"] = state.SourceText,
+        }.ToJsonString(ApiJson.Options);
+    }
+
     /// <summary>
     /// Parses a render mode string into a <see cref="RenderSchematicMode"/> value.
     /// </summary>
     /// <param name="raw">Mode string to parse (case-insensitive); may be null.</param>
-    /// <returns>
-    /// <see cref="RenderSchematicMode.ReflowUnlocked"/> for "reflowunlocked",
-    /// <see cref="RenderSchematicMode.RerenderFromScratch"/> for "rerenderfromscratch",
-    /// otherwise <see cref="RenderSchematicMode.RespectRenderBlock"/>.
-    /// </returns>
+    /// <returns>`manual`, `auto`, or `RespectDocument` when the request omits a mode override.</returns>
     private static RenderSchematicMode ParseRenderMode(string? raw)
     {
         return raw?.ToLowerInvariant() switch
         {
-            "reflowunlocked" => RenderSchematicMode.ReflowUnlocked,
-            "rerenderfromscratch" => RenderSchematicMode.RerenderFromScratch,
-            _ => RenderSchematicMode.RespectRenderBlock,
+            "manual" => RenderSchematicMode.Manual,
+            "auto" => RenderSchematicMode.Auto,
+            _ => RenderSchematicMode.RespectDocument,
+        };
+    }
+
+    private static RouteEndpoint ParseRouteEndpoint(JsonElement element, string fieldName)
+    {
+        var kind = element.RequireString("kind");
+        return kind switch
+        {
+            "terminal" => new RouteEndpoint(
+                kind,
+                element.RequireString("token"),
+                element.RequireInt("x"),
+                element.RequireInt("y")
+            ),
+            "netAnchor" => new RouteEndpoint(
+                kind,
+                element.RequireString("token"),
+                element.RequireInt("x"),
+                element.RequireInt("y")
+            ),
+            "point" => new RouteEndpoint(
+                kind,
+                null,
+                element.RequireInt("x"),
+                element.RequireInt("y")
+            ),
+            _ => throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Invalid route endpoint kind '{kind}' for '{fieldName}'."
+            ),
+        };
+    }
+
+    private static JsonArray SerializeRenderEntities(IEnumerable<RenderEntity> entities)
+    {
+        return new JsonArray(entities.Select(SerializeRenderEntity).ToArray());
+    }
+
+    private static JsonNode SerializeRenderEntity(RenderEntity entity)
+    {
+        var json = new JsonObject { ["name"] = entity.Name };
+        if (entity.Place is { } place)
+        {
+            var placeJson = new JsonObject { ["point"] = SerializeRenderPoint(place.Point) };
+            if (SerializeStrength(place.Strength) is { } placeStrength)
+            {
+                placeJson["strength"] = placeStrength;
+            }
+
+            json["place"] = placeJson;
+        }
+
+        if (entity.Orientation is { } orientation)
+        {
+            json["orientation"] = new JsonObject
+            {
+                ["rotate"] = orientation.Rotate,
+                ["mirrorX"] = orientation.MirrorX,
+            };
+        }
+
+        if (entity.Side is { } side)
+        {
+            json["side"] = SerializePortSide(side);
+        }
+
+        if (entity.Route is { } route)
+        {
+            var routeJson = new JsonObject { ["mode"] = SerializeRouteMode(route.Mode) };
+            if (SerializeStrength(route.Strength) is { } routeStrength)
+            {
+                routeJson["strength"] = routeStrength;
+            }
+
+            json["route"] = routeJson;
+        }
+
+        if (entity.Segments.Count > 0)
+        {
+            json["segments"] = new JsonArray(
+                entity.Segments.Select(SerializeRenderSegment).ToArray()
+            );
+        }
+
+        if (entity.ZIndex is { } zIndex)
+        {
+            json["zIndex"] = zIndex;
+        }
+
+        return json;
+    }
+
+    private static JsonNode SerializeRenderSegment(RenderSegment segment)
+    {
+        return new JsonObject
+        {
+            ["from"] = SerializeRenderPoint(segment.From),
+            ["to"] = SerializeRenderPoint(segment.To),
+        };
+    }
+
+    private static JsonNode SerializeRenderPoint(RenderPointExpression point)
+    {
+        return point switch
+        {
+            RenderAbsPoint abs => new JsonObject
+            {
+                ["kind"] = "abs",
+                ["x"] = abs.X,
+                ["y"] = abs.Y,
+            },
+            RenderRefPoint @ref => SerializeRenderRefPoint(@ref),
+            RenderRelPoint relative => new JsonObject
+            {
+                ["kind"] = "rel",
+                ["dx"] = relative.Dx,
+                ["dy"] = relative.Dy,
+            },
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render point type '{point.GetType().Name}'."
+            ),
+        };
+    }
+
+    private static JsonNode SerializeRenderRefPoint(RenderRefPoint point)
+    {
+        var json = new JsonObject { ["kind"] = "ref", ["anchor"] = point.Anchor };
+        if (point.Dx != 0)
+        {
+            json["dx"] = point.Dx;
+        }
+
+        if (point.Dy != 0)
+        {
+            json["dy"] = point.Dy;
+        }
+
+        return json;
+    }
+
+    private static string? SerializeStrength(RenderConstraintStrength? strength)
+    {
+        return strength switch
+        {
+            RenderConstraintStrength.Hard => "hard",
+            RenderConstraintStrength.Soft => "soft",
+            RenderConstraintStrength.Hint => "hint",
+            null => null,
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render strength '{strength}'."
+            ),
+        };
+    }
+
+    private static string SerializePortSide(RenderPortSide side)
+    {
+        return side switch
+        {
+            RenderPortSide.Left => "left",
+            RenderPortSide.Right => "right",
+            RenderPortSide.Top => "top",
+            RenderPortSide.Bottom => "bottom",
+            RenderPortSide.Auto => "auto",
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render port side '{side}'."
+            ),
+        };
+    }
+
+    private static string SerializeRouteMode(RenderRouteMode mode)
+    {
+        return mode switch
+        {
+            RenderRouteMode.Auto => "auto",
+            RenderRouteMode.Ortho => "ortho",
+            _ => throw new ApiException(
+                "CASAPI-MANUAL-SNAPSHOT-FAILED",
+                $"Unsupported render route mode '{mode}'."
+            ),
+        };
+    }
+
+    private static RenderBlock? BuildPersistedRender(
+        DocumentState state,
+        Circuit circuit,
+        RenderSchematicMode mode
+    )
+    {
+        return mode switch
+        {
+            RenderSchematicMode.Manual when circuit.Render?.Mode != RenderLayoutMode.Manual =>
+                ManualRenderSnapshotService.Build(state, circuit),
+            RenderSchematicMode.Manual when circuit.Render is not null => new RenderBlock
+            {
+                Mode = RenderLayoutMode.Manual,
+                Entities = circuit.Render.Entities.ToList(),
+            },
+            RenderSchematicMode.Auto when circuit.Render is not null => new RenderBlock
+            {
+                Mode = RenderLayoutMode.Auto,
+                Entities = circuit.Render.Entities.ToList(),
+            },
+            RenderSchematicMode.Auto => null,
+            _ => circuit.Render,
         };
     }
 

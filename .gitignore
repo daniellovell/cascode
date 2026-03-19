@@ -47,3 +47,6 @@ tmp/
 # Personal notes
 CASCODE_DESIGN_DOC.md
 MY_NOTES.md
+
+
+*.code-workspace

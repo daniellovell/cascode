@@ -21,6 +21,7 @@ chapter documents the surface syntax as it is used throughout the standard libra
 - Fill blocks and connectivity: Section 3.10
 - Constraints, benches sections, environment, and harness (syntax): Section 3.11
 - Bench helper functions (syntax): Section 3.12
+- Render blocks (schematic layout): Section 3.13
 
 ## Syntax index
 
@@ -48,6 +49,10 @@ chapter documents the surface syntax as it is used throughout the standard libra
 | `constraints {}` | `constraints { numeric { c = b::M >= 1 } }` | 3.11 |
 | `env {}` | `env { LoadImpedance = 50Ohm }` | 3.11 |
 | `harness {}` | `harness { supply VDD = 1.8V }` | 3.11 |
+| `render {}` | `render { mode manual ... }` | 3.13 |
+| `mode` (render) | `mode auto` / `mode manual` | 3.13 |
+| `seg` | `seg ref M1.D abs 10 5` | 3.13 |
+| point expression (render) | `abs 0 0`, `ref IN`, `rel 2 4` | 3.13.3 |
 
 ---
 
@@ -367,11 +372,12 @@ Within the circuit body, the following members may appear (order is not signific
 - `supply <Name>` and `ground <Name>`
 - `input` / `output` / `io` terminal declarations
 - `env { ... }`, `fill { ... }`, `constraints { ... }`, `harness { ... }`, `benches { ... }`
+- `render { ... }` (optional schematic placement and routing metadata; see Section 3.13)
 - `synth { ... }` (synthesis guidance, typically extracted during linking)
 - `provenance { ... }`
 
-The detailed syntax for `fill {}` connectivity, primitive devices, bench bindings, and constraints
-is specified in the remaining sections of this chapter and in the dedicated bench chapter.
+The detailed syntax for `fill {}` connectivity, primitive devices, bench bindings, constraints, and
+`render {}` is specified in the remaining sections of this chapter and in the dedicated bench chapter.
 
 ### 3.7.3 Inline circuits (`inline`)
 
@@ -756,3 +762,118 @@ function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
 Parameter types may be physical types (such as `Frequency`), analysis types (such as `ACAnalysis`),
 or terminal roles (`stim`, `resp`). A function body consists of variable declarations,
 `if/else`, and a `return` statement.
+
+---
+
+## 3.13 Render blocks
+
+A `render { ... }` block MAY appear in a circuit body. It carries schematic layout hints: device and
+port placement, port side, optional routing strategy on nets, and explicit wire segments. It does not
+alter electrical connectivity in `fill {}`. Normative semantics (`mode auto` vs `mode manual`,
+manual completeness, segment connectivity, and the prohibition on historical `wp` forms) are defined
+in [Chapter 2, Section 2.14](./Ch02_Core_Concepts.md#214-schematic-render-layout).
+
+Grammar reference: `renderSection`, `renderModeDecl`, `renderEntity`, `renderField`, and `pointExpr`
+in [tools/language/Cascode.g4](../../tools/language/Cascode.g4).
+
+### 3.13.1 Block shape
+
+The block contains an optional mode declaration followed by zero or more render entities. Informally:
+
+```
+render {
+  mode auto | mode manual    // optional; omitted means auto
+  // zero or more render entities (devices, ports, nets)
+}
+```
+
+If `mode` is omitted, layout mode defaults to `auto`. Only the identifiers `auto` and `manual` are
+valid after `mode`; other names are rejected by the reader.
+
+### 3.13.2 Render entities and fields
+
+Each entity names a circuit element: a fill-block device id, a circuit port name, or a net name
+(including supplies, grounds, declared nets, and port nets). The parser records the name; validation
+classifies the entity against the circuit’s structure.
+
+Two surface forms are allowed:
+
+1. **Brace form** — `EntityName { <renderField>* }`
+2. **One-liner placement** — `EntityName place <pointExpr> <strength>?` (device placement shorthand)
+
+`renderField` alternatives:
+
+| Field | Shape | Applies to |
+|-------|-------|------------|
+| `place` | `place` plus a point expression and optional `hard`, `soft`, or `hint` | devices, ports |
+| `orient` | `orient` plus a signed integer, optionally followed by `mirror` | devices |
+| `side` | `side` plus a side identifier | ports (`left`, `right`, `top`, `bottom`, `auto`) |
+| `route` | `route` plus `auto` or `ortho`, optional strength | nets — routing strategy, not polyline data |
+| `seg` | `seg` with two point expressions | nets — persisted wire segment primitive |
+| `zindex` | `zindex` plus a signed integer | devices |
+
+Documents MUST represent net path geometry only with `seg`. The historical `wp` waypoint statement is
+not valid syntax and MUST NOT appear.
+
+### 3.13.3 Point expressions
+
+Point expressions describe integer grid coordinates in render units:
+
+```
+pointExpr = absPoint | refPoint | relPoint
+absPoint  = "abs" signedInt signedInt
+refPoint  = "ref" renderAnchorRef signedInt signedInt?
+relPoint  = "rel" signedInt signedInt
+```
+
+`renderAnchorRef` is either `canvas origin`, `canvas center`, or a pin reference (for example a port
+name `IN`, a device id `M1`, or a device terminal `M1.D`).
+
+`rel` offsets are interpreted relative to implementation-defined context (for example the previous
+point when resolving a chain of segment endpoints). Device and port `place` positions reject `rel`
+in validation; segment endpoints may use `rel` where the toolchain resolves them.
+
+### 3.13.4 Example
+
+The following complete file illustrates a minimal manual render block alongside a small resistor
+network (see Sections 3.8–3.10 for `primitive`, devices, and `fill`):
+
+```cascode
+VERSION 4.0
+library examples.render
+
+primitive Resistor IdealR(size s) { device "resistor" params { R = s.R } }
+
+circuit RRenderDemo {
+  level EL
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {
+    net mid : analog
+    Resistor R1 = new IdealR(size(R=1k)) { .P--IN, .N--mid }
+    Resistor R2 = new IdealR(size(R=1k)) { .P--mid, .N--OUT }
+  }
+  render {
+    mode manual
+    IN {
+      place abs 0 4 hard
+      side left
+      seg ref IN ref R1.P
+    }
+    OUT {
+      place abs 16 4 hard
+      side right
+      seg ref R2.N ref OUT
+    }
+    R1 place abs 4 4 hard
+    R2 place abs 12 4 hard
+    mid {
+      seg ref R1.N ref R2.P
+    }
+  }
+}
+```
+
+A larger worked example of manual segments and T-junction connectivity appears in
+[docs/examples/manual-mode-canonical.cas](../../docs/examples/manual-mode-canonical.cas).

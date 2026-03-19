@@ -4,7 +4,7 @@ using Cascode.Language;
 
 public sealed record NetRouteConstraint(
     string NetName,
-    IReadOnlyList<GridPoint> Waypoints,
+    IReadOnlyList<GridPoint> GuidePoints,
     RenderConstraintStrength Strength,
     RenderRouteMode Mode
 );

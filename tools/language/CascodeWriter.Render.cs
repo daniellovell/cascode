@@ -14,11 +14,16 @@ public static partial class CascodeWriter
     /// <remarks>
     /// Entities are emitted in ordinal name order. An entity that only specifies a place is written as a single-line
     /// entry; otherwise the entity is written as a multi-line block containing any present fields: place, orient, side,
-    /// route, waypoints (wp), and zindex.
+    /// route, explicit segments, and zindex.
     /// </remarks>
     private static void WriteRenderBlock(RenderBlock render, TextWriter writer)
     {
         writer.WriteLine("  render {");
+
+        if (render.Mode == RenderLayoutMode.Manual)
+        {
+            writer.WriteLine("    mode manual");
+        }
 
         foreach (var entity in render.Entities.OrderBy(e => e.Name, StringComparer.Ordinal))
         {
@@ -57,13 +62,11 @@ public static partial class CascodeWriter
                 );
             }
 
-            if (entity.Waypoints.Count > 0)
+            foreach (var segment in entity.Segments)
             {
-                var points = string.Join(
-                    ", ",
-                    entity.Waypoints.Select(point => FormatPointExpr(point))
+                writer.WriteLine(
+                    $"      seg {FormatPointExpr(segment.From)} {FormatPointExpr(segment.To)}"
                 );
-                writer.WriteLine($"      wp [{points}]");
             }
 
             if (entity.ZIndex is not null)
@@ -81,7 +84,7 @@ public static partial class CascodeWriter
     /// Determines whether a render entity can be emitted as a single-line statement.
     /// </summary>
     /// <param name="entity">The render entity to inspect for single-line emission.</param>
-    /// <returns>`true` if the entity has a Place and none of Orientation, Side, Route, ZIndex, or Waypoints; `false` otherwise.</returns>
+    /// <returns>`true` if the entity has a Place and none of Orientation, Side, Route, ZIndex, or Segments; `false` otherwise.</returns>
     private static bool CanWriteOneLiner(RenderEntity entity)
     {
         return entity.Place is not null
@@ -89,7 +92,7 @@ public static partial class CascodeWriter
             && entity.Side is null
             && entity.Route is null
             && entity.ZIndex is null
-            && entity.Waypoints.Count == 0;
+            && entity.Segments.Count == 0;
     }
 
     /// <summary>

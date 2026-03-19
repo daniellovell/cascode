@@ -6,29 +6,25 @@ const cascode = require(workerData.packageRoot);
 
 const session = cascode.createSession("{}");
 try {
-  const opened = cascode.open(cascode.native, session, {
-    documentId: "doc-edit",
-    text: workerData.source
-  });
+  const opened = JSON.parse(
+    cascode.call(session, "document.open", JSON.stringify({
+      documentId: "doc-edit",
+      text: workerData.source
+    }))
+  );
 
-  const updated = cascode.applyOps(cascode.native, session, {
-    documentId: "doc-edit",
-    baseRevision: opened.revision,
-    operations: [
-      {
-        opId: "move-port-1",
-        type: "movePort",
-        port: "IN",
-        x: 1000,
-        y: 1000
-      }
-    ]
-  });
+  const rendered = JSON.parse(
+    cascode.call(session, "render.schematic", JSON.stringify({
+      documentId: "doc-edit",
+      mode: "manual",
+      persist: true
+    }))
+  );
 
-  const hasRenderBlock = updated.sourceText.includes("render {");
+  const hasRenderBlock = rendered.sourceText.includes("render {");
   parentPort.postMessage({
     kind: "edit",
-    revision: updated.document.revision,
+    revision: rendered.document.revision,
     hasRenderBlock
   });
 } finally {

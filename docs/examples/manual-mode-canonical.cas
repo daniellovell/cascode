@@ -1,0 +1,53 @@
+VERSION 3
+
+circuit ManualModeCanonical {
+  level EL
+
+  port IN: input
+  port OUT: output
+  port TAP: output
+
+  fill {
+    R1: resistor(P=IN N=n1)
+    R2: resistor(P=n1 N=OUT)
+    R3: resistor(P=n1 N=TAP)
+  }
+
+  render {
+    mode manual
+
+    IN {
+      place abs 0 4 hard
+      side left
+      seg ref IN ref R1.P
+    }
+
+    OUT {
+      // This diagonal segment demonstrates non-Manhattan manual geometry.
+      place abs 16 10 hard
+      side right
+      seg ref R2.N ref OUT
+    }
+
+    TAP {
+      place abs 8 12 hard
+      side bottom
+      seg ref TAP ref R3.N
+    }
+
+    R1 place abs 4 4 hard
+    R2 place abs 12 4 hard
+    R3 place abs 8 8 hard
+
+    n1 {
+      // Base segment across the main path.
+      seg ref R1.N ref R2.P
+
+      // Endpoint-on-interior of the first segment: valid T-junction connectivity.
+      seg ref R3.P abs 8 4
+
+      // If changed to `seg ref R3.P abs 8 0`, the crossing would have no shared
+      // endpoint and should fail manual connectivity validation.
+    }
+  }
+}

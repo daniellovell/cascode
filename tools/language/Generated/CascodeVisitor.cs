@@ -635,6 +635,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitRenderEntity([NotNull] CascodeParser.RenderEntityContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.renderModeDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderModeDecl([NotNull] CascodeParser.RenderModeDeclContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.renderEntityRef"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

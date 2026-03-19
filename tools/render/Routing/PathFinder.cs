@@ -7,7 +7,11 @@ using Cascode.Render.Layout;
 /// </summary>
 public static class PathFinder
 {
-    private static readonly int Pitch = DeviceGeometry.RoutingPitch;
+    /// <summary>
+    /// Jog step for alternate Manhattan paths (pixels). Kept larger than <see cref="DeviceGeometry.RoutingPitch"/>
+    /// so the router can clear dense terminal neighborhoods; coordinate snap still uses <c>RoutingPitch</c>.
+    /// </summary>
+    private const int JogStepPixels = 10;
 
     /// <summary>
     /// Finds a path from 'from' to 'to', avoiding obstacles, overlapping segments, and forbidden points.
@@ -176,7 +180,13 @@ public static class PathFinder
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
-        var offsets = new[] { Pitch, -Pitch, 2 * Pitch, -2 * Pitch };
+        var offsets = new[]
+        {
+            JogStepPixels,
+            -JogStepPixels,
+            2 * JogStepPixels,
+            -2 * JogStepPixels,
+        };
 
         // Try horizontal jog (route via intermediate Y)
         foreach (var dy in offsets)

@@ -140,7 +140,8 @@ public sealed class CircuitGraph
         var outputPorts = new HashSet<string>();
         var biasPorts = new HashSet<string>();
 
-        foreach (var port in circuit.Ports)
+        var expandedPorts = CircuitPortExpander.Expand(circuit);
+        foreach (var port in expandedPorts)
         {
             var domain = port.Type.ToLowerInvariant();
             if (domain == "bias")
@@ -184,7 +185,7 @@ public sealed class CircuitGraph
         {
             EnsureNet(netConnections, ground);
         }
-        foreach (var port in circuit.Ports)
+        foreach (var port in expandedPorts)
         {
             EnsureNet(netConnections, port.Name);
         }

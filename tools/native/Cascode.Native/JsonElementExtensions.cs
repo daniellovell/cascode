@@ -36,4 +36,14 @@ internal static class JsonElementExtensions
             ? child.GetString()
             : null;
     }
+
+    internal static JsonElement RequireProperty(this JsonElement element, string name)
+    {
+        if (element.TryGetProperty(name, out var child))
+        {
+            return child;
+        }
+
+        throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing field '{name}'.");
+    }
 }

@@ -84,6 +84,13 @@ function tryLoadAddonFromPath(addonPath) {
   return require(addonPath);
 }
 
+function getLocalAddonCandidates() {
+  return [
+    path.join(__dirname, "..", "build", "Release", "cascode_native_addon.node"),
+    path.join(__dirname, "..", "prebuilds", "cascode_native_addon.node"),
+  ];
+}
+
 /**
  * Attempts to load a platform-specific prebuilt native addon package and prepare its native library search path.
  *
@@ -175,10 +182,7 @@ function maybeResolveNativeLibraryPath() {
  */
 function tryLoadFromLocalBuild(errors) {
   maybeResolveNativeLibraryPath();
-  const localCandidates = [
-    path.join(__dirname, "..", "build", "Release", "cascode_native_addon.node"),
-    path.join(__dirname, "..", "prebuilds", "cascode_native_addon.node"),
-  ];
+  const localCandidates = getLocalAddonCandidates();
 
   for (const candidate of localCandidates) {
     try {
@@ -203,11 +207,22 @@ function tryLoadFromLocalBuild(errors) {
  */
 function loadAddonOrThrow() {
   const errors = [];
+  maybeResolveNativeLibraryPath();
+  const preferLocalBuild =
+    Boolean(process.env.CASCODE_NATIVE_LIB) ||
+    getLocalAddonCandidates().some((candidate) => fs.existsSync(candidate));
+  if (preferLocalBuild) {
+    const localAddon = tryLoadFromLocalBuild(errors);
+    if (localAddon) return localAddon;
+  }
+
   const prebuiltAddon = tryLoadFromPrebuiltPackage(errors);
   if (prebuiltAddon) return prebuiltAddon;
 
-  const localAddon = tryLoadFromLocalBuild(errors);
-  if (localAddon) return localAddon;
+  if (!preferLocalBuild) {
+    const localAddon = tryLoadFromLocalBuild(errors);
+    if (localAddon) return localAddon;
+  }
 
   throw new Error(
     "[cascode-native] Failed to load native addon.\n" +
@@ -263,191 +278,9 @@ function call(session, method, requestJson) {
   return addon.call(session, method, requestJson);
 }
 
-/**
- * Retrieve the last error for a session as a JSON string.
- * @param {*} session - Session handle returned by createSession.
- * @returns {string} The JSON-encoded error details for the session.
- */
-function lastErrorJson(session) {
-  return addon.lastErrorJson(session);
-}
-
-/**
- * Get the native addon's API version.
- * @returns {number} The API version number.
- */
-function apiVersion() {
-  return addon.apiVersion();
-}
-
-/**
- * Retrieve the schema version exposed by the native addon.
- * @returns {number} The schema version number.
- */
-function schemaVersion() {
-  return addon.schemaVersion();
-}
-
-/**
- * Invoke the native addon's `call` method with the given request and parse its JSON response.
- * @param {{call: function}} native - Native addon exposing a `call(session, method, json)` function.
- * @param {*} session - Session handle previously returned by `createSession`.
- * @param {string} method - Method name to invoke on the native addon.
- * @param {*} request - Request payload to be serialized to JSON and sent to the native addon.
- * @returns {*} The parsed response object returned by the native addon.
- */
-function parseCall(native, session, method, request) {
-  return JSON.parse(native.call(session, method, JSON.stringify(request)));
-}
-
-/**
- * Invoke the native "document.open" method and parse its JSON response.
- * @param {*} native - The loaded native addon module.
- * @param {*} session - The native session handle.
- * @param {*} req - The request payload (object or JSON string) to send to the native call.
- * @returns {object} The parsed JSON response from the native call.
- */
-function open(native, session, req) {
-  return parseCall(native, session, "document.open", req);
-}
-
-/**
- * Invoke the native addon's "document.updateText" method for a session and return the parsed response.
- * @param {Object} native - The loaded native addon module.
- * @param {*} session - The session handle returned by the native addon.
- * @param {Object|string} req - The request payload for the updateText call (object or JSON string).
- * @returns {Object} The parsed JSON response from the native method.
- */
-function updateText(native, session, req) {
-  return parseCall(native, session, "document.updateText", req);
-}
-
-/**
- * Close a document in the given session using the native addon.
- * @param {Object} native - The loaded native addon module.
- * @param {*} session - The session handle returned by createSession.
- * @param {Object} req - Request payload for the "document.close" call.
- * @returns {Object} The parsed JSON response returned by the native call.
- */
-function close(native, session, req) {
-  return parseCall(native, session, "document.close", req);
-}
-
-/**
- * Request a schematic render from the native addon and return its parsed response.
- * @param {object} native - The native addon module to invoke.
- * @param {*} session - The session handle previously returned by createSession.
- * @param {object|string} req - The render request (object or JSON string) to send to the native addon.
- * @returns {object} The parsed response object returned by the native render operation.
- */
-function render(native, session, req) {
-  return parseCall(native, session, "render.schematic", req);
-}
-
-/**
- * Invoke the native "schematic.applyOperations" method and return its parsed result.
- * @param {object} native - The native addon object exposing call bindings.
- * @param {*} session - The native session handle.
- * @param {*} req - The request payload to send; typically an object or JSON string.
- * @returns {object} The parsed response object from the native "schematic.applyOperations" call.
- */
-function applyOps(native, session, req) {
-  return parseCall(native, session, "schematic.applyOperations", req);
-}
-
-/**
- * Run electrical rule check for the given session and request.
- * @param {object} native - Loaded native addon exposing RPC methods.
- * @param {any} session - Session identifier returned by `createSession`.
- * @param {object|string} req - Request payload for the ERC operation.
- * @returns {object} The parsed response from the native `erc.run` call.
- */
-function erc(native, session, req) {
-  return parseCall(native, session, "erc.run", req);
-}
-
-/**
- * Invoke the native "emit.run" operation for the given session.
- * @param {object} native - The loaded native addon module.
- * @param {*} session - The session handle returned by createSession.
- * @param {object|string} req - The request payload (object or JSON string) for the emit operation.
- * @returns {object} The parsed response object from the "emit.run" operation.
- */
-function emit(native, session, req) {
-  return parseCall(native, session, "emit.run", req);
-}
-
-/**
- * Invoke the native "verify.run" method for the given session and request.
- * @param {*} native - The native addon module used to perform the call.
- * @param {*} session - The native session handle.
- * @param {string|Object} req - The request payload (JSON string or object) to send.
- * @returns {Object} The parsed response object returned by the native verify.run call.
- */
-function verify(native, session, req) {
-  return parseCall(native, session, "verify.run", req);
-}
-
-/**
- * Invoke the native "job.start" method for a session and return its parsed response.
- * @param {object} native - The loaded native addon exposing call APIs.
- * @param {*} session - The session handle returned by createSession.
- * @param {object} req - The request payload to send to the native method.
- * @returns {object} The parsed response object returned by the native addon.
- */
-function jobStart(native, session, req) {
-  return parseCall(native, session, "job.start", req);
-}
-
-/**
- * Polls the status of a background job.
- * @param {*} native - The native addon module to invoke.
- * @param {*} session - The session handle returned by createSession.
- * @param {Object} req - The request payload for the job poll.
- * @returns {*} The parsed response from the native `job.poll` call.
- */
-function jobPoll(native, session, req) {
-  return parseCall(native, session, "job.poll", req);
-}
-
-/**
- * Invoke the native "job.cancel" method and return its parsed JSON response.
- * @param {any} native - The loaded native addon module exposing the `call` entrypoint.
- * @param {number|string|object} session - Session identifier returned by `createSession`.
- * @param {object} req - Request payload for the cancel operation.
- * @returns {object} Parsed JSON response from the native `job.cancel` call.
- */
-function jobCancel(native, session, req) {
-  return parseCall(native, session, "job.cancel", req);
-}
-
-const native = {
-  createSession,
-  destroySession,
-  call,
-  lastErrorJson,
-  apiVersion,
-  schemaVersion
-};
-
 module.exports = {
-  native,
   stdlibPath,
   createSession,
   destroySession,
   call,
-  lastErrorJson,
-  apiVersion,
-  schemaVersion,
-  open,
-  updateText,
-  close,
-  render,
-  applyOps,
-  erc,
-  emit,
-  verify,
-  jobStart,
-  jobPoll,
-  jobCancel
 };

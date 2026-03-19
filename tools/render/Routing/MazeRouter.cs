@@ -34,7 +34,7 @@ public static partial class MazeRouter
     /// </summary>
     /// <param name="placement">Coarse placement result that defines canvas dimensions and component positions used for routing.</param>
     /// <param name="graph">Circuit graph describing nets and terminals to be routed.</param>
-    /// <param name="constraints">Optional routing constraints (for example per-net waypoints) that modify routing behaviour.</param>
+    /// <param name="constraints">Optional routing constraints (for example per-net guide points) that modify routing behaviour.</param>
     /// <returns>A RoutingResult containing wire segments, detected junctions, per-net segment lists, canvas size, and terminal positions.</returns>
     public static RoutingResult Route(
         CoarseGridResult placement,
@@ -53,7 +53,7 @@ public static partial class MazeRouter
     /// </summary>
     /// <param name="placement">Coarse-grid placement of devices used to compute canvas size and obstacles.</param>
     /// <param name="graph">Circuit connectivity including supplies and grounds to be routed.</param>
-    /// <param name="constraints">Optional per-net routing constraints (e.g., waypoints) to influence routing; null to use default behavior.</param>
+    /// <param name="constraints">Optional per-net routing constraints (e.g., guide points) to influence routing; null to use default behavior.</param>
     /// <returns>
     /// A tuple where `Result` is a RoutingResult containing routed segments, junctions, per-net segment lists, canvas dimensions, and terminal positions,
     /// and `Occupied` is the OccupiedSegments map reflecting all occupied grid segments after routing.
@@ -69,8 +69,28 @@ public static partial class MazeRouter
             placement.RowCount * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
 
         var terminals = ComputeTerminalPositions(placement, graph, canvasWidth, canvasHeight);
-        var terminalsByNet = GroupTerminalsByNet(terminals, graph);
         var obstacles = ObstacleMap.FromPlacement(placement, graph);
+        return RouteWithResolvedTerminals(
+            graph,
+            terminals,
+            obstacles,
+            canvasWidth,
+            canvasHeight,
+            constraints
+        );
+    }
+
+    internal static (RoutingResult Result, OccupiedSegments Occupied) RouteWithResolvedTerminals(
+        CircuitGraph graph,
+        IReadOnlyList<TerminalPosition> terminals,
+        IReadOnlyList<Obstacle> obstacles,
+        int canvasWidth,
+        int canvasHeight,
+        RouteConstraintSet? constraints = null
+    )
+    {
+        var terminalList = terminals.ToList();
+        var terminalsByNet = GroupTerminalsByNet(terminalList, graph);
         var occupied = new OccupiedSegments();
 
         var allSegments = new List<WireSegment>();
@@ -110,6 +130,12 @@ public static partial class MazeRouter
             var terms = terminalsByNet[netName];
             if (terms.Count < 2)
             {
+                if (terms.Count == 1)
+                {
+                    var stubSegs = RouteSingleTerminalSignalNet(netName, terms[0], canvasWidth);
+                    AddSegments(stubSegs, netName, occupied, allSegments, segmentsByNet);
+                }
+
                 continue;
             }
 
@@ -127,13 +153,13 @@ public static partial class MazeRouter
             if (
                 constraints is not null
                 && constraints.NetRoutes.TryGetValue(netName, out var routeConstraint)
-                && routeConstraint.Waypoints.Count > 0
+                && routeConstraint.GuidePoints.Count > 0
             )
             {
-                segs = RouteNetWithWaypoints(
+                segs = RouteNetWithGuidePoints(
                     netName,
                     terms,
-                    routeConstraint.Waypoints,
+                    routeConstraint.GuidePoints,
                     obstacles,
                     occupied,
                     forbiddenPoints
@@ -147,7 +173,7 @@ public static partial class MazeRouter
             AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
         }
 
-        var junctions = FindJunctions(allSegments, terminals);
+        var junctions = FindJunctions(allSegments, terminalList);
 
         var result = new RoutingResult
         {
@@ -156,10 +182,49 @@ public static partial class MazeRouter
             SegmentsByNet = segmentsByNet,
             CanvasWidth = canvasWidth,
             CanvasHeight = canvasHeight,
-            TerminalPositions = terminals,
+            TerminalPositions = terminalList,
         };
 
         return (result, occupied);
+    }
+
+    /// <summary>
+    /// Emits a short Manhattan stub so a single-terminal signal net (for example an input port with no fill
+    /// connections) still has drawable geometry that includes the terminal.
+    /// </summary>
+    private static List<WireSegment> RouteSingleTerminalSignalNet(
+        string netName,
+        TerminalPosition term,
+        int canvasWidth
+    )
+    {
+        const int stub = 10;
+        var x = term.X;
+        var y = term.Y;
+        if (x <= 0)
+        {
+            return [new WireSegment(new GridPoint(0, y), new GridPoint(stub, y), netName)];
+        }
+
+        if (x >= canvasWidth)
+        {
+            return
+            [
+                new WireSegment(
+                    new GridPoint(canvasWidth, y),
+                    new GridPoint(canvasWidth - stub, y),
+                    netName
+                ),
+            ];
+        }
+
+        var stubEndX = Math.Min(x + stub, canvasWidth);
+        if (stubEndX == x)
+        {
+            stubEndX = Math.Max(x - stub, 0);
+        }
+
+        return [new WireSegment(new GridPoint(x, y), new GridPoint(stubEndX, y), netName)];
     }
 
     /// <summary>
@@ -264,25 +329,25 @@ public static partial class MazeRouter
     }
 
     /// <summary>
-    /// Routes a net using the provided waypoints as intermediate anchors and produces a cleaned set of wire segments.
+    /// Routes a net using the provided guide points as intermediate anchors and produces a cleaned set of wire segments.
     /// </summary>
     /// <param name="netName">The name of the net being routed.</param>
     /// <param name="terminals">List of terminal positions belonging to the net.</param>
-    /// <param name="waypoints">Ordered grid points that the route should pass through; when empty or if fewer than two terminals are present, the method falls back to standard MST-based routing.</param>
+    /// <param name="guidePoints">Ordered grid points that the route should pass through; when empty or if fewer than two terminals are present, the method falls back to standard MST-based routing.</param>
     /// <param name="obstacles">Static obstacles to avoid during pathfinding.</param>
     /// <param name="occupied">Current occupied-segment tracker used to avoid collisions with already routed wires.</param>
     /// <param name="forbiddenPoints">Grid points that the route must not traverse (forbidden locations from other nets).</param>
     /// <returns>A list of WireSegment objects representing the routed net after merging collinear segments and removing redundant parallel paths.</returns>
-    private static List<WireSegment> RouteNetWithWaypoints(
+    private static List<WireSegment> RouteNetWithGuidePoints(
         string netName,
         List<TerminalPosition> terminals,
-        IReadOnlyList<GridPoint> waypoints,
+        IReadOnlyList<GridPoint> guidePoints,
         IReadOnlyList<Obstacle> obstacles,
         OccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
-        if (waypoints.Count == 0 || terminals.Count < 2)
+        if (guidePoints.Count == 0 || terminals.Count < 2)
         {
             return RouteNet(netName, terminals, obstacles, occupied, forbiddenPoints);
         }
@@ -290,17 +355,17 @@ public static partial class MazeRouter
         var rawSegments = new List<WireSegment>();
         var overlay = new OverlayOccupiedSegments(occupied);
 
-        var startTerminalIndex = SelectClosestTerminalIndex(terminals, waypoints[0], null);
+        var startTerminalIndex = SelectClosestTerminalIndex(terminals, guidePoints[0], null);
         var endTerminalIndex = SelectClosestTerminalIndex(
             terminals,
-            waypoints[^1],
+            guidePoints[^1],
             startTerminalIndex
         );
         var startTerminal = ToGridPoint(terminals[startTerminalIndex]);
         var endTerminal = ToGridPoint(terminals[endTerminalIndex]);
 
         var routePoints = new List<GridPoint> { startTerminal };
-        routePoints.AddRange(waypoints);
+        routePoints.AddRange(guidePoints);
         routePoints.Add(endTerminal);
 
         for (var i = 0; i + 1 < routePoints.Count; i++)

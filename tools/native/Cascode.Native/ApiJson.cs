@@ -36,14 +36,8 @@ internal static class ApiJson
             ) ?? new JsonObject();
     }
 
-    /// <summary>
-    /// Serialize a <see cref="StructuralInfo"/> instance to a <see cref="JsonNode"/>.
-    /// </summary>
-    /// <param name="structural">The structural information to serialize.</param>
-    /// <returns>A <see cref="JsonNode"/> representing the structural object; an empty <see cref="JsonObject"/> if serialization produces null.</returns>
-    public static JsonNode SerializeStructuralNode(StructuralInfo structural)
+    public static string SerializeRoutePreview(RoutePreviewResponse preview)
     {
-        return JsonSerializer.SerializeToNode(structural, ApiJsonContext.Default.StructuralInfo)
-            ?? new JsonObject();
+        return JsonSerializer.Serialize(preview, ApiJsonContext.Default.RoutePreviewResponse);
     }
 }

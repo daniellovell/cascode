@@ -2,9 +2,9 @@ namespace Cascode.Native;
 
 internal enum RenderSchematicMode
 {
-    RespectRenderBlock,
-    ReflowUnlocked,
-    RerenderFromScratch,
+    RespectDocument,
+    Auto,
+    Manual,
 }
 
 internal sealed class SchematicDocumentResponse
@@ -19,6 +19,21 @@ internal sealed class SchematicDocumentResponse
     public required RenderCacheInfo RenderCache { get; init; }
     public required IReadOnlyDictionary<string, SymbolCatalogEntry> SymbolCatalog { get; init; }
     public required IReadOnlyList<ApiDiagnostic> Diagnostics { get; init; }
+}
+
+internal sealed class RoutePreviewResponse
+{
+    public string Schema { get; init; } = "cascode.routePreview/1.0";
+    public required bool Valid { get; init; }
+    public required IReadOnlyList<SegmentValue> Segments { get; init; }
+    public required IReadOnlyList<RoutePreviewNet> Nets { get; init; }
+    public string? Diagnostic { get; init; }
+}
+
+internal sealed class RoutePreviewNet
+{
+    public required string Name { get; init; }
+    public required IReadOnlyList<SegmentValue> Segments { get; init; }
 }
 
 internal sealed class RenderSourceInfo
@@ -126,8 +141,26 @@ internal sealed class RenderCacheInfo
 
 internal sealed class ApiDiagnostic
 {
+    public required string Severity { get; init; }
     public required string Code { get; init; }
     public required string Message { get; init; }
+    public ApiDiagnosticEntityRefs? EntityRefs { get; init; }
+    public ApiDiagnosticGeometry? Geometry { get; init; }
+}
+
+internal sealed class ApiDiagnosticEntityRefs
+{
+    public string? DeviceId { get; init; }
+    public string? PortName { get; init; }
+    public string? NetName { get; init; }
+    public int? SegmentIndex { get; init; }
+}
+
+internal sealed class ApiDiagnosticGeometry
+{
+    public PointValue? Point { get; init; }
+    public SegmentValue? Segment { get; init; }
+    public BboxValue? Bbox { get; init; }
 }
 
 internal sealed class SymbolCatalogEntry
@@ -154,5 +187,5 @@ internal sealed class RenderComputationState
     public required Cascode.Render.Analysis.CircuitGraph Graph { get; init; }
     public required Cascode.Render.Placement.CoarseGridResult Placement { get; init; }
     public required Cascode.Render.Routing.RoutingResult Routing { get; init; }
-    public required IReadOnlyList<string> Diagnostics { get; init; }
+    public required IReadOnlyList<Cascode.Render.Layout.RenderDiagnostic> Diagnostics { get; init; }
 }

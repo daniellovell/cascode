@@ -7,15 +7,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const session = cascode.createSession("{}");
 try {
-  cascode.open(cascode.native, session, {
+  cascode.invoke(cascode.native, session, "document.open", {
     documentId: "doc-bench",
     text: workerData.source
   });
 
-  const started = cascode.jobStart(cascode.native, session, { documentId: "doc-bench" });
+  const started = cascode.invoke(cascode.native, session, "job.start", { documentId: "doc-bench" });
   let polled = { state: "running", progress: 0 };
   for (let i = 0; i < 30; i++) {
-    polled = cascode.jobPoll(cascode.native, session, { jobId: started.jobId });
+    polled = cascode.invoke(cascode.native, session, "job.poll", { jobId: started.jobId });
     if (polled.state !== "running") {
       break;
     }
@@ -24,9 +24,9 @@ try {
   }
 
   if (polled.state === "running") {
-    cascode.jobCancel(cascode.native, session, { jobId: started.jobId });
+    cascode.invoke(cascode.native, session, "job.cancel", { jobId: started.jobId });
     for (let i = 0; i < 20; i++) {
-      polled = cascode.jobPoll(cascode.native, session, { jobId: started.jobId });
+      polled = cascode.invoke(cascode.native, session, "job.poll", { jobId: started.jobId });
       if (polled.state !== "running") {
         break;
       }

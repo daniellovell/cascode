@@ -7,6 +7,7 @@ namespace Cascode.Language;
 /// </summary>
 public sealed class RenderBlock
 {
+    public RenderLayoutMode Mode { get; init; } = RenderLayoutMode.Auto;
     public List<RenderEntity> Entities { get; init; } = new();
 }
 
@@ -24,7 +25,13 @@ public sealed class RenderEntity
     public int? ZIndex { get; set; }
     public RenderPortSide? Side { get; set; }
     public RenderRoute? Route { get; set; }
-    public List<RenderPointExpression> Waypoints { get; init; } = new();
+    public List<RenderSegment> Segments { get; init; } = new();
+}
+
+public enum RenderLayoutMode
+{
+    Auto,
+    Manual,
 }
 
 /// <summary>
@@ -103,6 +110,15 @@ public sealed record RenderAbsPoint(int X, int Y) : RenderPointExpression;
 public sealed record RenderRefPoint(string Anchor, int Dx, int Dy) : RenderPointExpression;
 
 /// <summary>
-/// Point relative to the previous waypoint in render units.
+/// Point relative to the previously resolved point in render units.
 /// </summary>
 public sealed record RenderRelPoint(int Dx, int Dy) : RenderPointExpression;
+
+/// <summary>
+/// Explicit rendered segment between two point expressions.
+/// </summary>
+public sealed class RenderSegment
+{
+    public required RenderPointExpression From { get; init; }
+    public required RenderPointExpression To { get; init; }
+}

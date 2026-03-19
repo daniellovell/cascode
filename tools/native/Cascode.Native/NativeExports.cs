@@ -117,27 +117,15 @@ public static unsafe class NativeExports
     }
 
     /// <summary>
-    /// Invokes the "convert.toStructural" API for the specified session using the given JSON request.
+    /// Dispatches a "source.rewriteSchematic" request for the specified session.
     /// </summary>
-    /// <param name="session">Session identifier returned by CreateSession.</param>
-    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty object ({}).</param>
-    /// <returns>A pointer to a UTF-8 encoded JSON response, or <see cref="IntPtr.Zero"/> if an error occurred (the session's last error will contain error details).</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_convert_to_structural")]
-    public static IntPtr ConvertToStructural(int session, byte* requestJson)
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <see cref="IntPtr.Zero"/> if an error occurred.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_source_rewrite_schematic")]
+    public static IntPtr SourceRewriteSchematic(int session, byte* requestJson)
     {
-        return Invoke(session, requestJson, "convert.toStructural");
-    }
-
-    /// <summary>
-    /// Invokes the "convert.toCas" API for the specified session using the provided JSON request.
-    /// </summary>
-    /// <param name="session">The session identifier.</param>
-    /// <param name="requestJson">A pointer to a UTF-8 encoded JSON request; may be null, which is treated as "{}".</param>
-    /// <returns>A pointer to a UTF-8 encoded JSON response on success, or <see cref="IntPtr.Zero"/> on error (the session's last error will be recorded).</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_convert_to_cas")]
-    public static IntPtr ConvertToCas(int session, byte* requestJson)
-    {
-        return Invoke(session, requestJson, "convert.toCas");
+        return Invoke(session, requestJson, "source.rewriteSchematic");
     }
 
     /// <summary>
@@ -153,63 +141,27 @@ public static unsafe class NativeExports
     }
 
     /// <summary>
-    /// Dispatches a "schematic.applyOperations" request for the specified session.
+    /// Dispatches a "schematic.captureManualSnapshot" request for the specified session.
+    /// </summary>
+    /// <param name="session">The session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
+    /// <returns>A pointer to a UTF-8 encoded JSON response, or <see cref="IntPtr.Zero"/> if an error occurred.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_capture_manual_snapshot")]
+    public static IntPtr SchematicCaptureManualSnapshot(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "schematic.captureManualSnapshot");
+    }
+
+    /// <summary>
+    /// Dispatches a "schematic.previewRoute" request for the specified session.
     /// </summary>
     /// <param name="session">The session identifier returned by CreateSession.</param>
     /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to indicate an empty request.</param>
     /// <returns>A pointer to a UTF-8 encoded JSON response, or <c>IntPtr.Zero</c> if an error occurred. In case of error the session's last error is updated.</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_apply_ops")]
-    public static IntPtr SchematicApplyOps(int session, byte* requestJson)
+    [UnmanagedCallersOnly(EntryPoint = "cascode_schematic_preview_route")]
+    public static IntPtr SchematicPreviewRoute(int session, byte* requestJson)
     {
-        return Invoke(session, requestJson, "schematic.applyOperations");
-    }
-
-    /// <summary>
-    /// Invokes the "erc.run" API method for the specified session.
-    /// </summary>
-    /// <param name="session">The session identifier returned by CreateSession.</param>
-    /// <param name="requestJson">A pointer to a UTF-8 JSON request; may be null to use an empty request ("{}").</param>
-    /// <returns>A pointer to a UTF-8 JSON response. Returns <see cref="IntPtr.Zero"/> on error and records the error in the session's last-error store.</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_erc_run")]
-    public static IntPtr ErcRun(int session, byte* requestJson)
-    {
-        return Invoke(session, requestJson, "erc.run");
-    }
-
-    /// <summary>
-    /// Process an "emit.run" request for the specified session using the provided JSON request.
-    /// </summary>
-    /// <param name="session">The session identifier to target.</param>
-    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null.</param>
-    /// <returns>An IntPtr to a UTF-8 encoded response string, or <see cref="IntPtr.Zero"/> if an error occurred.</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_emit_run")]
-    public static IntPtr EmitRun(int session, byte* requestJson)
-    {
-        return Invoke(session, requestJson, "emit.run");
-    }
-
-    /// <summary>
-    /// Handles the "verify.run" API method for the given session using the provided request JSON and returns the response as a UTF-8 pointer.
-    /// </summary>
-    /// <param name="session">The session identifier.</param>
-    /// <param name="requestJson">A pointer to a UTF-8 encoded JSON request; may be null to use an empty/default request.</param>
-    /// <returns>An IntPtr pointing to a UTF-8 encoded JSON response, or IntPtr.Zero on error (the session's last error will be set).</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_verify_run")]
-    public static IntPtr VerifyRun(int session, byte* requestJson)
-    {
-        return Invoke(session, requestJson, "verify.run");
-    }
-
-    /// <summary>
-    /// Execute the "command.execute" API method for the specified session using the provided JSON request.
-    /// </summary>
-    /// <param name="session">Session identifier returned by CreateSession.</param>
-    /// <param name="requestJson">Pointer to a UTF-8 encoded JSON request; may be null to use an empty object ("{}").</param>
-    /// <returns>Pointer to a UTF-8 encoded JSON response, or <c>IntPtr.Zero</c> on error.</returns>
-    [UnmanagedCallersOnly(EntryPoint = "cascode_command_execute")]
-    public static IntPtr CommandExecute(int session, byte* requestJson)
-    {
-        return Invoke(session, requestJson, "command.execute");
+        return Invoke(session, requestJson, "schematic.previewRoute");
     }
 
     /// <summary>

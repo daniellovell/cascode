@@ -35,7 +35,8 @@ circuit Test {{
     }}
     n1 {{
       route ortho soft
-      wp [ref M1.D, rel 0 6, ref OUT]
+      seg ref M1.D rel 0 6
+      seg rel 0 0 ref OUT
     }}
   }}
 }}
@@ -60,7 +61,66 @@ circuit Test {{
         Assert.Contains("render {", output1);
         Assert.Contains("M1 place ref IN 12 0 hard", output1);
         Assert.Contains("route ortho soft", output1);
-        Assert.Contains("wp [ref M1.D, rel 0 6, ref OUT]", output1);
+        Assert.Contains("seg ref M1.D rel 0 6", output1);
+        Assert.Contains("seg rel 0 0 ref OUT", output1);
+        Assert.DoesNotContain("wp [", output1);
+    }
+
+    [Fact]
+    public void ParseWrite_ManualRenderBlock_PreservesModeWithoutDiagnostics()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit ManualRender {{
+  level EL
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    net n1 : analog
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
+      .G--IN
+      .D--n1
+      .S--GND
+    }}
+    n1--OUT
+  }}
+  render {{
+    mode manual
+    GND {{
+      seg ref M1.S abs 8 20
+    }}
+    IN {{
+      place abs 0 8 hard
+      side left
+      seg ref IN rel 6 0
+    }}
+    M1 place ref IN 12 0 hard
+    OUT {{
+      place abs 30 8 hard
+      side right
+      seg rel 0 0 ref OUT
+    }}
+    n1 {{
+      seg ref M1.D rel 0 6
+      seg rel 0 0 ref OUT
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "manual-render.cas");
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
+
+        using var writer = new StringWriter();
+        CascodeWriter.Write(result.Document!, writer);
+        var output = writer.ToString();
+
+        Assert.Contains("mode manual", output);
+        Assert.Contains("seg ref IN rel 6 0", output);
+        Assert.Contains("seg ref M1.D rel 0 6", output);
     }
 
     [Fact]
@@ -182,6 +242,169 @@ circuit LowercaseAnchor {{
 ";
 
         var result = CascodeReader.TryParse(source, "lowercase-anchor.cas");
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
+    }
+
+    [Fact]
+    public void Parse_ManualRender_MissingExplicitPlacement_ReportsDiagnostic()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit ManualIncomplete {{
+  level EL
+  input IN : analog
+  ground GND
+  fill {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
+      .G--IN
+      .D--GND
+      .S--GND
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 8 hard
+      side left
+      seg ref IN ref M1.G
+    }}
+    GND {{
+      seg ref M1.D ref M1.S
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "manual-incomplete.cas");
+        Assert.True(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains("CAS3200")
+                && d.Message.Contains("Manual render requires an explicit place for device 'M1'")
+        );
+    }
+
+    [Fact]
+    public void Parse_ManualRender_WithAnchoredSnapshotStyleSegments_HasNoDiagnostics()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit SnapshotStyle {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  fill {{
+    net n1 : analog
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--n1
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--n1
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN {{
+      place abs 0 4 hard
+      side left
+      route ortho hard
+      seg ref IN ref R1.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      route ortho hard
+      seg ref R2.N ref OUT
+    }}
+    R1 {{
+      place abs 4 4 hard
+      orient 0
+    }}
+    R2 {{
+      place abs 12 4 hard
+      orient 0
+    }}
+    n1 {{
+      route ortho hard
+      seg ref R1.N abs 8 4
+      seg abs 8 4 ref R2.P
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "snapshot-style.cas");
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
+    }
+
+    [Fact]
+    public void Parse_ManualRender_WithIncludeDefinedDiffLeafPorts_HasNoDiagnostics()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+include lib.std
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor_ideal""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit SnapshotDiff {{
+  level EL
+  input IN : Diff
+  output OUT : analog
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN.P
+      .N--OUT
+    }}
+    Resistor R2 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN.N
+      .N--OUT
+    }}
+  }}
+  render {{
+    mode manual
+    IN.P {{
+      place abs 0 2 hard
+      side left
+      seg ref IN.P ref R1.P
+    }}
+    IN.N {{
+      place abs 0 6 hard
+      side left
+      seg ref IN.N ref R2.P
+    }}
+    OUT {{
+      place abs 16 4 hard
+      side right
+      seg ref R1.N abs 12 4
+      seg ref R2.N abs 12 4
+      seg abs 12 4 ref OUT
+    }}
+    R1 place abs 4 2 hard
+    R2 place abs 4 6 hard
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "snapshot-diff.cas");
         Assert.True(result.Success);
         Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
     }

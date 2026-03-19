@@ -1,13 +1,24 @@
 # RFC-0006: First-Class `render {}` Blocks and Native Editor API
 
-Status: Draft
+Status: Superseded (historical)
 Authors: Codex (proposed), Daniel Lovell (review)
 Created: 2026-02-10
-Last Updated: 2026-02-16
+Last Updated: 2026-03-15
 Target Version: Cascode 0.6.x (package); format version 3.2
 Related: WYSIWYG schematic editing, Node bindings for Cascode toolchain
 
 ---
+
+> This document is retained for historical context only.
+>
+> The active schematic/editor contract is defined in `docs/rfcs/0012-manual-schematic-mode-and-editor-contract.md`.
+> That RFC is authoritative for:
+> - `render { mode auto|manual }`
+> - `seg`-based net geometry (no `wp` semantics)
+> - `setNetSegments`, `movePort`, `setPortSide`, `rotateDevice`, and `mirrorDevice`
+> - structured diagnostics (`severity`, `code`, `entityRefs`, `geometry`)
+>
+> If any guidance below conflicts with RFC-0012, treat this RFC as obsolete.
 
 ## Abstract
 

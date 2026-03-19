@@ -685,3 +685,82 @@ magnitude/phase space (with shortest-path phase interpolation). To get a real ma
 `voltage(ac, OUT).ValueAt(x).Mag()`. These two forms are equivalent for magnitude interpolation.
 When a neighboring complex endpoint has near-zero magnitude, `ValueAt(x)` uses the nearest
 non-zero endpoint phase.
+
+---
+
+## 2.14 Schematic render layout
+
+A circuit MAY include optional schematic layout metadata in a `render { ... }` block. This block
+does not change electrical connectivity; it guides placement and routing for schematic views and
+related tooling. Surface syntax is specified in [Chapter 3, Section 3.13](./Ch03_Syntax_Reference.md#313-render-blocks); the authoritative grammar is
+[tools/language/Cascode.g4](../../tools/language/Cascode.g4).
+
+The circuit member list is processed in source order. If more than one `render { }` member appears,
+the implementation retains only the last one. Documents SHOULD contain at most one `render` block per
+circuit.
+
+### 2.14.1 Layout mode
+
+The block MAY begin with a mode declaration:
+
+- `mode auto` — default when the mode declaration is omitted (including when no `render` block is
+  present).
+- `mode manual` — explicit geometry; failures are reported rather than silently falling back to
+  automatic layout.
+
+No other `mode` keywords are valid; the reader rejects unknown mode names.
+
+### 2.14.2 Net path geometry (`seg`) and historical `wp`
+
+Persisted net path geometry MUST be expressed only with `seg` statements: each `seg` records a
+line segment between two [point expressions](./Ch03_Syntax_Reference.md#3133-point-expressions) (`abs`, `ref`, or `rel`).
+
+The historical waypoint form `wp` is not part of the language surface. Documents MUST NOT use `wp`;
+tools MUST NOT emit it.
+
+The `route` field on a net entity names a routing strategy (for example automatic orthogonal routing)
+and an optional constraint strength. It is not a polyline and MUST NOT be treated as a substitute
+for explicit `seg` geometry.
+
+### 2.14.3 Semantics of `mode auto`
+
+Placement and routing remain solver-driven. Explicit `seg` entries MAY appear as guidance or hints
+for the router; they are not interpreted as mandatory exact geometry that overrides successful
+automatic routing.
+
+### 2.14.4 Semantics of `mode manual`
+
+Geometry is explicit and fail-fast. Implementations MUST NOT silently substitute automatic layout
+when required manual data is missing or invalid.
+
+During validation and schematic resolution, `mode manual` requires, for the circuit’s structural
+entities:
+
+- each fill-block device: an explicit `place`;
+- each circuit port: an explicit `place` and an explicit `side` declaration (the side MUST be a
+  concrete edge: `left`, `right`, `top`, or `bottom` — not `auto` — for manual schematic workflows
+  that consume this layout);
+- each net that participates in the layout (including supplies, grounds, declared nets, and port nets):
+  at least one `seg`.
+
+Device `orient` / mirror and `zindex` are used when authors edit orientation or stacking; they are
+not required by the same completeness pass as `place` for every device, but omitted orientation
+uses implementation defaults where applicable.
+
+Relative point forms (`rel`) in `place` positions for devices and ports are invalid in the render
+validator; segment endpoints MAY use `rel` where the implementation resolves them in segment order.
+
+### 2.14.5 Connectivity of manual segments
+
+For a net in `mode manual`, explicit segments form a geometric graph:
+
+- If an endpoint of one segment lies in the interior of another segment (not at its endpoints), the
+  two segments are connected (a T-junction).
+- Two segments that cross without sharing an endpoint do not connect.
+- Segments that do not connect the net’s required terminals, or that leave dangling geometry, are
+  errors.
+
+### 2.14.6 See also
+
+Editor and native API contracts (operation names, diagnostic fields, and workflow boundaries) are
+specified in [RFC-0012: Manual schematic mode and editor contract](../../docs/rfcs/0012-manual-schematic-mode-and-editor-contract.md).

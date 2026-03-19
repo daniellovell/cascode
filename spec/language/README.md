@@ -32,7 +32,7 @@ Linking also extracts synthesis guidance into `<name>.synth.yaml`.
 - Chapter 1 ([Ch01_Introduction.md](./Ch01_Introduction.md)) gives the language and toolchain overview.
 - Chapter 2 ([Ch02_Core_Concepts.md](./Ch02_Core_Concepts.md)) defines the semantic model: terminals, connectivity, benches,
   constraints, and harness/environment intent.
-- Chapter 3 ([Ch03_Syntax_Reference.md](./Ch03_Syntax_Reference.md)) is a syntax-oriented reference aligned to the grammar.
+- Chapter 3 ([Ch03_Syntax_Reference.md](./Ch03_Syntax_Reference.md)) is a syntax-oriented reference aligned to the grammar, including `render { }` schematic layout blocks.
 - Chapter 4 ([Ch04_Bench_System.md](./Ch04_Bench_System.md)) specifies declarative benches, bindings, and measurement
   expressions.
 

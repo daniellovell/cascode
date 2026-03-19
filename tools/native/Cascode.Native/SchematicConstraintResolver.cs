@@ -27,11 +27,31 @@ internal static class SchematicConstraintResolver
         bool allowRelaxation
     )
     {
-        var diagnostics = new List<string>();
+        var diagnostics = new List<RenderDiagnostic>();
         var attach = new AttachResolver(document).Resolve();
         var resolution = attach.CircuitResults.GetValueOrDefault(circuit.Name);
         var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
         var graph = CircuitGraph.Build(flattened);
+
+        if (render?.Mode == RenderLayoutMode.Manual)
+        {
+            try
+            {
+                var exact = ExactSchematicResolver.Resolve(flattened.RootCircuit, graph, render);
+                return new RenderComputationState
+                {
+                    Graph = graph,
+                    Placement = exact.Placement,
+                    Routing = exact.Routing,
+                    Diagnostics = exact.Diagnostics,
+                };
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new ApiException("CASAPI-MANUAL-INVALID", ex.Message);
+            }
+        }
+
         var topology = TopologyAnalyzer.Analyze(graph);
 
         var baselinePlacement = CoarseGridPlacer.Place(topology, graph);
@@ -78,6 +98,40 @@ internal static class SchematicConstraintResolver
         };
     }
 
+    public static RenderComputationState ComputeExactManualPlacementRouting(
+        CascodeDocument document,
+        Circuit circuit,
+        RenderBlock render,
+        RouteConstraintSet? routeConstraints = null
+    )
+    {
+        var attach = new AttachResolver(document).Resolve();
+        var resolution = attach.CircuitResults.GetValueOrDefault(circuit.Name);
+        var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
+        var graph = CircuitGraph.Build(flattened);
+
+        try
+        {
+            var exactPlacement = ExactSchematicResolver.ResolvePlacementContext(
+                flattened.RootCircuit,
+                graph,
+                render
+            );
+            var routing = ExactPlacementRouter.Route(graph, exactPlacement, routeConstraints);
+            return new RenderComputationState
+            {
+                Graph = graph,
+                Placement = exactPlacement.Placement,
+                Routing = routing,
+                Diagnostics = exactPlacement.Diagnostics,
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ApiException("CASAPI-MANUAL-INVALID", ex.Message);
+        }
+    }
+
     /// <summary>
     /// Builds a placement constraint set from the provided render block using resolved anchors.
     /// </summary>
@@ -90,7 +144,7 @@ internal static class SchematicConstraintResolver
         RenderBlock? render,
         IReadOnlyDictionary<string, PointValue> anchors,
         bool allowRelaxation,
-        List<string> diagnostics
+        List<RenderDiagnostic> diagnostics
     )
     {
         if (render is null)
@@ -111,7 +165,15 @@ internal static class SchematicConstraintResolver
             var point = EvaluatePoint(entity.Place.Point, anchors, previous: null);
             if (point is null)
             {
-                diagnostics.Add($"Could not resolve placement point for '{entity.Name}'.");
+                diagnostics.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-AUTO-PLACE-POINT-UNRESOLVED",
+                        Message = $"Could not resolve placement point for '{entity.Name}'.",
+                        EntityRefs = new RenderDiagnosticEntityRefs { DeviceId = entity.Name },
+                    }
+                );
                 continue;
             }
 
@@ -138,12 +200,12 @@ internal static class SchematicConstraintResolver
     }
 
     /// <summary>
-    /// Constructs routing constraints for nets declared in the provided render block by resolving each net's waypoints into grid coordinates.
+    /// Constructs routing constraints for nets declared in the provided render block by resolving each net's explicit segments into guide points.
     /// </summary>
     /// <param name="render">The optional render block containing net route definitions; when null, no constraints are produced.</param>
-    /// <param name="anchors">Mapping of anchor names to resolved render-space points used to evaluate waypoint expressions.</param>
+    /// <param name="anchors">Mapping of anchor names to resolved render-space points used to evaluate segment expressions.</param>
     /// <param name="allowRelaxation">When true, allows produced route constraints to be marked as relaxable.</param>
-    /// <param name="diagnostics">A list that will be appended with messages for any unresolved waypoints encountered while building constraints.</param>
+    /// <param name="diagnostics">A list that will be appended with messages for any unresolved segments encountered while building constraints.</param>
     /// <returns>
     /// A <see cref="RouteConstraintSet"/> containing net route constraints and the relaxation flag, or null if no net routes were defined or none could be resolved.
     /// </returns>
@@ -151,7 +213,7 @@ internal static class SchematicConstraintResolver
         RenderBlock? render,
         IReadOnlyDictionary<string, PointValue> anchors,
         bool allowRelaxation,
-        List<string> diagnostics
+        List<RenderDiagnostic> diagnostics
     )
     {
         if (render is null)
@@ -160,33 +222,40 @@ internal static class SchematicConstraintResolver
         }
 
         var netRoutes = new Dictionary<string, NetRouteConstraint>(StringComparer.Ordinal);
-        foreach (var entity in render.Entities.Where(entry => entry.Kind == RenderEntityKind.Net))
+        var renderAnchors = anchors.ToDictionary(
+            entry => entry.Key,
+            entry => new RenderUnitPoint(
+                (int)Math.Round(entry.Value.X),
+                (int)Math.Round(entry.Value.Y)
+            ),
+            StringComparer.Ordinal
+        );
+        foreach (var entity in render.Entities.Where(entry => entry.Segments.Count > 0))
         {
-            if (entity.Waypoints.Count == 0)
+            IReadOnlyList<ResolvedRenderSegment> resolvedSegments;
+            try
             {
+                resolvedSegments = ExactSchematicResolver.ResolveSegments(
+                    entity.Segments,
+                    renderAnchors,
+                    entity.Name
+                );
+            }
+            catch (InvalidOperationException ex)
+            {
+                diagnostics.Add(
+                    new RenderDiagnostic
+                    {
+                        Severity = RenderDiagnosticSeverity.Warning,
+                        Code = "CASRENDER-AUTO-NET-SEGMENT-UNRESOLVED",
+                        Message = ex.Message,
+                        EntityRefs = new RenderDiagnosticEntityRefs { NetName = entity.Name },
+                    }
+                );
                 continue;
             }
 
-            PointValue? previous = null;
-            var points = new List<GridPoint>();
-            foreach (var waypoint in entity.Waypoints)
-            {
-                var resolved = EvaluatePoint(waypoint, anchors, previous);
-                if (resolved is null)
-                {
-                    diagnostics.Add($"Could not resolve waypoint for net '{entity.Name}'.");
-                    continue;
-                }
-
-                previous = resolved;
-                points.Add(
-                    new GridPoint(
-                        ToPixels((int)Math.Round(resolved.X)),
-                        ToPixels((int)Math.Round(resolved.Y))
-                    )
-                );
-            }
-
+            var points = FlattenGuidePoints(resolvedSegments);
             if (points.Count == 0)
             {
                 continue;
@@ -210,6 +279,24 @@ internal static class SchematicConstraintResolver
             NetRoutes = netRoutes,
             AllowConstraintRelaxation = allowRelaxation,
         };
+    }
+
+    private static List<GridPoint> FlattenGuidePoints(IReadOnlyList<ResolvedRenderSegment> segments)
+    {
+        var points = new List<GridPoint>(segments.Count + 1);
+        foreach (var segment in segments)
+        {
+            var from = new GridPoint(segment.From.X, segment.From.Y);
+            var to = new GridPoint(segment.To.X, segment.To.Y);
+            if (points.Count == 0 || points[^1] != from)
+            {
+                points.Add(from);
+            }
+
+            points.Add(to);
+        }
+
+        return points;
     }
 
     /// <summary>
@@ -268,8 +355,8 @@ internal static class SchematicConstraintResolver
             ["canvas origin"] = new PointValue { X = 0, Y = 0 },
             ["canvas center"] = new PointValue
             {
-                X = ToRenderUnits(routing.CanvasWidth / 2),
-                Y = ToRenderUnits(routing.CanvasHeight / 2),
+                X = routing.CanvasWidth / 2,
+                Y = routing.CanvasHeight / 2,
             },
         };
 
@@ -277,8 +364,8 @@ internal static class SchematicConstraintResolver
         {
             map[deviceId] = new PointValue
             {
-                X = ToRenderUnits((int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column))),
-                Y = ToRenderUnits((int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row))),
+                X = (int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column)),
+                Y = (int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row)),
             };
         }
 
@@ -287,22 +374,18 @@ internal static class SchematicConstraintResolver
             if (terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
             {
                 var portName = terminal.DeviceId[5..];
-                map[portName] = new PointValue
-                {
-                    X = ToRenderUnits(terminal.X),
-                    Y = ToRenderUnits(terminal.Y),
-                };
+                map[portName] = new PointValue { X = terminal.X, Y = terminal.Y };
                 continue;
             }
 
             map[$"{terminal.DeviceId}.{terminal.Terminal}"] = new PointValue
             {
-                X = ToRenderUnits(terminal.X),
-                Y = ToRenderUnits(terminal.Y),
+                X = terminal.X,
+                Y = terminal.Y,
             };
         }
 
-        foreach (var port in circuit.Ports)
+        foreach (var port in CircuitPortExpander.Expand(circuit))
         {
             if (!map.ContainsKey(port.Name))
             {
@@ -314,26 +397,5 @@ internal static class SchematicConstraintResolver
         }
 
         return map;
-    }
-
-    /// <summary>
-    /// Converts a length in pixels to render-space routing units.
-    /// </summary>
-    /// <param name="pixels">Length in pixels.</param>
-    /// <returns>The equivalent length in render units, rounded to the nearest integer with .5 values rounded away from zero.</returns>
-    private static int ToRenderUnits(int pixels)
-    {
-        return (int)
-            Math.Round(pixels / (double)DeviceGeometry.RoutingPitch, MidpointRounding.AwayFromZero);
-    }
-
-    /// <summary>
-    /// Convert render units to pixels.
-    /// </summary>
-    /// <param name="renderUnits">The value in render units.</param>
-    /// <returns>The equivalent value in pixels.</returns>
-    private static int ToPixels(int renderUnits)
-    {
-        return renderUnits * DeviceGeometry.RoutingPitch;
     }
 }
