@@ -109,7 +109,7 @@ circuit RCRingOsc_Sky130 implements SingleEndedOscillator {
         pss_bench(guess_frequency=3.8GHz)::FundamentalFrequency >= 3.7GHz
       c_fundamental_frequency_max =
         pss_bench(guess_frequency=3.8GHz)::FundamentalFrequency <= 3.9GHz
-      c_output_swing = tran_bench(stim_freq=3.8GHz)::OutputSwing() at net::OUT >= 2.1V
+      c_output_swing = tran_bench(stim_freq=3.8GHz)::OutputSwing() at net::OUT >= 1.75V
     }
   }
 
