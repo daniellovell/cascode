@@ -278,52 +278,9 @@ function call(session, method, requestJson) {
   return addon.call(session, method, requestJson);
 }
 
-/**
- * Retrieve the last error for a session as a JSON string.
- * @param {*} session - Session handle returned by createSession.
- * @returns {string} The JSON-encoded error details for the session.
- */
-function lastErrorJson(session) {
-  return addon.lastErrorJson(session);
-}
-
-/**
- * Get the native addon's API version.
- * @returns {number} The API version number.
- */
-function apiVersion() {
-  return addon.apiVersion();
-}
-
-/**
- * Retrieve the schema version exposed by the native addon.
- * @returns {number} The schema version number.
- */
-function schemaVersion() {
-  return addon.schemaVersion();
-}
-
-function invoke(native, session, method, request = {}) {
-  return JSON.parse(native.call(session, method, JSON.stringify(request)));
-}
-
-const native = {
-  createSession,
-  destroySession,
-  call,
-  lastErrorJson,
-  apiVersion,
-  schemaVersion
-};
-
 module.exports = {
-  native,
   stdlibPath,
   createSession,
   destroySession,
   call,
-  invoke,
-  lastErrorJson,
-  apiVersion,
-  schemaVersion
 };

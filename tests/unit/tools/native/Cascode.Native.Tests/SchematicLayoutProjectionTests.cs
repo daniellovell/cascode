@@ -569,7 +569,10 @@ public sealed class SchematicLayoutProjectionTests
     [InlineData(0, 0, false)]
     [InlineData(1, 0, false)]
     public void BuildLayoutDevice_ManualHardPlacement_PositionIsTerminalCentroid(
-        int row, int col, bool mirrorX)
+        int row,
+        int col,
+        bool mirrorX
+    )
     {
         double rp = DeviceGeometry.RoutingPitch;
 
@@ -589,14 +592,18 @@ public sealed class SchematicLayoutProjectionTests
 
         var circuit = new Circuit
         {
-            Name = "ManualTest", Level = CascodeLevel.EL, Ports = [],
+            Name = "ManualTest",
+            Level = CascodeLevel.EL,
+            Ports = [],
             Fill = new FillBlock
             {
                 Devices =
                 [
                     new DeviceDeclaration
                     {
-                        Id = "M1", DeviceType = "nmos", Primitive = "nfet_01v8",
+                        Id = "M1",
+                        DeviceType = "nmos",
+                        Primitive = "nfet_01v8",
                     },
                 ],
             },
@@ -616,18 +623,15 @@ public sealed class SchematicLayoutProjectionTests
                         Point = new RenderAbsPoint(roundedX, roundedY),
                         Strength = RenderConstraintStrength.Hard,
                     },
-                    Orientation = new RenderOrientation
-                    {
-                        Rotate = 0,
-                        MirrorX = mirrorX,
-                    },
+                    Orientation = new RenderOrientation { Rotate = 0, MirrorX = mirrorX },
                 },
             ],
         };
 
         var placement = new CoarseGridResult
         {
-            RowCount = row + 1, ColumnCount = col + 1,
+            RowCount = row + 1,
+            ColumnCount = col + 1,
             DevicePlacements = new Dictionary<string, GridCell>
             {
                 ["M1"] = new GridCell(row, col, mirrorX),
@@ -638,9 +642,13 @@ public sealed class SchematicLayoutProjectionTests
 
         var routing = new RoutingResult
         {
-            Segments = [], Junctions = [],
-            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(StringComparer.Ordinal),
-            CanvasWidth = 200, CanvasHeight = 200,
+            Segments = [],
+            Junctions = [],
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(
+                StringComparer.Ordinal
+            ),
+            CanvasWidth = 200,
+            CanvasHeight = 200,
             TerminalPositions = autoTerminals,
         };
 
@@ -656,9 +664,23 @@ public sealed class SchematicLayoutProjectionTests
         var catalog = SchematicLayoutProjection.BuildSymbolCatalog(
             new StructuralInfo
             {
-                Devices = [new StructuralDevice { Id = "M1", Type = "nmos", Terminals = ["G", "D", "S"], Primitive = "nfet_01v8", Size = new Dictionary<string, string>() }],
-                Ports = [], Nets = [], Supplies = [], Grounds = [],
-            });
+                Devices =
+                [
+                    new StructuralDevice
+                    {
+                        Id = "M1",
+                        Type = "nmos",
+                        Terminals = ["G", "D", "S"],
+                        Primitive = "nfet_01v8",
+                        Size = new Dictionary<string, string>(),
+                    },
+                ],
+                Ports = [],
+                Nets = [],
+                Supplies = [],
+                Grounds = [],
+            }
+        );
         var cache = SchematicLayoutProjection.BuildRenderCache(circuit, placement, routing);
         var nmosCatalog = catalog["nmos"];
         var cacheTerminals = cache.TerminalPoints["M1"];

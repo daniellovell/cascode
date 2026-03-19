@@ -296,9 +296,7 @@ internal static class ManualRenderSnapshotBuilder
             netNames.Add(entry.Key);
         }
 
-        foreach (
-            var portNet in graph.InputPorts.Concat(graph.OutputPorts).Concat(graph.BiasPorts)
-        )
+        foreach (var portNet in graph.InputPorts.Concat(graph.OutputPorts).Concat(graph.BiasPorts))
         {
             netNames.Add(portNet);
         }

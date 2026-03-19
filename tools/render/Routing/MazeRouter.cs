@@ -203,10 +203,7 @@ public static partial class MazeRouter
         var y = term.Y;
         if (x <= 0)
         {
-            return
-            [
-                new WireSegment(new GridPoint(0, y), new GridPoint(stub, y), netName),
-            ];
+            return [new WireSegment(new GridPoint(0, y), new GridPoint(stub, y), netName)];
         }
 
         if (x >= canvasWidth)

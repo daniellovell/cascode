@@ -374,11 +374,7 @@ internal static class SchematicConstraintResolver
             if (terminal.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
             {
                 var portName = terminal.DeviceId[5..];
-                map[portName] = new PointValue
-                {
-                    X = terminal.X,
-                    Y = terminal.Y,
-                };
+                map[portName] = new PointValue { X = terminal.X, Y = terminal.Y };
                 continue;
             }
 
@@ -402,5 +398,4 @@ internal static class SchematicConstraintResolver
 
         return map;
     }
-
 }

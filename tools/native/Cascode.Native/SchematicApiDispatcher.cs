@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cascode.Language;
-using Cascode.Language.Validation;
 using Cascode.Workspace;
 
 namespace Cascode.Native;
@@ -26,24 +25,15 @@ internal static class SchematicApiDispatcher
             "document.updateText" => DocumentUpdateText(session, requestJson),
             "document.close" => DocumentClose(session, requestJson),
             "source.rewriteSchematic" => SourceApiDispatcher.RewriteSchematic(requestJson),
-            "convert.toStructural" => ConvertToStructural(session, requestJson),
-            "convert.toCas" => ConvertToCas(session, requestJson),
             "render.schematic" => RenderSchematic(session, requestJson),
-            "schematic.applyOperations" => ApplyOperations(session, requestJson),
-            "schematic.applyPlacementEdits" => ApplyPlacementEdits(session, requestJson),
             "schematic.captureManualSnapshot" => CaptureManualSnapshot(session, requestJson),
             "schematic.previewRoute" => PreviewRoute(session, requestJson),
-            "schematic.applyRouteEdit" => ApplyRouteEdit(session, requestJson),
             "job.start" => JobStart(session, requestJson),
             "job.poll" => JobPoll(session, requestJson),
             "job.cancel" => JobCancel(session, requestJson),
-            "erc.run" => RunErc(session, requestJson),
-            "emit.run" => RunEmit(session, requestJson),
-            "verify.run" => PassThroughStub("cascode.verify/1.0"),
             "pdk.setDir" => PdkSetDir(session, requestJson),
             "pdk.scan" => PdkScan(session, requestJson),
             "pdk.emitPrimitives" => PdkEmitPrimitives(session, requestJson),
-            "command.execute" => PassThroughStub("cascode.command/1.0"),
             _ => throw new ApiException(
                 "CASAPI-INVALID-REQUEST",
                 $"Unknown API method '{method}'."
@@ -153,52 +143,6 @@ internal static class SchematicApiDispatcher
     }
 
     /// <summary>
-    /// Produce a structural representation response for the specified document.
-    /// </summary>
-    /// <param name="session">Session state containing the document to convert.</param>
-    /// <param name="requestJson">Request JSON which must include the `documentId` field.</param>
-    /// <returns>A JSON string with schema "cascode.structural/1.0" containing `documentId`, `revision`, and the serialized structural node.</returns>
-    private static string ConvertToStructural(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var state = GetDocumentState(session, doc.RootElement.RequireString("documentId"));
-
-        var render = SchematicDocumentBuilder.Build(
-            state,
-            RenderSchematicMode.RespectDocument,
-            allowRelaxation: false
-        );
-        var response = new JsonObject
-        {
-            ["schema"] = "cascode.structural/1.0",
-            ["documentId"] = state.DocumentId,
-            ["revision"] = state.Revision,
-            ["structural"] = ApiJson.SerializeStructuralNode(render.Structural),
-        };
-
-        return response.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Produces the cascode source representation for a document.
-    /// </summary>
-    /// <param name="requestJson">A JSON payload that must include a "documentId" field identifying the document to convert.</param>
-    /// <returns>A JSON string with schema "cascode.source/1.0" containing the documentId, the document's revision, and the current sourceText.</returns>
-    private static string ConvertToCas(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var state = GetDocumentState(session, doc.RootElement.RequireString("documentId"));
-
-        return new JsonObject
-        {
-            ["schema"] = "cascode.source/1.0",
-            ["documentId"] = state.DocumentId,
-            ["revision"] = state.Revision,
-            ["sourceText"] = state.SourceText,
-        }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
     /// Renders a document's schematic according to the provided request and returns the API response as JSON.
     /// </summary>
     /// <param name="session">The current session state containing documents and jobs.</param>
@@ -244,57 +188,6 @@ internal static class SchematicApiDispatcher
         return BuildRenderedDocumentResponse("cascode.render/1.0", state, mode, allowRelaxation);
     }
 
-    /// <summary>
-    /// Applies a list of schematic operations to the named document, updates its state and source, and returns the new render.
-    /// </summary>
-    /// <param name="requestJson">JSON request containing "documentId", optional "baseRevision", and an "operations" array of schematic operations to apply.</param>
-    /// <returns>A JSON string with schema "cascode.apply/1.0" containing the updated document render ("document") and the updated source text ("sourceText").</returns>
-    private static string ApplyOperations(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-
-        var state = GetDocumentState(session, root.RequireString("documentId"));
-        EnsureRevision(state, TryGetInt(root, "baseRevision"));
-        var operations = root.TryGetProperty("operations", out var operationsEl)
-            ? operationsEl.EnumerateArray().ToArray()
-            : Array.Empty<JsonElement>();
-        return CommitSchematicMutation(
-            state,
-            "cascode.apply/1.0",
-            (draft, changed) =>
-            {
-                if (operations.Length > 0)
-                {
-                    EnsureManualSnapshotIfNeeded(draft);
-                }
-
-                foreach (var operation in operations)
-                {
-                    SchematicOperationApplier.Apply(draft, operation, changed);
-                }
-            }
-        );
-    }
-
-    private static string ApplyPlacementEdits(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-
-        var state = GetDocumentState(session, root.RequireString("documentId"));
-        EnsureRevision(state, TryGetInt(root, "baseRevision"));
-        var operations = root.TryGetProperty("operations", out var operationsEl)
-            ? operationsEl.EnumerateArray().Select(operation => operation.Clone()).ToArray()
-            : Array.Empty<JsonElement>();
-        return CommitSchematicMutation(
-            state,
-            "cascode.applyPlacementEdits/1.0",
-            (draft, changed) =>
-                SchematicWorkflowService.ApplyPlacementEdits(draft, operations, changed)
-        );
-    }
-
     private static string CaptureManualSnapshot(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
@@ -329,27 +222,6 @@ internal static class SchematicApiDispatcher
             ParseRouteEndpoint(root.RequireProperty("target"), "target")
         );
         return ApiJson.SerializeRoutePreview(preview);
-    }
-
-    private static string ApplyRouteEdit(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-
-        var state = GetDocumentState(session, root.RequireString("documentId"));
-        EnsureRevision(state, TryGetInt(root, "baseRevision"));
-        return CommitSchematicMutation(
-            state,
-            "cascode.applyRouteEdit/1.0",
-            (draft, changed) =>
-                SchematicWorkflowService.ApplyRouteEdit(
-                    draft,
-                    root.RequireString("mode"),
-                    ParseRouteEndpoint(root.RequireProperty("start"), "start"),
-                    ParseRouteEndpoint(root.RequireProperty("end"), "end"),
-                    changed
-                )
-        );
     }
 
     /// <summary>
@@ -431,182 +303,6 @@ internal static class SchematicApiDispatcher
             ["schema"] = "cascode.job.cancel/1.0",
             ["jobId"] = jobId,
             ["ok"] = true,
-        }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Runs ERC on the specified document, linking includes using session search roots.
-    /// </summary>
-    private static string RunErc(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-        var documentId = root.TryGetString("documentId") ?? "doc_1";
-        var requirePdk = TryGetBool(root, "requirePdk") ?? false;
-
-        var state = GetDocumentState(session, documentId);
-        var searchRoots = session.GetSearchRoots();
-
-        CascodeDocument linked;
-        if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
-        {
-            var tmpDir = Path.Combine(
-                Path.GetTempPath(),
-                "cascode-erc",
-                Guid.NewGuid().ToString("N")
-            );
-            Directory.CreateDirectory(tmpDir);
-            var tmpFile = Path.Combine(tmpDir, "entry.cas");
-            File.WriteAllText(tmpFile, state.SourceText);
-            var linkResult = CascodeLinker.LinkFile(
-                tmpFile,
-                tmpDir,
-                searchRoots,
-                CascodeLinkOptions.Default,
-                null
-            );
-
-            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
-            {
-                var diagnosticsArray = new JsonArray(
-                    linkResult.Diagnostics.Select(d => (JsonNode?)d.Message).ToArray()
-                );
-                return new JsonObject
-                {
-                    ["schema"] = "cascode.erc/1.0",
-                    ["ok"] = false,
-                    ["diagnostics"] = diagnosticsArray,
-                }.ToJsonString(ApiJson.Options);
-            }
-
-            var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
-            var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
-            linked =
-                linkedRead.Success && linkedRead.Document is not null
-                    ? linkedRead.Document
-                    : state.Document;
-        }
-        else
-        {
-            linked = state.Document;
-        }
-
-        var combinedResult = ElectricalRuleChecker.Check(linked, requirePdk);
-
-        var errors = new JsonArray();
-        foreach (var error in combinedResult.GetErrors())
-            errors.Add((JsonNode?)error.ToString());
-        var warnings = new JsonArray();
-        foreach (var warning in combinedResult.GetWarnings())
-            warnings.Add((JsonNode?)warning.ToString());
-
-        return new JsonObject
-        {
-            ["schema"] = "cascode.erc/1.0",
-            ["ok"] = !combinedResult.HasErrors,
-            ["errorCount"] = combinedResult.ErrorCount,
-            ["warningCount"] = combinedResult.WarningCount,
-            ["errors"] = errors,
-            ["warnings"] = warnings,
-        }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Runs SPICE emit on the specified document, linking includes using session search roots.
-    /// </summary>
-    private static string RunEmit(SessionState session, string requestJson)
-    {
-        using var doc = JsonDocument.Parse(requestJson);
-        var root = doc.RootElement;
-        var documentId = root.TryGetString("documentId") ?? "doc_1";
-
-        var state = GetDocumentState(session, documentId);
-        var searchRoots = session.GetSearchRoots();
-
-        CascodeDocument linked;
-        if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
-        {
-            var tmpDir = Path.Combine(
-                Path.GetTempPath(),
-                "cascode-emit",
-                Guid.NewGuid().ToString("N")
-            );
-            Directory.CreateDirectory(tmpDir);
-            var tmpFile = Path.Combine(tmpDir, "entry.cas");
-            File.WriteAllText(tmpFile, state.SourceText);
-            var linkResult = CascodeLinker.LinkFile(
-                tmpFile,
-                tmpDir,
-                searchRoots,
-                CascodeLinkOptions.Default,
-                null
-            );
-
-            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
-            {
-                var diagnosticsArray = new JsonArray(
-                    linkResult.Diagnostics.Select(d => (JsonNode?)d.Message).ToArray()
-                );
-                return new JsonObject
-                {
-                    ["schema"] = "cascode.emit/1.0",
-                    ["ok"] = false,
-                    ["diagnostics"] = diagnosticsArray,
-                }.ToJsonString(ApiJson.Options);
-            }
-
-            var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
-            var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
-            linked =
-                linkedRead.Success && linkedRead.Document is not null
-                    ? linkedRead.Document
-                    : state.Document;
-        }
-        else
-        {
-            linked = state.Document;
-        }
-
-        var outputDir = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-emit-out",
-            Guid.NewGuid().ToString("N")
-        );
-        Directory.CreateDirectory(outputDir);
-
-        var emitResult = SpiceEmitter.ValidateAndEmit(linked, outputDir);
-
-        if (!emitResult.Success)
-        {
-            var validationErrors = new JsonArray();
-            foreach (var error in emitResult.Validation.GetErrors())
-                validationErrors.Add((JsonNode?)error.ToString());
-
-            return new JsonObject
-            {
-                ["schema"] = "cascode.emit/1.0",
-                ["ok"] = false,
-                ["errors"] = validationErrors,
-            }.ToJsonString(ApiJson.Options);
-        }
-
-        var files = new JsonArray();
-        foreach (var f in emitResult.Emit.DesignPaths)
-            files.Add((JsonNode?)f);
-        foreach (var f in emitResult.Emit.TestbenchPaths)
-            files.Add((JsonNode?)f);
-
-        var netlist =
-            emitResult.Emit.DesignPaths.Count > 0
-                ? File.ReadAllText(emitResult.Emit.DesignPaths[0])
-                : null;
-
-        return new JsonObject
-        {
-            ["schema"] = "cascode.emit/1.0",
-            ["ok"] = true,
-            ["files"] = files,
-            ["netlist"] = netlist,
         }.ToJsonString(ApiJson.Options);
     }
 
@@ -713,16 +409,6 @@ internal static class SchematicApiDispatcher
             ["message"] = result.Message,
             ["files"] = files,
         }.ToJsonString(ApiJson.Options);
-    }
-
-    /// <summary>
-    /// Creates a minimal API response JSON object with the provided schema and an OK flag.
-    /// </summary>
-    /// <param name="schema">The schema identifier to include in the response (e.g. "cascode.job/1.0").</param>
-    /// <returns>A JSON string containing the given schema and an `ok` field set to `true`.</returns>
-    private static string PassThroughStub(string schema)
-    {
-        return new JsonObject { ["schema"] = schema, ["ok"] = true }.ToJsonString(ApiJson.Options);
     }
 
     /// <summary>
@@ -914,33 +600,6 @@ internal static class SchematicApiDispatcher
         using var writer = new StringWriter();
         CascodeWriter.Write(document, writer);
         return writer.ToString();
-    }
-
-    private static string CommitSchematicMutation(
-        DocumentState state,
-        string schema,
-        Action<DocumentState, HashSet<string>> mutate
-    )
-    {
-        return DocumentStateTransactions.Commit(
-            state,
-            draft =>
-            {
-                var changed = new HashSet<string>(StringComparer.Ordinal);
-                mutate(draft, changed);
-                draft.Revision++;
-                draft.ChangedEntities = changed
-                    .OrderBy(name => name, StringComparer.Ordinal)
-                    .ToArray();
-                draft.SourceText = SerializeSource(draft.Document);
-                return BuildRenderedDocumentResponse(
-                    schema,
-                    draft,
-                    RenderSchematicMode.RespectDocument,
-                    allowRelaxation: false
-                );
-            }
-        );
     }
 
     private static string BuildRenderedDocumentResponse(
@@ -1155,11 +814,6 @@ internal static class SchematicApiDispatcher
                 $"Unsupported render route mode '{mode}'."
             ),
         };
-    }
-
-    private static void EnsureManualSnapshotIfNeeded(DocumentState state)
-    {
-        ManualRenderSnapshotService.EnsureManualRender(state);
     }
 
     private static RenderBlock? BuildPersistedRender(

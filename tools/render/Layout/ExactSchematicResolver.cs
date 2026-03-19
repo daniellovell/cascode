@@ -402,9 +402,7 @@ public static class ExactSchematicResolver
             netNames.Add(entry.Key);
         }
 
-        foreach (
-            var portNet in graph.InputPorts.Concat(graph.OutputPorts).Concat(graph.BiasPorts)
-        )
+        foreach (var portNet in graph.InputPorts.Concat(graph.OutputPorts).Concat(graph.BiasPorts))
         {
             netNames.Add(portNet);
         }
@@ -428,7 +426,10 @@ public static class ExactSchematicResolver
                 continue;
             }
 
-            if (!renderByName.TryGetValue(netName, out var renderEntity) || renderEntity.Segments.Count == 0)
+            if (
+                !renderByName.TryGetValue(netName, out var renderEntity)
+                || renderEntity.Segments.Count == 0
+            )
             {
                 diagnosticsOut.Add(
                     new RenderDiagnostic
@@ -768,8 +769,7 @@ public static class ExactSchematicResolver
             if (!visited.Contains(point))
             {
                 code = "CASRENDER-MANUAL-NET-DISCONNECTED";
-                message =
-                    $"Manual render net '{netName}' contains disconnected terminal geometry.";
+                message = $"Manual render net '{netName}' contains disconnected terminal geometry.";
                 return false;
             }
         }
@@ -779,8 +779,7 @@ public static class ExactSchematicResolver
             if (!visited.Contains(node))
             {
                 code = "CASRENDER-MANUAL-NET-DANGLING-SEGMENTS";
-                message =
-                    $"Manual render net '{netName}' contains dangling explicit segments.";
+                message = $"Manual render net '{netName}' contains dangling explicit segments.";
                 return false;
             }
         }
@@ -862,9 +861,7 @@ public static class ExactSchematicResolver
         points.AddRange(
             devices.Select(device => new GridPoint(device.Position.X, device.Position.Y))
         );
-        points.AddRange(
-            ports.Select(port => new GridPoint(port.Position.X, port.Position.Y))
-        );
+        points.AddRange(ports.Select(port => new GridPoint(port.Position.X, port.Position.Y)));
         points.AddRange(segments.SelectMany(segment => new[] { segment.From, segment.To }));
 
         if (points.Count == 0)
@@ -1013,5 +1010,4 @@ public static class ExactSchematicResolver
         var normalized = value % 360;
         return normalized < 0 ? normalized + 360 : normalized;
     }
-
 }

@@ -11,38 +11,6 @@ internal sealed record RouteEndpoint(string Kind, string? Token, int X, int Y);
 
 internal static class SchematicWorkflowService
 {
-    public static void ApplyPlacementEdits(
-        DocumentState state,
-        IReadOnlyList<JsonElement> operations,
-        HashSet<string> changed
-    )
-    {
-        if (operations.Count == 0)
-        {
-            return;
-        }
-
-        ManualRenderSnapshotService.EnsureManualRender(state);
-        foreach (var operation in operations)
-        {
-            SchematicOperationApplier.Apply(state, operation, changed);
-        }
-        ManualRenderSnapshotService.RefreshManualRender(state);
-    }
-
-    public static void ApplyRouteEdit(
-        DocumentState state,
-        string mode,
-        RouteEndpoint start,
-        RouteEndpoint end,
-        HashSet<string> changed
-    )
-    {
-        var operation = BuildConnectionOperation(mode, start, end);
-        SchematicOperationApplier.Apply(state, operation, changed);
-        ManualRenderSnapshotService.RefreshManualRender(state);
-    }
-
     public static RoutePreviewResponse PreviewRoute(
         DocumentState state,
         string mode,
@@ -218,16 +186,8 @@ internal static class SchematicWorkflowService
                     .SegmentsByNet[netName]
                     .Select(segment => new SegmentValue
                     {
-                        From = new PointValue
-                        {
-                            X = segment.From.X,
-                            Y = segment.From.Y,
-                        },
-                        To = new PointValue
-                        {
-                            X = segment.To.X,
-                            Y = segment.To.Y,
-                        },
+                        From = new PointValue { X = segment.From.X, Y = segment.From.Y },
+                        To = new PointValue { X = segment.To.X, Y = segment.To.Y },
                     })
                     .ToArray(),
             })

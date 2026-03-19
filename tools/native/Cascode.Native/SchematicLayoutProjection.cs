@@ -137,27 +137,15 @@ internal static partial class SchematicLayoutProjection
                 Segments = entry
                     .Value.Select(segment => new SegmentValue
                     {
-                        From = new PointValue
-                        {
-                            X = segment.From.X,
-                            Y = segment.From.Y,
-                        },
-                        To = new PointValue
-                        {
-                            X = segment.To.X,
-                            Y = segment.To.Y,
-                        },
+                        From = new PointValue { X = segment.From.X, Y = segment.From.Y },
+                        To = new PointValue { X = segment.To.X, Y = segment.To.Y },
                     })
                     .ToArray(),
                 Junctions = routing
                     .Junctions.Where(junction =>
                         entry.Value.Any(segment => IsPointOnSegment(junction, segment))
                     )
-                    .Select(junction => new PointValue
-                    {
-                        X = junction.X,
-                        Y = junction.Y,
-                    })
+                    .Select(junction => new PointValue { X = junction.X, Y = junction.Y })
                     .ToArray(),
             })
             .ToArray();
@@ -199,11 +187,7 @@ internal static partial class SchematicLayoutProjection
         {
             terminals[group.Key] = group.ToDictionary(
                 terminal => terminal.Terminal,
-                terminal => new PointValue
-                {
-                    X = terminal.X,
-                    Y = terminal.Y,
-                },
+                terminal => new PointValue { X = terminal.X, Y = terminal.Y },
                 StringComparer.Ordinal
             );
         }
@@ -656,11 +640,7 @@ internal static partial class SchematicLayoutProjection
         return new LayoutPort
         {
             Name = portName,
-            Position = new PointValue
-            {
-                X = terminal.X,
-                Y = terminal.Y,
-            },
+            Position = new PointValue { X = terminal.X, Y = terminal.Y },
             Side = side,
             Orientation = orientation,
         };
