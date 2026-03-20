@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -470,6 +471,73 @@ public static class BenchTestbenchEmitter
             }
         }
 
+        var pssIndex = 0;
+        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.PSSAnalysis))
+        {
+            pssIndex++;
+            var guessFrequencyHz =
+                a.GuessFrequencyHz
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing GuessFrequencyHz in plan."
+                );
+            var tstabS =
+                a.TstabS
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing TstabS in plan."
+                );
+            var harmonics =
+                a.Harmonics
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing Harmonics in plan."
+                );
+            var oscNode =
+                a.OscNode
+                ?? throw new InvalidOperationException(
+                    $"PSSAnalysis '{a.Name}' missing OscNode in plan."
+                );
+
+            var guessFrequency = SiValue.FormatForBackend(guessFrequencyHz, backend);
+            var stabilizationTime = SiValue.FormatForBackend(tstabS, backend);
+            var pssOptions = a.PssOptions ?? new PssAnalysisOptions();
+            var steadyCoeff = FormatUnitlessScalar(pssOptions.SteadyCoeff);
+            var uicSuffix = pssOptions.UseInitialConditions ? " uic" : string.Empty;
+            sb.AppendLine(
+                $"pss {guessFrequency} {stabilizationTime} {oscNode} {pssOptions.PssPoints} {harmonics} {pssOptions.Iterations} {steadyCoeff}{uicSuffix}"
+            );
+            sb.AppendLine($"setplot pss{pssIndex}");
+
+            var wrdata = BenchRuntimePaths.GetPssWrdataPath(
+                outputDir,
+                plan.CircuitName,
+                plan.InstanceName,
+                a.Name
+            );
+            sb.Append($"wrdata {Path.GetFileName(wrdata)}");
+            foreach (var node in plan.AcNodeKeys)
+            {
+                sb.Append(' ');
+                sb.Append($"v({node})");
+            }
+            sb.AppendLine();
+
+            if (plan.RequiresCurrents && currentSources.Count > 0)
+            {
+                var iWrdata = BenchRuntimePaths.GetPssCurrentsWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.InstanceName,
+                    a.Name
+                );
+                sb.Append($"wrdata {Path.GetFileName(iWrdata)}");
+                foreach (var s in currentSources)
+                {
+                    sb.Append(' ');
+                    sb.Append($"i(V{s.Id})");
+                }
+                sb.AppendLine();
+            }
+        }
+
         sb.AppendLine("quit");
         sb.AppendLine(".endc");
         sb.AppendLine(".end");
@@ -655,6 +723,28 @@ public static class BenchTestbenchEmitter
             return;
         }
 
+        if (type.Equals("Kick", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetPinPair(element, out var p, out var n))
+            {
+                return;
+            }
+
+            var ic =
+                GetParam(element, "ic")
+                ?? GetParam(element, "IC")
+                ?? GetParam(element, "initial")
+                ?? GetFirstParam(element);
+            if (ic is null)
+            {
+                throw new InvalidOperationException(
+                    $"Kick harness element '{element.Id}' requires parameter 'ic'."
+                );
+            }
+            EmitKick(sb, element.Id, p, n, ic, backend);
+            return;
+        }
+
         if (type.Equals("Port", StringComparison.OrdinalIgnoreCase))
         {
             if (!TryGetPinPair(element, out var p, out var n))
@@ -674,6 +764,20 @@ public static class BenchTestbenchEmitter
             sb.AppendLine($"V{element.Id} {p} {n} DC {dc} portnum={portNumber} z0={z0}");
             return;
         }
+    }
+
+    private static void EmitKick(
+        StringBuilder sb,
+        string id,
+        string p,
+        string n,
+        BenchValue ic,
+        BenchBackendType backend
+    )
+    {
+        var capName = id.StartsWith("C", StringComparison.OrdinalIgnoreCase) ? id : $"C{id}";
+        var icText = FormatScalarForSpice(ic, backend);
+        sb.AppendLine($"{capName} {p} {n} 1e-18 ic={icText}");
     }
 
     private static void EmitImpedance(
@@ -856,5 +960,23 @@ public static class BenchTestbenchEmitter
         }
 
         return "0";
+    }
+
+    private static string FormatUnitlessScalar(double value)
+    {
+        var rounded = Math.Round(value);
+        if (value == rounded && rounded >= long.MinValue && rounded <= long.MaxValue)
+        {
+            return ((long)rounded).ToString(CultureInfo.InvariantCulture);
+        }
+
+        var abs = Math.Abs(value);
+        if (abs >= 1e-2 && abs < 1e3)
+        {
+            return value.ToString("0.###############", CultureInfo.InvariantCulture);
+        }
+
+        var formatted = value.ToString("0.###############e+0", CultureInfo.InvariantCulture);
+        return formatted.Replace("E", "e", StringComparison.Ordinal);
     }
 }

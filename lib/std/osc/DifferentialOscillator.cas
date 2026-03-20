@@ -1,0 +1,24 @@
+library lib.std.osc
+include lib.std.bench
+
+// Interface: Differential oscillator.
+//
+// Provides ports and standard bench bindings for common steady-state and time-domain metrics.
+interface DifferentialOscillator {
+  ground GND
+  output OUT : Diff
+
+  benches {
+    bind DiffOutputTran as tran_bench {
+      bench.OUT--dut.OUT
+    }
+
+    bind DiffOnePortSParam as sparam_bench {
+      bench.P1--dut.OUT
+    }
+
+    bind DiffOscPSS as pss_bench {
+      bench.OUT--dut.OUT
+    }
+  }
+}

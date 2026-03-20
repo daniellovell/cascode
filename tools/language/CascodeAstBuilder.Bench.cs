@@ -398,12 +398,46 @@ internal sealed partial class CascodeAstBuilder
 
     private MeasurementExpr BuildConditionalExpr(CascodeParser.ConditionalExprContext ctx)
     {
+        if (ctx.analysisNewExpr() is not null)
+        {
+            return BuildAnalysisNewExpr(ctx.analysisNewExpr());
+        }
+
         if (ctx.ifExpr() is null)
         {
             return BuildMeasurementExpr(ctx.measurementExpr());
         }
 
         return BuildIfExpr(ctx.ifExpr());
+    }
+
+    private MeasurementExpr BuildAnalysisNewExpr(CascodeParser.AnalysisNewExprContext ctx)
+    {
+        var args = BuildMeasurementCallArgs(ctx.measurementArgList());
+        return new MeasurementNew(ctx.idPart().GetText(), args);
+    }
+
+    private List<MeasurementCallArg> BuildMeasurementCallArgs(
+        CascodeParser.MeasurementArgListContext? ctx
+    )
+    {
+        var args = new List<MeasurementCallArg>();
+        if (ctx is null)
+        {
+            return args;
+        }
+
+        foreach (var arg in ctx.measurementArg())
+        {
+            args.Add(
+                new MeasurementCallArg(
+                    arg.idPart()?.GetText(),
+                    BuildMeasurementExpr(arg.measurementExpr())
+                )
+            );
+        }
+
+        return args;
     }
 
     private MeasurementExpr BuildIfExpr(CascodeParser.IfExprContext ctx)
@@ -720,6 +754,7 @@ internal sealed partial class CascodeAstBuilder
             "ACAnalysis" => BenchValueType.ACAnalysis,
             "DCAnalysis" => BenchValueType.DCAnalysis,
             "TranAnalysis" => BenchValueType.TranAnalysis,
+            "PSSAnalysis" => BenchValueType.PSSAnalysis,
             "NoiseAnalysis" => BenchValueType.NoiseAnalysis,
             "STBAnalysis" => BenchValueType.STBAnalysis,
             "SPAnalysis" => BenchValueType.SPAnalysis,

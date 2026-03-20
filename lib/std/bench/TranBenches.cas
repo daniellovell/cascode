@@ -7,8 +7,7 @@ library lib.std.bench
 // Benches are parameterized by stimulus frequency. Different invocations with different
 // frequencies produce separate testbench instances (e.g., tran_bench(stim_freq=1kHz)::...).
 
-abstract bench AbstractTran(Frequency stim_freq = 1kHz) {
-  abstract stim IN
+abstract bench AbstractOutputTran(Frequency stim_freq = 1kHz) {
   abstract resp OUT
 
   analysis {
@@ -28,7 +27,50 @@ abstract bench AbstractTran(Frequency stim_freq = 1kHz) {
   }
 }
 
-bench DiffToSETran extends AbstractTran {
+abstract bench AbstractInputOutputTran extends AbstractOutputTran {
+  abstract stim IN
+  abstract resp OUT
+}
+
+bench SEOutputTran(Frequency stim_freq = 1kHz) extends AbstractOutputTran {
+  resp OUT : analog
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+}
+
+bench DiffOutputTran(Frequency stim_freq = 1kHz) extends AbstractOutputTran {
+  resp OUT : Diff
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+}
+
+bench DiffToSETran(Frequency stim_freq = 1kHz) extends AbstractInputOutputTran {
   stim IN : Diff
   resp OUT : analog
 
@@ -49,11 +91,11 @@ bench DiffToSETran extends AbstractTran {
     // Differential sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
-    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+    // "rail-to-rail saturation". Circuits can override by setting env.InputAmplitude.
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=25mV, freq=stim_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -74,7 +116,7 @@ bench DiffToSETran extends AbstractTran {
   }
 }
 
-bench DiffToDiffTran extends AbstractTran {
+bench DiffToDiffTran(Frequency stim_freq = 1kHz) extends AbstractInputOutputTran {
   stim IN : Diff
   resp OUT : Diff
 
@@ -95,11 +137,11 @@ bench DiffToDiffTran extends AbstractTran {
     // Differential sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
-    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+    // "rail-to-rail saturation". Circuits can override by setting env.InputAmplitude.
+    VSIN inP = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=25mV, freq=stim_freq, phase=180deg) {
+    VSIN inN = new VSIN(A=get_diff_input_amplitude(25mV), freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -124,7 +166,7 @@ bench DiffToDiffTran extends AbstractTran {
   }
 }
 
-bench SEToSETran extends AbstractTran {
+bench SEToSETran(Frequency stim_freq = 1kHz) extends AbstractInputOutputTran {
   stim IN : analog
   resp OUT : analog
 
@@ -145,8 +187,8 @@ bench SEToSETran extends AbstractTran {
     // Single-ended sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
-    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN vin = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+    // "rail-to-rail saturation". Circuits can override by setting env.InputAmplitude.
+    VSIN vin = new VSIN(A=get_input_amplitude(25mV), freq=stim_freq, phase=0deg) {
       .N--vcm
     }
 

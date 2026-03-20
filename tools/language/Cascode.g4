@@ -473,6 +473,7 @@ idPart
     | AC_ANALYSIS_TYPE
     | DC_ANALYSIS_TYPE
     | TRAN_ANALYSIS_TYPE
+    | PSS_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
     | SP_ANALYSIS_TYPE
@@ -898,6 +899,7 @@ analysisType
     : AC_ANALYSIS_TYPE
     | DC_ANALYSIS_TYPE
     | TRAN_ANALYSIS_TYPE
+    | PSS_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
     | SP_ANALYSIS_TYPE
@@ -944,6 +946,11 @@ analysisParam
 conditionalExpr
     : ifExpr
     | measurementExpr
+    | analysisNewExpr
+    ;
+
+analysisNewExpr
+    : NEW_KW idPart LPAREN measurementArgList? RPAREN
     ;
 
 ifExpr
@@ -1200,6 +1207,7 @@ S_PARAMETER_MATRIX_TYPE     : 'SParameterMatrix' ;
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
 DC_ANALYSIS_TYPE    : 'DCAnalysis' ;
 TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
+PSS_ANALYSIS_TYPE   : 'PSSAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
 SP_ANALYSIS_TYPE    : 'SPAnalysis' ;

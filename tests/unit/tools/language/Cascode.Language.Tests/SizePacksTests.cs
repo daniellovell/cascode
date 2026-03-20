@@ -1,6 +1,8 @@
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Cascode.Language;
+using Cascode.Language.Validation;
 
 namespace Cascode.Language.Tests;
 
@@ -210,6 +212,579 @@ circuit Leaf(size InputPair) {{
         Assert.Contains("W=3u", spice); // override wins
         Assert.Contains("L=180n", spice);
         Assert.Contains("m=1", spice);
+    }
+
+    [Fact]
+    public void HierarchyAndEmitter_ResolveNamedSizePackReferencesAcrossInlineCircuits()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive PMOS PMOS_Level1(size primSize) {{
+  device ""pmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    size NCore = size(W=2u, L=180n, M=2)
+    size PCore = size(W=4u, L=180n, M=3)
+
+    Buffer buf = new Buffer(NmosSize=NCore, PmosSize=PCore) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize, size PmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize, PmosSize=PmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize, size PmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    PMOS MP = new PMOS_Level1(PmosSize) {{
+      .B--VDD
+      .D--OUT
+      .G--IN
+      .S--VDD
+    }}
+
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "named_size_refs.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.True(
+            validation.IsValid,
+            string.Join(", ", validation.GetErrors().Select(e => e.Message))
+        );
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        AssertSpiceInstanceHasParams(spice, "Mbuf__stage__MP", "W=4u", "L=180n", "m=3");
+        AssertSpiceInstanceHasParams(spice, "Mbuf__stage__MN", "W=2u", "L=180n", "m=2");
+    }
+
+    [Fact]
+    public void HierarchyAndEmitter_UsesFillScopedSizeWithLocalDefault()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    Child child = new Child() {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Child {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    size LocalFillSize = size(W=2u, L=180n, M=3)
+    NMOS MN = new NMOS_Level1(LocalFillSize) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "fill_scoped_size_alias.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.True(
+            validation.IsValid,
+            string.Join(", ", validation.GetErrors().Select(e => e.Message))
+        );
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        AssertSpiceInstanceHasParams(spice, "Mchild__MN", "W=2u", "L=180n", "m=3");
+    }
+
+    [Fact]
+    public void HierarchyValidator_RejectsForwardingIntoFillScopedSizeDeclaration()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    size Pack = size(W=2u, L=180n, M=3)
+
+    Child child = new Child(LocalFillSize=Pack) {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Child {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  output OUT : analog
+  fill {{
+    size LocalFillSize = size(W=1u, L=180n, M=1)
+    NMOS MN = new NMOS_Level1(LocalFillSize) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "missing_fill_scoped_size.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var validation = HierarchyValidator.Validate(doc);
+        Assert.False(validation.IsValid);
+
+        var errors = validation.GetErrors().ToList();
+        Assert.Contains(
+            errors,
+            e =>
+                e.Code == "HIER-008"
+                && e.Message.Contains("LocalFillSize", System.StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void HierarchyAndEmitter_FailsOnMissingOrWrongKindForwardedSize()
+    {
+        static void AssertHierarchyValidationFailsWithMissingForwardedSize(
+            string cascode,
+            string fileName
+        )
+        {
+            var parse = CascodeReader.TryParse(cascode, fileName);
+            Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+            var doc = parse.Document!;
+            var validation = HierarchyValidator.Validate(doc);
+            Assert.False(validation.IsValid);
+
+            var errors = validation.GetErrors().ToList();
+            Assert.Contains(errors, e => e.Code == "HIER-007");
+        }
+
+        var missingForwardedSizeCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Buffer buf = new Buffer(NmosSize=Missing) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var wrongKindForwardedSizeCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(real width = 2u) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Buffer buf = new Buffer(NmosSize=width) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var dottedForwardedSizeCascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(size Pack = size(W=2u, L=180n, M=1)) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Buffer buf = new Buffer(NmosSize=Pack.W) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Buffer(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Inverter stage = new Inverter(NmosSize=NmosSize) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Inverter(size NmosSize) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    NMOS MN = new NMOS_Level1(NmosSize) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        AssertHierarchyValidationFailsWithMissingForwardedSize(
+            missingForwardedSizeCascode,
+            "missing_forwarded_size.cas"
+        );
+        AssertHierarchyValidationFailsWithMissingForwardedSize(
+            wrongKindForwardedSizeCascode,
+            "wrong_kind_forwarded_size.cas"
+        );
+        AssertHierarchyValidationFailsWithMissingForwardedSize(
+            dottedForwardedSizeCascode,
+            "dotted_forwarded_size.cas"
+        );
+    }
+
+    [Fact]
+    public void EmitDesign_ResolveNamedScalarParameterReferencesAcrossHierarchy()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(real width = 2u, int mult = 3, bool enabled = true) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Wrapper stage = new Wrapper(width=width, mult=mult, enabled=enabled) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Wrapper(real width, int mult, bool enabled) {{
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    Configurable cfg = new Configurable(width=width, mult=mult, enabled=enabled) {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+
+circuit Configurable(real width, int mult, bool enabled) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    net t : analog
+
+    NMOS M1 = new NMOS_Level1(size(W=width, L=180n, M=mult)) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--t
+    }}
+
+    NMOS M2 = new NMOS_Level1(size(W=1u, L=180n, M=1)) {{
+      .B--GND
+      .D--t
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var parse = CascodeReader.TryParse(cascode, "named_scalar_refs.cas");
+        Assert.True(parse.Success, string.Join(", ", parse.Diagnostics.Select(d => d.Message)));
+
+        var doc = parse.Document!;
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var spice = writer.ToString();
+
+        AssertSpiceLineMatches(
+            spice,
+            @"^Xstage__cfg\b.*\bConfigurable_enabled_true_mult_3_width_2u\b.*$"
+        );
+    }
+
+    private static void AssertSpiceLineMatches(string spice, string pattern)
+    {
+        var regex = new Regex(pattern, RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        Assert.Matches(regex, spice);
+    }
+
+    private static void AssertSpiceInstanceHasParams(
+        string spice,
+        string instanceName,
+        params string[] requiredTokens
+    )
+    {
+        var escapedName = Regex.Escape(instanceName);
+        var regex = new Regex(
+            $@"(?m)^{escapedName}\b[^\n]*(?:\n\+[^\n]*)*",
+            RegexOptions.CultureInvariant
+        );
+        var match = regex.Match(spice);
+        Assert.True(match.Success, $"Expected instance '{instanceName}' in emitted SPICE.");
+        var instanceBlock = match.Value;
+        foreach (var token in requiredTokens)
+        {
+            Assert.Contains(token, instanceBlock, System.StringComparison.Ordinal);
+        }
     }
 
     [Fact]

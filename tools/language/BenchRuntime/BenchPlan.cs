@@ -6,6 +6,13 @@ using Cascode.Language.BenchRuntime.Netlist;
 
 namespace Cascode.Language.BenchRuntime;
 
+public sealed record PssAnalysisOptions(
+    int PssPoints = 1000,
+    int Iterations = 50,
+    double SteadyCoeff = 1e-3,
+    bool UseInitialConditions = false
+);
+
 public sealed record BenchPlanAnalysis(
     BenchValueType Type,
     string Name,
@@ -16,9 +23,14 @@ public sealed record BenchPlanAnalysis(
     double? StartS = null,
     double? StopS = null,
     BenchTerminalRef? OutputTerminal = null,
+    double? GuessFrequencyHz = null,
+    double? TstabS = null,
+    int? Harmonics = null,
+    string? OscNode = null,
     string? NoiseInputSource = null,
     double? StepS = null,
-    bool EnableNoise = false
+    bool EnableNoise = false,
+    PssAnalysisOptions? PssOptions = null
 );
 
 public sealed record BenchHarnessElement(

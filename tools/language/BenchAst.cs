@@ -87,6 +87,7 @@ public enum BenchValueType
     ACAnalysis,
     DCAnalysis,
     TranAnalysis,
+    PSSAnalysis,
     NoiseAnalysis,
     STBAnalysis,
     SPAnalysis,
@@ -170,6 +171,9 @@ public sealed record MeasurementCall(string Name, IReadOnlyList<MeasurementCallA
     : MeasurementExpr;
 
 public sealed record MeasurementCallArg(string? Name, MeasurementExpr Value);
+
+public sealed record MeasurementNew(string TypeName, IReadOnlyList<MeasurementCallArg> Args)
+    : MeasurementExpr;
 
 public sealed record BenchMeasurementRefArg(string? Name, string Text, MeasurementExpr Expr);
 

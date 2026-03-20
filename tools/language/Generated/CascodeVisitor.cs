@@ -1188,6 +1188,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitConditionalExpr([NotNull] CascodeParser.ConditionalExprContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.analysisNewExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAnalysisNewExpr([NotNull] CascodeParser.AnalysisNewExprContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.ifExpr"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

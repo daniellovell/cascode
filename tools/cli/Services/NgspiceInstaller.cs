@@ -582,6 +582,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                     "--without-readline",
                     "--disable-openmp",
                     "--enable-xspice",
+                    "--enable-pss",
                     "CFLAGS=-O2",
                 },
                 buildDir,

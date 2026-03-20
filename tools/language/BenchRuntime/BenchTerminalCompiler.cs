@@ -215,6 +215,12 @@ internal static class BenchTerminalCompiler
                 Collect(c.ThenExpr, set);
                 Collect(c.ElseExpr, set);
                 break;
+            case MeasurementNew constructor:
+                foreach (var arg in constructor.Args)
+                {
+                    Collect(arg.Value, set);
+                }
+                break;
         }
     }
 }

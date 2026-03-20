@@ -33,6 +33,10 @@ public static class CascodeLinker
             "sqrt",
             "period",
             "op_param",
+            "duration",
+            "mean",
+            "harmonic_power",
+            "thd",
         },
         StringComparer.Ordinal
     );
@@ -850,6 +854,12 @@ public static class CascodeLinker
                     CollectFunctionReferencesFromExpr(arg.Expr, required, excludedNames);
                 }
                 break;
+            case MeasurementNew constructor:
+                foreach (var arg in constructor.Args)
+                {
+                    CollectFunctionReferencesFromExpr(arg.Value, required, excludedNames);
+                }
+                break;
         }
     }
 
@@ -885,7 +895,8 @@ public static class CascodeLinker
             || typeName.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
             || typeName.Equals("Port", StringComparison.OrdinalIgnoreCase)
             || typeName.Equals("Impedance", StringComparison.OrdinalIgnoreCase)
-            || typeName.Equals("Impedor", StringComparison.OrdinalIgnoreCase);
+            || typeName.Equals("Impedor", StringComparison.OrdinalIgnoreCase)
+            || typeName.Equals("Kick", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ResolveMissing(

@@ -128,6 +128,16 @@ internal static class BenchPrimitiveCallFinder
                     || Contains(c.ThenExpr, name)
                     || Contains(c.ElseExpr, name);
 
+            case MeasurementNew constructor:
+                foreach (var arg in constructor.Args)
+                {
+                    if (Contains(arg.Value, name))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+
             default:
                 return false;
         }

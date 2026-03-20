@@ -525,24 +525,31 @@ public static class SpiceEmitter
         InstanceDeclaration? instance
     )
     {
-        var paramBindings = BuildParameterBindings(circuit, parentParams, instance);
-        var sizeBindings = BuildSizeBindings(circuit, parentSizes, instance);
-        var context = new ExpressionContext(paramBindings, sizeBindings);
+        var binding = InstanceBindingResolver.Resolve(circuit, parentParams, parentSizes, instance);
 
         var resolvedParams = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var param in circuit.Parameters)
         {
-            if (!paramBindings.TryGetValue(param.Name, out var expr))
+            if (!binding.ParamBindings.TryGetValue(param.Name, out var expr))
             {
                 throw new InvalidOperationException(
                     $"Missing required parameter '{param.Name}' for circuit '{circuit.Name}'."
                 );
             }
 
-            resolvedParams[param.Name] = ResolveParameterValue(circuit, param, context, expr);
+            resolvedParams[param.Name] = ResolveParameterValue(
+                circuit,
+                param,
+                binding.ExpressionContext,
+                expr
+            );
         }
 
-        var resolvedSizes = ResolveSizeBindings(circuit, sizeBindings, context);
+        var resolvedSizes = ResolveSizeBindings(
+            circuit,
+            binding.SizeBindings,
+            binding.ExpressionContext
+        );
         var nameSizes = SelectNamingSizes(circuit, resolvedSizes);
         var canonicalName = VariantNaming.BuildCanonicalName(
             circuit.Name,
@@ -557,86 +564,6 @@ public static class SpiceEmitter
             ResolvedParams = resolvedParams,
             ResolvedSizes = resolvedSizes,
         };
-    }
-
-    private static Dictionary<string, string> BuildParameterBindings(
-        Circuit circuit,
-        IReadOnlyDictionary<string, string> parentParamBindings,
-        InstanceDeclaration? instance
-    )
-    {
-        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var (name, value) in parentParamBindings)
-        {
-            bindings[name] = value;
-        }
-
-        foreach (var param in circuit.Parameters)
-        {
-            var expr = ParamValueToExpression(param.Default);
-            if (!string.IsNullOrWhiteSpace(expr))
-            {
-                bindings[param.Name] = expr;
-            }
-        }
-
-        if (instance is not null)
-        {
-            foreach (var (name, paramValue) in instance.Params)
-            {
-                var expr = ParamValueToExpression(paramValue);
-                if (!string.IsNullOrWhiteSpace(expr))
-                {
-                    bindings[name] = expr;
-                }
-            }
-        }
-
-        return bindings;
-    }
-
-    private static Dictionary<string, SizePack> BuildSizeBindings(
-        Circuit circuit,
-        IReadOnlyDictionary<string, SizePack> parentSizeBindings,
-        InstanceDeclaration? instance
-    )
-    {
-        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
-
-        foreach (var (name, pack) in parentSizeBindings)
-        {
-            bindings[name] = pack;
-        }
-
-        foreach (var size in circuit.Sizes)
-        {
-            if (size.Default is not null)
-            {
-                bindings[size.Name] = size.Default;
-            }
-        }
-
-        if (circuit.Fill?.Sizes is { Count: > 0 })
-        {
-            foreach (var size in circuit.Fill.Sizes)
-            {
-                if (size.Default is not null)
-                {
-                    bindings[size.Name] = size.Default;
-                }
-            }
-        }
-
-        if (instance is not null)
-        {
-            foreach (var (name, pack) in instance.Sizes)
-            {
-                bindings[name] = pack;
-            }
-        }
-
-        return bindings;
     }
 
     private static string ResolveParameterValue(
@@ -821,7 +748,7 @@ public static class SpiceEmitter
             writer.WriteLine();
         }
 
-        var expressionContext = new ExpressionContext(
+        var expressionContext = InstanceBindingResolver.CreateContext(
             variant.ResolvedParams,
             variant.ResolvedSizes
         );
@@ -1143,10 +1070,15 @@ public static class SpiceEmitter
         var localSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
         var netSubstitutions = ComposeNetSubstitutions(parentNetSubstitutions, localSubstitutions);
 
-        var paramBindings = BuildParameterBindings(inlineCircuit, parentParamBindings, instance);
-        var sizeBindings = BuildSizeBindings(inlineCircuit, parentSizeBindings, instance);
-
-        var expressionContext = new ExpressionContext(paramBindings, sizeBindings);
+        var binding = InstanceBindingResolver.Resolve(
+            inlineCircuit,
+            parentParamBindings,
+            parentSizeBindings,
+            instance
+        );
+        var expressionContext = binding.ExpressionContext;
+        var lookupParamBindings = binding.LookupParameters;
+        var lookupSizeBindings = binding.LookupSizes;
 
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
@@ -1174,7 +1106,7 @@ public static class SpiceEmitter
                     deviceModelMap,
                     primitivesByName,
                     expressionContext,
-                    sizeBindings,
+                    binding.SizeBindings,
                     writer,
                     backend
                 );
@@ -1209,8 +1141,8 @@ public static class SpiceEmitter
                         nestedCircuit,
                         currentPath,
                         netSubstitutions,
-                        paramBindings,
-                        sizeBindings,
+                        lookupParamBindings,
+                        lookupSizeBindings,
                         circuitsByName,
                         resolution,
                         deviceModelMap,
@@ -1230,8 +1162,8 @@ public static class SpiceEmitter
                         netSubstitutions,
                         internalNets,
                         resolution,
-                        paramBindings,
-                        sizeBindings,
+                        lookupParamBindings,
+                        lookupSizeBindings,
                         variantMap,
                         writer
                     );
@@ -1514,16 +1446,6 @@ public static class SpiceEmitter
         writer.WriteLine(sb.ToString().TrimEnd());
     }
 
-    private static string? ParamValueToExpression(ParamValue? value)
-    {
-        if (value is null)
-        {
-            return null;
-        }
-
-        return value.Numeric ?? value.Symbolic ?? value.Literal;
-    }
-
     private static void AppendParamAssignments(
         StringBuilder sb,
         IReadOnlyDictionary<string, string> paramExpressions,
@@ -1699,6 +1621,7 @@ public static class SpiceEmitter
             );
         }
 
+        var sizePack = PrimitiveResolver.ResolveSizePack(device, sizeBindings);
         var deviceParams = PrimitiveResolver
             .BuildParamExpressions(device, primitive, sizeBindings)
             .Where(kvp => !IsReservedPrimitiveMetaParam(kvp.Key))
@@ -1708,6 +1631,16 @@ public static class SpiceEmitter
         var useSubckt = resolvedModel?.IsSubckt ?? false;
 
         var deviceKind = device.DeviceType.ToLowerInvariant();
+        if (
+            deviceKind == "capacitor"
+            && sizePack?.Entries.TryGetValue("ic", out var initialCondition) == true
+            && !string.IsNullOrWhiteSpace(initialCondition)
+            && !initialCondition.Equals("??", StringComparison.Ordinal)
+        )
+        {
+            deviceParams["ic"] = initialCondition;
+        }
+
         var isBuiltinPassive =
             !useSubckt
             && (deviceKind is "resistor" or "capacitor" or "inductor")
@@ -1990,90 +1923,6 @@ public static class SpiceEmitter
             {
                 writer.WriteLine(modelLine);
             }
-        }
-    }
-
-    private sealed class ExpressionContext
-    {
-        private readonly IReadOnlyDictionary<string, string> _paramBindings;
-        private readonly IReadOnlyDictionary<string, SizePack> _sizeBindings;
-        private readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
-        private readonly HashSet<string> _resolving = new(StringComparer.Ordinal);
-
-        public ExpressionContext(
-            IReadOnlyDictionary<string, string> paramBindings,
-            IReadOnlyDictionary<string, SizePack> sizeBindings
-        )
-        {
-            _paramBindings = paramBindings;
-            _sizeBindings = sizeBindings;
-        }
-
-        public string Evaluate(string expression)
-        {
-            return ExpressionEvaluator.Evaluate(expression, ResolveIdentifier);
-        }
-
-        private string ResolveIdentifier(string identifier)
-        {
-            if (_cache.TryGetValue(identifier, out var cached))
-            {
-                return cached;
-            }
-
-            if (!_resolving.Add(identifier))
-            {
-                throw new ArgumentException($"Circular parameter reference detected: {identifier}");
-            }
-
-            if (TryResolveSizeField(identifier, out var sizeExpr))
-            {
-                var resolved = Evaluate(sizeExpr);
-                _cache[identifier] = resolved;
-                _resolving.Remove(identifier);
-                return resolved;
-            }
-
-            if (_paramBindings.TryGetValue(identifier, out var binding) && binding is not null)
-            {
-                var resolved = Evaluate(binding);
-                _cache[identifier] = resolved;
-                _resolving.Remove(identifier);
-                return resolved;
-            }
-
-            _resolving.Remove(identifier);
-            throw new ArgumentException($"Undefined parameter reference: {identifier}");
-        }
-
-        private bool TryResolveSizeField(string identifier, out string expression)
-        {
-            var dotIndex = identifier.IndexOf('.');
-            if (dotIndex <= 0)
-            {
-                expression = string.Empty;
-                return false;
-            }
-
-            var sizeName = identifier[..dotIndex];
-            var field = identifier[(dotIndex + 1)..];
-            if (_sizeBindings.TryGetValue(sizeName, out var pack))
-            {
-                if (pack.Entries.TryGetValue(field, out var expr))
-                {
-                    expression = expr;
-                    return true;
-                }
-
-                if (field.Equals("M", StringComparison.OrdinalIgnoreCase))
-                {
-                    expression = "1";
-                    return true;
-                }
-            }
-
-            expression = string.Empty;
-            return false;
         }
     }
 }

@@ -1,8 +1,7 @@
 # Bench cookbook
 
 This cookbook is a practical companion to the normative bench specification in
-[Chapter 4: Bench System](../../spec/language/Ch04_Bench_System.md). It collects patterns used in the
-[standard library](../../lib/std/bench/) and in the [golden examples](../../tests/golden/cas/).
+[Chapter 4: Bench System](../../spec/language/Ch04_Bench_System.md). It collects patterns used in the [standard library](../../lib/std/bench/) and in the [golden examples](../../tests/golden/cas/).
 
 Benches are executed when at least one of their measurements is referenced by a numeric constraint.
 When developing a new bench or binding, add a constraint that forces execution and inspect the
@@ -10,7 +9,7 @@ emitted testbench.
 
 ## Quick references
 
-- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
+- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PSSBenches.cas`](../../lib/std/bench/PSSBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
 - Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas), [`SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas), [`DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
@@ -20,7 +19,7 @@ emitted testbench.
 Bench `fill {}` blocks and binding bodies may instantiate a small set of harness primitives that the
 bench runtime emits as backend elements (see [Chapter 4, Section 4.3.2](../../spec/language/Ch04_Bench_System.md#432-harness-primitives)):
 
-- `GND`, `VDC`, `VAC`, `VSIN`, `Impedor` / `Impedance`, `Port`
+- `GND`, `VDC`, `VAC`, `VSIN`, `Kick`, `Impedor` / `Impedance`, `Port`
 
 Prefer these primitives over backend-specific netlist syntax.
 
@@ -33,7 +32,7 @@ passband gain, \(-3\) dB bandwidth, gain-bandwidth, or phase margin.
 
 ### Minimal pattern
 
-Transfer benches typically include an explicit input bias (common-mode) so the DUT is not floating,
+Transfer benches typically include an explicit input bias (common-mode), so the DUT is not floating,
 a stimulus source plus source impedance, and a load impedance. Measurements are built from a
 transfer function and spectrum post-processing:
 
@@ -77,7 +76,7 @@ noise.
 
 ### Minimal pattern
 
-Noise benches typically pair a `NoiseAnalysis` with an `ACAnalysis` so they can compute input-referred
+Noise benches typically pair a `NoiseAnalysis` with an `ACAnalysis`, so they can compute input-referred
 noise by dividing output noise density by the transfer magnitude:
 
 ```cascode
@@ -139,6 +138,50 @@ the supply-to-output transfer. The standard library provides:
 - `SupplyToSERejectionSEInput` (analog input, analog output)
 
 All three are defined in [`lib/std/bench/PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas).
+
+## Recipe: PSS benches (periodic steady-state metrics)
+
+### When to use
+
+Use a PSS bench when you need large-signal periodic metrics such as harmonic output power, THD, and
+efficiency under driven or autonomous oscillation.
+
+### Minimal pattern
+
+PSS benches run a `PSSAnalysis`, read one solved period as a waveform, and derive metrics from
+`duration`, `mean`, `harmonic_power`, and `thd`:
+
+```cascode
+analysis {
+  PSSAnalysis pss = new PSSAnalysis(guess_frequency=1GHz, stabilization_time=10ns, harmonics=10)
+}
+
+measurement OutputPower : W {
+  VoltageWaveform vout = voltage(pss, OUT)
+  Impedance loadImp = env.LoadImpedance
+  return harmonic_power(vout, loadImp)
+}
+```
+
+Reference implementations are in [`lib/std/bench/PSSBenches.cas`](../../lib/std/bench/PSSBenches.cas):
+`SEOscPSS`, `DiffOscPSS`, `SEToSEPSS`, and `DiffToDiffPSS`.
+
+### Common pitfalls
+
+- PSS bench fill blocks do not provide input or output common-mode biasing — `VSIN` sources are
+  referenced to ground. The interface binding is responsible for establishing the DUT's DC operating
+  point, following the same pattern as `QuiescentPower` and `DCBias` bindings (see
+  [bench/binding design contract](../../AGENTS.md)). Without binding-side bias, amplifier inputs
+  may float and the PSS solver will see incorrect or degenerate operating points.
+- For input/output benches, drive amplitude is resolved by `get_input_amplitude(25mV)`: first
+  `env.InputPower`, then `env.InputAmplitude`, then the fallback.
+- For output power, `harmonic_power` uses the `VoltageWaveform + Impedance` form; assign
+  `env.LoadImpedance` to an `Impedance` local before calling it in measurements. For delivered
+  input power under mismatch, use the `VoltageWaveform + CurrentWaveform` form with
+  `current(pss, harness.<source>.P)`.
+- Supply power under drive should be computed from a supply branch current waveform in the binding,
+  for example `mean(current(pss, supplyDC.P))`, then forwarded to `SupplyPower`.
+- PSS requires at least one `resp` terminal, so the runtime can resolve the oscillating node.
 
 ### Output-referred vs input-referred PSRR
 

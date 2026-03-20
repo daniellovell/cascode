@@ -1,0 +1,118 @@
+VERSION 4.1
+
+include lib.std
+include lib.pdk.sky130.devices.nfet_01v8
+include lib.pdk.sky130.devices.pfet_01v8
+
+circuit Inverter(size NmosSize, size PmosSize) {
+  level EL
+  inline
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    PMOS MP = new pfet_01v8(PmosSize) {
+      .B--VDD
+      .D--OUT
+      .G--IN
+      .S--VDD
+    }
+
+    NMOS MN = new nfet_01v8(NmosSize) {
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }
+  }
+}
+
+circuit CrossCoupledInverter(size NmosSize, size PmosSize) {
+  level EL
+  inline
+
+  supply VDD
+  ground GND
+  output OUT : Diff
+
+  fill {
+    Inverter INV_P = new Inverter(
+      NmosSize=NmosSize,
+      PmosSize=PmosSize) {
+      .VDD--VDD
+      .GND--GND
+      .IN--OUT.N
+      .OUT--OUT.P
+    }
+
+    Inverter INV_N = new Inverter(
+      NmosSize=NmosSize,
+      PmosSize=PmosSize) {
+      .VDD--VDD
+      .GND--GND
+      .IN--OUT.P
+      .OUT--OUT.N
+    }
+  }
+}
+
+circuit LCOsc_Sky130 implements DifferentialOscillator {
+  level EL
+
+  supply VDD
+  ground GND
+  output OUT : Diff
+
+  env {
+    OutputCommonModeRange = 0.9V
+    LoadImpedance = 1GOhm
+  }
+
+  fill {
+    net vosc : analog
+
+    size NCore = size(W=8u, L=180n, M=2)
+    size PCore = size(W=16u, L=180n, M=2)
+
+    // Give the LC core a lightly isolated local supply, so autonomous PSS is numerically stable.
+    Resistor R_VDD = new ResistorIdeal(size(R=1)) {
+      .P--VDD
+      .N--vosc
+    }
+
+    CrossCoupledInverter core = new CrossCoupledInverter(
+      NmosSize=NCore,
+      PmosSize=PCore) {
+      .VDD--vosc
+      .GND--GND
+      .OUT--OUT
+    }
+
+    Inductor L_TANK = new InductorQ(size(L=6n, Q=10, freq=2.4G)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+
+    Capacitor C_TANK = new CapacitorIdeal(size(C=500f)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+  }
+
+  constraints {
+    numeric {
+      c_fundamental_frequency_min =
+        pss_bench(guess_frequency=2.7GHz)::FundamentalFrequency >= 2.6GHz
+      c_fundamental_frequency_max =
+        pss_bench(guess_frequency=2.7GHz)::FundamentalFrequency <= 2.8GHz
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}

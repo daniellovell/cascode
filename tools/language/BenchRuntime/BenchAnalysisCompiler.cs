@@ -248,6 +248,101 @@ internal static class BenchAnalysisCompiler
                 );
             }
 
+            if (a.Type == BenchValueType.PSSAnalysis)
+            {
+                if (!a.Parameters.TryGetValue("guess_frequency", out var guessFrequencyExpr))
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'guess_frequency'."
+                    );
+                }
+                if (!a.Parameters.TryGetValue("stabilization_time", out var stabilizationTimeExpr))
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'stabilization_time'."
+                    );
+                }
+                if (!a.Parameters.TryGetValue("harmonics", out var harmonicsExpr))
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}' missing required parameter 'harmonics'."
+                    );
+                }
+
+                var guessFrequencyV =
+                    evalRunner.EvaluateExpressionForPlan(guessFrequencyExpr, benchParams)
+                    as BenchNumber;
+                var stabilizationTimeV =
+                    evalRunner.EvaluateExpressionForPlan(stabilizationTimeExpr, benchParams)
+                    as BenchNumber;
+                var harmonicsV =
+                    evalRunner.EvaluateExpressionForPlan(harmonicsExpr, benchParams) as BenchNumber;
+
+                if (
+                    guessFrequencyV is null
+                    || guessFrequencyV.Kind != BenchNumericKind.FrequencyHz
+                    || !double.IsFinite(guessFrequencyV.Value)
+                    || guessFrequencyV.Value <= 0
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}.guess_frequency' expects a finite positive 'Frequency'."
+                    );
+                }
+
+                if (
+                    stabilizationTimeV is null
+                    || stabilizationTimeV.Kind != BenchNumericKind.TimeS
+                    || !double.IsFinite(stabilizationTimeV.Value)
+                    || stabilizationTimeV.Value < 0
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}.stabilization_time' expects a finite non-negative 'Time'."
+                    );
+                }
+
+                if (
+                    harmonicsV is null
+                    || harmonicsV.Kind != BenchNumericKind.Scalar
+                    || !double.IsFinite(harmonicsV.Value)
+                    || harmonicsV.Value < 1
+                    || harmonicsV.Value > int.MaxValue
+                    || harmonicsV.Value != Math.Round(harmonicsV.Value)
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"PSSAnalysis '{a.Name}.harmonics' expects a positive integer."
+                    );
+                }
+
+                var outputTerminal = ResolvePssOutputTerminal(bench, evalRunner, benchParams);
+                if (outputTerminal.LeafNodes.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        "PSSAnalysis requires at least one resp terminal."
+                    );
+                }
+
+                var pssOptions = CompilePssOptions(a, evalRunner, benchParams);
+
+                analyses.Add(
+                    new BenchPlanAnalysis(
+                        a.Type,
+                        a.Name,
+                        "",
+                        0,
+                        0,
+                        0,
+                        GuessFrequencyHz: guessFrequencyV.Value,
+                        TstabS: stabilizationTimeV.Value,
+                        Harmonics: checked((int)harmonicsV.Value),
+                        OscNode: outputTerminal.LeafNodes[0],
+                        PssOptions: pssOptions
+                    )
+                );
+            }
+
             if (a.Type == BenchValueType.DCAnalysis)
             {
                 // For now, we treat DCAnalysis as a DC operating point (op). Sweeps are modeled
@@ -264,6 +359,197 @@ internal static class BenchAnalysisCompiler
         }
 
         return analyses;
+    }
+
+    private static BenchTerminalRef ResolvePssOutputTerminal(
+        BenchDefinition bench,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        var output = bench.Terminals.FirstOrDefault(t => t.Role == BenchTerminalRole.Resp);
+        if (output is null)
+        {
+            throw new InvalidOperationException("PSSAnalysis requires at least one resp terminal.");
+        }
+
+        return evalRunner.EvaluateExpressionForPlan(new MeasurementPath(output.Name), benchParams)
+                as BenchTerminalRef
+            ?? throw new InvalidOperationException(
+                $"PSSAnalysis terminal '{output.Name}' did not resolve to a terminal."
+            );
+    }
+
+    private static PssAnalysisOptions CompilePssOptions(
+        AnalysisDeclaration analysis,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue("options", out var expression))
+        {
+            return new PssAnalysisOptions();
+        }
+
+        if (expression is not MeasurementNew constructor)
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.options' expects 'new PSSOptions(...)'."
+            );
+        }
+
+        if (!constructor.TypeName.Equals("PSSOptions", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.options' expects 'new PSSOptions(...)', got 'new {constructor.TypeName}(...)'."
+            );
+        }
+
+        var argsByName = new Dictionary<string, MeasurementExpr>(StringComparer.Ordinal);
+        foreach (var arg in constructor.Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Name))
+            {
+                throw new InvalidOperationException(
+                    $"PSSAnalysis '{analysis.Name}.options' requires named arguments."
+                );
+            }
+
+            argsByName[arg.Name] = arg.Value;
+        }
+
+        var optionsDecl = new AnalysisDeclaration
+        {
+            Type = analysis.Type,
+            Name = $"{analysis.Name}.options",
+            Parameters = argsByName,
+        };
+
+        var pssPoints = EvaluateOptionalPositiveIntegerParam(
+            optionsDecl,
+            "psspoints",
+            1000,
+            evalRunner,
+            benchParams
+        );
+        var iterations = EvaluateOptionalPositiveIntegerParam(
+            optionsDecl,
+            "iterations",
+            50,
+            evalRunner,
+            benchParams
+        );
+        var steadyCoeff = EvaluateOptionalPositiveScalarParam(
+            optionsDecl,
+            "steady_coeff",
+            1e-3,
+            evalRunner,
+            benchParams
+        );
+        var useInitialConditions = EvaluateOptionalBinaryFlagParam(
+            optionsDecl,
+            "uic",
+            defaultValue: false,
+            evalRunner,
+            benchParams
+        );
+
+        return new PssAnalysisOptions(
+            PssPoints: pssPoints,
+            Iterations: iterations,
+            SteadyCoeff: steadyCoeff,
+            UseInitialConditions: useInitialConditions
+        );
+    }
+
+    private static int EvaluateOptionalPositiveIntegerParam(
+        AnalysisDeclaration analysis,
+        string name,
+        int defaultValue,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue(name, out var expression))
+        {
+            return defaultValue;
+        }
+
+        var value = evalRunner.EvaluateExpressionForPlan(expression, benchParams) as BenchNumber;
+        if (
+            value is null
+            || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
+            || value.Value < 1
+            || value.Value != Math.Round(value.Value)
+            || value.Value > int.MaxValue
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.{name}' expects a positive integer."
+            );
+        }
+
+        return checked((int)value.Value);
+    }
+
+    private static double EvaluateOptionalPositiveScalarParam(
+        AnalysisDeclaration analysis,
+        string name,
+        double defaultValue,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue(name, out var expression))
+        {
+            return defaultValue;
+        }
+
+        var value = evalRunner.EvaluateExpressionForPlan(expression, benchParams) as BenchNumber;
+        if (
+            value is null
+            || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
+            || value.Value <= 0
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.{name}' expects a positive scalar."
+            );
+        }
+
+        return value.Value;
+    }
+
+    private static bool EvaluateOptionalBinaryFlagParam(
+        AnalysisDeclaration analysis,
+        string name,
+        bool defaultValue,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
+    {
+        if (!analysis.Parameters.TryGetValue(name, out var expression))
+        {
+            return defaultValue;
+        }
+
+        var value = evalRunner.EvaluateExpressionForPlan(expression, benchParams) as BenchNumber;
+        if (
+            value is null
+            || value.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(value.Value)
+            || value.Value != Math.Round(value.Value)
+            || value.Value is not 0 and not 1
+        )
+        {
+            throw new InvalidOperationException(
+                $"PSSAnalysis '{analysis.Name}.{name}' expects 0 or 1."
+            );
+        }
+
+        return value.Value == 1;
     }
 
     private static string? FindNoiseInputSource(BenchNetlist netlist)
