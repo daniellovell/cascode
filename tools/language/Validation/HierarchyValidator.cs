@@ -55,12 +55,20 @@ public static class HierarchyValidator
                 circuitsByName[circuit.Name] = circuit;
             }
         }
+        var traitsByName = doc.Traits.ToDictionary(t => t.Name, StringComparer.Ordinal);
 
         // Validate each circuit's hierarchy
         foreach (var circuit in doc.Circuits)
         {
             var instanceIds = BuildInstanceIds(circuit);
-            ValidateCircuitInstances(circuit, circuitsByName, doc.Traits, instanceIds, result);
+            ValidateCircuitInstances(
+                circuit,
+                circuitsByName,
+                traitsByName,
+                doc.Traits,
+                instanceIds,
+                result
+            );
             ValidateAttachStatements(circuit, instanceIds, result);
         }
 
@@ -92,6 +100,7 @@ public static class HierarchyValidator
     private static void ValidateCircuitInstances(
         Circuit circuit,
         Dictionary<string, Circuit> circuitsByName,
+        Dictionary<string, TraitDefinition> traitsByName,
         List<TraitDefinition> traits,
         HashSet<string> instanceIds,
         ValidationResult result
@@ -104,6 +113,24 @@ public static class HierarchyValidator
 
         foreach (var instance in circuit.Fill.Instances)
         {
+            var portAnalysis = new PortCoverageAnalysis(circuit, traits, result);
+            if (instance.IsSomeRequest)
+            {
+                if (!traitsByName.TryGetValue(instance.Type, out var targetTrait))
+                {
+                    result.AddError(
+                        "HIER-001",
+                        $"Instance '{instance.Id}' requests unknown interface '{instance.Type}'",
+                        $"circuit {circuit.Name}, instance {instance.Id}",
+                        $"Define interface '{instance.Type}' in this document or check for typos"
+                    );
+                    continue;
+                }
+
+                portAnalysis.ValidateInstancePortCoverage(instance, targetTrait);
+                continue;
+            }
+
             // HIER-001: Validate instance type exists
             if (!circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
             {
@@ -123,7 +150,6 @@ public static class HierarchyValidator
             ValidateInstanceSizes(instance, targetCircuit, circuit.Name, result);
 
             // HIER-003: Validate port coverage (bindings + attach)
-            var portAnalysis = new PortCoverageAnalysis(circuit, traits, result);
             portAnalysis.ValidateInstancePortCoverage(instance, targetCircuit);
         }
     }
@@ -382,6 +408,11 @@ public static class HierarchyValidator
 
             foreach (var instance in circuit.Fill.Instances)
             {
+                if (instance.IsSomeRequest)
+                {
+                    continue;
+                }
+
                 // Only add dependency if target exists and (if excludeInline) is not inline
                 if (excludeInline)
                 {

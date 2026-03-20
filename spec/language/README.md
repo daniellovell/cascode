@@ -17,7 +17,7 @@ intended behavior.
 Cascode files may begin with a `VERSION` header:
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 ```
 
 The canonical version is [tools/language/CascodeVersion.cs](../../tools/language/CascodeVersion.cs).

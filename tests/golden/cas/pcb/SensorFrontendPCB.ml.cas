@@ -1,0 +1,53 @@
+VERSION 5.0
+
+include tests.golden.cas.pcb.sensor_frontend.interfaces
+
+// Definitive ML example: topology is fixed here, but child implementations remain unresolved.
+circuit SensorFrontendPCB {
+  level ML
+  supply VDD_3V3
+  ground GND
+  input SENSOR : Diff
+  output DEBUG : UART
+  io PROG : SWD
+
+  fill {
+    net conditioned : analog
+    net i2c_bus : I2C
+    net drdy : digital
+
+    Some frontend : SensorConditioner {
+      .VDD--VDD_3V3
+      .GND--GND
+      .SENSOR_IN--SENSOR
+      .SIGNAL_OUT--conditioned
+    }
+
+    Some adc : ADCSubsystem {
+      .VDD--VDD_3V3
+      .GND--GND
+      .AIN--conditioned
+      .BUS--i2c_bus
+      .DRDY--drdy
+    }
+
+    Some mcu : Microcontroller {
+      .VDD--VDD_3V3
+      .GND--GND
+      .PERIPH--i2c_bus
+      .IRQ--drdy
+      .DEBUG--DEBUG
+      .PROG--PROG
+    }
+  }
+
+  harness {
+    supply VDD_3V3 = 3.3V
+    ground GND = 0V
+  }
+
+  synth {
+    seed = 42
+    objective = minimize_cost
+  }
+}

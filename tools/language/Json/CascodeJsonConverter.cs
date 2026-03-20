@@ -431,6 +431,10 @@ public static class CascodeJsonConverter
             .Instances.Select(i => new CascodeJsonInstance
             {
                 Id = i.Id,
+                DeclaredType =
+                    string.IsNullOrWhiteSpace(i.DeclaredType) || i.DeclaredType == i.Type
+                        ? null
+                        : i.DeclaredType,
                 Type = i.Type,
                 Bindings = i.Bindings,
                 Params =
@@ -677,7 +681,9 @@ public static class CascodeJsonConverter
                     {
                         Id = i.Id,
                         Type = i.Type,
-                        DeclaredType = i.Type,
+                        DeclaredType = string.IsNullOrWhiteSpace(i.DeclaredType)
+                            ? i.Type
+                            : i.DeclaredType,
                         Bindings = new Dictionary<string, string>(i.Bindings),
                         Params =
                             i.Params?.ToDictionary(p => p.Key, p => ParamValueParser.Parse(p.Value))

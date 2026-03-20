@@ -357,7 +357,7 @@ Each level in the chain can add terminals, parameters, analysis, measurements, a
 The following shows how `TransferBenches.cas` would be restructured using abstract benches. File-level helper functions remain unchanged.
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 
 library lib.std.bench
 

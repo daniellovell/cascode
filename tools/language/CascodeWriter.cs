@@ -503,10 +503,17 @@ public static partial class CascodeWriter
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
-        var declaredType = string.IsNullOrWhiteSpace(inst.DeclaredType)
-            ? inst.Type
-            : inst.DeclaredType;
-        writer.WriteLine($"{indent}{declaredType} {inst.Id} = new {inst.Type}{argList} {{");
+        if (inst.IsSomeRequest)
+        {
+            writer.WriteLine($"{indent}Some {inst.Id} : {inst.Type} {{");
+        }
+        else
+        {
+            var declaredType = string.IsNullOrWhiteSpace(inst.DeclaredType)
+                ? inst.Type
+                : inst.DeclaredType;
+            writer.WriteLine($"{indent}{declaredType} {inst.Id} = new {inst.Type}{argList} {{");
+        }
         var bindIndent = indent + "  ";
         foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
         {

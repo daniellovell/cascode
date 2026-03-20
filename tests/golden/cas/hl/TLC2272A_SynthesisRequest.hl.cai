@@ -1,4 +1,4 @@
-VERSION 4.1
+VERSION 5.0
 
 // TLC2272A request pinned to the relevant datasheet metrics:
 // gain, GBW, phase margin, CMRR, PSRR, quiescent power, spot/input-referred noise,

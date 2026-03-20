@@ -2,7 +2,7 @@
 // Exercise this file with `cascode emit` and `cascode erc` regressions to verify
 // that linked `.cai` artifacts retain `implements`, the referenced interface, and declared terminals.
 
-VERSION 4.1
+VERSION 5.0
 
 bundle Diff {
   N : analog

@@ -13,8 +13,8 @@ public sealed class BenchBindingScopedBiasTests
     [Fact]
     public void EmitAll_QuiescentPowerBinding_DiffInput_EmitsCommonModeBias()
     {
-        var cascode = """
-            VERSION 4.0
+        var cascode = $$"""
+            VERSION {{CascodeVersion.Current}}
 
             bench QuiescentPower {
               stim PWR : supply
@@ -76,8 +76,8 @@ public sealed class BenchBindingScopedBiasTests
     [Fact]
     public void EmitAll_QuiescentPowerBinding_SEInput_EmitsInputBias()
     {
-        var cascode = """
-            VERSION 4.0
+        var cascode = $$"""
+            VERSION {{CascodeVersion.Current}}
 
             bench QuiescentPower {
               stim PWR : supply
@@ -137,8 +137,8 @@ public sealed class BenchBindingScopedBiasTests
     [Fact]
     public void EmitAll_SEDCBiasBinding_DiffInput_EmitsCommonModeBias()
     {
-        var cascode = """
-            VERSION 4.0
+        var cascode = $$"""
+            VERSION {{CascodeVersion.Current}}
 
             bench SEDCBias {
               resp OUT : analog
@@ -204,8 +204,8 @@ public sealed class BenchBindingScopedBiasTests
     [Fact]
     public void EmitAll_SEDCBiasBinding_SEInput_EmitsInputBias()
     {
-        var cascode = """
-            VERSION 4.0
+        var cascode = $$"""
+            VERSION {{CascodeVersion.Current}}
 
             bench SEDCBias {
               resp OUT : analog
@@ -269,8 +269,8 @@ public sealed class BenchBindingScopedBiasTests
     [Fact]
     public void EmitAll_QuiescentPowerBinding_NoBias_InputNetsAreFloating()
     {
-        var cascode = """
-            VERSION 4.0
+        var cascode = $$"""
+            VERSION {{CascodeVersion.Current}}
 
             bench QuiescentPower {
               stim PWR : supply

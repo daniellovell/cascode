@@ -13,8 +13,8 @@ public sealed class BenchDutNodeResolverTests
     public void ResolveNodeKeys_NonInlineHierarchy_UsesXInstances()
     {
         var doc = Read(
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             circuit Leaf {
               level EL
@@ -48,8 +48,8 @@ public sealed class BenchDutNodeResolverTests
     public void ResolveNodeKeys_InlineNet_FlattensIntoNetName()
     {
         var doc = Read(
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             circuit InlineLeaf {
               level EL
@@ -88,8 +88,8 @@ public sealed class BenchDutNodeResolverTests
     public void ResolveNodeKeys_NonInlineInstanceInsideInline_UsesInlinePrefixedInstanceName()
     {
         var doc = Read(
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             circuit NonInlineLeaf {
               level EL
@@ -124,8 +124,8 @@ public sealed class BenchDutNodeResolverTests
     public void ResolveNodeKeys_LeafMustBeDeclaredFillNet()
     {
         var doc = Read(
-            """
-            VERSION 4.0
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             circuit Leaf {
               level EL

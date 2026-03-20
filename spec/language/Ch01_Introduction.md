@@ -128,7 +128,7 @@ circuit RcLowpass {
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_fc = lp::LowpassBandwidth >= 50MHz
   }
 }

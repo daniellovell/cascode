@@ -26,7 +26,7 @@ chapter documents the surface syntax as it is used throughout the standard libra
 
 | Construct | Example | Section |
 |----------|---------|---------|
-| `VERSION` header | `VERSION 4.0` | 3.1.1 |
+| `VERSION` header | `VERSION 5.0` | 3.1.1 |
 | `library` | `library lib.std.amp` | 3.1.2 |
 | `include` | `include lib.std` | 3.1.3 |
 | `wrap spice` | `wrap spice """...""" map { ... }` | 3.1.5 |
@@ -40,12 +40,12 @@ chapter documents the surface syntax as it is used throughout the standard libra
 | device instance | `NMOS M1 = new NMOS_Level1(S) { ... }` | 3.9 |
 | `circuit` | `circuit OTA5T implements SingleEndedOpAmp { ... }` | 3.7 |
 | `inline` | `inline` | 3.7 |
-| `slot` | `slot` (bare) or `slot { Some lna = new X() { ... } }` | 3.7 |
+| `slot` | `slot` | 3.7 |
 | `synth {}` | `synth { seed = 123 }` | 3.7 |
 | `fill {}` | `fill { net n : analog  DiffPair dp = new DiffPair { ... } }` | 3.10 |
 | `attach` | `attach cm to dp via A::B as name` | 3.10 |
 | `benches {}` | `benches { bind X as y { ... } }` | 3.11 |
-| `constraints {}` | `constraints { numeric { c = b::M >= 1 } }` | 3.11 |
+| `constraints {}` | `constraints { bench { c = lp::LowpassBandwidth >= 1MHz } }` | 3.11 |
 | `env {}` | `env { LoadImpedance = 50Ohm }` | 3.11 |
 | `harness {}` | `harness { supply VDD = 1.8V }` | 3.11 |
 
@@ -79,7 +79,7 @@ chapters that introduce those subsystems.
 Files may begin with a version header:
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 ```
 
 Source `.cas` files may omit the header, but tool-linked outputs are expected to include it.
@@ -152,7 +152,7 @@ SPICE pin names of the embedded subcircuit.
 The following minimal example shows the main structural forms in a single file:
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 library examples.rc
 
 bundle Diff {
@@ -181,7 +181,7 @@ circuit RcLowpass {
     Capacitor C1 = new IdealC(size(C=1p)) { .P--OUT, .N--GND }
   }
   benches { bind DiffToSELowpass as lp { bench.IN--dut.IN  bench.OUT--dut.OUT  dut.GND--g0 } }
-  constraints { numeric { c_fc = lp::LowpassBandwidth >= 50MHz } }
+  constraints { bench { c_fc = lp::LowpassBandwidth >= 50MHz } }
   harness { ground GND = 0V }
 }
 ```
@@ -390,7 +390,7 @@ Inline circuits are expanded into their instantiating context rather than being 
 
 ### 3.7.4 Slots (`slot`)
 
-Slots are high-level placeholders intended to be filled during synthesis. There are two forms.
+Slots are high-level placeholders intended to be filled during synthesis.
 
 A bare `slot` statement marks the circuit itself as a synthesis target. It is valid only at circuit
 body level and implies that the circuit has no `fill` block — the entire implementation is to be
@@ -410,32 +410,8 @@ circuit MyOpAmp implements SingleEndedOpAmp {
 }
 ```
 
-A `slot { ... }` block is the HL analog of `fill { ... }`. It contains sub-block instantiation,
-net declarations, and wiring — the same constructs available in fill blocks (`net`, `repeat`,
-`pair`, `match`, `--` wiring). Each sub-block uses a typed declaration:
-`DeclaredType name = new ConstructorType(params) { bindings }`:
-
-```cascode
-slot {
-  net mid : analog
-
-  MyLNA lna = new MyLNA(stages=2) {
-    .VDD--VDD
-    .GND--GND
-    .IN--RF_IN
-    .OUT--mid
-  }
-  MyMixer mixer = new MyMixer() {
-    .VDD--VDD
-    .GND--GND
-    .RF--mid
-    .BB--BB_OUT
-  }
-}
-```
-
-A `slot { ... }` block and a `fill { ... }` block may coexist in the same circuit for mixed HL/EL
-designs. The two blocks share a single net namespace and cross-references are permitted.
+If the sub-block graph and wiring are already known, the circuit is ML at that hierarchy and must
+use `fill { ... }` instead. Structural composition is not expressed with `slot { ... }`.
 
 ### 3.7.5 Synthesis guidance (`synth {}`)
 
@@ -561,6 +537,7 @@ Fill blocks contain a sequence of statements. The most common forms are:
 | Net declaration | `net out : analog` | Declares a local net and its terminal type |
 | Size declaration | `size S = size(W=2u, L=180n, M=1)` | Declares a reusable size pack |
 | Instance declaration | `DiffPair dp = new DiffPair(...) { ... }` | Instantiates a circuit/bench primitive |
+| Existential child request | `Some frontend : SensorConditioner { ... }` | Requests some child circuit implementing the named interface |
 | Device declaration | `NMOS M1 = new nfet_01v8(S) { ... }` | Instantiates a primitive-backed device |
 | Attach | `attach cm to dp via TraitA::TraitB as name` | Applies connector-driven wiring overrides |
 | Wire connection | `a--b` | Connects two pin references (joins nets) |
@@ -581,7 +558,8 @@ Instances use constructor syntax with `new`. Arguments are passed by name:
 DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), hasTail=true) { ... }
 ```
 
-Instance declarations must include an explicit declared type, and it must match the constructor type:
+Concrete instance declarations must include an explicit declared type, and it must match the
+constructor type:
 
 ```cascode
 VAC ac = new VAC(A=0.5V, phase=0deg) { .N--vcm }
@@ -589,27 +567,25 @@ VAC ac = new VAC(A=0.5V, phase=0deg) { .N--vcm }
 
 ### 3.10.3 The `Some` keyword
 
-In `slot {}` blocks, the `Some` keyword declares an instance whose declared type will be resolved by
-synthesis:
+In ML `fill {}` blocks, the `Some` keyword declares an existential child request:
 
 ```cascode
-slot {
-  Some frontend = new AnalogFrontend() { ... }
-  Some adc = new ADCStage() { ... }
+fill {
+  Some frontend : SensorConditioner {
+    .VDD--VDD
+    .GND--GND
+    .SENSOR_IN--SENSOR
+    .SIGNAL_OUT--conditioned
+  }
 }
 ```
 
-When an explicit interface type is known, use that type instead:
+`Some` always carries an explicit interface name. It means "pick some circuit that implements this
+interface." There is no constructor on the right-hand side, because the implementation is still
+unresolved at ML.
 
-```cascode
-slot {
-  SensorConditioner frontend = new WheatstoneAmplifier(...) { ... }
-  ADCSubsystem adc = new ADCStage() { ... }
-}
-```
-
-`Some` is valid only in `slot` blocks. Using `Some` in `fill` blocks is a grammar-level parse error.
-The grammar enforces this by using separate slot/fill instance declaration rules.
+`Some` is valid only in ML `fill {}` blocks. HL uses bare `slot`. EL must be fully concrete and may
+not contain existential child requests.
 
 ### 3.10.4 Binding Blocks
 
@@ -645,16 +621,19 @@ The wire operator is also used in connectors (`connectors { to X { A--B } }`) an
 
 ## 3.11 Constraints, benches sections, environment, and harness (syntax)
 
-Constraints are declared in a `constraints { ... }` block, most commonly with a `numeric { ... }`
-section:
+Constraints are declared in a `constraints { ... }` block and are organized by verification method:
+`bench {}`, `spec {}`, and `physical {}`.
 
 ```cascode
-constraints { numeric { c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz } }
+constraints {
+  bench { c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz }
+  spec { c_supply = adc.SupplyVoltage == 3.3V }
+}
 ```
 
 ### 3.11.1 Constraint reference form
 
-Informally, a numeric constraint has the shape:
+Informally, a scalar constraint has the shape:
 
 ```
 <id> = <binding>(<bench-args>)? :: <measurement>(<measurement-args>)? (at <scope>::<pinRef>)? <op> <threshold>
@@ -682,7 +661,7 @@ Parameter and call forms are supported both at the bench and measurement level:
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_int = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
     c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.4V
   }

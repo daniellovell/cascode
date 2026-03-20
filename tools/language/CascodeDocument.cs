@@ -320,18 +320,27 @@ public sealed class NetDeclaration
 }
 
 /// <summary>
-/// Declares an instance at ML level.
+/// Declares a hierarchical child instance.
 /// </summary>
 public sealed class InstanceDeclaration
 {
     /// <summary>Instance identifier.</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Motif type name.</summary>
+    /// <summary>
+    /// Concrete circuit type for instantiated children, or the required interface name for existential
+    /// <c>Some</c> requests.
+    /// </summary>
     public string Type { get; init; } = string.Empty;
 
-    /// <summary>Declared instance type from source (for example <c>Some</c> in slot blocks).</summary>
+    /// <summary>
+    /// Source-level declared type token. When this is <c>Some</c>, <see cref="Type"/> names the
+    /// required interface for an unresolved child request.
+    /// </summary>
     public string? DeclaredType { get; init; }
+
+    /// <summary>True when this instance is an existential child request.</summary>
+    public bool IsSomeRequest => string.Equals(DeclaredType, "Some", StringComparison.Ordinal);
 
     /// <summary>Terminal bindings.</summary>
     public Dictionary<string, string> Bindings { get; init; } = new();

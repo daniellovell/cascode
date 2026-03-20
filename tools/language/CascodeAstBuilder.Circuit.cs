@@ -353,6 +353,10 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
+                case CascodeParser.FillSomeInstanceStatementContext someInstanceCtx:
+                    fill.Instances.Add(BuildSomeInstance(someInstanceCtx.someInstanceDecl()));
+                    break;
+
                 case CascodeParser.FillAttachDeclContext attachCtx:
                     fill.Attaches.Add(BuildAttach(attachCtx));
                     break;
@@ -442,6 +446,19 @@ internal sealed partial class CascodeAstBuilder
             id: ctx.instanceId.Text,
             type: ctx.instanceTypeName().GetText(),
             argList: ctx.argList(),
+            bindingBlock: ctx.bindingBlock(),
+            diagnosticCtx: ctx,
+            allowSomeDeclaredType: false
+        );
+    }
+
+    private InstanceDeclaration BuildSomeInstance(CascodeParser.SomeInstanceDeclContext ctx)
+    {
+        return BuildInstance(
+            declaredType: "Some",
+            id: ctx.instanceId.Text,
+            type: ctx.requiredType.Text,
+            argList: null,
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
             allowSomeDeclaredType: true

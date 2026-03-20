@@ -1,0 +1,86 @@
+VERSION 5.0
+
+library tests.golden.cas.pcb.sensor_frontend.interfaces
+
+include lib.pcb
+
+bundle I2C {
+  SDA : digital
+  SCL : clock
+}
+
+bundle UART {
+  TX : digital
+  RX : digital
+}
+
+bundle SWD {
+  SWDIO : digital
+  SWCLK : clock
+}
+
+interface SensorConditioner {
+  supply VDD
+  ground GND
+  input SENSOR_IN : Diff
+  output SIGNAL_OUT : analog
+
+  metrics {
+    PassbandGain : dB
+    LowpassBandwidth : Hz
+    IntegratedInputNoise : Vrms
+  }
+
+  benches {
+    bind DiffToSETransfer as transfer_bench {
+      bench.IN--dut.SENSOR_IN
+      bench.OUT--dut.SIGNAL_OUT
+
+      metrics {
+        PassbandGain = transfer_bench::PassbandGain
+        LowpassBandwidth = transfer_bench::LowpassBandwidth
+      }
+    }
+
+    bind DiffToSENoise as noise_bench {
+      bench.IN--dut.SENSOR_IN
+      bench.OUT--dut.SIGNAL_OUT
+
+      metrics {
+        IntegratedInputNoise = noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz)
+      }
+    }
+  }
+}
+
+interface ADCSubsystem {
+  supply VDD
+  ground GND
+  input AIN : analog
+  io BUS : I2C
+  output DRDY : digital
+
+  metrics {
+    Resolution : bit
+    MaxSampleRate : SPS
+    InputCapacitance : F
+    SupplyVoltage : V { min, max }
+    SupplyCurrent : A { max }
+  }
+}
+
+interface Microcontroller {
+  supply VDD
+  ground GND
+  io PERIPH : I2C
+  input IRQ : digital
+  output DEBUG : UART
+  io PROG : SWD
+
+  metrics {
+    FlashSize : B
+    CoreClock : Hz
+    SupplyVoltage : V { min, max }
+    SupplyCurrent : A { max }
+  }
+}

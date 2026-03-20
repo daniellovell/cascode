@@ -1,4 +1,4 @@
-VERSION 4.1
+VERSION 5.0
 
 primitive PMOS PMOS_Level1(size primSize) {
   device "pmos_level1"

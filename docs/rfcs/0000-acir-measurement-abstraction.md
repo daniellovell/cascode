@@ -193,7 +193,7 @@ Human-authored Cascode source files use the `.cas` file extension. Tool-generate
 Cascode files may include a version header as the first line:
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 ```
 
 Version header requirements:
@@ -617,7 +617,7 @@ measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
 **In constraints:**
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100nVrms
   }
 }
@@ -687,7 +687,7 @@ circuit My5TOTA implements SingleEndedOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_psrr_a = psrr_avdd::PSRR >= 70dB
       c_psrr_d = psrr_dvdd::PSRR >= 60dB
     }
@@ -728,7 +728,7 @@ circuit MultiSupplyOTA implements SingleEndedOpAmp {
   ground VSS
 
   constraints {
-    numeric {
+    bench {
       c_psrr_a = psrr_avdd::PSRR >= 70dB
       c_psrr_d = psrr_dvdd::PSRR >= 60dB
     }
@@ -1035,7 +1035,7 @@ circuit My5TOTA implements SingleEndedOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth >= 100MHz
       c_gain = transfer_bench::PassbandGain >= 50dB
     }
@@ -1434,6 +1434,8 @@ The measurement system provides compound types representing simulation data over
 | `ComplexVoltageSpectrum` | Frequency | Complex Voltage | Voltage V(f) from `voltage(ac, terminal)` |
 | `ComplexCurrentSpectrum` | Frequency | Complex Current | Current I(f) from `current(ac, element)` |
 | `NoiseSpectrum` | Frequency | NoiseSpectralDensity | Noise density V/√Hz(f) from `noise(...)` |
+
+
 
 #### Time Domain Types
 

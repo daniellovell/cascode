@@ -592,7 +592,14 @@ public static class CascodeLinker
 
                 foreach (var inst in c.Fill.Instances)
                 {
-                    required.Circuits.Add(inst.Type);
+                    if (inst.IsSomeRequest)
+                    {
+                        required.Traits.Add(inst.Type);
+                    }
+                    else
+                    {
+                        required.Circuits.Add(inst.Type);
+                    }
                 }
 
                 foreach (var attach in c.Fill.Attaches)

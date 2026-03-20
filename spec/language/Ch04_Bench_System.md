@@ -784,11 +784,11 @@ interface contract.
 
 ### 4.8.3 Referencing Measurements from Constraints
 
-Numeric constraints reference bench measurements via the binding name:
+Bench constraints reference bench measurements via the binding name:
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
     c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
     c_gain_at_1mhz = transfer_bench::Gain(f=1MHz) at net::OUT >= 35dB

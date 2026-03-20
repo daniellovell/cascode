@@ -38,6 +38,120 @@ public class HierarchyValidatorTests
     }
 
     [Fact]
+    public void Validate_SomeRequestWithUnknownInterface_ReturnsHIER001()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = CascodeLevel.ML,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "frontend",
+                                Type = "AnalogFrontend",
+                                DeclaredType = "Some",
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = HierarchyValidator.Validate(doc);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.GetErrors(), e => e.Code == "HIER-001");
+    }
+
+    [Fact]
+    public void Validate_SomeRequestUsesInterfacePortCoverage()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Traits = new List<TraitDefinition>
+            {
+                new TraitDefinition
+                {
+                    Name = "AnalogFrontend",
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "VDD",
+                            Type = "supply",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "GND",
+                            Type = "ground",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = CascodeLevel.ML,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "frontend",
+                                Type = "AnalogFrontend",
+                                DeclaredType = "Some",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                    ["IN"] = "sig_in",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = HierarchyValidator.Validate(doc);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.GetErrors(), e => e.Code == "HIER-003");
+    }
+
+    [Fact]
     public void Validate_MissingRequiredParameter_ReturnsHIER002()
     {
         var doc = new CascodeDocument

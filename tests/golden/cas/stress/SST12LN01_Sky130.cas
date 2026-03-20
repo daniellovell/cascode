@@ -1,4 +1,4 @@
-VERSION 4.1
+VERSION 5.0
 
 // SST12LN01 is a 2.4 to 2.5 GHz LNA matched to 50 Ohms at the input and output.
 // SST12LN01 stress pin using the datasheet metrics Cascode can express today:

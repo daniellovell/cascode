@@ -417,7 +417,7 @@ Constraints reference measurements through the bind name:
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_s21 = sparam_bench::S21(f=2.4GHz) >= 15dB
     c_s11 = sparam_bench::S11(f=2.4GHz) <= -10dB
     c_k   = sparam_bench::StabilityK(f=2.4GHz) >= 1

@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, "..");
 
-const sampleSource = `VERSION 4.0
+const sampleSource = `VERSION 5.0
 
 primitive NMOS NMOS_Level1(size primSize) {
   device "nmos_level1"

@@ -455,8 +455,8 @@ public sealed class CascodeLinkerTests
         var helperPath = Path.Combine(workspaceRoot, "bench_helpers.cas");
         File.WriteAllText(
             helperPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.bench
 
@@ -469,8 +469,8 @@ public sealed class CascodeLinkerTests
         var benchPath = Path.Combine(workspaceRoot, "bench_defs.cas");
         File.WriteAllText(
             benchPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.bench
 
@@ -497,8 +497,8 @@ public sealed class CascodeLinkerTests
         var traitPath = Path.Combine(workspaceRoot, "filter_interface.cas");
         File.WriteAllText(
             traitPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.filter
             include lib.test.bench
@@ -520,8 +520,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(workspaceRoot, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.test.filter.HelperFilter
 
@@ -567,8 +567,8 @@ public sealed class CascodeLinkerTests
         var helperPath = Path.Combine(workspaceRoot, "bench_helpers.cas");
         File.WriteAllText(
             helperPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             library lib.test.helpers
 
@@ -581,8 +581,8 @@ public sealed class CascodeLinkerTests
         var entryPath = Path.Combine(workspaceRoot, "entry.cas");
         File.WriteAllText(
             entryPath,
-            """
-            VERSION 4.1
+            $$"""
+            VERSION {{CascodeVersion.Current}}
 
             include lib.test.helpers
 

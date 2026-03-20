@@ -61,6 +61,49 @@ public class CascodeJsonConverterRoundTripTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesSomeRequestDeclaredType()
+    {
+        var original = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = CascodeLevel.EL,
+                    Fill = new FillBlock
+                    {
+                        Instances =
+                        [
+                            new InstanceDeclaration
+                            {
+                                Id = "frontend",
+                                DeclaredType = "Some",
+                                Type = "AnalogFrontend",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["IN"] = "VIN",
+                                    ["OUT"] = "VOUT",
+                                },
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        var json = CascodeJsonConverter.ToJson(original);
+        var result = CascodeJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+
+        var instance = Assert.Single(result.Document!.Circuits[0].Fill!.Instances);
+        Assert.True(instance.IsSomeRequest);
+        Assert.Equal("AnalogFrontend", instance.Type);
+    }
+
+    [Fact]
     public void RoundTrip_PreservesConstraintSemantics()
     {
         var original = CreateCircuitWithConstraints();

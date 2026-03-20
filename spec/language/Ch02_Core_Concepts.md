@@ -18,7 +18,7 @@ Linked outputs (`.cai`) include a `VERSION` header as the first line. The defaul
 self-contained; include-pruned bench mode intentionally retains a minimal include set.
 
 ```cascode
-VERSION 4.0
+VERSION 5.0
 library lib.std.amp
 include lib.std.bench
 ```
@@ -166,9 +166,12 @@ circuit OTA5T implements SingleEndedOpAmp {
 
 Cascode uses three elaboration levels:
 
-- HL (high level): may include unresolved structure (for example, synthesis guidance).
-- ML (mid level): structure is concrete but may contain symbolic or technology-independent sizing.
-- EL (electrical level): emission-ready; device choices and numeric values are sufficient for SPICE.
+- HL (high level): the current circuit is a synthesis request. Its boundary, constraints, and synthesis
+  guidance are fixed, but its structure is not.
+- ML (mid level): topology at the current hierarchy is fixed with a `fill {}` block, but child
+  implementations may remain unresolved through existential `Some <name> : <Interface>` requests.
+- EL (electrical level): fully concrete and emission-ready. Device choices, child implementations,
+  and numeric values are sufficient for SPICE.
 
 SPICE emission requires EL-level circuits. The toolchain’s compilation stages are structured around
 linking (dependency resolution), synthesis (HL/ML → EL), and emission. The synthesis and physical
@@ -197,6 +200,23 @@ fill {
 ```
 
 Bindings can be written one-per-line or comma-separated.
+
+At ML, a `fill {}` block may also contain existential child requests when the topology is fixed but
+the implementation of a child block is intentionally deferred:
+
+```cascode
+fill {
+  Some frontend : SensorConditioner {
+    .VDD--VDD
+    .GND--GND
+    .SENSOR_IN--SENSOR
+    .SIGNAL_OUT--conditioned
+  }
+}
+```
+
+`Some` names an interface contract, not a constructor. It means "choose some circuit that implements
+this interface."
 
 #### Connectivity and the wire operator
 
@@ -265,8 +285,7 @@ circuits, terminals, and wiring.
 
 ### 2.5.5 Slots (synthesis placeholders)
 
-Cascode uses `slot` declarations as explicit markers for structure that synthesis must fill.
-There are two distinct forms, each suited to a different authoring pattern.
+Cascode uses `slot` as an explicit marker that the current circuit is a synthesis target.
 
 #### Bare slot (circuit as synthesis target)
 
@@ -293,7 +312,7 @@ circuit MyOpAmp implements SingleEndedOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gbw  = transfer_bench::GainBandwidth >= 20MHz
       c_gain = transfer_bench::PassbandGain >= 40dB
       c_pm   = transfer_bench::PhaseMargin >= 60deg
@@ -315,71 +334,27 @@ synthesis specification. The bare `slot` tells the toolchain that no concrete `f
 and that `cascode syn` must produce one. Bare `slot` is valid only at circuit body level (not
 inside `fill` blocks).
 
-#### Composition slot (`slot { ... }` block)
+Topology-fixed composition belongs in ML `fill {}` blocks, not in `slot { ... }` blocks. If the
+author knows the sub-block graph and wiring, the circuit is no longer HL at that hierarchy.
 
-When a circuit composes several HL sub-blocks, a `slot { ... }` block declares those sub-blocks
-and their wiring. The syntax mirrors `fill { ... }` — the same constructs are available (`net`,
-`repeat`, `pair`, `match`, wiring with `--`) — but each instantiated name resolves at the HL
-level rather than to concrete devices.
+### 2.5.6 Existential child requests (`Some`)
 
-Sub-block instantiation uses `DeclaredType name = new ConstructorType(params) { bindings }`.
-For normal strongly-typed composition, `DeclaredType` matches `ConstructorType`. When the declared
-type is intentionally deferred to synthesis, slot blocks may use `Some` as the declared type.
-If `ConstructorType` names a circuit, that circuit's spec is used directly. If `ConstructorType`
-names an interface, synthesis picks any circuit that implements it. Parameterized instantiation
-works identically to fill blocks (`new MyLNA(stages=2)`).
-
-Each sub-block is self-contained: it carries its own environment, constraints, and harness and is
-independently testable. Constraints declared on a sub-block are minimums — a parent's system-level
-synthesis may tighten them but never relax them.
-
-Supply and ground wiring is explicit, consistent with the language's no-implicit-wiring rule.
+`Some` is the ML mechanism for leaving a child unresolved while preserving strong typing:
 
 ```cascode
-circuit MyReceiver {
-  level HL
-  supply VDD
-  ground GND
-  input RF_IN : analog
-  output BB_OUT : Diff
-
-  slot {
-    net mid : analog
-
-    MyLNA lna = new MyLNA(stages=2) {
-      .VDD--VDD
-      .GND--GND
-      .IN--RF_IN
-      .OUT--mid
-    }
-    MyMixer mixer = new MyMixer() {
-      .VDD--VDD
-      .GND--GND
-      .RF--mid
-      .BB--BB_OUT
-    }
-  }
-
-  constraints {
-    numeric {
-      c_system_gain = system_bench::Gain >= 20dB
-      c_system_nf = system_bench::NoiseFigure <= 3dB
-    }
-  }
-
-  harness {
-    supply VDD = 1.8V
-    ground GND = 0V
+fill {
+  Some frontend : SensorConditioner {
+    .VDD--VDD
+    .GND--GND
+    .SENSOR_IN--SENSOR
+    .SIGNAL_OUT--conditioned
   }
 }
 ```
 
-A `slot { ... }` block and a `fill { ... }` block may coexist in the same circuit for mixed
-HL/EL designs. The two blocks share a single net namespace, and cross-references between them are
-permitted. Neither block must appear before the other.
-
-The synthesis stage (`cascode syn`) is responsible for replacing all slot sub-blocks with concrete
-structure to produce an EL circuit.
+The requested interface is explicit (`SensorConditioner` in the example above), so the request is
+strongly typed. Synthesis or later refinement must replace the existential request with a concrete
+child before the design reaches EL.
 
 ---
 
@@ -437,17 +412,17 @@ Cascode distinguishes three closely related sources of intent:
 `env` values are available to benches through the `env.<Name>` scope. Resolved constraint values are
 available through `constraints.<Name>`. Harness values are available through `harness.<Name>`.
 
-### 2.7.1 Numeric constraints
+### 2.7.1 Bench constraints
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
   }
 }
 ```
 
-Numeric constraints compare a referenced measurement against a typed quantity literal. Constraints
+Bench constraints compare a referenced measurement against a typed quantity literal. Constraints
 may optionally include a node scope such as `net::OUT` or `port::IN.P`.
 
 ### 2.7.2 Harness syntax (overview)
@@ -538,7 +513,7 @@ used in constraints, analyses, and bench measurements.
 
 ```cascode
 harness { supply VDD = 1.8V }
-constraints { numeric { c_pm = transfer_bench::PhaseMargin >= 60deg } }
+constraints { bench { c_pm = transfer_bench::PhaseMargin >= 60deg } }
 ```
 
 ---
