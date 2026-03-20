@@ -24,8 +24,8 @@ notably `link`, `emit`, and `erc`, should be able to validate the surviving
 interface contract without relying on out-of-band context.
 
 Render-only topology fixtures that are not valid complete documents do not
-belong in this tree. Keep those under `tests/golden/render/` so the `.cai`
-files in `tests/golden/cas/` remain valid linked artifacts.
+belong in this tree. Keep those under [tests/golden/render](../render) so the `.cai`
+files in [tests/golden/cas](./) remain valid linked artifacts.
 
 These snapshots are useful downstream fixtures, but they are not a substitute
 for source-flow regressions. Behavior that depends on linking, inherited bench
@@ -41,5 +41,4 @@ flow, use these source files as the long-term semantic references:
 - `pcb/SensorFrontendPCB.hl.cas`
 - `pcb/SensorFrontendPCB.ml.cas`
 - `pcb/SensorFrontendPCB.el.cas`
-
 

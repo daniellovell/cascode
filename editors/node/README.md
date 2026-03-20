@@ -25,7 +25,7 @@ At runtime the loader resolves in this order:
    - `@cascode/cascode-js-darwin-x64`
    - `@cascode/cascode-js-linux-x64`
    - `@cascode/cascode-js-win32-x64`
-2. Local build (`editors/node/build/Release`)
+2. Local addon build output under `build/Release`
 3. Local native runtime discovery:
    - `editors/node/native/<rid>/`
    - `<repo>/build/native/<rid>/`

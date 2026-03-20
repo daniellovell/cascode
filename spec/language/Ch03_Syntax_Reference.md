@@ -4,8 +4,9 @@ This chapter is a syntax-oriented reference for the unified Cascode language. Ca
 use the `.cas` extension. Tool-linked intermediate artifacts use `.cai` (self-contained by default,
 or include-pruned when requested by linker mode).
 
-The authoritative grammar is `tools/language/Cascode.g4`. This chapter documents the surface syntax
-as it is used throughout the standard library (`lib/std/**`), examples, and golden tests.
+The authoritative grammar is [tools/language/Cascode.g4](../../tools/language/Cascode.g4). This
+chapter documents the surface syntax as it is used throughout the standard library under
+[lib/std](../../lib/std), fixture examples, and golden tests.
 
 ## Quick index
 
@@ -82,7 +83,8 @@ VERSION 5.0
 ```
 
 Source `.cas` files may omit the header, but tool-linked outputs are expected to include it.
-The canonical version is defined in `tools/language/CascodeVersion.cs`.
+The canonical version is defined in
+[tools/language/CascodeVersion.cs](../../tools/language/CascodeVersion.cs).
 
 ### 3.1.2 File Package (`library`)
 

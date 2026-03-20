@@ -168,6 +168,9 @@ jobs:
       - name: Restore Tools
         run: dotnet tool restore
 
+      - name: Check Markdown Links
+        run: python3 scripts/check_markdown_links.py
+
       - name: Format Check
         run: dotnet csharpier check .
 

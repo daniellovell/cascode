@@ -77,6 +77,8 @@ Use professional prose and use precisely the level of verbosity that is required
 
 Bold formatting should be reserved for technical terms being defined, critical warnings, or table headers requiring emphasis. Do not bold every subsection label, list lead-in, or organizational marker.
 
+When prose references an in-repo file or document, use a relative Markdown link rather than a backticked path. Reserve backticks for commands, identifiers, globs, and intentionally historical references in RFCs.
+
 ## Boundaries
 - `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/language`, `tools/bench`, `tools/render`. Nothing depends on CLI.
 - `tools/workspace`: orchestration + persistence to `pdk.db`. No UI.
@@ -115,6 +117,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 
 ## Testing (must update in same PR)
 - Unit + integration + architecture tests for touched code.
+- Prefer positive tests that prove supported behavior exists. Do not add negative unit tests whose only purpose is to assert that a removed or renamed feature is absent; when a feature is intentionally removed or renamed, delete the obsolete unit test instead.
 - Use `tests/fixtures/pdk/sky130`; keep critical golden outputs under `tests/golden/**`.
 - Deterministic by default: normalize time/paths/order; set `CASCODE_SEED` for randomness.
 - CASCODE_HOME isolation: MUST use `Cascode.TestSupport.CascodeHome.Create…` helpers (wired into test csproj via `tests/shared/`). NEVER manually create temp dirs for home or call `Environment.SetEnvironmentVariable("CASCODE_HOME", ...)` in tests. Each test must own and dispose an isolated home to avoid cross-run interference.
