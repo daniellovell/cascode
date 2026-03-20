@@ -44,6 +44,18 @@ Frequency f10 = G.Range(to=1MHz, from=100Hz).ValueAt(f=10kHz)
 Time tclk = period(f=1MHz)
 ```
 
+Standard transfer benches also expose both spot and band gain measurements:
+
+```cascode
+measurement Gain(Frequency f) : dB {
+  return db20(transfer(ac, IN, OUT).Mag()).ValueAt(f)
+}
+
+measurement Gain(Frequency from, Frequency to) : dB {
+  return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
+}
+```
+
 Reference implementations live in [`lib/std/bench/TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas):
 
 - `DiffToSETransfer` (Diff → analog)
