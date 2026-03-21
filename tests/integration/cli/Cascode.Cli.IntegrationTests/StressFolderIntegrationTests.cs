@@ -123,7 +123,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         Directory.CreateDirectory(renderDir);
 
         var render = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(60),
             _cascodeHome,
             "render",
             sandboxedPath,

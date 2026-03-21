@@ -105,7 +105,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             );
         }
 
-        if (NeedsBenchRun(runContext.ResolvedCascodePath, inputs, out var runReason))
+        if (NeedsBenchRun(runContext.SourcePaths, inputs, out var runReason))
         {
             return RunThenVerify(parsed, runContext, output, jsonOptions, runReason);
         }
@@ -168,10 +168,9 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         }
 
         if (
-            !TryResolveVerifyInputs(
-                parsed,
+            !TryResolveFreshRunInputs(
                 runContext,
-                benchRunResult.Summary.OutputDir,
+                benchRunResult,
                 out var refreshedInputs,
                 out var resolutionNote
             )

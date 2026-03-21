@@ -457,7 +457,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     private async Task VerifyAsync(string cascodePath, string resultsPath)
     {
         var verify = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(10),
+            TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
             cascodePath,

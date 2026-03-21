@@ -34,6 +34,9 @@ public sealed class CascodeLoadLinkServiceTests
         Assert.Equal(Path.GetFullPath(inputPath), loaded.InputPath);
         Assert.NotEqual(Path.GetFullPath(inputPath), loaded.ResolvedPath);
         Assert.True(File.Exists(loaded.ResolvedPath));
+        Assert.Contains(Path.GetFullPath(inputPath), loaded.SourcePaths);
+        Assert.DoesNotContain(Path.GetFullPath(loaded.ResolvedPath), loaded.SourcePaths);
+        Assert.True(loaded.SourcePaths.Count > 1, "expected include-bearing source dependencies");
         Assert.Contains(
             logger.Entries,
             entry =>
@@ -66,6 +69,10 @@ public sealed class CascodeLoadLinkServiceTests
         Assert.True(ok, string.Join(Environment.NewLine, diagnostics.Select(d => d.Message)));
         Assert.Equal(Path.GetFullPath(inputPath), loaded.InputPath);
         Assert.Equal(Path.GetFullPath(inputPath), loaded.ResolvedPath);
+        Assert.Collection(
+            loaded.SourcePaths,
+            path => Assert.Equal(Path.GetFullPath(inputPath), path)
+        );
         Assert.DoesNotContain(logger.Entries, entry => entry.Level == LogLevel.Warning);
     }
 
@@ -91,6 +98,9 @@ public sealed class CascodeLoadLinkServiceTests
         Assert.Equal(Path.GetFullPath(inputPath), loaded.InputPath);
         Assert.NotEqual(Path.GetFullPath(inputPath), loaded.ResolvedPath);
         Assert.True(File.Exists(loaded.ResolvedPath));
+        Assert.Contains(Path.GetFullPath(inputPath), loaded.SourcePaths);
+        Assert.DoesNotContain(Path.GetFullPath(loaded.ResolvedPath), loaded.SourcePaths);
+        Assert.True(loaded.SourcePaths.Count > 1, "expected include-bearing source dependencies");
         Assert.DoesNotContain(logger.Entries, entry => entry.Level == LogLevel.Warning);
     }
 
@@ -115,6 +125,10 @@ public sealed class CascodeLoadLinkServiceTests
         Assert.True(ok, string.Join(Environment.NewLine, diagnostics.Select(d => d.Message)));
         Assert.Equal(Path.GetFullPath(inputPath), loaded.InputPath);
         Assert.Equal(Path.GetFullPath(inputPath), loaded.ResolvedPath);
+        Assert.Collection(
+            loaded.SourcePaths,
+            path => Assert.Equal(Path.GetFullPath(inputPath), path)
+        );
         Assert.DoesNotContain(logger.Entries, entry => entry.Level == LogLevel.Warning);
     }
 

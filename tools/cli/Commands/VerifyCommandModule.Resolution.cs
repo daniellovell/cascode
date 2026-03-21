@@ -29,7 +29,7 @@ internal sealed partial class VerifyCommandModule
 
     private sealed record VerifyRunContext(
         string InputPath,
-        string ResolvedCascodePath,
+        IReadOnlyList<string> SourcePaths,
         IReadOnlyList<Circuit> AllElCircuits,
         IReadOnlyList<Circuit> VerifiableCircuits
     );
@@ -105,7 +105,7 @@ internal sealed partial class VerifyCommandModule
 
         context = new VerifyRunContext(
             inputPath,
-            loaded.ResolvedPath,
+            loaded.SourcePaths,
             elCircuits,
             BenchVerificationTargets.CollectVerifiableCircuits(loaded.Document)
         );
@@ -113,7 +113,7 @@ internal sealed partial class VerifyCommandModule
     }
 
     private static bool NeedsBenchRun(
-        string resolvedCascodePath,
+        IReadOnlyList<string> sourcePaths,
         IReadOnlyList<VerifyInput> inputs,
         out string reason
     )
@@ -121,6 +121,18 @@ internal sealed partial class VerifyCommandModule
         if (inputs.Count == 0)
         {
             reason = "no verification artifacts were resolved";
+            return true;
+        }
+
+        if (
+            !TryGetNewestSourceDependency(
+                sourcePaths,
+                out var newestSourcePath,
+                out var newestSourceWriteTimeUtc,
+                out reason
+            )
+        )
+        {
             return true;
         }
 
@@ -132,17 +144,65 @@ internal sealed partial class VerifyCommandModule
                 return true;
             }
 
-            if (
-                File.GetLastWriteTimeUtc(resolvedCascodePath) > File.GetLastWriteTimeUtc(input.Path)
-            )
+            var freshness = BenchArtifactProvenanceStore.EvaluateFreshness(input.Path, sourcePaths);
+            if (freshness.Status == ArtifactFreshnessStatus.Stale)
+            {
+                reason = $"{InputKindLabel(input.Kind)} file '{input.Path}' {freshness.Reason}";
+                return true;
+            }
+
+            if (freshness.Status == ArtifactFreshnessStatus.Fresh)
+            {
+                continue;
+            }
+
+            if (newestSourceWriteTimeUtc > File.GetLastWriteTimeUtc(input.Path))
             {
                 reason =
-                    $"{InputKindLabel(input.Kind)} file '{input.Path}' is older than the Cascode source";
+                    $"{InputKindLabel(input.Kind)} file '{input.Path}' is older than source dependency '{newestSourcePath}'";
                 return true;
             }
         }
         reason = string.Empty;
         return false;
+    }
+
+    private static bool TryGetNewestSourceDependency(
+        IReadOnlyList<string> sourcePaths,
+        out string newestSourcePath,
+        out DateTime newestSourceWriteTimeUtc,
+        out string reason
+    )
+    {
+        newestSourcePath = string.Empty;
+        newestSourceWriteTimeUtc = default;
+        if (sourcePaths.Count == 0)
+        {
+            reason = "no Cascode source dependencies were resolved";
+            return false;
+        }
+
+        var foundSource = false;
+        foreach (var sourcePath in sourcePaths)
+        {
+            var fullPath = Path.GetFullPath(sourcePath);
+            if (!File.Exists(fullPath))
+            {
+                reason = $"Cascode source dependency '{fullPath}' does not exist";
+                return false;
+            }
+
+            var writeTimeUtc = File.GetLastWriteTimeUtc(fullPath);
+            if (!foundSource || writeTimeUtc > newestSourceWriteTimeUtc)
+            {
+                newestSourcePath = fullPath;
+                newestSourceWriteTimeUtc = writeTimeUtc;
+                foundSource = true;
+            }
+        }
+
+        reason = string.Empty;
+        return true;
     }
 
     private static string InputKindLabel(VerifyInputKind kind) =>
@@ -318,6 +378,74 @@ internal sealed partial class VerifyCommandModule
             .ToArray();
         resolutionNote =
             $"Discovered {inputs.Count} canonical results artifact(s) in '{rootDirectory}'.";
+        return true;
+    }
+
+    private static bool TryResolveFreshRunInputs(
+        VerifyRunContext runContext,
+        BenchRunService.MultiCircuitBenchRunResult benchRunResult,
+        out IReadOnlyList<VerifyInput> inputs,
+        out string resolutionNote
+    )
+    {
+        inputs = Array.Empty<VerifyInput>();
+        resolutionNote = string.Empty;
+
+        var verifiableCircuitNames = runContext
+            .VerifiableCircuits.Select(c => c.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (verifiableCircuitNames.Length == 0)
+        {
+            resolutionNote =
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations.";
+            return false;
+        }
+
+        var summariesByCircuit = benchRunResult
+            .Summary.CircuitSummaries.GroupBy(
+                summary => summary.CircuitName,
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                group => group.Key,
+                group => group.Last(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        var resolved = new List<VerifyInput>(verifiableCircuitNames.Length);
+        var missingCircuits = new List<string>();
+        foreach (var circuitName in verifiableCircuitNames)
+        {
+            if (
+                !summariesByCircuit.TryGetValue(circuitName, out var summary)
+                || string.IsNullOrWhiteSpace(summary.CombinedResultsPath)
+            )
+            {
+                missingCircuits.Add(circuitName);
+                continue;
+            }
+
+            var resultsPath = Path.GetFullPath(summary.CombinedResultsPath);
+            if (!File.Exists(resultsPath))
+            {
+                missingCircuits.Add(circuitName);
+                continue;
+            }
+
+            resolved.Add(new VerifyInput(VerifyInputKind.Results, resultsPath));
+        }
+
+        if (missingCircuits.Count > 0)
+        {
+            resolutionNote =
+                $"Bench pipeline did not produce fresh combined results for circuit(s): {string.Join(", ", missingCircuits)}.";
+            return false;
+        }
+
+        inputs = resolved;
+        resolutionNote = $"Using {inputs.Count} fresh artifact(s) produced by the bench pipeline.";
         return true;
     }
 
