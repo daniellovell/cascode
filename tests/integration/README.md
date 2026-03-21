@@ -1,4 +1,5 @@
-Integration tests exercise the Cascode toolchain end-to-end. They live under `tests/integration/**`. The CLI suite (`tests/integration/cli`) now includes two styles of coverage:
+Integration tests exercise the Cascode toolchain end-to-end. They live under `tests/integration/**`.
+The CLI suite ([tests/integration/cli](./cli)) now includes two styles of coverage:
 
 - Run-once invocations via `ProcessStartInfo` for commands that stream directly to stdout.
 - Fully interactive Spectre.Console sessions driven through a pseudo-terminal harness.

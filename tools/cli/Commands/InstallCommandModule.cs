@@ -34,13 +34,19 @@ internal sealed class InstallCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("install", "Install simulator prerequisites", ShowUsage)
+            new DelegateCliCommand(
+                "install",
+                "Install simulator prerequisites",
+                ShowUsage,
+                helpCategory: CommandHelpCategory.Environment
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "install ngspice",
                 $"Install ngspice {NgspiceInstallLayout.Version} under CASCODE_HOME",
-                InstallNgspice
+                InstallNgspice,
+                helpCategory: CommandHelpCategory.Environment
             )
         );
     }
@@ -90,7 +96,8 @@ internal sealed class InstallCommandModule : ICommandModule
         }
 
         var installer = _installers["ngspice"];
-        var result = installer.Install(new SimulatorInstallOptions(force, fromSource));
+        Action<string>? log = json ? null : output.WriteErrorLine;
+        var result = installer.Install(new SimulatorInstallOptions(force, fromSource, log));
         if (json)
         {
             output.WriteLine(

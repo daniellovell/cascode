@@ -39,7 +39,8 @@ internal sealed class ConvertCommandModule : ICommandModule
             new DelegateCliCommand(
                 "convert",
                 "Convert between Cascode text and JSON formats",
-                ConvertCommand
+                ConvertCommand,
+                helpCategory: CommandHelpCategory.Design
             )
         );
     }

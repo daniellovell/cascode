@@ -39,7 +39,12 @@ internal sealed class ErcCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("erc", "Run electrical rule check on Cascode file", ErcCommand)
+            new DelegateCliCommand(
+                "erc",
+                "Run electrical rule check on Cascode file",
+                ErcCommand,
+                helpCategory: CommandHelpCategory.Design
+            )
         );
     }
 

@@ -32,7 +32,8 @@ internal sealed class UpdateCommandModule : ICommandModule
             new DelegateCliCommand(
                 path: "update",
                 description: "Check for and install CLI updates",
-                handler: RunUpdate
+                handler: RunUpdate,
+                helpCategory: CommandHelpCategory.Environment
             )
         );
     }

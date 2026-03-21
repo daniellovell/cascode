@@ -93,7 +93,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         {
             if (options.FromSource)
             {
-                return InstallFromSource(rid, tempRoot, installBin, installExe);
+                return InstallFromSource(rid, tempRoot, installBin, installExe, options.Log);
             }
 
             return InstallFromReleaseBinary(rid, tempRoot, installBin, installExe);
@@ -304,7 +304,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         string rid,
         string tempRoot,
         string installBin,
-        string installExe
+        string installExe,
+        Action<string>? log
     )
     {
         var checksums = LoadBundledSourceChecksums();
@@ -317,8 +318,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         }
 
         return _runtime.IsWindows
-            ? InstallWindowsFromSource(rid, checksums, tempRoot, installBin, installExe)
-            : InstallUnixFromSource(rid, checksums, tempRoot, installBin, installExe);
+            ? InstallWindowsFromSource(rid, checksums, tempRoot, installBin, installExe, log)
+            : InstallUnixFromSource(rid, checksums, tempRoot, installBin, installExe, log);
     }
 
     private SimulatorInstallResult InstallWindowsFromSource(
@@ -326,7 +327,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         IReadOnlyDictionary<string, string> checksums,
         string tempRoot,
         string installBin,
-        string installExe
+        string installExe,
+        Action<string>? log
     )
     {
         if (_runtime.FindTool("7z") is not string sevenZip)
@@ -342,7 +344,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             WindowsArchiveName,
             WindowsArchiveUrl,
             checksums,
-            SimulatorInstallModes.SourceBuild
+            SimulatorInstallModes.SourceBuild,
+            log
         );
         if (!archive.Success)
             return archive;
@@ -350,10 +353,12 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         var extractDir = Path.Combine(tempRoot, "extract");
         Directory.CreateDirectory(extractDir);
 
+        log?.Invoke($"7z: extracting {WindowsArchiveName}");
         var extract = _runtime.RunCommand(
             sevenZip,
             new[] { "x", archive.InstallPath!, $"-o{extractDir}", "-y" },
-            workingDirectory: null
+            workingDirectory: null,
+            onOutput: line => LogCommandOutput(log, "7z", line)
         );
         if (extract.ExitCode != 0)
         {
@@ -396,7 +401,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         IReadOnlyDictionary<string, string> checksums,
         string tempRoot,
         string installBin,
-        string installExe
+        string installExe,
+        Action<string>? log
     )
     {
         var missing = MissingUnixBuildDependencies();
@@ -408,7 +414,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
             SourceArchiveName,
             SourceArchiveUrl,
             checksums,
-            SimulatorInstallModes.SourceBuild
+            SimulatorInstallModes.SourceBuild,
+            log
         );
         if (!archive.Success)
             return archive;
@@ -416,7 +423,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         var sourceDir = ExtractSourceDirectory(
             tempRoot,
             archive.InstallPath!,
-            out var extractError
+            out var extractError,
+            log
         );
         if (sourceDir is null)
         {
@@ -429,7 +437,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         var buildPrefix = Path.Combine(tempRoot, "install");
         Directory.CreateDirectory(buildPrefix);
 
-        var buildError = BuildUnixSource(sourceDir, buildPrefix);
+        var buildError = BuildUnixSource(sourceDir, buildPrefix, log);
         if (buildError is not null)
             return Fail(buildError, SimulatorInstallModes.SourceBuild);
 
@@ -469,10 +477,12 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         string archiveName,
         string url,
         IReadOnlyDictionary<string, string> checksums,
-        string installMode
+        string installMode,
+        Action<string>? log = null
     )
     {
         var archivePath = Path.Combine(tempRoot, archiveName);
+        log?.Invoke($"download: {archiveName}");
 
         try
         {
@@ -492,6 +502,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                 : Fail($"Checksum not found for {archiveName}.", installMode);
         }
 
+        log?.Invoke($"verify: {archiveName}");
         var actual = _runtime.ComputeSha256(archivePath).ToLowerInvariant();
         if (!string.Equals(actual, expected.ToLowerInvariant(), StringComparison.Ordinal))
         {
@@ -506,11 +517,17 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     /// <summary>
     /// Extracts the source archive and returns the source directory.
     /// </summary>
-    private string? ExtractSourceDirectory(string tempRoot, string archivePath, out string? error)
+    private string? ExtractSourceDirectory(
+        string tempRoot,
+        string archivePath,
+        out string? error,
+        Action<string>? log = null
+    )
     {
         error = null;
         var extractDir = Path.Combine(tempRoot, "extract");
         Directory.CreateDirectory(extractDir);
+        log?.Invoke($"extract: {Path.GetFileName(archivePath)}");
 
         try
         {
@@ -542,7 +559,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
     /// <summary>
     /// Configures and builds ngspice from source.
     /// </summary>
-    private string? BuildUnixSource(string sourceDir, string prefix)
+    private string? BuildUnixSource(string sourceDir, string prefix, Action<string>? log)
     {
         var configurePath = Path.Combine(sourceDir, "configure");
         if (!File.Exists(configurePath))
@@ -555,6 +572,7 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         CommandRunResult configure;
         try
         {
+            log?.Invoke("configure: starting");
             configure = _runtime.RunCommand(
                 configurePath,
                 new[]
@@ -566,7 +584,8 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
                     "--enable-xspice",
                     "CFLAGS=-O2",
                 },
-                buildDir
+                buildDir,
+                line => LogCommandOutput(log, "configure", line)
             );
         }
         catch (Exception ex)
@@ -581,7 +600,13 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         CommandRunResult makeBuild;
         try
         {
-            makeBuild = _runtime.RunCommand("make", new[] { $"-j{jobs}" }, buildDir);
+            log?.Invoke($"make: starting -j{jobs}");
+            makeBuild = _runtime.RunCommand(
+                "make",
+                new[] { $"-j{jobs}" },
+                buildDir,
+                line => LogCommandOutput(log, "make", line)
+            );
         }
         catch (Exception ex)
         {
@@ -594,7 +619,13 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
         CommandRunResult makeInstall;
         try
         {
-            makeInstall = _runtime.RunCommand("make", new[] { "install" }, buildDir);
+            log?.Invoke("make install: starting");
+            makeInstall = _runtime.RunCommand(
+                "make",
+                new[] { "install" },
+                buildDir,
+                line => LogCommandOutput(log, "make install", line)
+            );
         }
         catch (Exception ex)
         {
@@ -766,6 +797,19 @@ internal sealed class NgspiceInstaller : ISimulatorInstaller
 
         var trimmed = text.Trim();
         return trimmed.Length <= 500 ? trimmed : trimmed[..500];
+    }
+
+    private static void LogCommandOutput(
+        Action<string>? log,
+        string commandName,
+        CommandOutputLine line
+    )
+    {
+        if (log is null || string.IsNullOrWhiteSpace(line.Text))
+            return;
+
+        var prefix = line.IsError ? $"{commandName} [stderr]" : commandName;
+        log($"{prefix}: {line.Text}");
     }
 
     private static void TryDeleteDirectory(string path)

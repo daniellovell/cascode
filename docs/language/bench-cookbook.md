@@ -20,7 +20,7 @@ emitted testbench.
 Bench `fill {}` blocks and binding bodies may instantiate a small set of harness primitives that the
 bench runtime emits as backend elements (see [Chapter 4, Section 4.3.2](../../spec/language/Ch04_Bench_System.md#432-harness-primitives)):
 
-- `GND`, `VDC`, `VAC`, `VSIN`, `Impedor` / `Impedance`
+- `GND`, `VDC`, `VAC`, `VSIN`, `Impedor` / `Impedance`, `Port`
 
 Prefer these primitives over backend-specific netlist syntax.
 
@@ -43,6 +43,18 @@ GainSpectrum G = db20(H.Mag())
 Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
 Frequency f10 = G.Range(to=1MHz, from=100Hz).ValueAt(f=10kHz)
 Time tclk = period(f=1MHz)
+```
+
+Standard transfer benches also expose both spot and band gain measurements:
+
+```cascode
+measurement Gain(Frequency f) : dB {
+  return db20(transfer(ac, IN, OUT).Mag()).ValueAt(f)
+}
+
+measurement Gain(Frequency from, Frequency to) : dB {
+  return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
+}
 ```
 
 Reference implementations live in [`lib/std/bench/TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas):

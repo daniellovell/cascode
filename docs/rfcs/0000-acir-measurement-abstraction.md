@@ -1,12 +1,16 @@
 # RFC-0000: Cascode Language Unification and Declarative Bench System
 
-Status: Draft
+Status: Historical
 Authors: Daniel Lovell
 Created: 2026-01-25
 Last Updated: 2026-01-28
 Target Version: Cascode 1.0
 
 ---
+
+> Editor's note: this RFC is kept as historical design context. The current source of truth for
+> shipped behavior is [spec/language](../../spec/language/README.md) and
+> [docs/architecture](../architecture/README.md).
 
 ## Abstract
 
@@ -538,6 +542,18 @@ The `measurements {}` block defines typed measurement expressions:
 
 ```cascode
 measurements {
+  measurement Gain(Frequency f) : dB {
+    TransferFunction H = transfer(ac, IN, OUT)
+    GainSpectrum G = db20(H.Mag())
+    return G.ValueAt(f)
+  }
+
+  measurement Gain(Frequency from, Frequency to) : dB {
+    TransferFunction H = transfer(ac, IN, OUT)
+    GainSpectrum G = db20(H.Mag())
+    return G.From(from).To(to)
+  }
+
   measurement PassbandGain : dB {
     TransferFunction H = transfer(ac, IN, OUT)
     GainSpectrum G = db20(H.Mag())
@@ -596,7 +612,7 @@ measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
 
 **Invocation syntax (explicit call syntax always):**
 - Non-parameterized: `LowpassBandwidth()` (parentheses required)
-- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` (named arguments)
+- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` or `Gain(f=1MHz)` (named arguments)
 
 **In constraints:**
 ```cascode
@@ -907,6 +923,18 @@ bench DiffToSETransfer {
   }
 
   measurements {
+    measurement Gain(Frequency f) : dB {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.ValueAt(f)
+    }
+
+    measurement Gain(Frequency from, Frequency to) : dB {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.From(from).To(to)
+    }
+
     measurement PassbandGain : dB {
       TransferFunction H = transfer(ac, IN, OUT)
       GainSpectrum G = db20(H.Mag())

@@ -1,98 +1,61 @@
 ## Cascode CLI Architecture
 
-Status: current as of 2025-12-10. Scope: `tools/cli` only.
+Status: current as of 2026-03-15. Scope: [tools/cli](../../tools/cli).
 
 Goal
-- Provide an interactive and non-interactive CLI that delegates to domain libraries without embedding domain logic.
+- Provide interactive and run-once command execution while keeping language, bench, render, and workspace logic in the lower-layer assemblies.
 
 Responsibilities
-- Startup, command routing, interactive loop, config, and logging.
-- Aggregates services from `tools/workspace` and other libraries; renders via Spectre.Console.
+- Process startup, command registration, argument dispatch, interactive shell state, and user-facing rendering.
+- Thin orchestration over the language, workspace, bench, and render libraries.
+- Simulator installation and update UX.
 
 Non-responsibilities
-- PDK scanning, database writes/reads, characterization algorithms, or SPICE orchestration logic (owned by `tools/workspace` / other libs).
+- Parsing, linking, validation, bench planning, rendering algorithms, PDK scanning, or database persistence logic.
 
-Assemblies & boundaries
-- CLI may depend on: `tools/workspace`, `tools/parser`, logging/config helpers.
-- Nothing may depend on the CLI. No UI types leak out of `tools/cli`.
+Assemblies and boundaries
+- [tools/cli/Cascode.Cli.csproj](../../tools/cli/Cascode.Cli.csproj) references:
+  [tools/workspace](../../tools/workspace),
+  [tools/bench](../../tools/bench),
+  [tools/language](../../tools/language), and
+  [tools/render](../../tools/render).
+- Nothing depends on the CLI. UI types stay inside [tools/cli](../../tools/cli).
 
 Key components
-- `CliHost` — process entry, dependency wiring, interactive loop. Creates `CommandContext` per invocation.
-- `ICommandRegistry` — maps command name → `ICliCommand`.
-- `ICliCommand` — metadata (name, aliases, description) + `Execute(CommandContext ctx)`.
-- `ICommandModule` — groups and registers related commands (PDK, Bench, Build, System).
-- `ShellState` — minimal UI/shared state (e.g., active workspace, recent results).
-- `ShellRenderer` — Spectre.Console rendering; consumes view models produced by commands.
-- Services — thin adapters over domain libraries, e.g., `WorkspaceService` using `WorkspaceScanner`, `PdkDatabaseReader/Writer`.
+- [CliHost](../../tools/cli/CliHost.cs) is the composition root. It builds shell state, registers commands, and chooses interactive vs run-once execution.
+- [CommandRegistry](../../tools/cli/CommandRegistry.cs) resolves tokenized input to registered commands.
+- [ICommandModule](../../tools/cli/Commands/ICommandModule.cs) groups related command registrations.
+- [ICliCommand](../../tools/cli/Commands/ICliCommand.cs) is the command contract used by the registry.
+- [ShellState](../../tools/cli/ShellState.cs) stores active workspace state, logs, busy status, and view-model data for the TUI.
+- [ShellRenderer](../../tools/cli/ShellRenderer.cs) renders the Spectre.Console layout from `ShellState`.
+- Services under [tools/cli/Services](../../tools/cli/Services) adapt lower-layer APIs into CLI-facing workflows.
+
+Command surface
+- System: `help`, `home`, `quit`.
+- Design flow: `convert`, `link`, `emit`, `erc`, `render`.
+- Bench and verification: `bench run`, `verify`.
+- Characterization: `char gen`, `char read`, `char export`.
+- PDK workspace: `pdk scan`, `pdk devices`, `pdk device`, `pdk match`, `pdk set-dir`, `pdk emit primitives`.
+- PDK characterization: `pdk char config`, `pdk char run`, `pdk char read`, `pdk char status`.
+- Environment: `install ngspice`, `update`.
 
 Primary flow
-1) Parse invocation (argv or interactive input) into `CommandInvocation`.
-2) Resolve handler via `ICommandRegistry`.
-3) Build `CommandContext` (console, services, `ShellState`, cancellation, options).
-4) Execute command; return `CommandResult` (status + payload/view models).
-5) `ShellRenderer` updates panels in interactive mode; non-interactive prints structured output.
+1. [Program.cs](../../tools/cli/Program.cs) creates `CliHost`.
+2. `CliHost` registers command modules and initializes logging.
+3. The registry resolves the user input to a handler.
+4. The handler delegates domain work into the lower-layer assemblies or CLI services.
+5. The CLI renders human-readable output or structured JSON, depending on the command.
 
-Command surface (stable entry points)
-- System: `help`, `version`, `log`, `exit|quit`.
-- PDK: `pdk scan`, `pdk devices`, `pdk device <name>`, `pdk set-dir <path>|--clear`, and characterization entry points `pdk char …` (delegates).
-- PDK emit: `pdk emit primitives [--pdk <name>] [--out <dir>] [--include-fixed]`. Default output is `lib/pdk/<pdk>/` with `devices.cas`, `resistors.cas`, `capacitors.cas`, and `diodes.cas`; `--include-fixed` includes fixed wrapper variants.
-- Link: `link <cascode_file> [-o|--out <dir>] [--no-link-benches] [--include-policy <default|explicit-only>]`.
-- Emit/ERC: `emit <cascode_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]`, `erc <cascode_file> [--require-pdk] [--json]`.
-- Bench/Build modules may add `bench …`, `build …` commands (thin orchestration only).
+Interactive shell
+- Interactive mode renders one persistent Spectre.Console live layout instead of redrawing a fresh screen per command.
+- `ShellState` raises render requests as logs and long-running work update the UI.
+- Run-once mode uses the same command handlers but writes directly to the console.
 
-Error handling & diagnostics
-- Commands return typed results; errors include user-facing message + technical details (for logs).
-- Logs go to the on-screen pane in TUI; non-interactive writes to stdout/stderr for tests.
-
-Determinism & config
-- Honor `CASCODE_SEED` for any randomized sampling.
-- Use `CASCODE_HOME` to keep state/config writable in sandboxes: `CASCODE_HOME=$(pwd)/.it/local dotnet run --project tools/cli/Cascode.Cli.csproj`.
-
-PDK matching config
-- `pdk scan` initializes YAML at `CASCODE_HOME/config/pdk-matching-patterns.yml` on first run and logs the path.
-- Users edit this YAML to control normalization, class/subclass classification, and matching thresholds.
-- We never migrate existing workspace databases; rerun `pdk scan` after changing YAML to regenerate `pdk.db` for that workspace.
+Configuration and persistence
+- `CASCODE_HOME` controls writable CLI state such as config, ngspice installs, and workspace-local metadata.
+- PDK matching rules live at `CASCODE_HOME/config/pdk-matching-patterns.yml`.
+- `pdk scan` regenerates the workspace database for the selected PDK root; the CLI does not migrate older `pdk.db` files.
 
 Testing
-- Unit: option/argument binding, command routing, and small services (mocks for domain libs).
-- Integration: run `dotnet run -- …` against `tests/fixtures/pdk/sky130`; verify stdout/golden outputs.
-- Architecture: enforce "no deps on CLI from other tools".
-
-Extensibility
-- New command = new `ICliCommand` with help/usage + tests.
-- New domain area = new `ICommandModule` wiring multiple commands and using existing libraries.
-- Keep handlers small; push domain work into services/libraries.
-
-Open items
-- Background jobs/async progress in interactive mode.
-
-JSON output mode
-- Commands supporting `--json` emit machine-readable JSON instead of human-readable text.
-- Currently supported: `emit`, `erc`.
-- Output schema for validation commands:
-
-```json
-{
-  "success": true,
-  "exitCode": 0,
-  "errors": [{ "code": "ERC-001", "severity": "error", "message": "...", "location": "...", "suggestion": "..." }],
-  "warnings": [...],
-  "summary": { "errorCount": 0, "warningCount": 2 }
-}
-```
-
-- The `emit` command extends this with `designPaths` and `testbenchPaths` arrays on success.
-- Exit codes remain unchanged: 0 = success, 1 = validation failure, 2 = parse/structural error.
-
-Live rendering and event model
-- Interactive mode renders a single persistent Spectre.Console Layout inside `AnsiConsole.Live`. The layout instance is not recreated and the console is never cleared during a command.
-- UI updates are event-driven, with a short periodic refresh for responsiveness. `ShellState` centralizes state and exposes `Changed` and `RequestRender()`; producers (logger via `ShellLoggerProvider.AddMessage`, long‑running task milestones) raise these to trigger a redraw. The Live loop also refreshes on a ~100 ms timeout to keep the prompt spinner responsive even when no logs are emitted.
-- On `Changed` or timeout, only affected panels are rebuilt, then the Live context is refreshed:
-  - Log panel: `ShellRenderer.BuildLog(state)`
-  - Navigator panel: `ShellRenderer.BuildNavigator(state)`
-  - Details panel: `ShellRenderer.BuildDeckDetails(state)`
-  - Prompt row: `ShellRenderer.BuildPrompt(state)`
-- The prompt row always remains visible. During long‑running work, `ShellState.StartBusy("…")/StopBusy()` dims the prompt and shows a lightweight text spinner (`ShellState.GetSpinnerFrame()`), advanced by the periodic refresh (not tied to log writes).
-- Thread‑safety: log messages are appended under a lock; renderers read via `ShellState.GetMessagesSnapshot()` to avoid concurrent modification.
-- Do not nest Spectre `Status`/`Progress` inside the TUI. These controls own the console and are not composed within the Live‑hosted layout. Use the event‑driven panel updates instead.
-- Run‑once mode is unchanged and streams via SimpleConsole; the same logger feeds both modes.
+- Unit coverage lives under [tests/unit/tools/cli](../../tests/unit/tools/cli).
+- Integration coverage lives under [tests/integration/cli](../../tests/integration/cli) and exercises the live command surface against fixtures such as [tests/fixtures/pdk/sky130](../../tests/fixtures/pdk/sky130).
