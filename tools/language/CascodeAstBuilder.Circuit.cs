@@ -16,7 +16,7 @@ internal sealed partial class CascodeAstBuilder
             Name = ctx.name.Text,
             Traits = ctx.implementsClause()
                 ?.interfaceList()
-                ?.IDENT()
+                ?.idPart()
                 .Select(i => i.GetText())
                 .ToList(),
             Level = memberState.Level,
@@ -34,6 +34,7 @@ internal sealed partial class CascodeAstBuilder
             Env = memberState.Env,
             Render = memberState.Render,
             BenchBindings = memberState.BenchBindings,
+            Metrics = memberState.Metrics,
             BenchBindingExtensions = memberState.BenchBindingExtensions,
             Synth = memberState.Synth,
             Provenance = memberState.Provenance,
@@ -98,6 +99,10 @@ internal sealed partial class CascodeAstBuilder
                     state.Fill = BuildFillBlock(fillCtx);
                     break;
 
+                case CascodeParser.MetricsSectionContext metricsCtx:
+                    state.Metrics = BuildMetricsBlock(metricsCtx.metricsValueBlock());
+                    break;
+
                 case CascodeParser.ConstraintsSectionContext constraintsCtx:
                     state.Constraints = BuildConstraintsBlock(constraintsCtx);
                     break;
@@ -143,6 +148,7 @@ internal sealed partial class CascodeAstBuilder
     private sealed class CircuitMemberState
     {
         public FillBlock? Fill { get; set; }
+        public MetricsBlock? Metrics { get; set; }
         public ConstraintsBlock? Constraints { get; set; }
         public HarnessBlock? Harness { get; set; }
         public EnvBlock? Env { get; set; }
@@ -343,14 +349,16 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
-                case CascodeParser.FillDeviceDeclContext deviceCtx:
-                    fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
-                    break;
-
                 case CascodeParser.FillInstanceStatementContext instanceCtx:
-                    fill.Instances.Add(
-                        BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl())
-                    );
+                    var instance = BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl());
+                    if (TryBuildDevice(instance, out var device))
+                    {
+                        fill.Devices.Add(device);
+                    }
+                    else
+                    {
+                        fill.Instances.Add(instance);
+                    }
                     break;
 
                 case CascodeParser.FillSomeInstanceStatementContext someInstanceCtx:
@@ -385,41 +393,58 @@ internal sealed partial class CascodeAstBuilder
         return fill;
     }
 
-    /// <summary>Builds a device declaration from its parse context.</summary>
-    private DeviceDeclaration BuildDevice(CascodeParser.DeviceDeclContext ctx)
+    private bool TryBuildDevice(InstanceDeclaration instance, out DeviceDeclaration device)
     {
-        var deviceType = ctx.DEVICE_TYPE().GetText();
-        var deviceId = BuildDeviceId(ctx.deviceId());
-        var primitiveName = ctx.primitiveName.Text;
+        device = default!;
+
+        if (
+            string.IsNullOrWhiteSpace(instance.DeclaredType)
+            || !IsPrimitiveDeclaredType(instance.DeclaredType)
+            || instance.Selection.Count > 0
+            || instance.Bindings.Count == 0
+            || instance.Params.Count > 1
+            || instance.Sizes.Count > 1
+        )
+        {
+            return false;
+        }
 
         string? sizeName = null;
         SizePack? sizePack = null;
-        if (ctx.sizeArg().IDENT() != null)
+        if (instance.Sizes.Count == 1 && instance.Sizes.TryGetValue("value", out var inlineSize))
         {
-            sizeName = ctx.sizeArg().IDENT().GetText();
+            sizePack = inlineSize;
         }
-        else if (ctx.sizeArg().sizeExpr() != null)
+        else if (instance.Params.Count == 1 && instance.Params.TryGetValue("value", out var value))
         {
-            sizePack = BuildSizeExpression(ctx.sizeArg().sizeExpr(), ctx.sizeArg());
+            if (!string.IsNullOrWhiteSpace(value.Symbolic))
+            {
+                sizeName = value.Symbolic;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else if (instance.Params.Count > 0 || instance.Sizes.Count > 0)
+        {
+            return false;
         }
 
-        var bindings = BuildBindings(ctx.bindingBlock().bindingList());
-
-        return new DeviceDeclaration
+        device = new DeviceDeclaration
         {
-            DeviceType = deviceType,
-            Id = deviceId,
-            Bindings = bindings,
-            Primitive = primitiveName,
+            DeviceType = instance.DeclaredType!,
+            Id = instance.Id,
+            Bindings = instance.Bindings,
+            Primitive = instance.Type,
             SizeName = sizeName,
             Size = sizePack,
         };
+        return true;
     }
 
-    private static string BuildDeviceId(CascodeParser.DeviceIdContext ctx)
-    {
-        return string.Join(".", ctx.idPart().Select(p => p.GetText()));
-    }
+    private static bool IsPrimitiveDeclaredType(string declaredType) =>
+        declaredType is "NMOS" or "PMOS" or "Resistor" or "Capacitor" or "Inductor" or "Diode";
 
     private static Dictionary<string, string> BuildBindings(CascodeParser.BindingListContext ctx)
     {
@@ -456,8 +481,8 @@ internal sealed partial class CascodeAstBuilder
     {
         return BuildInstance(
             declaredType: "Some",
-            id: ctx.instanceId.Text,
-            type: ctx.requiredType.Text,
+            id: ctx.instanceId.GetText(),
+            type: ctx.requiredType.GetText(),
             argList: null,
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
@@ -471,14 +496,30 @@ internal sealed partial class CascodeAstBuilder
         bool allowSomeDeclaredType = false
     )
     {
+        var selection = new List<SelectionArgument>();
+        if (ctx.selectionArgList() is not null)
+        {
+            foreach (var arg in ctx.selectionArgList().selectionArg())
+            {
+                selection.Add(
+                    new SelectionArgument
+                    {
+                        Axis = arg.idPart().Length > 1 ? arg.idPart(0).GetText() : null,
+                        Value = arg.idPart(arg.idPart().Length - 1).GetText(),
+                    }
+                );
+            }
+        }
+
         return BuildInstance(
-            declaredType: ctx.declaredType.Text,
-            id: ctx.instanceId.Text,
+            declaredType: ctx.declaredType.GetText(),
+            id: ctx.instanceId.GetText(),
             type: ctx.instanceTypeName().GetText(),
             argList: ctx.argList(),
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
-            allowSomeDeclaredType: allowSomeDeclaredType
+            allowSomeDeclaredType: allowSomeDeclaredType,
+            selection: selection
         );
     }
 
@@ -489,25 +530,14 @@ internal sealed partial class CascodeAstBuilder
         CascodeParser.ArgListContext? argList,
         CascodeParser.BindingBlockContext? bindingBlock,
         Antlr4.Runtime.ParserRuleContext diagnosticCtx,
-        bool allowSomeDeclaredType
+        bool allowSomeDeclaredType,
+        IReadOnlyList<SelectionArgument>? selection = null
     )
     {
         var usesSomeDeclaredType =
             allowSomeDeclaredType
             && declaredType is not null
             && declaredType.Equals("Some", StringComparison.Ordinal);
-        if (
-            !usesSomeDeclaredType
-            && declaredType is not null
-            && !declaredType.Equals(type, StringComparison.Ordinal)
-        )
-        {
-            AddDiagnostic(
-                diagnosticCtx,
-                DiagnosticSeverity.Error,
-                $"CAS0036: Instance '{id}' declares type '{declaredType}' but constructs '{type}'. The declared and constructor types must match exactly."
-            );
-        }
 
         var bindings = bindingBlock is null
             ? new Dictionary<string, string>()
@@ -580,6 +610,7 @@ internal sealed partial class CascodeAstBuilder
             Bindings = bindings,
             Params = instanceParams,
             Sizes = sizes,
+            Selection = selection?.ToList() ?? new List<SelectionArgument>(),
             Connects = new List<ConnectionStatement>(),
         };
     }

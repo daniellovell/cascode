@@ -164,6 +164,7 @@ public static class CascodeParserFacade
                     Ports = circuit.Ports,
                     Slot = circuit.Slot,
                     Fill = circuit.Fill,
+                    Metrics = circuit.Metrics,
                     Constraints = circuit.Constraints,
                     Harness = circuit.Harness,
                     Env = circuit.Env,
@@ -187,6 +188,7 @@ public static class CascodeParserFacade
             Traits = doc.Traits,
             BenchDefinitions = doc.BenchDefinitions,
             Primitives = doc.Primitives,
+            Parts = doc.Parts,
             Circuits = updatedCircuits,
         };
     }

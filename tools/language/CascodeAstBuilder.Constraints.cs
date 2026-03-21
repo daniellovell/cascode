@@ -17,24 +17,24 @@ internal sealed partial class CascodeAstBuilder
         {
             switch (sectionCtx)
             {
-                case CascodeParser.NumericSectionContext numericCtx:
-                    foreach (var constraintCtx in numericCtx.numericConstraint())
+                case CascodeParser.BenchSectionContext benchCtx:
+                    foreach (var constraintCtx in benchCtx.numericConstraint())
                     {
-                        constraints.Numeric.Add(BuildNumericConstraint(constraintCtx));
+                        constraints.Bench.Add(BuildMetricConstraint(constraintCtx));
                     }
                     break;
 
-                case CascodeParser.TechSectionContext techCtx:
-                    foreach (var constraintCtx in techCtx.techConstraint())
+                case CascodeParser.SpecSectionContext specCtx:
+                    foreach (var constraintCtx in specCtx.numericConstraint())
                     {
-                        constraints.Tech.Add(BuildTechConstraint(constraintCtx));
+                        constraints.Spec.Add(BuildMetricConstraint(constraintCtx));
                     }
                     break;
 
-                case CascodeParser.GraphSectionContext graphCtx:
-                    foreach (var constraintCtx in graphCtx.graphConstraint())
+                case CascodeParser.PhysicalSectionContext physicalCtx:
+                    foreach (var constraintCtx in physicalCtx.techConstraint())
                     {
-                        constraints.Graph.Add(BuildGraphConstraint(constraintCtx));
+                        constraints.Physical.Add(BuildPhysicalConstraint(constraintCtx));
                     }
                     break;
             }
@@ -43,44 +43,44 @@ internal sealed partial class CascodeAstBuilder
         return constraints;
     }
 
-    /// <summary>Builds a numeric constraint from its parse context.</summary>
-    /// <param name="ctx">Numeric constraint context.</param>
-    /// <returns>Numeric constraint.</returns>
-    private static NumericConstraint BuildNumericConstraint(
+    /// <summary>Builds a metric constraint from its parse context.</summary>
+    /// <param name="ctx">Metric constraint context.</param>
+    /// <returns>Metric constraint.</returns>
+    private static MetricConstraint BuildMetricConstraint(
         CascodeParser.NumericConstraintContext ctx
     )
     {
         var id = ctx.IDENT().GetText();
-        var benchRef = ctx.benchMetricRef();
-        var benchBase = benchRef.IDENT().GetText();
-        var metric = benchRef.idPart().GetText();
-
-        // Extract bench args and metric args from the grammar:
-        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
-        // The measurementArgList() array contains 0-2 elements depending on which arg lists are present.
-        var argLists = benchRef.measurementArgList();
+        var source = ctx.constraintMetricRef().GetText();
+        var benchRef = ctx.constraintMetricRef().benchMetricRef();
+        var benchBase = string.Empty;
+        var metric = source;
+        var argLists = benchRef?.measurementArgList() ?? [];
         var benchArgs = new List<MetricCallArg>();
         var metricArgs = new List<MetricCallArg>();
 
-        if (argLists.Length == 2)
+        if (benchRef is not null)
         {
-            // Both bench(args)::metric(args)
-            benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
-            metricArgs = ExtractConstraintArgs(argLists[1], "metric invocation");
-        }
-        else if (argLists.Length == 1)
-        {
-            // Either bench(args)::metric or bench::metric(args)
-            // Check if the arg list appears before or after COLONCOLON by comparing token positions.
-            var colonColonIndex = benchRef.COLONCOLON().Symbol.TokenIndex;
-            var argListStartIndex = argLists[0].Start.TokenIndex;
-            if (argListStartIndex < colonColonIndex)
+            benchBase = benchRef.IDENT().GetText();
+            metric = benchRef.idPart().GetText();
+
+            if (argLists.Length == 2)
             {
                 benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+                metricArgs = ExtractConstraintArgs(argLists[1], "metric invocation");
             }
-            else
+            else if (argLists.Length == 1)
             {
-                metricArgs = ExtractConstraintArgs(argLists[0], "metric invocation");
+                var colonColonIndex = benchRef.COLONCOLON().Symbol.TokenIndex;
+                var argListStartIndex = argLists[0].Start.TokenIndex;
+                if (argListStartIndex < colonColonIndex)
+                {
+                    benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+                }
+                else
+                {
+                    metricArgs = ExtractConstraintArgs(argLists[0], "metric invocation");
+                }
             }
         }
 
@@ -95,9 +95,10 @@ internal sealed partial class CascodeAstBuilder
                 ? benchBase
                 : BenchRuntime.BenchInvocationName.Compute(benchBase, benchArgs);
 
-        return new NumericConstraint
+        return new MetricConstraint
         {
             Id = id,
+            Source = source,
             BenchBase = benchBase,
             BenchArgs = benchArgs,
             Bench = bench,
@@ -130,10 +131,12 @@ internal sealed partial class CascodeAstBuilder
         return args;
     }
 
-    /// <summary>Builds a technology constraint from its parse context.</summary>
-    /// <param name="ctx">Tech constraint context.</param>
-    /// <returns>Technology constraint.</returns>
-    private static TechConstraint BuildTechConstraint(CascodeParser.TechConstraintContext ctx)
+    /// <summary>Builds a physical constraint from its parse context.</summary>
+    /// <param name="ctx">Physical constraint context.</param>
+    /// <returns>Physical constraint.</returns>
+    private static PhysicalConstraint BuildPhysicalConstraint(
+        CascodeParser.TechConstraintContext ctx
+    )
     {
         var id = ctx.IDENT(0).GetText();
         var param = ctx.IDENT(1).GetText();
@@ -142,7 +145,7 @@ internal sealed partial class CascodeAstBuilder
         var threshold = ParseThreshold(ctx.signedThreshold());
         var (value, unit) = ParseQuantity(threshold);
 
-        return new TechConstraint
+        return new PhysicalConstraint
         {
             Id = id,
             Param = param,
@@ -150,39 +153,6 @@ internal sealed partial class CascodeAstBuilder
             Value = value,
             Unit = unit,
             Scope = scope,
-        };
-    }
-
-    /// <summary>Builds a graph constraint with optional properties.</summary>
-    /// <param name="ctx">Graph constraint context.</param>
-    /// <returns>Graph constraint.</returns>
-    private static GraphConstraint BuildGraphConstraint(CascodeParser.GraphConstraintContext ctx)
-    {
-        var id = ctx.IDENT(0).GetText();
-        var rule = ctx.IDENT(1).GetText();
-        var props = new Dictionary<string, string>();
-
-        if (ctx.graphProps() != null)
-        {
-            foreach (var propCtx in ctx.graphProps().graphProp())
-            {
-                var key = propCtx.IDENT(0).GetText();
-                var value =
-                    propCtx.IDENT().Length > 1
-                        ? propCtx.IDENT(1).GetText()
-                        : propCtx.NUMBER()?.GetText()
-                            ?? propCtx.QUANTITY()?.GetText()
-                            ?? propCtx.STRING()?.GetText()
-                            ?? string.Empty;
-                props[key] = value;
-            }
-        }
-
-        return new GraphConstraint
-        {
-            Id = id,
-            Rule = rule,
-            Properties = props,
         };
     }
 

@@ -33,6 +33,7 @@ topLevelDecl
     | functionDef
     | wrapSpiceDef
     | primitiveDef
+    | partDef
     | circuit
     ;
 
@@ -75,6 +76,7 @@ interfaceMember
     : direction portName COLON portType                             # InterfacePort
     | SUPPLY_KW IDENT                                               # InterfaceSupply
     | GROUND_KW IDENT                                               # InterfaceGround
+    | interfaceMetricsBlock                                         # InterfaceMetrics
     | CONNECTORS_KW LBRACE connectorDef* RBRACE                      # InterfaceConnectors
     | interfaceBenchesSection                                        # InterfaceBenches
     ;
@@ -141,7 +143,125 @@ terminalType
 // ----------------------------------------------------------------------------
 
 primitiveDef
-    : PRIMITIVE_KW DEVICE_TYPE name=IDENT LPAREN paramList? RPAREN LBRACE primitiveBody RBRACE
+    : PRIMITIVE_KW name=IDENT LPAREN paramList? RPAREN implementsClause LBRACE primitiveBody RBRACE
+    ;
+
+partDef
+    : ABSTRACT_KW? PART_KW name=IDENT (LPAREN paramList? RPAREN)?
+      (EXTENDS_KW base=IDENT)?
+      implementsClause?
+      LBRACE partMember* catalogBlock RBRACE
+    ;
+
+partMember
+    : paramsBlock                                                   # PartParams
+    | direction portName COLON portType                             # PartPort
+    | SUPPLY_KW IDENT                                               # PartSupply
+    | GROUND_KW IDENT                                               # PartGround
+    | cornersBlock                                                  # PartCorners
+    ;
+
+catalogBlock
+    : CATALOG_KW LBRACE catalogMember* RBRACE
+    ;
+
+catalogMember
+    : defaultsBlock
+    | entryDef
+    | variantBlock
+    ;
+
+defaultsBlock
+    : DEFAULTS_KW LBRACE entryMember* RBRACE
+    ;
+
+entryDef
+    : ENTRY_KW name=IDENT LBRACE entryMember* RBRACE
+    ;
+
+variantBlock
+    : VARIANT_KW axis=IDENT LBRACE variantOption* RBRACE
+    ;
+
+variantOption
+    : name=idPart LBRACE variantOptionMember* RBRACE
+    ;
+
+variantOptionMember
+    : entryMember
+    | excludeDirective
+    ;
+
+excludeDirective
+    : EXCLUDE_KW IDENT EQ idPart
+    ;
+
+entryMember
+    : catalogOption
+    | pinsBlock
+    | unitsBlock
+    | metricsValueBlock
+    | idPart EQ entryValue
+    ;
+
+entryValue
+    : STRING
+    | expr
+    | tupleLiteral
+    ;
+
+catalogOption
+    : OPTION_KW LBRACE optionField+ RBRACE
+    ;
+
+optionField
+    : idPart EQ (STRING | NUMBER | idPart)
+    ;
+
+pinsBlock
+    : PINS_KW LBRACE pinMapEntry+ RBRACE
+    ;
+
+pinMapEntry
+    : padMap EQ pinMapTarget
+    ;
+
+padMap
+    : padRef
+    | padRef COLON padRef
+    ;
+
+padRef
+    : IDENT
+    ;
+
+pinMapTarget
+    : pinRef
+    | idPart (DOT idPart)* LBRACK NUMBER COLON NUMBER RBRACK
+    ;
+
+unitsBlock
+    : UNITS_KW LBRACE unitDef+ RBRACE
+    ;
+
+unitDef
+    : IDENT LBRACE unitField+ RBRACE
+    ;
+
+unitField
+    : IDENT EQ tupleLiteral
+    ;
+
+cornersBlock
+    : CORNERS_KW LBRACE cornerDef+ RBRACE
+    ;
+
+cornerDef
+    : IDENT LBRACE cornerField+ RBRACE
+    ;
+
+cornerField
+    : IDENT EQ (STRING | QUANTITY | NUMBER | IDENT)
     ;
 
 primitiveBody
@@ -186,7 +306,7 @@ implementsClause
     ;
 
 interfaceList
-    : IDENT (COMMA IDENT)*
+    : idPart (COMMA idPart)*
     ;
 
 circuitMember
@@ -199,6 +319,7 @@ circuitMember
     | SLOT_KW                                                       # BareSlotMember
     | SLOT_KW LBRACE slotBlockStatement* RBRACE                      # SlotBlockMember
     | FILL_KW LBRACE fillStatement* RBRACE                          # FillSection
+    | metricsValueBlock                                             # MetricsSection
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
     | ENV_KW LBRACE envStatement* RBRACE                            # EnvSection
@@ -220,8 +341,7 @@ direction
 
 // Port names can have dots (e.g., OUT.P) and optional array indices.
 portName
-    : IDENT (DOT IDENT)* (LBRACK NUMBER RBRACK)?
-    | IDENT (DOT IDENT)* LBRACK STAR RBRACK
+    : idPart (DOT idPart)* (LBRACK (NUMBER | STAR) (COLON NUMBER)? RBRACK)?
     ;
 
 // Port type can be an identifier or certain keywords used as type names.
@@ -250,6 +370,16 @@ paramType
     : REAL_KW
     | INT_KW
     | BOOL_KW
+    | eSeriesType
+    ;
+
+eSeriesType
+    : E6_KW
+    | E12_KW
+    | E24_KW
+    | E48_KW
+    | E96_KW
+    | E192_KW
     ;
 
 paramValue
@@ -271,7 +401,7 @@ slotInstanceDecl
     ;
 
 slotDeclaredType
-    : IDENT
+    : idPart
     ;
 
 // ----------------------------------------------------------------------------
@@ -283,7 +413,6 @@ fillStatement
     | SIZE_KW sizeName=IDENT EQ sizeExpr                            # FillSizeDecl
     | fillInstanceDecl                                              # FillInstanceStatement
     | someInstanceDecl                                              # FillSomeInstanceStatement
-    | deviceDecl                                                    # FillDeviceDecl
     | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
     | pinRef WIRE_OP pinRef                                         # FillConnectDecl
     | repeatStatement                                               # FillRepeat
@@ -324,15 +453,18 @@ fillInstanceDecl
     ;
 
 someInstanceDecl
-    : SOME_KW instanceId=IDENT COLON requiredType=IDENT bindingBlock?
+    : SOME_KW instanceId=scopedId COLON requiredType=idPart bindingBlock?
     ;
 
 instanceDecl
-    : declaredType=IDENT instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
+    : declaredType=idPart instanceId=scopedId EQ NEW_KW instanceType=instanceTypeName
+      (LBRACK selectionArgList? RBRACK)?
+      (LPAREN argList? RPAREN)?
+      bindingBlock?
     ;
 
 instanceTypeName
-    : IDENT
+    : idPart
     | physicalType
     ;
 
@@ -356,13 +488,16 @@ argValue
     | scalarExpr
     ;
 
-deviceDecl
-    : DEVICE_TYPE deviceId EQ NEW_KW primitiveName=IDENT LPAREN sizeArg RPAREN bindingBlock
+selectionArgList
+    : selectionArg (COMMA selectionArg)*
     ;
 
-sizeArg
-    : IDENT
-    | sizeExpr
+selectionArg
+    : (idPart EQ)? idPart
+    ;
+
+scopedId
+    : idPart (DOT idPart)*
     ;
 
 bindingBlock
@@ -375,11 +510,6 @@ bindingList
 
 binding
     : (DOT | BIND_DOT) pinRef WIRE_OP pinRef
-    ;
-
-// Device ID can contain keywords as parts (e.g., load.M where "load" is a keyword).
-deviceId
-    : idPart (DOT idPart)*
     ;
 
 // Rule for identifiers that may also be keywords.
@@ -414,9 +544,31 @@ idPart
     | OUTPUTS_KW
     | CONFIG_KW
     | IMPLEMENTS_KW
+    | PART_KW
+    | CATALOG_KW
+    | ENTRY_KW
+    | OPTION_KW
+    | PINS_KW
+    | UNITS_KW
+    | DEFAULTS_KW
+    | CORNERS_KW
+    | VARIANT_KW
+    | EXCLUDE_KW
+    | METRICS_KW
+    | SPEC_KW
+    | PHYSICAL_KW
+    | MIN_KW
+    | MAX_KW
+    | TYP_KW
     | REAL_KW
     | INT_KW
     | BOOL_KW
+    | E6_KW
+    | E12_KW
+    | E24_KW
+    | E48_KW
+    | E96_KW
+    | E192_KW
     | AUTO_KW
     | Z_KW
     | ICMR_KW
@@ -570,9 +722,52 @@ signedInt
     : MINUS? NUMBER
     ;
 
+tupleLiteral
+    : LPAREN tupleItem (COMMA tupleItem)* RPAREN
+    ;
+
+tupleItem
+    : pinRef
+    | IDENT
+    | QUANTITY
+    | NUMBER
+    | STRING
+    ;
+
 // ----------------------------------------------------------------------------
 // Constraints block content
 // ----------------------------------------------------------------------------
+
+metricsValueBlock
+    : METRICS_KW LBRACE metricsEntry* RBRACE
+    ;
+
+interfaceMetricsBlock
+    : METRICS_KW LBRACE metricDecl* RBRACE
+    ;
+
+metricsEntry
+    : metricAssign
+    | AT_KW IDENT LBRACE metricAssign* RBRACE
+    ;
+
+metricDecl
+    : IDENT COLON unitType qualifierRequirement?
+    ;
+
+qualifierRequirement
+    : LBRACE metricQualifier (COMMA metricQualifier)* RBRACE
+    ;
+
+metricQualifier
+    : MIN_KW
+    | MAX_KW
+    | TYP_KW
+    ;
+
+metricAssign
+    : IDENT metricQualifier? EQ expr
+    ;
 
 signedQuantity
     : MINUS? QUANTITY
@@ -584,19 +779,28 @@ signedThreshold
     ;
 
 constraintSection
-    : NUMERIC_KW LBRACE numericConstraint* RBRACE                   # NumericSection
-    | TECH_KW LBRACE techConstraint* RBRACE                         # TechSection
-    | GRAPH_KW LBRACE graphConstraint* RBRACE                       # GraphSection
-    | numericConstraint                                             # NumericConstraintDirect
+    : BENCH_KW LBRACE numericConstraint* RBRACE                     # BenchSection
+    | SPEC_KW LBRACE numericConstraint* RBRACE                      # SpecSection
+    | PHYSICAL_KW LBRACE techConstraint* RBRACE                     # PhysicalSection
     ;
 
-// id = Bench(args)::Metric(args) at Node >= ValueUnit
+// id = MetricRef at Node >= ValueUnit
 numericConstraint
-    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedThreshold
+    : IDENT EQ constraintMetricRef (AT_KW nodeRef)? COMPARISON_OP signedThreshold
+    ;
+
+constraintMetricRef
+    : benchMetricRef
+    | instanceMetricRef
+    | IDENT
     ;
 
 benchMetricRef
     : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
+    ;
+
+instanceMetricRef
+    : IDENT DOT IDENT
     ;
 
 nodeRef
@@ -739,6 +943,8 @@ exprPostfix
 exprPrimary
     : LPAREN expr RPAREN
     | sizeFieldAccess
+    | benchMetricRef
+    | instanceMetricRef
     | scopedAccess
     | measurementFunctionCall
     | IDENT
@@ -773,6 +979,7 @@ envValue
     : impedanceExpr
     | LPAREN impedanceExpr RPAREN
     | QUANTITY
+    | IDENT
     ;
 
 impedanceExpr
@@ -781,6 +988,7 @@ impedanceExpr
 
 impedanceElement
     : QUANTITY
+    | IDENT
     ;
 
 // ----------------------------------------------------------------------------
@@ -805,9 +1013,14 @@ benchExtension
 
 bindingStatement
     : terminalMapping
+    | bindingMetricsBlock
     | bindingMeasurementsBlock
     | instanceDecl
     | dutConnection
+    ;
+
+bindingMetricsBlock
+    : METRICS_KW LBRACE metricAssign* RBRACE
     ;
 
 bindingMeasurementsBlock
@@ -1068,6 +1281,17 @@ ABSTRACT_KW     : 'abstract' ;
 OVERRIDE_KW     : 'override' ;
 CIRCUIT_KW      : 'circuit' ;
 PRIMITIVE_KW    : 'primitive' ;
+PART_KW         : 'part' ;
+CATALOG_KW      : 'catalog' ;
+ENTRY_KW        : 'entry' ;
+OPTION_KW       : 'option' ;
+PINS_KW         : 'pins' ;
+UNITS_KW        : 'units' ;
+DEFAULTS_KW     : 'defaults' ;
+CORNERS_KW      : 'corners' ;
+VARIANT_KW      : 'variant' ;
+EXCLUDE_KW      : 'exclude' ;
+METRICS_KW      : 'metrics' ;
 DEVICE_KW       : 'device' ;
 PARAMS_KW       : 'params' ;
 NEW_KW          : 'new' ;
@@ -1130,6 +1354,8 @@ IMPLEMENTS_KW   : 'implements' ;
 NUMERIC_KW      : 'numeric' ;
 TECH_KW         : 'tech' ;
 GRAPH_KW        : 'graph' ;
+SPEC_KW         : 'spec' ;
+PHYSICAL_KW     : 'physical' ;
 BIAS_KW         : 'bias' ;
 LOAD_KW         : 'load' ;
 SOURCE_KW       : 'source' ;
@@ -1141,9 +1367,18 @@ SOME_KW         : 'Some' ;
 AT_KW           : 'at' ;
 Z_KW            : 'Z' ;
 ON_KW           : 'on' ;
+MIN_KW          : 'min' ;
+MAX_KW          : 'max' ;
+TYP_KW          : 'typ' ;
 REAL_KW         : 'real' ;
 INT_KW          : 'int' ;
 BOOL_KW         : 'bool' ;
+E6_KW           : 'e6' ;
+E12_KW          : 'e12' ;
+E24_KW          : 'e24' ;
+E48_KW          : 'e48' ;
+E96_KW          : 'e96' ;
+E192_KW         : 'e192' ;
 TRANSFORM_KW    : 'transform' ;
 ALIAS_KW        : 'alias' ;
 HL_KW           : 'HL' ;
@@ -1200,15 +1435,6 @@ TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
 SP_ANALYSIS_TYPE    : 'SPAnalysis' ;
-
-DEVICE_TYPE
-    : 'NMOS'
-    | 'PMOS'
-    | 'Resistor'
-    | 'Capacitor'
-    | 'Inductor'
-    | 'Diode'
-    ;
 
 COMPARISON_OP
     : '>=' | '<=' | '==' | '>' | '<'

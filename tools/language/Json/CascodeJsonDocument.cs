@@ -166,21 +166,24 @@ public sealed record CascodeJsonPrimitive
 }
 
 /// <summary>
-/// Constraints block containing numeric and tech constraints.
+/// Constraints block containing bench, spec, and physical constraints.
 /// </summary>
 public sealed record CascodeJsonConstraints
 {
-    [JsonPropertyName("numeric")]
-    public IReadOnlyList<CascodeJsonNumericConstraint> Numeric { get; init; } = [];
+    [JsonPropertyName("bench")]
+    public IReadOnlyList<CascodeJsonMetricConstraint> Bench { get; init; } = [];
 
-    [JsonPropertyName("tech")]
-    public IReadOnlyList<CascodeJsonTechConstraint> Tech { get; init; } = [];
+    [JsonPropertyName("spec")]
+    public IReadOnlyList<CascodeJsonMetricConstraint> Spec { get; init; } = [];
+
+    [JsonPropertyName("physical")]
+    public IReadOnlyList<CascodeJsonPhysicalConstraint> Physical { get; init; } = [];
 }
 
 /// <summary>
-/// Numeric constraint with SI-base value for machine processing.
+/// Metric constraint with SI-base value for machine processing.
 /// </summary>
-public sealed record CascodeJsonNumericConstraint
+public sealed record CascodeJsonMetricConstraint
 {
     [JsonPropertyName("id")]
     public required string Id { get; init; }
@@ -206,9 +209,9 @@ public sealed record CascodeJsonNumericConstraint
 }
 
 /// <summary>
-/// Technology constraint with SI-base value for machine processing.
+/// Physical constraint with SI-base value for machine processing.
 /// </summary>
-public sealed record CascodeJsonTechConstraint
+public sealed record CascodeJsonPhysicalConstraint
 {
     [JsonPropertyName("id")]
     public required string Id { get; init; }

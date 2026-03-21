@@ -138,12 +138,12 @@ public static class BenchBindingChecker
         List<Diagnostic> diagnostics
     )
     {
-        if (circuit.Constraints?.Numeric is not { Count: > 0 })
+        if (circuit.Constraints?.Bench is not { Count: > 0 })
         {
             return;
         }
 
-        foreach (var constraint in circuit.Constraints.Numeric)
+        foreach (var constraint in circuit.Constraints.Bench)
         {
             // Validate against BenchBase (the user-written binding alias), not the computed
             // instance name (Bench) which includes arg-set hashing.

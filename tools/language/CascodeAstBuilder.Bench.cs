@@ -34,14 +34,16 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
-                case CascodeParser.FillDeviceDeclContext deviceCtx:
-                    fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
-                    break;
-
                 case CascodeParser.FillInstanceStatementContext instanceCtx:
-                    fill.Instances.Add(
-                        BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl())
-                    );
+                    var instance = BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl());
+                    if (TryBuildDevice(instance, out var device))
+                    {
+                        fill.Devices.Add(device);
+                    }
+                    else
+                    {
+                        fill.Instances.Add(instance);
+                    }
                     break;
 
                 case CascodeParser.FillAttachDeclContext attachCtx:
@@ -86,7 +88,10 @@ internal sealed partial class CascodeAstBuilder
                 BindingName = bindingCtx.bindingName.Text,
             };
 
-            ProcessBindingStatements(bindingCtx.bindingStatement(), binding.Statements);
+            binding.Metrics = ExtractBindingStatements(
+                bindingCtx.bindingStatement(),
+                binding.Statements
+            );
 
             bindings.Add(binding);
         }
@@ -94,11 +99,22 @@ internal sealed partial class CascodeAstBuilder
         return bindings;
     }
 
-    private void ProcessBindingStatements(
+    private MetricsBlock? ExtractBindingStatements(
         IEnumerable<CascodeParser.BindingStatementContext> statements,
         List<BenchBindingStatement> target
     )
     {
+        ProcessBindingStatements(statements, target, out var metrics);
+        return metrics;
+    }
+
+    private void ProcessBindingStatements(
+        IEnumerable<CascodeParser.BindingStatementContext> statements,
+        List<BenchBindingStatement> target,
+        out MetricsBlock? metrics
+    )
+    {
+        metrics = null;
         foreach (var stmt in statements)
         {
             if (stmt.terminalMapping() is not null)
@@ -110,6 +126,12 @@ internal sealed partial class CascodeAstBuilder
                         DutPinRef: BuildPinRef(t.pinRef())
                     )
                 );
+                continue;
+            }
+
+            if (stmt.bindingMetricsBlock() is not null)
+            {
+                metrics = BuildMetricsBlock(stmt.bindingMetricsBlock());
                 continue;
             }
 
@@ -172,7 +194,7 @@ internal sealed partial class CascodeAstBuilder
         {
             var ext = new BenchBindingExtension { BindingName = extCtx.bindingName.Text };
 
-            ProcessBindingStatements(extCtx.bindingStatement(), ext.Statements);
+            ext.Metrics = ExtractBindingStatements(extCtx.bindingStatement(), ext.Statements);
 
             extensions.Add(ext);
         }

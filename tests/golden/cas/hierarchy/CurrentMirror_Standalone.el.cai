@@ -14,7 +14,7 @@ interface CurrentMirrorLike {
   }
 }
 
-primitive PMOS PMOS_Level1(size primSize) {
+primitive PMOS_Level1(size primSize) implements PMOS {
   device "pmos_level1"
   params {
     W = primSize.W
@@ -35,7 +35,7 @@ circuit CurrentMirror(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implement
     PMOS M_TAP0 = new PMOS_Level1(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
   }
   constraints {
-    tech {
+    physical {
       t_lmin : L >= 180nm on *
     }
   }

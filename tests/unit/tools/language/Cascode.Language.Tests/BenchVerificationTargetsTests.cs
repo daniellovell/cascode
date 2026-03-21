@@ -28,9 +28,9 @@ public sealed class BenchVerificationTargetsTests
                     BenchBindings = [binding],
                     Constraints = new ConstraintsBlock
                     {
-                        Numeric =
+                        Bench =
                         [
-                            new NumericConstraint
+                            new MetricConstraint
                             {
                                 Id = "c_gain",
                                 BenchBase = "transfer",
@@ -52,9 +52,9 @@ public sealed class BenchVerificationTargetsTests
                     BenchBindings = [binding],
                     Constraints = new ConstraintsBlock
                     {
-                        Numeric =
+                        Bench =
                         [
-                            new NumericConstraint
+                            new MetricConstraint
                             {
                                 Id = "c_inline_gain",
                                 BenchBase = "transfer",

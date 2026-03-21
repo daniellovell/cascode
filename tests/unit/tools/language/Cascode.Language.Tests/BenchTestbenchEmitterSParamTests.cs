@@ -55,7 +55,7 @@ circuit Top {
   output OUT : analog
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }
@@ -123,7 +123,7 @@ circuit Top {
   output OUT : analog
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }
@@ -191,7 +191,7 @@ circuit Top {
   output OUT : analog
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }
@@ -258,7 +258,7 @@ circuit Top {
   output OUT : analog
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }
@@ -325,7 +325,7 @@ circuit Top {
   output OUT : analog
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }
@@ -442,7 +442,7 @@ circuit Top {
   output OUT : analog
 
   constraints {
-    numeric {
+    bench {
       c1 = dc::Dummy >= 0V
     }
   }
@@ -518,7 +518,7 @@ circuit Top {
   }
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }
@@ -600,7 +600,7 @@ circuit Top {
   }
 
   constraints {
-    numeric {
+    bench {
       c1 = sp::Dummy >= 0V
     }
   }

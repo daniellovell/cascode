@@ -23,7 +23,7 @@ circuit CSeries implements SingleEndedPassiveFilter {
   }
 
   constraints {
-    numeric {
+    bench {
       // The capacitor impedance is 50Ohm at 1MHz.
       c_s11_low = sparam_bench::S11(f=100kHz) >= -0.2dB
       c_s11_min = sparam_bench::S11(f=1MHz) >= -6.99dB

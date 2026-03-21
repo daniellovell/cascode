@@ -178,12 +178,7 @@ public class CascodeJsonConverterEdgeCaseTests
                     Grounds = ["GND"],
                     Ports = [],
                     Fill = new FillBlock { Devices = [] },
-                    Constraints = new ConstraintsBlock
-                    {
-                        Numeric = [],
-                        Tech = [],
-                        Graph = [],
-                    },
+                    Constraints = new ConstraintsBlock { Bench = [], Physical = [] },
                 },
             ],
         };

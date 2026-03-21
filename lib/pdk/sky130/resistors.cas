@@ -3,7 +3,7 @@ VERSION 5.0
 library lib.pdk.sky130.resistors
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcl1(size primSize) {
+primitive mrcl1(size primSize) implements Resistor {
   device "mrcl1"
   params {
     R = primSize.R
@@ -11,7 +11,7 @@ primitive Resistor mrcl1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcn(size primSize) {
+primitive mrcn(size primSize) implements Resistor {
   device "mrcn"
   params {
     R = primSize.R
@@ -19,7 +19,7 @@ primitive Resistor mrcn(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcp(size primSize) {
+primitive mrcp(size primSize) implements Resistor {
   device "mrcp"
   params {
     R = primSize.R
@@ -27,7 +27,7 @@ primitive Resistor mrcp(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcp1(size primSize) {
+primitive mrcp1(size primSize) implements Resistor {
   device "mrcp1"
   params {
     R = primSize.R
@@ -35,7 +35,7 @@ primitive Resistor mrcp1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcrdlcon(size primSize) {
+primitive mrcrdlcon(size primSize) implements Resistor {
   device "mrcrdlcon"
   params {
     R = primSize.R
@@ -43,7 +43,7 @@ primitive Resistor mrcrdlcon(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcvia(size primSize) {
+primitive mrcvia(size primSize) implements Resistor {
   device "mrcvia"
   params {
     R = primSize.R
@@ -51,7 +51,7 @@ primitive Resistor mrcvia(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcvia2(size primSize) {
+primitive mrcvia2(size primSize) implements Resistor {
   device "mrcvia2"
   params {
     R = primSize.R
@@ -59,7 +59,7 @@ primitive Resistor mrcvia2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcvia3(size primSize) {
+primitive mrcvia3(size primSize) implements Resistor {
   device "mrcvia3"
   params {
     R = primSize.R
@@ -67,7 +67,7 @@ primitive Resistor mrcvia3(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor mrcvia4(size primSize) {
+primitive mrcvia4(size primSize) implements Resistor {
   device "mrcvia4"
   params {
     R = primSize.R
@@ -75,7 +75,7 @@ primitive Resistor mrcvia4(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor resbody(size primSize) {
+primitive resbody(size primSize) implements Resistor {
   device "resbody"
   params {
     R = primSize.R
@@ -83,7 +83,7 @@ primitive Resistor resbody(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor reshead(size primSize) {
+primitive reshead(size primSize) implements Resistor {
   device "reshead"
   params {
     R = primSize.R
@@ -91,7 +91,7 @@ primitive Resistor reshead(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_m1(size primSize) {
+primitive res_generic_m1(size primSize) implements Resistor {
   device "res_generic_m1"
   params {
     R = primSize.R
@@ -99,7 +99,7 @@ primitive Resistor res_generic_m1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_m2(size primSize) {
+primitive res_generic_m2(size primSize) implements Resistor {
   device "res_generic_m2"
   params {
     R = primSize.R
@@ -107,7 +107,7 @@ primitive Resistor res_generic_m2(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_m3(size primSize) {
+primitive res_generic_m3(size primSize) implements Resistor {
   device "res_generic_m3"
   params {
     R = primSize.R
@@ -115,7 +115,7 @@ primitive Resistor res_generic_m3(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_m4(size primSize) {
+primitive res_generic_m4(size primSize) implements Resistor {
   device "res_generic_m4"
   params {
     R = primSize.R
@@ -123,7 +123,7 @@ primitive Resistor res_generic_m4(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_m5(size primSize) {
+primitive res_generic_m5(size primSize) implements Resistor {
   device "res_generic_m5"
   params {
     R = primSize.R
@@ -131,7 +131,7 @@ primitive Resistor res_generic_m5(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_nd(size primSize) {
+primitive res_generic_nd(size primSize) implements Resistor {
   device "res_generic_nd"
   params {
     R = primSize.R
@@ -139,7 +139,7 @@ primitive Resistor res_generic_nd(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_pd(size primSize) {
+primitive res_generic_pd(size primSize) implements Resistor {
   device "res_generic_pd"
   params {
     R = primSize.R
@@ -147,7 +147,7 @@ primitive Resistor res_generic_pd(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_l1(size primSize) {
+primitive res_generic_l1(size primSize) implements Resistor {
   device "sky130_fd_pr__res_generic_l1"
   params {
     R = primSize.R
@@ -155,7 +155,7 @@ primitive Resistor res_generic_l1(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor hv(size primSize) {
+primitive hv(size primSize) implements Resistor {
   device "sky130_fd_pr__res_generic_nd__hv"
   params {
     R = primSize.R
@@ -163,7 +163,7 @@ primitive Resistor hv(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_nw(size primSize) {
+primitive res_generic_nw(size primSize) implements Resistor {
   device "sky130_fd_pr__res_generic_nw"
   params {
     R = primSize.R
@@ -171,7 +171,7 @@ primitive Resistor res_generic_nw(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_po(size primSize) {
+primitive res_generic_po(size primSize) implements Resistor {
   device "sky130_fd_pr__res_generic_po"
   params {
     R = primSize.R
@@ -179,7 +179,7 @@ primitive Resistor res_generic_po(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor monte(size primSize) {
+primitive monte(size primSize) implements Resistor {
   device "sky130_fd_pr__res_generic_po__monte"
   params {
     R = primSize.R
@@ -187,7 +187,7 @@ primitive Resistor monte(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive Resistor res_generic_r1(size primSize) {
+primitive res_generic_r1(size primSize) implements Resistor {
   device "sky130_fd_pr__res_generic_r1"
   params {
     R = primSize.R

@@ -232,7 +232,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         var summary = BuildVerifySummary(artifacts);
         if (summary.Global.TotalConstraints == 0)
         {
-            output.Warning("No numeric constraints found in resolved circuits.");
+            output.Warning("No bench constraints found in resolved circuits.");
         }
 
         VerifyReportRenderer.Render(output, summary);
@@ -406,7 +406,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         );
         output.WriteLine(string.Empty);
         output.WriteLine(
-            "Verifies numeric constraints against bench outputs. If results are missing or stale, verify automatically runs the bench pipeline unless --no-run is provided."
+            "Verifies bench constraints against bench outputs. If results are missing or stale, verify automatically runs the bench pipeline unless --no-run is provided."
         );
     }
 }

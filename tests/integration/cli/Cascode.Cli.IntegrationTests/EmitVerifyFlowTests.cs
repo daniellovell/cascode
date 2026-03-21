@@ -75,7 +75,7 @@ public sealed class EmitVerifyFlowTests : IDisposable
             cascodePath,
             $@"VERSION {CascodeVersion.Current}
 
-primitive Resistor ResistorIdeal(size primSize) {{
+primitive ResistorIdeal(size primSize) implements Resistor {{
   device ""resistor""
   params {{
     R = primSize.R

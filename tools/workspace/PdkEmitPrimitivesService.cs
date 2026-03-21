@@ -554,7 +554,7 @@ public static class PdkEmitPrimitivesService
         }
 
         builder.AppendLine(
-            $"primitive {candidate.PrimitiveKind} {primitiveName}(size primSize) {{"
+            $"primitive {primitiveName}(size primSize) implements {candidate.PrimitiveKind} {{"
         );
         builder.AppendLine($"  device \"{candidate.Model.Name}\"");
         builder.AppendLine("  params {");

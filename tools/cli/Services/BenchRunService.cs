@@ -146,7 +146,7 @@ public class BenchRunService
         string? Stderr,
         BenchPlan Plan,
         BenchMeasurementRunner Runner,
-        IReadOnlyList<NumericConstraint> ConstraintsForBench,
+        IReadOnlyList<MetricConstraint> ConstraintsForBench,
         IReadOnlyDictionary<string, string?> NodeByMetric,
         IReadOnlyList<BenchResultParser.TracePoint> TracePoints,
         TimeSpan SimulationTime,
@@ -551,9 +551,9 @@ public class BenchRunService
             }
         }
 
-        var constraintsToEvaluate = circuit.Constraints?.Numeric is null
-            ? new List<NumericConstraint>()
-            : circuit.Constraints.Numeric.Where(c => instancesToRun.Contains(c.Bench)).ToList();
+        var constraintsToEvaluate = circuit.Constraints?.Bench is null
+            ? new List<MetricConstraint>()
+            : circuit.Constraints.Bench.Where(c => instancesToRun.Contains(c.Bench)).ToList();
 
         if (
             !BenchDependencyGraph.TryBuild(
@@ -1924,7 +1924,7 @@ public class BenchRunService
             swParse.Stop();
             parseTime = swParse.Elapsed;
 
-            var constraintsForBench = GetNumericConstraintsForBench(circuit, benchName);
+            var constraintsForBench = GetBenchConstraintsForBench(circuit, benchName);
             var nodeByMetric = BuildNodeByMetric(constraintsForBench, circuit);
 
             prepared = new BenchPrepared(
@@ -1961,25 +1961,25 @@ public class BenchRunService
         }
     }
 
-    private static IReadOnlyList<NumericConstraint> GetNumericConstraintsForBench(
+    private static IReadOnlyList<MetricConstraint> GetBenchConstraintsForBench(
         Circuit circuit,
         string benchName
     )
     {
-        if (circuit.Constraints?.Numeric is null)
+        if (circuit.Constraints?.Bench is null)
         {
-            return Array.Empty<NumericConstraint>();
+            return Array.Empty<MetricConstraint>();
         }
 
         return circuit
-            .Constraints.Numeric.Where(c =>
+            .Constraints.Bench.Where(c =>
                 string.Equals(c.Bench, benchName, StringComparison.OrdinalIgnoreCase)
             )
             .ToList();
     }
 
     private static Dictionary<string, string?> BuildNodeByMetric(
-        IReadOnlyList<NumericConstraint> constraints,
+        IReadOnlyList<MetricConstraint> constraints,
         Circuit circuit
     )
     {
@@ -2008,7 +2008,7 @@ public class BenchRunService
         return nodeByMetric;
     }
 
-    private static string FormatMetricKey(NumericConstraint constraint)
+    private static string FormatMetricKey(MetricConstraint constraint)
     {
         if (constraint.MetricArgs.Count == 0)
         {

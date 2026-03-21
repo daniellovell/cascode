@@ -71,6 +71,7 @@ internal sealed partial class CascodeAstBuilder
         var includes = new List<IncludeDirective>();
         var functions = new List<FunctionDefinition>();
         var primitives = new List<PrimitiveDefinition>();
+        var parts = new List<PartDefinition>();
         var circuits = new List<Circuit>();
         string? fileLibrary = null;
 
@@ -143,6 +144,12 @@ internal sealed partial class CascodeAstBuilder
                 continue;
             }
 
+            if (decl.partDef() is not null)
+            {
+                parts.Add(BuildPart(decl.partDef()));
+                continue;
+            }
+
             if (decl.circuit() is not null)
             {
                 circuits.Add(BuildCircuit(decl.circuit()));
@@ -160,6 +167,7 @@ internal sealed partial class CascodeAstBuilder
             Traits = traits,
             BenchDefinitions = benches,
             Primitives = primitives,
+            Parts = parts,
             Circuits = circuits,
         };
     }
@@ -243,6 +251,10 @@ internal sealed partial class CascodeAstBuilder
                         }
                         interfaceDef.Connectors.Add(connector);
                     }
+                    break;
+
+                case CascodeParser.InterfaceMetricsContext metricsCtx:
+                    interfaceDef.Metrics = BuildDeclaredMetrics(metricsCtx.interfaceMetricsBlock());
                     break;
 
                 case CascodeParser.InterfaceBenchesContext benchesCtx:
@@ -374,8 +386,21 @@ internal sealed partial class CascodeAstBuilder
     /// <summary>Builds a primitive definition from its parse context.</summary>
     private PrimitiveDefinition BuildPrimitive(CascodeParser.PrimitiveDefContext ctx)
     {
-        var kind = ctx.DEVICE_TYPE().GetText();
         var name = ctx.name.Text;
+        var implementedKinds = ctx.implementsClause()
+            .interfaceList()
+            .idPart()
+            .Select(part => part.GetText())
+            .ToList();
+        if (implementedKinds.Count != 1)
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"Primitive '{name}' must implement exactly one physical interface."
+            );
+        }
+        var kind = implementedKinds.FirstOrDefault() ?? string.Empty;
 
         var sizeParam = string.Empty;
         if (ctx.paramList() != null)
@@ -472,17 +497,7 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>Normalized port name.</returns>
     private static string BuildPortName(CascodeParser.PortNameContext ctx)
     {
-        // Port names can be dotted (e.g., OUT.P)
-        var name = string.Join(".", ctx.IDENT().Select(i => i.GetText()));
-        if (ctx.NUMBER() != null)
-        {
-            return $"{name}[{ctx.NUMBER().GetText()}]";
-        }
-        if (ctx.STAR() != null)
-        {
-            return $"{name}[*]";
-        }
-        return name;
+        return ctx.GetText();
     }
 
     private static PortDirection BuildPortDirection(CascodeParser.DirectionContext ctx)

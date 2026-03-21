@@ -60,6 +60,57 @@ circuit TestCircuit {{
     }
 
     [Fact]
+    public void TryParse_PrimitiveDeclarationWithImplements_ReturnsSuccess()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS_Level1(size primSize) implements NMOS {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Document);
+        var primitive = Assert.Single(result.Document.Primitives);
+        Assert.Equal("NMOS_Level1", primitive.Name);
+        Assert.Equal("NMOS", primitive.Kind);
+    }
+
+    [Fact]
+    public void TryParse_LegacyPrimitiveDeclarationShape_IsRejected()
+    {
+        const string legacyKind = "NMOS";
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive {legacyKind} NMOS_Level1(size primSize) {{
+  device ""nmos_level1""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
+        );
+    }
+
+    [Fact]
     public void TryRead_InvalidVersionDeclaration_ReturnsError()
     {
         var cascode =

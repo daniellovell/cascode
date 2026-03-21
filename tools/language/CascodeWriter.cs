@@ -70,6 +70,12 @@ public static partial class CascodeWriter
             writer.WriteLine();
         }
 
+        foreach (var part in document.Parts.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            WritePartDefinition(part, writer);
+            writer.WriteLine();
+        }
+
         // Circuits
         foreach (var circuit in document.Circuits)
         {
@@ -117,6 +123,11 @@ public static partial class CascodeWriter
         }
 
         // Connectors
+        if (interfaceDef.Metrics is not null)
+        {
+            WriteMetricsBlock(interfaceDef.Metrics, writer, "  ", declarationsOnly: true);
+        }
+
         if (interfaceDef.Connectors.Count > 0)
         {
             writer.WriteLine("  connectors {");
@@ -231,7 +242,7 @@ public static partial class CascodeWriter
         var signature = string.IsNullOrWhiteSpace(primitive.SizeParameter)
             ? string.Empty
             : $"(size {primitive.SizeParameter})";
-        writer.WriteLine($"primitive {primitive.Kind} {primitive.Name}{signature} {{");
+        writer.WriteLine($"primitive {primitive.Name}{signature} implements {primitive.Kind} {{");
         writer.WriteLine($"  device \"{primitive.Device}\"");
         writer.WriteLine("  params {");
         foreach (var entry in primitive.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
@@ -337,6 +348,11 @@ public static partial class CascodeWriter
             writer.WriteLine("  fill {");
             WriteFillBlock(circuit.Fill, writer);
             writer.WriteLine("  }");
+        }
+
+        if (circuit.Metrics is not null)
+        {
+            WriteMetricsBlock(circuit.Metrics, writer, "  ");
         }
 
         // Constraints
@@ -503,6 +519,17 @@ public static partial class CascodeWriter
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
+        var selection =
+            inst.Selection.Count == 0
+                ? string.Empty
+                : "["
+                    + string.Join(
+                        ", ",
+                        inst.Selection.Select(s =>
+                            string.IsNullOrEmpty(s.Axis) ? s.Value : $"{s.Axis}={s.Value}"
+                        )
+                    )
+                    + "]";
         if (inst.IsSomeRequest)
         {
             writer.WriteLine($"{indent}Some {inst.Id} : {inst.Type} {{");
@@ -512,7 +539,9 @@ public static partial class CascodeWriter
             var declaredType = string.IsNullOrWhiteSpace(inst.DeclaredType)
                 ? inst.Type
                 : inst.DeclaredType;
-            writer.WriteLine($"{indent}{declaredType} {inst.Id} = new {inst.Type}{argList} {{");
+            writer.WriteLine(
+                $"{indent}{declaredType} {inst.Id} = new {inst.Type}{selection}{argList} {{"
+            );
         }
         var bindIndent = indent + "  ";
         foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
@@ -539,57 +568,78 @@ public static partial class CascodeWriter
     private static void WriteConstraints(ConstraintsBlock constraints, TextWriter writer)
     {
         writer.WriteLine("  constraints {");
-        if (constraints.Numeric.Count > 0)
+        if (constraints.Bench.Count > 0)
         {
-            writer.WriteLine("    numeric {");
-            foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
+            writer.WriteLine("    bench {");
+            foreach (var c in constraints.Bench.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
-                var node = c.Node is not null ? $" at {c.Node}" : "";
-                var benchArgs =
-                    c.BenchArgs.Count == 0
-                        ? ""
-                        : "("
-                            + string.Join(
-                                ", ",
-                                c.BenchArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                                    .Select(a => $"{a.Name}={a.Value}")
-                            )
-                            + ")";
-                var metricArgs =
-                    c.MetricArgs.Count == 0
-                        ? ""
-                        : "("
-                            + string.Join(
-                                ", ",
-                                c.MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                                    .Select(a => $"{a.Name}={a.Value}")
-                            )
-                            + ")";
-                writer.WriteLine(
-                    $"      {c.Id} = {c.BenchBase}{benchArgs}::{c.Metric}{metricArgs}{node} {c.Op} {c.Value}{c.Unit}"
-                );
+                WriteMetricConstraint(c, writer);
             }
             writer.WriteLine("    }");
         }
-        if (constraints.Tech.Count > 0)
+        if (constraints.Spec.Count > 0)
         {
-            writer.WriteLine("    tech {");
-            foreach (var c in constraints.Tech.OrderBy(c => c.Id, StringComparer.Ordinal))
+            writer.WriteLine("    spec {");
+            foreach (var c in constraints.Spec.OrderBy(c => c.Id, StringComparer.Ordinal))
+            {
+                WriteMetricConstraint(c, writer);
+            }
+            writer.WriteLine("    }");
+        }
+        if (constraints.Physical.Count > 0)
+        {
+            writer.WriteLine("    physical {");
+            foreach (var c in constraints.Physical.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 writer.WriteLine($"      {c.Id} : {c.Param} {c.Op} {c.Value}{c.Unit} on {c.Scope}");
             }
             writer.WriteLine("    }");
         }
-        if (constraints.Graph.Count > 0)
-        {
-            writer.WriteLine("    graph {");
-            foreach (var c in constraints.Graph.OrderBy(c => c.Id, StringComparer.Ordinal))
-            {
-                writer.WriteLine($"      {c.Id} : {c.Rule} ..."); // Simplified for now
-            }
-            writer.WriteLine("    }");
-        }
         writer.WriteLine("  }");
+    }
+
+    private static void WriteMetricConstraint(MetricConstraint constraint, TextWriter writer)
+    {
+        var node = constraint.Node is not null ? $" at {constraint.Node}" : "";
+        var benchArgs =
+            constraint.BenchArgs.Count == 0
+                ? ""
+                : "("
+                    + string.Join(
+                        ", ",
+                        constraint
+                            .BenchArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                            .Select(a => $"{a.Name}={a.Value}")
+                    )
+                    + ")";
+        var metricArgs =
+            constraint.MetricArgs.Count == 0
+                ? ""
+                : "("
+                    + string.Join(
+                        ", ",
+                        constraint
+                            .MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                            .Select(a => $"{a.Name}={a.Value}")
+                    )
+                    + ")";
+        writer.WriteLine(
+            $"      {constraint.Id} = {FormatConstraintSource(constraint, benchArgs, metricArgs)}{node} {constraint.Op} {constraint.Value}{constraint.Unit}"
+        );
+    }
+
+    private static string FormatConstraintSource(
+        MetricConstraint constraint,
+        string benchArgs,
+        string metricArgs
+    )
+    {
+        if (!string.IsNullOrEmpty(constraint.Source))
+        {
+            return constraint.Source;
+        }
+
+        return $"{constraint.BenchBase}{benchArgs}::{constraint.Metric}{metricArgs}";
     }
 
     private static void WriteHarness(HarnessBlock harness, TextWriter writer)
@@ -723,6 +773,11 @@ public static partial class CascodeWriter
                 }
             }
 
+            if (binding.Metrics is not null)
+            {
+                WriteMetricsBlock(binding.Metrics, writer, "      ");
+            }
+
             if (bindingExports.Count > 0)
             {
                 writer.WriteLine("      measurements {");
@@ -767,6 +822,11 @@ public static partial class CascodeWriter
                         WriteInstance(inst.Instance, writer, indent: "      ");
                         break;
                 }
+            }
+
+            if (ext.Metrics is not null)
+            {
+                WriteMetricsBlock(ext.Metrics, writer, "      ");
             }
 
             if (extExports.Count > 0)

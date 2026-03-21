@@ -99,7 +99,7 @@ public sealed class PdkEmitPrimitivesLayoutTests
         Assert.DoesNotContain("NF=[", devicesText, StringComparison.Ordinal);
         Assert.Contains("M=[", devicesText, StringComparison.Ordinal);
         Assert.Contains(
-            "primitive NMOS nfet_20v0(size primSize)",
+            "primitive nfet_20v0(size primSize) implements NMOS",
             devicesText,
             StringComparison.Ordinal
         );

@@ -74,7 +74,7 @@ public sealed class GoldenBenchBindingValidationTests
         }
 
         return parsed.Document.Circuits.Any(c =>
-            c.Traits is { Count: > 0 } && c.Constraints is { Numeric.Count: > 0 }
+            c.Traits is { Count: > 0 } && c.Constraints is { Bench.Count: > 0 }
         );
     }
 

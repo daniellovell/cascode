@@ -22,7 +22,7 @@ interface DiffPairLike {
 
 
 
-primitive NMOS NMOS_Level1(size primSize) {
+primitive NMOS_Level1(size primSize) implements NMOS {
   device "nmos_level1"
   params {
     W = primSize.W
@@ -31,7 +31,7 @@ primitive NMOS NMOS_Level1(size primSize) {
   }
 }
 
-primitive PMOS PMOS_Level1(size primSize) {
+primitive PMOS_Level1(size primSize) implements PMOS {
   device "pmos_level1"
   params {
     W = primSize.W
@@ -63,7 +63,7 @@ circuit OTA5T_Hierarchical_Attach implements SingleEndedOpAmp {
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg

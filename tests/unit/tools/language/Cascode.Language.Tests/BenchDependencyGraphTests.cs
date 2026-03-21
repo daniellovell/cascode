@@ -30,7 +30,7 @@ public class BenchDependencyGraphTests
     {
         var circuit = new Circuit { Name = "C" };
 
-        var constraints = new List<NumericConstraint>
+        var constraints = new List<MetricConstraint>
         {
             new()
             {
@@ -136,7 +136,7 @@ public class BenchDependencyGraphTests
     {
         var circuit = new Circuit { Name = "C" };
 
-        var constraints = new List<NumericConstraint>
+        var constraints = new List<MetricConstraint>
         {
             new()
             {

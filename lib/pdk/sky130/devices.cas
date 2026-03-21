@@ -3,7 +3,7 @@ VERSION 5.0
 library lib.pdk.sky130.devices
 
 // geometry: W=[3.6E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
-primitive NMOS nfet_01v8(size primSize) {
+primitive nfet_01v8(size primSize) implements NMOS {
   device "nfet_01v8"
   params {
     w = primSize.W
@@ -14,7 +14,7 @@ primitive NMOS nfet_01v8(size primSize) {
 }
 
 // geometry: W=[4.2E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
-primitive NMOS nfet_01v8_lvt(size primSize) {
+primitive nfet_01v8_lvt(size primSize) implements NMOS {
   device "nfet_01v8_lvt"
   params {
     w = primSize.W
@@ -25,7 +25,7 @@ primitive NMOS nfet_01v8_lvt(size primSize) {
 }
 
 // geometry: W=[4.15E-07..1.0005E-05] L=[4.95E-07..8.05E-07] M=[-..-]
-primitive NMOS nfet_03v3_nvt(size primSize) {
+primitive nfet_03v3_nvt(size primSize) implements NMOS {
   device "nfet_03v3_nvt"
   params {
     w = primSize.W
@@ -36,7 +36,7 @@ primitive NMOS nfet_03v3_nvt(size primSize) {
 }
 
 // geometry: W=[4.15E-07..1.0005E-05] L=[8.95E-07..2.5005E-05] M=[-..-]
-primitive NMOS nfet_05v0_nvt(size primSize) {
+primitive nfet_05v0_nvt(size primSize) implements NMOS {
   device "nfet_05v0_nvt"
   params {
     w = primSize.W
@@ -47,7 +47,7 @@ primitive NMOS nfet_05v0_nvt(size primSize) {
 }
 
 // geometry: W=[4.2E-07..0.0001] L=[5E-07..0.0001] M=[-..-]
-primitive NMOS nfet_g5v0d10v5(size primSize) {
+primitive nfet_g5v0d10v5(size primSize) implements NMOS {
   device "nfet_g5v0d10v5"
   params {
     w = primSize.W
@@ -58,7 +58,7 @@ primitive NMOS nfet_g5v0d10v5(size primSize) {
 }
 
 // geometry: W=[4.2E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
-primitive PMOS pfet_01v8(size primSize) {
+primitive pfet_01v8(size primSize) implements PMOS {
   device "pfet_01v8"
   params {
     w = primSize.W
@@ -69,7 +69,7 @@ primitive PMOS pfet_01v8(size primSize) {
 }
 
 // geometry: W=[3.6E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
-primitive PMOS pfet_01v8_hvt(size primSize) {
+primitive pfet_01v8_hvt(size primSize) implements PMOS {
   device "pfet_01v8_hvt"
   params {
     w = primSize.W
@@ -80,7 +80,7 @@ primitive PMOS pfet_01v8_hvt(size primSize) {
 }
 
 // geometry: W=[4.2E-07..0.0001] L=[3.5E-07..0.0001] M=[-..-]
-primitive PMOS pfet_01v8_lvt(size primSize) {
+primitive pfet_01v8_lvt(size primSize) implements PMOS {
   device "pfet_01v8_lvt"
   params {
     w = primSize.W
@@ -91,7 +91,7 @@ primitive PMOS pfet_01v8_lvt(size primSize) {
 }
 
 // geometry: W=[4.2E-07..0.0001] L=[5E-07..0.0001] M=[-..-]
-primitive PMOS pfet_g5v0d10v5(size primSize) {
+primitive pfet_g5v0d10v5(size primSize) implements PMOS {
   device "pfet_g5v0d10v5"
   params {
     w = primSize.W
@@ -102,7 +102,7 @@ primitive PMOS pfet_g5v0d10v5(size primSize) {
 }
 
 // geometry: W=[5.395E-06..4.0315E-05] L=[1.6E-07..1.85E-07] M=[-..-]
-primitive NMOS esd_nfet_01v8(size primSize) {
+primitive esd_nfet_01v8(size primSize) implements NMOS {
   device "sky130_fd_pr__esd_nfet_01v8"
   params {
     w = primSize.W
@@ -113,7 +113,7 @@ primitive NMOS esd_nfet_01v8(size primSize) {
 }
 
 // geometry: W=[5.395E-06..5.0995E-05] L=[5.45E-07..1.005E-06] M=[-..-]
-primitive NMOS esd_nfet_g5v0d10v5(size primSize) {
+primitive esd_nfet_g5v0d10v5(size primSize) implements NMOS {
   device "sky130_fd_pr__esd_nfet_g5v0d10v5"
   params {
     w = primSize.W
@@ -124,7 +124,7 @@ primitive NMOS esd_nfet_g5v0d10v5(size primSize) {
 }
 
 // geometry: W=[1.4495E-05..2.6505E-05] L=[5.45E-07..5.55E-07] M=[-..-]
-primitive PMOS esd_pfet_g5v0d10v5(size primSize) {
+primitive esd_pfet_g5v0d10v5(size primSize) implements PMOS {
   device "sky130_fd_pr__esd_pfet_g5v0d10v5"
   params {
     w = primSize.W
@@ -135,7 +135,7 @@ primitive PMOS esd_pfet_g5v0d10v5(size primSize) {
 }
 
 // geometry: W=[1.9995E-05..6.0005E-05] L=[4.95E-07..3.05E-06] M=[-..-]
-primitive NMOS nfet_20v0(size primSize) {
+primitive nfet_20v0(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_20v0"
   params {
     w = primSize.W
@@ -146,7 +146,7 @@ primitive NMOS nfet_20v0(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive NMOS nfet_20v0_iso(size primSize) {
+primitive nfet_20v0_iso(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_20v0_iso"
   params {
     w = primSize.W
@@ -157,7 +157,7 @@ primitive NMOS nfet_20v0_iso(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive NMOS nfet_20v0_nvt(size primSize) {
+primitive nfet_20v0_nvt(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_20v0_nvt"
   params {
     w = primSize.W
@@ -168,7 +168,7 @@ primitive NMOS nfet_20v0_nvt(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive NMOS nfet_20v0_reverse_iso(size primSize) {
+primitive nfet_20v0_reverse_iso(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_20v0_reverse_iso"
   params {
     w = primSize.W
@@ -179,7 +179,7 @@ primitive NMOS nfet_20v0_reverse_iso(size primSize) {
 }
 
 // geometry: W=[1.9995E-05..6.0005E-05] L=[4.95E-07..6.05E-06] M=[-..-]
-primitive NMOS nfet_20v0_zvt(size primSize) {
+primitive nfet_20v0_zvt(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_20v0_zvt"
   params {
     w = primSize.W
@@ -190,7 +190,7 @@ primitive NMOS nfet_20v0_zvt(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive NMOS nfet_example_tt(size primSize) {
+primitive nfet_example_tt(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_example_tt"
   params {
     W = primSize.W
@@ -200,7 +200,7 @@ primitive NMOS nfet_example_tt(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive NMOS nfet_g5v0d16v0(size primSize) {
+primitive nfet_g5v0d16v0(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_g5v0d16v0"
   params {
     w = primSize.W
@@ -212,7 +212,7 @@ primitive NMOS nfet_g5v0d16v0(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive NMOS base(size primSize) {
+primitive base(size primSize) implements NMOS {
   device "sky130_fd_pr__nfet_g5v0d16v0__base"
   params {
     w = primSize.W
@@ -223,7 +223,7 @@ primitive NMOS base(size primSize) {
 }
 
 // geometry: W=[8.35E-07..1.685E-06] L=[1.45E-07..1.55E-07] M=[-..-]
-primitive PMOS pfet_01v8_mvt(size primSize) {
+primitive pfet_01v8_mvt(size primSize) implements PMOS {
   device "sky130_fd_pr__pfet_01v8_mvt"
   params {
     w = primSize.W
@@ -234,7 +234,7 @@ primitive PMOS pfet_01v8_mvt(size primSize) {
 }
 
 // geometry: W=[1.9995E-05..3.0005E-05] L=[4.95E-07..5.05E-07] M=[-..-]
-primitive PMOS pfet_20v0(size primSize) {
+primitive pfet_20v0(size primSize) implements PMOS {
   device "sky130_fd_pr__pfet_20v0"
   params {
     w = primSize.W
@@ -245,7 +245,7 @@ primitive PMOS pfet_20v0(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive PMOS pfet_example_ff(size primSize) {
+primitive pfet_example_ff(size primSize) implements PMOS {
   device "sky130_fd_pr__pfet_example_ff"
   params {
     W = primSize.W
@@ -255,7 +255,7 @@ primitive PMOS pfet_example_ff(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive PMOS pfet_g5v0d16v0(size primSize) {
+primitive pfet_g5v0d16v0(size primSize) implements PMOS {
   device "sky130_fd_pr__pfet_g5v0d16v0"
   params {
     w = primSize.W
@@ -267,7 +267,7 @@ primitive PMOS pfet_g5v0d16v0(size primSize) {
 }
 
 // geometry: W=[-..-] L=[-..-] M=[-..-]
-primitive PMOS base_2(size primSize) {
+primitive base_2(size primSize) implements PMOS {
   device "sky130_fd_pr__pfet_g5v0d16v0__base"
   params {
     w = primSize.W
@@ -278,7 +278,7 @@ primitive PMOS base_2(size primSize) {
 }
 
 // geometry: W=[2.095E-07..2.105E-07] L=[7.5E-08..1.505E-07] M=[-..-]
-primitive NMOS special_nfet_latch(size primSize) {
+primitive special_nfet_latch(size primSize) implements NMOS {
   device "sky130_fd_pr__special_nfet_latch"
   params {
     w = primSize.W
@@ -289,7 +289,7 @@ primitive NMOS special_nfet_latch(size primSize) {
 }
 
 // geometry: W=[1.395E-07..1.405E-07] L=[7.5E-08..1.505E-07] M=[-..-]
-primitive NMOS special_nfet_pass(size primSize) {
+primitive special_nfet_pass(size primSize) implements NMOS {
   device "sky130_fd_pr__special_nfet_pass"
   params {
     w = primSize.W
@@ -300,7 +300,7 @@ primitive NMOS special_nfet_pass(size primSize) {
 }
 
 // geometry: W=[3.45E-07..4.505E-07] L=[1.49E-07..1.51E-07] M=[-..-]
-primitive NMOS special_nfet_pass_flash(size primSize) {
+primitive special_nfet_pass_flash(size primSize) implements NMOS {
   device "sky130_fd_pr__special_nfet_pass_flash"
   params {
     w = primSize.W
@@ -311,7 +311,7 @@ primitive NMOS special_nfet_pass_flash(size primSize) {
 }
 
 // geometry: W=[2.95E-07..3.05E-07] L=[1.45E-07..1.55E-07] M=[-..-]
-primitive NMOS special_nfet_pass_lvt(size primSize) {
+primitive special_nfet_pass_lvt(size primSize) implements NMOS {
   device "sky130_fd_pr__special_nfet_pass_lvt"
   params {
     w = primSize.W
@@ -322,7 +322,7 @@ primitive NMOS special_nfet_pass_lvt(size primSize) {
 }
 
 // geometry: W=[1.395E-07..1.405E-07] L=[2.5E-08..1.505E-07] M=[-..-]
-primitive PMOS special_pfet_pass(size primSize) {
+primitive special_pfet_pass(size primSize) implements PMOS {
   device "sky130_fd_pr__special_pfet_pass"
   params {
     w = primSize.W
