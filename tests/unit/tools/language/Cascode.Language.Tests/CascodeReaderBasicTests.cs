@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Cascode.Language;
 
 namespace Cascode.Language.Tests;
@@ -18,7 +19,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       .D--OUT
       .S--GND
@@ -118,7 +119,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G--IN
       bad_binding
       .D--OUT
@@ -152,7 +153,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       .G->IN
       .D--OUT
       .S--GND
@@ -572,7 +573,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new NMOS_Level1(size(W=1u, L=180n)) {{
       {gBinding}
       {dBinding}
       {sBinding}
@@ -685,6 +686,150 @@ circuit TestCircuit {{
         var conn = circuit.Fill!.Connections[0];
         Assert.Equal("dp.IN", conn.From);
         Assert.Equal("IN", conn.To);
+    }
+
+    [Fact]
+    public void TryRead_InvalidMeasurementNamedArgument_DoesNotInferDeclaredMeasurementType()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ArgumentValidationBench {{
+  measurements {{
+    measurement GainAt(Frequency f) : dB {{
+      return 1dB
+    }}
+  }}
+
+  function GainSpectrumFromCall() : GainSpectrum {{
+    return GainAt(freq=1GHz)
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Code == "CAS2004"
+                && d.Message.Contains("Return type 'Scalar'", StringComparison.Ordinal)
+                && d.Message.Contains("expected 'GainSpectrum'", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void TryRead_MeasurementCall_RejectsPositionalAfterNamed()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ArgumentOrderingBench {{
+  measurements {{
+    measurement GainAt(Time t, Frequency f) : V/rtHz {{
+      return noise(1)
+    }}
+
+    measurement UsesMixedArgs : V/rtHz {{
+      return GainAt(f=1GHz, 1ns)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Code == "CAS2004"
+                && d.Message.Contains("Return type 'Scalar'", StringComparison.Ordinal)
+                && d.Message.Contains("expected 'NoiseSpectralDensity'", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void TryRead_BareZeroArgMeasurementReferences_ParticipateInCycleDetection()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BarePathCycleBench {{
+  measurements {{
+    measurement A : Hz {{
+      return B
+    }}
+
+    measurement B : Hz {{
+      return A
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Code == "CAS2007");
+    }
+
+    [Fact]
+    public void TryRead_ZeroArgMeasurementDependencies_IgnoreParameterShadowing()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ParameterShadowBench {{
+  measurements {{
+    measurement A(Frequency B) : Hz {{
+      return B
+    }}
+
+    measurement B : Hz {{
+      return A(1Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.True(
+            result.Success,
+            $"Unexpected diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Code + ":" + d.Message))}"
+        );
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code == "CAS2007");
+    }
+
+    [Fact]
+    public void TryRead_NoiseDensityLiteralsInBenchMeasurements_ParseSuccessfully()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NoiseLiteralBench {{
+  measurements {{
+    measurement SpotNoiseTarget : V/rtHz {{
+      return 9nV/rtHz
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "noise_literal_bench.cas");
+
+        Assert.True(
+            result.Success,
+            $"Unexpected diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Code + ":" + d.Message))}"
+        );
+        Assert.NotNull(result.Document);
     }
 
     #endregion

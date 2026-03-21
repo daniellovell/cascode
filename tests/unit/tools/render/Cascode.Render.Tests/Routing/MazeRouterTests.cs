@@ -11,7 +11,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_AllNetsFullyConnected(string cascodePath)
     {
         // Arrange
@@ -378,7 +378,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_NoOverlappingSegmentsWithinNet(string cascodePath)
     {
         // Arrange
@@ -634,7 +634,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_PortTerminalPositionsConnectedToWires(string cascodePath)
     {
         // Arrange
@@ -969,7 +969,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_NoUselessWireStubs(string cascodePath)
     {
         // This test verifies that every wire segment endpoint either:
@@ -1087,7 +1087,7 @@ public class MazeRouterTests
     /// but the input side (left) needs a connector to be added.
     /// </summary>
     [Theory]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
     public void Route_ParallelPathsWithOneSidedVerticalCoverage_ConnectorAddedToBothSides(
         string cascodePath
     )
@@ -1211,6 +1211,85 @@ public class MazeRouterTests
         Assert.Contains(result, s => s.From.Equals(terminalA) && s.To.Equals(junctionB));
         Assert.Contains(result, s => s.From.Equals(junctionB) && s.To.Equals(terminalC));
         Assert.DoesNotContain(result, s => s.From.Equals(isolatedD) || s.To.Equals(isolatedE));
+    }
+
+    [Theory]
+    [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.N", "OUT.N")]
+    public void Route_FeedthroughPortsRemainAligned(
+        string cascodePath,
+        string leftPort,
+        string rightPort
+    )
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        var portTerminals = result
+            .TerminalPositions.Where(t => t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
+            .ToDictionary(t => t.DeviceId.Substring(5), t => t, StringComparer.Ordinal);
+
+        Assert.True(portTerminals.TryGetValue(leftPort, out var leftPos), $"Missing {leftPort}");
+        Assert.True(portTerminals.TryGetValue(rightPort, out var rightPos), $"Missing {rightPort}");
+        Assert.Equal(leftPos.Y, rightPos.Y);
+    }
+
+    [Fact]
+    public void Route_RcLowpass_PortsStayAligned_WithStraightBoundaryConnections()
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), "tests/golden/cas/stress/RcLowpass.cas");
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        var inPort = result.TerminalPositions.Single(t => t.DeviceId == "PORT_IN");
+        var outPort = result.TerminalPositions.Single(t => t.DeviceId == "PORT_OUT");
+        Assert.Equal(inPort.Y, outPort.Y);
+
+        var inPoint = new GridPoint(inPort.X, inPort.Y);
+        var outPoint = new GridPoint(outPort.X, outPort.Y);
+        var inSegments = result.SegmentsByNet["IN"];
+        var outSegments = result.SegmentsByNet["OUT"];
+
+        var hasHorizontalAtIn = inSegments.Any(s =>
+            s.From.Y == s.To.Y && (s.From.Equals(inPoint) || s.To.Equals(inPoint))
+        );
+        var hasVerticalAtIn = inSegments.Any(s =>
+            s.From.X == s.To.X && (s.From.Equals(inPoint) || s.To.Equals(inPoint))
+        );
+        var hasHorizontalAtPort = outSegments.Any(s =>
+            s.From.Y == s.To.Y && (s.From.Equals(outPoint) || s.To.Equals(outPoint))
+        );
+        var hasVerticalAtPort = outSegments.Any(s =>
+            s.From.X == s.To.X && (s.From.Equals(outPoint) || s.To.Equals(outPoint))
+        );
+
+        Assert.True(hasHorizontalAtIn, "IN should connect to the boundary with a horizontal lane");
+        Assert.False(hasVerticalAtIn, "IN should not jog vertically at the input port");
+        Assert.True(
+            hasHorizontalAtPort,
+            "OUT should connect to the boundary with a horizontal lane"
+        );
+        Assert.False(hasVerticalAtPort, "OUT should not jog vertically at the output port");
     }
 
     private static string GetRepoRoot()

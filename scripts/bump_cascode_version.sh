@@ -17,7 +17,8 @@ if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
 fi
 
 VERSION="$MAJOR.$MINOR"
-echo "Updating golden files to Cascode $VERSION"
+LIB_DIR="$repo_root/lib"
+echo "Updating files to Cascode $VERSION"
 
 # Detect platform for portable sed -i
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -36,6 +37,11 @@ while IFS= read -r -d '' file; do
     sed "${SED_INPLACE[@]}" -E "s/\"cascodeVersion\": \"[0-9]+\.[0-9]+\"/\"cascodeVersion\": \"$VERSION\"/" "$file"
 done < <(find "$GOLDEN_DIR" -name "*.json" -print0)
 
+# Update lib/ Cascode source files (first line VERSION header)
+while IFS= read -r -d '' file; do
+    sed "${SED_INPLACE[@]}" -E "1s/^VERSION [0-9]+\.[0-9]+/VERSION $VERSION/" "$file"
+done < <(find "$LIB_DIR" -name "*.cas" -print0)
+
 # Count actually modified files using git
-count=$(git -C "$repo_root" diff --name-only -- "$GOLDEN_DIR" 2>/dev/null | wc -l | tr -d ' ')
+count=$(git -C "$repo_root" diff --name-only -- "$GOLDEN_DIR" "$LIB_DIR" 2>/dev/null | wc -l | tr -d ' ')
 echo "Updated $count files."

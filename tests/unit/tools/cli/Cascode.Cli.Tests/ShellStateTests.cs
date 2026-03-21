@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Cascode.Cli;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Cli.Tests;
@@ -16,8 +16,8 @@ public sealed class ShellStateTests
         // Arrange
         var state = new ShellState("/test/workspace");
         var messagesReceived = new ConcurrentQueue<(DateTime timestamp, string message)>();
-        var firstMessageReceived = new TaskCompletionSource<bool>();
-        var secondMessageReceived = new TaskCompletionSource<bool>();
+        var firstMessageReceived = new AsyncSignal();
+        var secondMessageReceived = new AsyncSignal();
 
         state.Changed += () =>
         {
@@ -29,22 +29,22 @@ public sealed class ShellStateTests
 
                 if (messagesReceived.Count == 1)
                 {
-                    firstMessageReceived.TrySetResult(true);
+                    firstMessageReceived.TrySet();
                 }
                 else if (messagesReceived.Count == 2)
                 {
-                    secondMessageReceived.TrySetResult(true);
+                    secondMessageReceived.TrySet();
                 }
             }
         };
 
-        var taskStarted = new TaskCompletionSource<bool>();
-        var taskShouldComplete = new TaskCompletionSource<bool>();
+        var taskStarted = new AsyncSignal();
+        var taskShouldComplete = new AsyncSignal();
 
         // Act - Simulate scan running in background thread
-        var backgroundTask = Task.Run(async () =>
+        var backgroundTask = AsyncTest.RunLongRunning(async () =>
         {
-            taskStarted.SetResult(true);
+            taskStarted.TrySet();
             state.AddMessage("Message 1 - scan started");
 
             await Task.Delay(50); // Simulate some work
@@ -59,12 +59,9 @@ public sealed class ShellStateTests
         await taskStarted.Task;
 
         // Assert - Verify messages arrive WHILE task is still running
-        var firstReceived = await Task.WhenAny(
+        await AsyncTest.WaitAsync(
             firstMessageReceived.Task,
-            Task.Delay(TimeSpan.FromSeconds(2))
-        );
-        Assert.True(
-            firstReceived == firstMessageReceived.Task,
+            TimeSpan.FromSeconds(2),
             "First message should be received within timeout"
         );
         Assert.False(
@@ -72,12 +69,9 @@ public sealed class ShellStateTests
             "Background task should still be running when first message received"
         );
 
-        var secondReceived = await Task.WhenAny(
+        await AsyncTest.WaitAsync(
             secondMessageReceived.Task,
-            Task.Delay(TimeSpan.FromSeconds(2))
-        );
-        Assert.True(
-            secondReceived == secondMessageReceived.Task,
+            TimeSpan.FromSeconds(2),
             "Second message should be received within timeout"
         );
         Assert.False(
@@ -86,7 +80,7 @@ public sealed class ShellStateTests
         );
 
         // Let task complete
-        taskShouldComplete.SetResult(true);
+        taskShouldComplete.TrySet();
         await backgroundTask;
 
         // Verify all messages were received in order
@@ -104,26 +98,30 @@ public sealed class ShellStateTests
     {
         // Arrange
         var state = new ShellState("/test/workspace");
-        var messageAdded = new TaskCompletionSource<bool>();
-        var taskShouldComplete = new TaskCompletionSource<bool>();
+        var messageAdded = new AsyncSignal();
+        var taskStarted = new AsyncSignal();
+        var taskShouldComplete = new AsyncSignal();
 
-        state.Changed += () => messageAdded.TrySetResult(true);
+        state.Changed += () => messageAdded.TrySet();
 
         // Act - Add message from background thread
-        var backgroundTask = Task.Run(async () =>
+        var backgroundTask = AsyncTest.RunLongRunning(async () =>
         {
+            taskStarted.TrySet();
             state.AddMessage("Background message");
 
             // Wait to prove snapshot is available before task completes
             await taskShouldComplete.Task;
         });
 
+        await taskStarted.Task;
+
         // Assert - Message appears in snapshot while task is still running
-        var messageReceived = await Task.WhenAny(
+        await AsyncTest.WaitAsync(
             messageAdded.Task,
-            Task.Delay(TimeSpan.FromSeconds(1))
+            TimeSpan.FromSeconds(2),
+            "Changed event should fire"
         );
-        Assert.True(messageReceived == messageAdded.Task, "Changed event should fire");
 
         var snapshot = state.GetMessagesSnapshot();
         Assert.NotEmpty(snapshot);
@@ -131,7 +129,7 @@ public sealed class ShellStateTests
         Assert.False(backgroundTask.IsCompleted, "Background task should still be running");
 
         // Cleanup
-        taskShouldComplete.SetResult(true);
+        taskShouldComplete.TrySet();
         await backgroundTask;
     }
 
@@ -199,10 +197,13 @@ public sealed class ShellStateTests
         };
 
         var allTasks = Task.WhenAll(tasks);
-        var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(30)));
+        await AsyncTest.WaitAsync(
+            allTasks,
+            TimeSpan.FromSeconds(30),
+            "All tasks should complete within timeout"
+        );
 
         // Assert - No exceptions occurred
-        Assert.True(completedTask == allTasks, "All tasks should complete within timeout");
         Assert.Empty(exceptions);
 
         // Verify final state is consistent

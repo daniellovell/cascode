@@ -20,8 +20,9 @@ public sealed partial class CascodeDocument
     public int VersionMinor { get; init; } = 0;
 
     /// <summary>
-    /// Include directives present in the parsed source document.
-    /// Linked documents must not contain any includes.
+    /// Include directives present in this document.
+    /// Default linked outputs are self-contained and leave this empty.
+    /// Include-pruned linked outputs (for example, <c>--no-link-benches</c>) may retain a minimal include set.
     /// </summary>
     public List<IncludeDirective> Includes { get; init; } = new();
 
@@ -181,6 +182,9 @@ public sealed class Circuit
 
     /// <summary>Environment block describing operating intent (used by benches).</summary>
     public EnvBlock? Env { get; init; }
+
+    /// <summary>Render-intent block containing sparse schematic overrides.</summary>
+    public RenderBlock? Render { get; set; }
 
     /// <summary>Bench bindings declared on the circuit (override/extend interface benches).</summary>
     public List<BenchBinding> BenchBindings { get; init; } = new();

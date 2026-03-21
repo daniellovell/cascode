@@ -11,6 +11,7 @@ internal sealed class DelegateCliCommand : ICliCommand
         string description,
         CommandHandler handler,
         bool hidden = false,
+        CommandHelpCategory helpCategory = CommandHelpCategory.Uncategorized,
         IReadOnlyList<string>? aliases = null
     )
     {
@@ -19,12 +20,14 @@ internal sealed class DelegateCliCommand : ICliCommand
             : path;
         Description = description ?? string.Empty;
         Handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        HelpCategory = helpCategory;
         Hidden = hidden;
         Aliases = aliases ?? Array.Empty<string>();
     }
 
     public string Path { get; }
     public string Description { get; }
+    public CommandHelpCategory HelpCategory { get; }
     public bool Hidden { get; }
     public IReadOnlyList<string> Aliases { get; }
     public CommandHandler Handler { get; }

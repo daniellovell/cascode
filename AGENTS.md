@@ -33,10 +33,23 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
   - Code/data: `lib/std/**`, `examples/**`
   - Verify: minimal runnable examples; keep outputs under `build/`
 - Bench system (harnesses + execution)
+  - Spec: `spec/language/Ch04_Bench_System.md` (normative bench/binding contract)
+  - Read: `docs/language/bench-cookbook.md` (practical patterns and pitfalls)
   - Code: `tools/bench/**` (harness discovery, testbench generation, simulator backends)
   - Code: `tools/language/BenchRuntime/**` (bench planning + measurement evaluation)
+  - Stdlib benches: `lib/std/bench/**`; interface bindings: `lib/std/amp/**`
 - Render (schematic/layout)
   - Code: `tools/render/**`
+- Node native editor API (`@cascode/native`)
+  - Code: `editors/node/**`
+  - Runtime package: `editors/node/package.json`
+  - Platform package templates: `editors/node/platform-packages/**`
+  - Staging script: `editors/node/scripts/stage-platform-package.mjs`
+  - CI release wiring: `.github/workflows/dotnet.yml`, `.github/workflows/release.yml`
+  - Local verify:
+    - `cd editors/node && npm ci --omit=optional && npm run build`
+    - Publish native runtime: `dotnet publish tools/native/Cascode.Native/Cascode.Native.csproj --configuration Release -r <rid> -p:PublishAot=true -o build/native/<rid>`
+    - Set `CASCODE_NATIVE_LIB` to the produced shared library and run `npm test`
 - Tests
   - Read: `tests/README.md`
   - Unit tests: `tests/unit/tools/<area>/Cascode.<Area>.Tests/` (add or update alongside `tools/<area>/` code)
@@ -64,6 +77,8 @@ Use professional prose and use precisely the level of verbosity that is required
 
 Bold formatting should be reserved for technical terms being defined, critical warnings, or table headers requiring emphasis. Do not bold every subsection label, list lead-in, or organizational marker.
 
+When prose references an in-repo file or document, use a relative Markdown link rather than a backticked path. Reserve backticks for commands, identifiers, globs, and intentionally historical references in RFCs.
+
 ## Boundaries
 - `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/language`, `tools/bench`, `tools/render`. Nothing depends on CLI.
 - `tools/workspace`: orchestration + persistence to `pdk.db`. No UI.
@@ -71,6 +86,12 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - `tools/bench`: harness discovery + testbench generation + simulator backends; no workspace DB.
 - `tools/render`: rendering; depends on `tools/language`.
 - No cycles or cross‑layer shortcuts.
+
+## Bench / Binding Design Contract
+- Bench definitions (`lib/std/bench/`) must remain topology-agnostic. A bench declares only the terminals it directly measures or stimulates (e.g. `QuiescentPower` declares `PWR` and `RET`, not input pins). Do not add input/output topology awareness to bench definitions.
+- Interface bindings (`lib/std/amp/`) are responsible for topology-specific context. When a bench omits a terminal that the DUT exposes (e.g. analog inputs), the binding must provide bias using binding-scoped instances (`GND`, `VDC`, `Impedor`). Floating analog nodes cause incorrect simulation results: 0 W power, wrong DC operating points, or singular matrices.
+- Every bench binding must ensure all DUT analog terminals have a defined DC path. Use the patterns in `docs/language/bench-cookbook.md` and the existing fill blocks in `lib/std/bench/TransferBenches.cas` and `lib/std/bench/PowerBenches.cas` as reference.
+- When modifying bench bindings, check stress test constraints in `tests/golden/cas/stress/` — changing the bias context shifts operating points and may require updating constraint thresholds.
 
 ## Hard Rules
 - ≤400 added LOC per patch; split if larger.
@@ -81,6 +102,8 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - No legacy toggles/shims; migrate and delete.
 - Build artifacts live in `build/` only.
 - Safety: NEVER run `git restore`.
+- Git commits: NEVER add `Co-Authored-By` trailers.
+- Git commit messages and PR titles MUST use the `[scope] Imperative summary` format, where scope is a lowercase tag matching the area of change (e.g. `cli`, `lang`, `bench`, `stdlib`, `render`, `chore`). Examples: `[cli] Add CWD to linker search roots`, `[bench] Fix S-parameter port impedance`, `[stdlib] Bias analog inputs in QuiescentPower bindings`. Study recent `git log --oneline` output to match the repository's established style.
 - No DB migrations: never write code to migrate existing `pdk.db` files. When classification rules or matching change, instruct users to rerun `pdk scan` to regenerate the workspace database.
 - No migrations means no reader shims. Readers must assume the current schema only
 - Logging: when surfacing config or workspace-level errors, prefer dependency-injected `ILogger` so messages reach the CLI/TUI log. Only fall back to `Console.Error` when no logger is available.
@@ -95,6 +118,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 
 ## Testing (must update in same PR)
 - Unit + integration + architecture tests for touched code.
+- Prefer positive tests that prove supported behavior exists. Do not add negative unit tests whose only purpose is to assert that a removed or renamed feature is absent; when a feature is intentionally removed or renamed, delete the obsolete unit test instead.
 - Use `tests/fixtures/pdk/sky130`; keep critical golden outputs under `tests/golden/**`.
 - Deterministic by default: normalize time/paths/order; set `CASCODE_SEED` for randomness.
 - CASCODE_HOME isolation: MUST use `Cascode.TestSupport.CascodeHome.Create…` helpers (wired into test csproj via `tests/shared/`). NEVER manually create temp dirs for home or call `Environment.SetEnvironmentVariable("CASCODE_HOME", ...)` in tests. Each test must own and dispose an isolated home to avoid cross-run interference.
@@ -124,6 +148,17 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - On bump: run `scripts/bump_cascode_version.sh` to sync golden file headers
 - On bump: inspect and update all Cascode versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
+
+## Native NPM Versioning
+
+- `@cascode/native` and all `editors/node/platform-packages/*/package.json` versions must match the git tag (`vX.Y.Z`) on release.
+- Keep `editors/node/package.json` optional dependency versions in lockstep with that same version.
+- The release workflow enforces this in `version-check`; do not bypass by editing workflow logic.
+- If a new platform package is added, update all of:
+  - `editors/node/platform-packages/<name>/package.json`
+  - `editors/node/package.json` optionalDependencies
+  - `editors/node/src/index.js` platform mapping
+  - `.github/workflows/release.yml` publish matrix
 
 ## Anti‑Patterns
 - Cross‑layer deps; IO in language core; UI outside CLI.

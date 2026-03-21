@@ -1,0 +1,28 @@
+{
+  "name": "@cascode/cascode-js-linux-x64",
+  "version": "0.7.3",
+  "description": "Prebuilt Linux x64 runtime bundle for @cascode/cascode-js",
+  "license": "BSD-3-Clause",
+  "private": false,
+  "main": "index.js",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "index.js",
+    "README.md",
+    "prebuilds/**/*",
+    "native/**/*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daniellovell/cascode.git",
+    "directory": "editors/node/platform-packages/cascode-js-linux-x64"
+  }
+}

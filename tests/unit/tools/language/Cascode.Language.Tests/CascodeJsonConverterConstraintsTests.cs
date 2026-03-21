@@ -19,7 +19,7 @@ public class CascodeJsonConverterConstraintsTests
         var numeric = constraints.GetProperty("numeric");
         Assert.Single(numeric.EnumerateArray());
         Assert.Equal("c_gbw", numeric[0].GetProperty("id").GetString());
-        Assert.Equal("ACBench", numeric[0].GetProperty("bench").GetString());
+        Assert.Equal("transfer_bench", numeric[0].GetProperty("bench").GetString());
         Assert.Equal("net::OUT", numeric[0].GetProperty("node").GetString());
         Assert.Equal(">=", numeric[0].GetProperty("op").GetString());
         Assert.Equal(20000000, numeric[0].GetProperty("value").GetDouble());
@@ -41,7 +41,7 @@ public class CascodeJsonConverterConstraintsTests
             ""constraints"": {{
                 ""numeric"": [{{
                     ""id"": ""c_gbw"",
-                    ""bench"": ""ACBench"",
+                    ""bench"": ""transfer_bench"",
                     ""metric"": ""GainBandwidth"",
                     ""node"": ""net::OUT"",
                     ""op"": "">="",
@@ -59,7 +59,7 @@ public class CascodeJsonConverterConstraintsTests
 
         var constraint = doc.Circuits[0].Constraints!.Numeric[0];
         Assert.Equal("c_gbw", constraint.Id);
-        Assert.Equal("ACBench", constraint.Bench);
+        Assert.Equal("transfer_bench", constraint.Bench);
         Assert.Equal("GainBandwidth", constraint.Metric);
         Assert.Equal("net::OUT", constraint.Node?.ToString());
         Assert.Equal(">=", constraint.Op);
@@ -182,7 +182,7 @@ public class CascodeJsonConverterConstraintsTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
-                                Primitive = "Level1_NMOS",
+                                Primitive = "NMOS_Level1",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["G"] = "IN",
@@ -209,7 +209,7 @@ public class CascodeJsonConverterConstraintsTests
                             new NumericConstraint
                             {
                                 Id = "c_gbw",
-                                Bench = "ACBench",
+                                Bench = "transfer_bench",
                                 Metric = "GainBandwidth",
                                 Node = new NodeRef { Scope = "net", Path = "OUT" },
                                 Op = ">=",
@@ -254,7 +254,7 @@ public class CascodeJsonConverterConstraintsTests
                             new NumericConstraint
                             {
                                 Id = "c_gbw",
-                                Bench = "ACBench",
+                                Bench = "transfer_bench",
                                 Metric = "GainBandwidth",
                                 Node = new NodeRef { Scope = "net", Path = "OUT" },
                                 Op = ">=",

@@ -8,30 +8,6 @@ namespace Cascode.Cli.Services;
 
 internal static class BenchRunHelpers
 {
-    public static Circuit GetSingleElCircuit(CascodeDocument doc)
-    {
-        // Prefer EL-level circuit with applicable benches (for hierarchical files with multiple circuits)
-        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
-        if (elCircuits.Count == 0)
-        {
-            throw new InvalidOperationException("No EL-level circuits found in Cascode document.");
-        }
-
-        return elCircuits.FirstOrDefault(c => ResolveBenchBindings(doc, c).Count > 0)
-            ?? elCircuits[0];
-    }
-
-    /// <summary>
-    /// Returns all EL-level circuits that have benches, ordered by dependency (leaves first).
-    /// </summary>
-    public static IReadOnlyList<Circuit> GetElCircuitsWithBenches(CascodeDocument doc)
-    {
-        return SpiceEmitter
-            .OrderByDependency(doc)
-            .Where(c => c.Level == CascodeLevel.EL && ResolveBenchBindings(doc, c).Count > 0)
-            .ToList();
-    }
-
     public static string ResolveOutputDir(
         string? outputDir,
         string circuitName,
@@ -122,6 +98,45 @@ internal static class BenchRunHelpers
 
         return map.Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase).ToList();
     }
+
+    public static string? GetBundledStdlibRoot()
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var libStdPath = Path.Combine(baseDir, "lib", "std");
+        if (Directory.Exists(libStdPath))
+            return baseDir;
+        return null;
+    }
+
+    public static IReadOnlyList<string> BuildSearchRoots(string workspaceRoot)
+    {
+        var comparer = OperatingSystem.IsLinux()
+            ? StringComparer.Ordinal
+            : StringComparer.OrdinalIgnoreCase;
+        var seen = new HashSet<string>(comparer);
+        var roots = new List<string>(3);
+
+        var ws = NormalizePath(workspaceRoot);
+        if (seen.Add(ws))
+            roots.Add(ws);
+
+        var cwd = NormalizePath(Directory.GetCurrentDirectory());
+        if (seen.Add(cwd))
+            roots.Add(cwd);
+
+        var stdlibRoot = GetBundledStdlibRoot();
+        if (stdlibRoot is not null)
+        {
+            var std = NormalizePath(stdlibRoot);
+            if (seen.Add(std))
+                roots.Add(std);
+        }
+
+        return roots;
+    }
+
+    private static string NormalizePath(string path) =>
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
     public static string? FindWorkspaceRoot(string inputPath)
     {

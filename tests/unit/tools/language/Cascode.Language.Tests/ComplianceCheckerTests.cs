@@ -31,6 +31,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
+        Assert.Equal(ConstraintResult.NonFiniteValue, report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -48,6 +49,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
+        Assert.Equal(ConstraintResult.NonFiniteValue, report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -84,6 +86,182 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.Equal(expectedPass, report.Results[0].Passed);
+        if (!expectedPass)
+        {
+            Assert.Equal(ConstraintResult.ConstraintViolation, report.Results[0].FailureReason);
+        }
+    }
+
+    [Fact]
+    public void Check_NoiseDensityThreshold_PassingMeasurement_Passes()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_noise",
+            "InputReferredNoise",
+            "OUT",
+            "<=",
+            "9n",
+            "V/rtHz"
+        );
+        var results = CreateResultsWithMeasurement("InputReferredNoise", 8.5e-9, "V/rtHz", "OUT");
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Passed);
+        Assert.InRange(result.Expected, 8.999999999999999e-9, 9.000000000000001e-9);
+    }
+
+    [Fact]
+    public void Check_NoiseDensityThreshold_FailingMeasurement_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_noise",
+            "InputReferredNoise",
+            "OUT",
+            "<=",
+            "9n",
+            "V/rtHz"
+        );
+        var results = CreateResultsWithMeasurement("InputReferredNoise", 9.5e-9, "V/rtHz", "OUT");
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.ConstraintViolation, result.FailureReason);
+        Assert.Equal(9.5e-9, result.Actual);
+    }
+
+    [Fact]
+    public void Check_ValuesArray_AllPass_Passes()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement(
+            "ForwardGainSpectrum",
+            [-0.95, -0.92, -0.90],
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Passed);
+        Assert.Equal(-0.95, result.Actual);
+    }
+
+    [Fact]
+    public void Check_ValuesArray_OneViolation_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement(
+            "ForwardGainSpectrum",
+            [-0.95, -0.98, -0.90],
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.ConstraintViolation, result.FailureReason);
+        Assert.Equal(-0.98, result.Actual);
+    }
+
+    [Fact]
+    public void Check_ValuesArray_EmptyArray_Fails()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement("ForwardGainSpectrum", [], "dB", null);
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.EmptySpectrum, result.FailureReason);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Check_ValuesArray_WithNonFiniteElement_Fails(double sample)
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_spectrum",
+            "ForwardGainSpectrum",
+            null,
+            ">=",
+            "-0.97",
+            "dB"
+        );
+        var results = CreateResultsWithArrayMeasurement(
+            "ForwardGainSpectrum",
+            [-0.95, sample, -0.90],
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.False(result.Passed);
+        Assert.Equal(ConstraintResult.NonFiniteValue, result.FailureReason);
+    }
+
+    [Theory]
+    [InlineData(">=", 5.0, new[] { 5.0, 7.0 }, true, 5.0)]
+    [InlineData(">", 5.0, new[] { 5.0, 7.0 }, false, 5.0)]
+    [InlineData("<=", 5.0, new[] { 1.0, 5.0 }, true, 5.0)]
+    [InlineData("<", 5.0, new[] { 1.0, 5.0 }, false, 5.0)]
+    [InlineData("==", 5.0, new[] { 5.0, 5.0 + 1e-10 }, true, 5.0 + 1e-10)]
+    [InlineData("==", 5.0, new[] { 5.0, 5.0 + 1e-6 }, false, 5.0 + 1e-6)]
+    public void Check_ValuesArray_AllOperators(
+        string op,
+        double threshold,
+        double[] measured,
+        bool expectedPass,
+        double expectedWorstCase
+    )
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_array_op",
+            "ArrayMetric",
+            null,
+            op,
+            threshold.ToString("G17", System.Globalization.CultureInfo.InvariantCulture),
+            ""
+        );
+        var results = CreateResultsWithArrayMeasurement("ArrayMetric", measured, "", null);
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        var result = Assert.Single(report.Results);
+        Assert.Equal(expectedPass, result.Passed);
+        Assert.Equal(expectedWorstCase, result.Actual);
     }
 
     [Theory]
@@ -254,6 +432,43 @@ public class ComplianceCheckerTests
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
         Assert.Contains("No measurement found", report.Results[0].Message);
+        Assert.Equal(ConstraintResult.NoMeasurement, report.Results[0].FailureReason);
+    }
+
+    [Fact]
+    public void Check_MeasurementError_ReportsBenchErrorFailureReason()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "GainBandwidth",
+            "OUT",
+            ">=",
+            "100M",
+            "Hz"
+        );
+        var results = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "TestBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["m_gbw"] = new()
+                {
+                    Metric = "GainBandwidth",
+                    Value = double.NaN,
+                    Unit = "Hz",
+                    Node = "OUT",
+                    Error = "bench failed",
+                },
+            },
+        };
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        Assert.Single(report.Results);
+        Assert.False(report.Results[0].Passed);
+        Assert.Equal(ConstraintResult.BenchError, report.Results[0].FailureReason);
+        Assert.Contains("Measurement error", report.Results[0].Message);
     }
 
     [Fact]
@@ -444,6 +659,31 @@ public class ComplianceCheckerTests
         };
     }
 
+    private static BenchResult CreateResultsWithArrayMeasurement(
+        string metric,
+        double[] values,
+        string unit,
+        string? node
+    )
+    {
+        return new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "TestBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["m_test"] = new()
+                {
+                    Metric = metric,
+                    Value = null,
+                    Values = values,
+                    Unit = unit,
+                    Node = node,
+                },
+            },
+        };
+    }
+
     [Fact]
     public void Check_BenchAwareFiltering_OnlyChecksConstraintsForMatchingBench()
     {
@@ -457,7 +697,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "GainBandwidth",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -467,7 +707,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gain",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "PassbandGain",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -477,7 +717,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
-                        Bench = "DCBench",
+                        Bench = "vdd_pwr",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
@@ -490,7 +730,7 @@ public class ComplianceCheckerTests
         var acResults = new BenchResult
         {
             Circuit = "TestCircuit",
-            Bench = "ACBench",
+            Bench = "transfer_bench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
                 ["gbw"] = new()
@@ -516,13 +756,13 @@ public class ComplianceCheckerTests
         Assert.Equal(2, report.PassedCount);
         Assert.Equal(0, report.FailedCount);
         Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("DCBench"));
-        Assert.Single(report.UncheckedByBench["DCBench"]);
-        Assert.Equal("c_pwr", report.UncheckedByBench["DCBench"][0].Id);
+        Assert.True(report.UncheckedByBench.ContainsKey("vdd_pwr"));
+        Assert.Single(report.UncheckedByBench["vdd_pwr"]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["vdd_pwr"][0].Id);
     }
 
     [Fact]
-    public void Check_BenchAwareFiltering_DCBenchOnlyChecksPowerConstraint()
+    public void Check_BenchAwareFiltering_VddPwrOnlyChecksPowerConstraint()
     {
         var circuit = new Circuit
         {
@@ -534,7 +774,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "GainBandwidth",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -544,7 +784,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
-                        Bench = "DCBench",
+                        Bench = "vdd_pwr",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
@@ -557,7 +797,7 @@ public class ComplianceCheckerTests
         var dcResults = new BenchResult
         {
             Circuit = "TestCircuit",
-            Bench = "DCBench",
+            Bench = "vdd_pwr",
             Measurements = new Dictionary<string, MeasurementResult>
             {
                 ["pwr"] = new()
@@ -574,7 +814,7 @@ public class ComplianceCheckerTests
         Assert.Equal(1, report.TotalCount);
         Assert.Equal(1, report.PassedCount);
         Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("ACBench"));
+        Assert.True(report.UncheckedByBench.ContainsKey("transfer_bench"));
     }
 
     [Fact]
@@ -591,7 +831,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "GainBandwidth",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -601,7 +841,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gain",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "PassbandGain",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -611,7 +851,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
-                        Bench = "DCBench",
+                        Bench = "vdd_pwr",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
@@ -659,6 +899,44 @@ public class ComplianceCheckerTests
         Assert.Equal(0, report.FailedCount);
         // No unchecked constraints since we're checking all
         Assert.Empty(report.UncheckedByBench);
+    }
+
+    [Fact]
+    public void Check_AllDeclaredMode_EvaluatesAllDeclaredConstraints()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cai");
+        var resultsPath = Path.Combine(
+            repoRoot,
+            "tests/golden/results/ota/OTA5TSingleEnded_DCSwept_vdd_pwr_results.json"
+        );
+
+        using var reader = File.OpenText(cascodePath);
+        var doc = CascodeReader.Read(reader, cascodePath);
+        var circuit = doc.Circuits[0];
+
+        var resultsJson = File.ReadAllText(resultsPath);
+        var results = JsonSerializer.Deserialize<BenchResult>(resultsJson);
+        Assert.NotNull(results);
+
+        var report = ComplianceChecker.Check(
+            circuit,
+            results,
+            ConstraintEvaluationMode.AllDeclared
+        );
+
+        Assert.Equal(5, report.TotalCount);
+        Assert.Equal(1, report.PassedCount);
+        Assert.Equal(4, report.FailedCount);
+        Assert.Empty(report.UncheckedByBench);
+
+        var cPwr = report.Results.Single(r => r.Id == "c_pwr");
+        Assert.True(cPwr.Passed);
+        Assert.Null(cPwr.FailureReason);
+
+        var cGbw = report.Results.Single(r => r.Id == "c_gbw");
+        Assert.False(cGbw.Passed);
+        Assert.Equal(ConstraintResult.NoMeasurement, cGbw.FailureReason);
     }
 
     [Fact]
@@ -718,13 +996,13 @@ public class ComplianceCheckerTests
     }
 
     [Fact]
-    public void Check_WithGoldenCascode_BenchAwareFiltering_ACBenchReturns3of3()
+    public void Check_WithGoldenCascode_BenchAwareFiltering_TransferBenchReturns3of3()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cai");
         var resultsPath = Path.Combine(
             repoRoot,
-            "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
+            "tests/golden/results/ota/OTA5TSingleEnded_transfer_bench_results.json"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -737,18 +1015,21 @@ public class ComplianceCheckerTests
 
         var report = ComplianceChecker.Check(circuit, results);
 
-        // AC bench should only check 3 constraints (gain, gbw, pm)
+        // transfer_bench should only check 3 constraints (gain, gbw, pm)
         Assert.Equal(3, report.TotalCount);
         Assert.Equal(3, report.PassedCount);
         Assert.Equal(0, report.FailedCount);
 
         // Power constraint should be tracked as unchecked
         Assert.Equal(2, report.UncheckedByBench.Count);
-        Assert.True(report.UncheckedByBench.ContainsKey("DCBench"));
-        Assert.True(report.UncheckedByBench.ContainsKey("TranBench"));
-        Assert.Single(report.UncheckedByBench["DCBench"]);
-        Assert.Single(report.UncheckedByBench["TranBench"]);
-        Assert.Equal("c_pwr", report.UncheckedByBench["DCBench"][0].Id);
-        Assert.Equal("c_swing", report.UncheckedByBench["TranBench"][0].Id);
+        Assert.True(report.UncheckedByBench.ContainsKey("vdd_pwr"));
+        var tranBenchKey = report.UncheckedByBench.Keys.Single(k =>
+            k.StartsWith("tran_bench", StringComparison.OrdinalIgnoreCase)
+        );
+
+        Assert.Single(report.UncheckedByBench["vdd_pwr"]);
+        Assert.Single(report.UncheckedByBench[tranBenchKey]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["vdd_pwr"][0].Id);
+        Assert.Equal("c_swing", report.UncheckedByBench[tranBenchKey][0].Id);
     }
 }

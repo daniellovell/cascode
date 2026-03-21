@@ -46,7 +46,7 @@ includeDecl
     : INCLUDE_KW qualifiedName
     ;
 
-// Version declaration like "VERSION 3.0"
+// Version declaration like "VERSION 4.0"
 versionDecl
     : VERSION_KW NUMBER
     ;
@@ -202,6 +202,7 @@ circuitMember
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
     | ENV_KW LBRACE envStatement* RBRACE                            # EnvSection
+    | RENDER_KW LBRACE renderEntity* RBRACE                         # RenderSection
     | circuitBenchesSection                                         # CircuitBenches
     | SYNTH_KW LBRACE synthEntry* RBRACE                            # SynthSection
     | PROVENANCE_KW LBRACE provenanceEntry* RBRACE                  # ProvenanceSection
@@ -452,19 +453,40 @@ idPart
     | REPEAT_KW
     | IN_KW
     | PAIR_KW
+    | RENDER_KW
+    | PLACE_KW
+    | ORIENT_KW
+    | MIRROR_KW
+    | SIDE_KW
+    | ROUTE_KW
+    | WP_KW
+    | ZINDEX_KW
+    | HARD_KW
+    | SOFT_KW
+    | HINT_KW
+    | ABS_KW
+    | REF_KW
+    | REL_KW
+    | CANVAS_KW
+    | ORIGIN_KW
+    | CENTER_KW
     | AC_ANALYSIS_TYPE
     | DC_ANALYSIS_TYPE
     | TRAN_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
     | FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | COMPLEX_VOLTAGE_SPECTRUM_TYPE
+    | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
+    | IMPEDANCE_SPECTRUM_TYPE
     | VOLTAGE_WAVEFORM_TYPE
     | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
@@ -477,6 +499,7 @@ idPart
     | TIME_TYPE
     | PHASE_TYPE
     | SCALAR_TYPE
+    | S_PARAMETER_MATRIX_TYPE
     ;
 
 // Pin references can contain keywords as parts (e.g., load.D).
@@ -485,11 +508,75 @@ pinRef
     ;
 
 // ----------------------------------------------------------------------------
+// Render block content
+// ----------------------------------------------------------------------------
+
+renderEntity
+    : renderEntityRef renderOneLiner
+    | renderEntityRef LBRACE renderField* RBRACE
+    ;
+
+renderEntityRef
+    : idPart (DOT idPart)*
+    ;
+
+renderOneLiner
+    : PLACE_KW pointExpr strengthLevel?
+    ;
+
+renderField
+    : PLACE_KW pointExpr strengthLevel?
+    | ORIENT_KW signedInt MIRROR_KW?
+    | SIDE_KW IDENT
+    | ROUTE_KW IDENT strengthLevel?
+    | WP_KW LBRACK pointExpr (COMMA pointExpr)* RBRACK
+    | ZINDEX_KW signedInt
+    ;
+
+strengthLevel
+    : HARD_KW
+    | SOFT_KW
+    | HINT_KW
+    ;
+
+pointExpr
+    : absPoint
+    | refPoint
+    | relPoint
+    ;
+
+absPoint
+    : ABS_KW signedInt signedInt
+    ;
+
+refPoint
+    : REF_KW renderAnchorRef (signedInt signedInt)?
+    ;
+
+relPoint
+    : REL_KW signedInt signedInt
+    ;
+
+renderAnchorRef
+    : CANVAS_KW (ORIGIN_KW | CENTER_KW)
+    | pinRef
+    ;
+
+signedInt
+    : MINUS? NUMBER
+    ;
+
+// ----------------------------------------------------------------------------
 // Constraints block content
 // ----------------------------------------------------------------------------
 
 signedQuantity
     : MINUS? QUANTITY
+    ;
+
+signedThreshold
+    : signedQuantity
+    | MINUS? NUMBER
     ;
 
 constraintSection
@@ -501,11 +588,11 @@ constraintSection
 
 // id = Bench(args)::Metric(args) at Node >= ValueUnit
 numericConstraint
-    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedQuantity
+    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedThreshold
     ;
 
 benchMetricRef
-    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 nodeRef
@@ -520,7 +607,7 @@ nodeScope
 
 // id : Param >= ValueUnit on Scope
 techConstraint
-    : IDENT COLON IDENT COMPARISON_OP signedQuantity ON_KW techConstraintScope
+    : IDENT COLON IDENT COMPARISON_OP signedThreshold ON_KW techConstraintScope
     ;
 
 techConstraintScope
@@ -782,10 +869,15 @@ physicalType
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
+    | SCALAR_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | TIME_SPECTRUM_TYPE
+    | COMPLEX_VOLTAGE_SPECTRUM_TYPE
+    | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
+    | IMPEDANCE_SPECTRUM_TYPE
     | VOLTAGE_WAVEFORM_TYPE
     | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
@@ -799,6 +891,7 @@ physicalType
     | TIME_TYPE
     | PHASE_TYPE
     | SCALAR_TYPE
+    | S_PARAMETER_MATRIX_TYPE
     ;
 
 analysisType
@@ -807,6 +900,7 @@ analysisType
     | TRAN_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
     ;
 
 functionBody
@@ -861,13 +955,15 @@ measurementsBlock
     ;
 
 measurementDecl
-    : OVERRIDE_KW? MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
+    : OVERRIDE_KW? MEASUREMENT_KW name=idPart (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
     ;
 
 unitType
     : IDENT
     | NOISE_DENSITY_UNIT
     | INTEGRATED_RMS_UNIT
+    | SCALAR_TYPE
+    | TIME_TYPE
     ;
 
 measurementBody
@@ -918,11 +1014,11 @@ measurementPrimary
 // Cross-bench measurement reference used in constraint arguments (and allowed anywhere a measurementExpr is allowed).
 // Syntax: binding_alias::Measurement(args)
 benchMeasurementRef
-    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 measurementFunctionCall
-    : IDENT LPAREN measurementArgList? RPAREN
+    : idPart LPAREN measurementArgList? RPAREN
     ;
 
 measurementArgList
@@ -988,6 +1084,23 @@ CASE_KW         : 'case' ;
 REPEAT_KW       : 'repeat' ;
 IN_KW           : 'in' ;
 PAIR_KW         : 'pair' ;
+RENDER_KW       : 'render' ;
+PLACE_KW        : 'place' ;
+ORIENT_KW       : 'orient' ;
+MIRROR_KW       : 'mirror' ;
+SIDE_KW         : 'side' ;
+ROUTE_KW        : 'route' ;
+WP_KW           : 'wp' ;
+ZINDEX_KW       : 'zindex' ;
+HARD_KW         : 'hard' ;
+SOFT_KW         : 'soft' ;
+HINT_KW         : 'hint' ;
+ABS_KW          : 'abs' ;
+REF_KW          : 'ref' ;
+REL_KW          : 'rel' ;
+CANVAS_KW       : 'canvas' ;
+ORIGIN_KW       : 'origin' ;
+CENTER_KW       : 'center' ;
 
 PORT_KW         : 'port' ;
 INPUT_KW        : 'input' ;
@@ -1060,10 +1173,15 @@ FREQUENCY_TYPE              : 'Frequency' ;
 VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
 GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
+SCALAR_SPECTRUM_TYPE        : 'ScalarSpectrum' ;
 PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+TIME_SPECTRUM_TYPE          : 'TimeSpectrum' ;
+COMPLEX_VOLTAGE_SPECTRUM_TYPE : 'ComplexVoltageSpectrum' ;
+COMPLEX_CURRENT_SPECTRUM_TYPE : 'ComplexCurrentSpectrum' ;
 VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
 CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
 NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;
+IMPEDANCE_SPECTRUM_TYPE     : 'ImpedanceSpectrum' ;
 VOLTAGE_WAVEFORM_TYPE       : 'VoltageWaveform' ;
 CURRENT_WAVEFORM_TYPE       : 'CurrentWaveform' ;
 NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;
@@ -1077,12 +1195,14 @@ CURRENT_TYPE                : 'Current' ;
 TIME_TYPE                   : 'Time' ;
 PHASE_TYPE                  : 'Phase' ;
 SCALAR_TYPE                 : 'Scalar' ;
+S_PARAMETER_MATRIX_TYPE     : 'SParameterMatrix' ;
 
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
 DC_ANALYSIS_TYPE    : 'DCAnalysis' ;
 TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
+SP_ANALYSIS_TYPE    : 'SPAnalysis' ;
 
 DEVICE_TYPE
     : 'NMOS'
@@ -1120,7 +1240,7 @@ AT              : '@' ;
 NOISE_DENSITY_UNIT  : ('V' | 'nV' | 'uV' | 'pV' | 'A' | 'nA' | 'pA' | 'uA') '/rtHz' ;
 INTEGRATED_RMS_UNIT : ('V' | 'nV' | 'uV' | 'mV' | 'A' | 'nA' | 'pA' | 'uA') 'rms' ;
 
-QUANTITY        : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? [fpnumkMGT]? [A-Za-z]+ ;
+QUANTITY        : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? [fpnumkMGT]? [A-Za-z]+ ('/rtHz')? ;
 NUMBER          : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? ;
 IDENT           : [A-Za-z_][A-Za-z0-9_]* ;
 TRIPLE_STRING   : '"""' ( . | '\r' | '\n' )*? '"""' ;

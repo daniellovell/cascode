@@ -9,12 +9,25 @@ interface FullyDifferentialOpAmp {
   ground GND
   input IN : Diff
   output OUT : Diff
-  input VTAIL : bias
 
   benches {
     bind QuiescentPower as vdd_pwr {
       bench.PWR--dut.VDD
       bench.RET--dut.GND
+
+      GND g = new GND() { .GND--gnd }
+      VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+      Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+      Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+    }
+
+    bind DiffDCBias as dc_bias {
+      bench.OUT--dut.OUT
+
+      GND g = new GND() { .GND--gnd }
+      VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+      Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+      Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
     }
 
     bind DiffToDiffTransfer as transfer_bench {

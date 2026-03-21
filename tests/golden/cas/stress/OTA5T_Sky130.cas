@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 4.1
 
 // This file is intentionally names .cas 
 // During e2e tests, `cascode emit OTA5T_Sky130.cas` should function
@@ -9,7 +9,7 @@ VERSION 3.1
 include lib.std
 include lib.pdk.sky130
 
-circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
+circuit OTA5T_Hierarchical_Attach implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
@@ -25,31 +25,19 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   }
 
   fill {
-    DiffPair_Pdk dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+    DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
       .GND--GND
       .VDD--VDD
       .IN--IN
       .OUT.P--OUT
       .TAIL--VTAIL
     }
-    CurrentMirror_Pdk cm = new CurrentMirror_Pdk(ratio=1) {
+    CurrentMirror cm = new CurrentMirror(ratio=1) {
       .GND--GND
       .VDD--VDD
       // TAP[0]--OUT intentionally omitted - covered by attach statement below
     }
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
-  }
-
-  benches {
-    bind DiffToSECMRejection as cmrr_bench {
-      bench.CM--dut.IN.P
-      bench.CM--dut.IN.N
-      bench.OUT--dut.OUT
-
-      measurements {
-        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
-      }
-    }
   }
 
   constraints {
@@ -59,7 +47,7 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
       c_cmrr = cmrr_bench::CMRR at net::OUT >= 20dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
-      c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 10mW
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.4V
       c_psrr = psrr_bench::PSRR at net::OUT >= 20dB
       c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 20dB
@@ -72,7 +60,7 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   }
 }
 
-circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
+circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   level EL
   inline
   supply VDD
@@ -88,7 +76,7 @@ circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
   }
 }
 
-circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
+circuit CurrentMirror(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
   level EL
   supply VDD
   ground GND

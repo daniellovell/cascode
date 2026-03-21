@@ -57,7 +57,7 @@ algorithms or optimization strategies, and it does not mandate a specific PDK fo
 The cascode toolchain operates on three primary artifact types:
 
 - `.cas`: cascode source (may contain `include` directives).
-- `.cai`: linked cascode intermediate (self-contained; includes resolved; includes a `VERSION` header).
+- `.cai`: linked cascode intermediate (includes a `VERSION` header; self-contained by default, or include-pruned in link bench-prune mode).
 - simulator outputs: emitted SPICE netlists and bench testbenches (backend-specific).
 
 In typical use, `cascode link` produces `.cai` outputs, and `cascode emit` consumes EL-level circuits
@@ -78,7 +78,8 @@ instance bindings use `.Terminal--Net`.
 
 ### A minimal bench and binding
 
-The following is excerpted and simplified from `tests/golden/cas/bench/RcLowpass.el.cai`.
+The following is excerpted and simplified from
+[tests/golden/cas/bench/RcLowpass.el.cai](../../tests/golden/cas/bench/RcLowpass.el.cai).
 
 ```cascode
 bench DiffToSELowpass {
@@ -171,11 +172,14 @@ connector is part of the source, is expanded deterministically, and is visible t
 
 Cascode’s long-horizon toolchain separates dependency resolution, synthesis, physical realization,
 and verification into explicit stages. The precise algorithms for synthesis and place-and-route are
-out of scope for this specification, but the contracts between stages are in scope.
+out of scope for this specification, and the `syn` and `par` stages described below are interface
+contracts rather than current CLI commands.
 
 ### Linking (`cascode link`)
 
-Linking resolves `include` directives and produces a self-contained `.cai` file. During linking,
+Linking resolves `include` directives and writes a `.cai` artifact. In the default mode, the output
+is self-contained. In include-pruned mode (`--no-link-benches`), bench bindings are preserved but
+bench definitions are omitted and represented through a minimal include closure. During linking,
 `synth { ... }` blocks are extracted into a sidecar file and removed from the `.cai` output:
 
 - output: `<name>.<level>.cai`

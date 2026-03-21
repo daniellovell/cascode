@@ -119,7 +119,8 @@ public static class BenchTestbenchEmitter
 
         foreach (var path in designPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by filename.
+            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by
+            // filename.
             sb.AppendLine($".include \"{Path.GetFileName(path)}\"");
         }
 
@@ -282,6 +283,7 @@ public static class BenchTestbenchEmitter
                 e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
                 || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
                 || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
             )
             .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -361,6 +363,49 @@ public static class BenchTestbenchEmitter
                 a.Name
             );
             sb.AppendLine($"wrdata {Path.GetFileName(wrdata)} onoise_spectrum");
+        }
+
+        var spIndex = 0;
+        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.SPAnalysis))
+        {
+            spIndex++;
+            var start = SiValue.FormatForBackend(a.StartHz, backend);
+            var stop = SiValue.FormatForBackend(a.StopHz, backend);
+
+            var space = a.Space.Equals("lin", StringComparison.OrdinalIgnoreCase) ? "lin" : "dec";
+            var noiseFlag = a.EnableNoise ? "1" : "0";
+            sb.AppendLine($"sp {space} {a.Samples} {start} {stop} {noiseFlag}");
+            sb.AppendLine($"setplot sp{spIndex}");
+
+            var wrdata = BenchRuntimePaths.GetSpWrdataPath(
+                outputDir,
+                plan.CircuitName,
+                plan.InstanceName,
+                a.Name
+            );
+            sb.Append($"wrdata {Path.GetFileName(wrdata)}");
+            // The ports are required to be numbered sequentially starting from 1.
+            var numPorts = plan.NumPorts;
+            for (var i = 1; i <= numPorts; i++)
+            {
+                for (var j = 1; j <= numPorts; j++)
+                {
+                    sb.Append(' ');
+                    sb.Append($"S_{i}_{j}");
+                }
+            }
+            sb.AppendLine();
+
+            if (a.EnableNoise)
+            {
+                var nfWrdata = BenchRuntimePaths.GetSpNfWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.InstanceName,
+                    a.Name
+                );
+                sb.AppendLine($"wrdata {Path.GetFileName(nfWrdata)} NF NFmin Rn");
+            }
         }
 
         var tranIndex = 0;
@@ -609,6 +654,26 @@ public static class BenchTestbenchEmitter
             EmitImpedance(sb, element.Id, p, n, z, backend);
             return;
         }
+
+        if (type.Equals("Port", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetPinPair(element, out var p, out var n))
+            {
+                return;
+            }
+
+            var z = GetParam(element, "Z") ?? new BenchNumber(BenchNumericKind.ImpedanceOhm, 50);
+            var v = GetParam(element, "V") ?? new BenchNumber(BenchNumericKind.VoltageV, 0);
+            if (!TryGetPortNumber(element, out var portNumber))
+            {
+                return;
+            }
+
+            var dc = FormatScalarForSpice(v, backend);
+            var z0 = FormatScalarForSpice(z, backend);
+            sb.AppendLine($"V{element.Id} {p} {n} DC {dc} portnum={portNumber} z0={z0}");
+            return;
+        }
     }
 
     private static void EmitImpedance(
@@ -717,6 +782,36 @@ public static class BenchTestbenchEmitter
         return e.Parameters.Count == 1 ? e.Parameters.Values.First() : null;
     }
 
+    private static bool TryGetPortNumber(BenchHarnessElement e, out int portNumber)
+    {
+        portNumber = 0;
+        var raw = GetParam(e, "N") ?? GetParam(e, "portnum") ?? GetFirstParam(e);
+        if (raw is BenchNumber number)
+        {
+            var rounded = Math.Round(number.Value);
+            if (
+                !double.IsFinite(number.Value)
+                || Math.Abs(number.Value - rounded) > 1e-9
+                || rounded < 1
+                || rounded > int.MaxValue
+            )
+            {
+                return false;
+            }
+
+            portNumber = (int)rounded;
+            return true;
+        }
+
+        if (raw is BenchSymbol symbol && int.TryParse(symbol.Name, out var parsed) && parsed > 0)
+        {
+            portNumber = parsed;
+            return true;
+        }
+
+        return false;
+    }
+
     private static string FormatScalarForSpice(BenchValue? v, BenchBackendType backend)
     {
         if (v is null)
@@ -727,6 +822,23 @@ public static class BenchTestbenchEmitter
         if (v is BenchNumber n)
         {
             return SiValue.FormatForBackend(n.Value, backend);
+        }
+
+        if (v is BenchImpedanceParallel par && par.Elements.Count > 0)
+        {
+            var resistive = par.Elements.Where(e => e.Kind == BenchNumericKind.ImpedanceOhm);
+            double reciprocal = 0;
+            foreach (var r in resistive)
+            {
+                if (r.Value == 0)
+                {
+                    return SiValue.FormatForBackend(0, backend);
+                }
+                reciprocal += 1.0 / r.Value;
+            }
+
+            var ohms = reciprocal > 0 ? 1.0 / reciprocal : 0;
+            return SiValue.FormatForBackend(ohms, backend);
         }
 
         if (v is BenchSymbol s)

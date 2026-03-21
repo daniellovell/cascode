@@ -12,8 +12,30 @@ jobs:
   version-check:
     name: verify versions match tag
     runs-on: ubuntu-latest
+    outputs:
+      ngspice_version: ${{ steps.props.outputs.ngspice_version }}
     steps:
       - uses: actions/checkout@v4
+      - name: read repo metadata
+        id: props
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("Directory.Build.props").getroot()
+          ns = {"msb": root.tag.split("}")[0].strip("{")} if root.tag.startswith("{") else {}
+
+          def find_text(tag):
+              el = root.find(f".//msb:{tag}", ns) if ns else root.find(f".//{tag}")
+              if el is None or not (el.text or "").strip():
+                  raise SystemExit(f"Missing required property: {tag}")
+              return el.text.strip()
+
+          print(f"cascode_version={find_text('CascodeVersion')}")
+          print(f"ngspice_version={find_text('NgspiceVersion')}")
+          PY
       - name: verify repo versions match tag
         shell: bash
         run: |
@@ -33,19 +55,47 @@ jobs:
             exit 1
           fi
 
-          # Verify Directory.Build.props CascodeVersion matches tag
-          PROPS_VER="$(python3 -c "
-          import xml.etree.ElementTree as ET
-          root = ET.parse('Directory.Build.props').getroot()
-          ns = {'msb': root.tag.split('}')[0].strip('{')} if root.tag.startswith('{') else {}
-          def find_text(tag):
-              if ns:
-                  el = root.find(f\".//msb:{tag}\", ns)
-              else:
-                  el = root.find(f\".//{tag}\")
-              return (el.text or '').strip() if el is not None else ''
-          print(find_text('CascodeVersion'))
+          # Verify native npm package version matches tag
+          NATIVE_NPM_VER="$(python3 -c "
+          import json
+          with open('editors/node/package.json', 'r', encoding='utf-8') as f:
+              print(json.load(f)['version'])
           ")"
+          echo "native npm version: $NATIVE_NPM_VER"
+          if [[ "$NATIVE_NPM_VER" != "$TAG" ]]; then
+            echo "ERROR: editors/node/package.json version ($NATIVE_NPM_VER) does not match tag ($TAG)" >&2
+            exit 1
+          fi
+
+          # Verify native platform package template versions match tag
+          TAG_VALUE="$TAG" python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          tag = os.environ["TAG_VALUE"]
+          templates = sorted(pathlib.Path("editors/node/platform-packages").glob("*/package.json"))
+          if not templates:
+            print("ERROR: no platform package templates found under editors/node/platform-packages", file=sys.stderr)
+            sys.exit(1)
+
+          for pkg_path in templates:
+            with pkg_path.open("r", encoding="utf-8") as f:
+              pkg = json.load(f)
+            version = pkg.get("version", "")
+            name = pkg.get("name", str(pkg_path))
+            print(f"platform package {name} version: {version}")
+            if version != tag:
+              print(
+                f"ERROR: {pkg_path} version ({version}) does not match tag ({tag})",
+                file=sys.stderr,
+              )
+              sys.exit(1)
+          PY
+
+          # Verify Directory.Build.props CascodeVersion matches tag
+          PROPS_VER="${{ steps.props.outputs.cascode_version }}"
           echo "CascodeVersion: $PROPS_VER"
           if [[ "$PROPS_VER" != "$TAG" ]]; then
             echo "ERROR: Directory.Build.props CascodeVersion ($PROPS_VER) does not match tag ($TAG)" >&2
@@ -56,6 +106,8 @@ jobs:
     name: build ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
     needs: version-check
+    env:
+      NGSPICE_VERSION: ${{ needs.version-check.outputs.ngspice_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -84,8 +136,37 @@ jobs:
       - name: publish
         run: |
           dotnet publish tools/cli/Cascode.Cli.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ env.TAG }} -p:PublishSingleFile=true -p:SelfContained=true -p:PublishTrimmed=false -o build/out/${{ matrix.rid }}
+      - name: install ngspice build deps (linux)
+        if: startsWith(matrix.rid, 'linux-')
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          bison flex autoconf automake libtool make gcc curl tar
+      - name: install ngspice build deps (macOS)
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install bison flex autoconf automake libtool coreutils gnu-sed findutils gawk
+
+          {
+            echo "$(brew --prefix bison)/bin"
+            echo "$(brew --prefix flex)/bin"
+            echo "$(brew --prefix autoconf)/bin"
+            echo "$(brew --prefix automake)/bin"
+            echo "$(brew --prefix libtool)/bin"
+            echo "$(brew --prefix coreutils)/libexec/gnubin"
+            echo "$(brew --prefix gnu-sed)/libexec/gnubin"
+            echo "$(brew --prefix findutils)/libexec/gnubin"
+            echo "$(brew --prefix gawk)/libexec/gnubin"
+          } >> "$GITHUB_PATH"
+
+          gnu_shims="$RUNNER_TEMP/cascode-gnu-shims"
+          mkdir -p "$gnu_shims"
+          ln -sf "$(command -v aclocal)" "$gnu_shims/aclocal-1.16"
+          ln -sf "$(command -v automake)" "$gnu_shims/automake-1.16"
+          echo "$gnu_shims" >> "$GITHUB_PATH"
       - name: normalize binary name (unix)
-        if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
+        if: "!startsWith(matrix.rid, 'win-')"
         shell: bash
         run: |
           set -euo pipefail
@@ -100,7 +181,7 @@ jobs:
           $p = "build/out/${{ matrix.rid }}"
           if (Test-Path "$p/Cascode.Cli.exe") { Rename-Item "$p/Cascode.Cli.exe" "cascode.exe" -Force }
       - name: archive (unix)
-        if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
+        if: "!startsWith(matrix.rid, 'win-')"
         shell: bash
         run: |
           cd build/out/${{ matrix.rid }}
@@ -115,14 +196,92 @@ jobs:
           Copy-Item ../../../LICENSE .
           Compress-Archive -Path * -DestinationPath ../../cascode-${{ matrix.rid }}.zip -Force
           Pop-Location
+      - name: build ngspice via installer (unix)
+        if: "!startsWith(matrix.rid, 'win-')"
+        shell: bash
+        env:
+          CASCODE_HOME: ${{ github.workspace }}/build/ngspice-home/${{ matrix.rid }}
+          CASCODE_RUNTIME_RID: ${{ matrix.rid }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$CASCODE_HOME"
+          install_log="$(mktemp)"
+          dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json >"$install_log"
+          cat "$install_log"
+          install_path="$(
+            python3 - "$install_log" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          log_path = pathlib.Path(sys.argv[1])
+          line = next((line for line in reversed(log_path.read_text(encoding="utf-8").splitlines()) if line.strip()), "")
+
+          try:
+              payload = json.loads(line)
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from {log_path}: {ex}", file=sys.stderr)
+              sys.exit(1)
+
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path:
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "ngspice installation failed", file=sys.stderr)
+              sys.exit(1)
+          PY
+          )"
+          [ -n "$install_path" ]
+      - name: build ngspice via installer (windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        env:
+          CASCODE_HOME: ${{ github.workspace }}\\build\\ngspice-home\\${{ matrix.rid }}
+          CASCODE_RUNTIME_RID: ${{ matrix.rid }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:CASCODE_HOME -Force | Out-Null
+          $jsonOutput = dotnet run --project tools/cli/Cascode.Cli.csproj --configuration Release -- install ngspice --from-source --force --json
+          Write-Host $jsonOutput
+          $result = $jsonOutput | ConvertFrom-Json
+          if (-not $result.Success -or [string]::IsNullOrWhiteSpace($result.InstallPath)) {
+            $message = if ([string]::IsNullOrWhiteSpace($result.Message)) { 'ngspice installation failed' } else { $result.Message }
+            throw $message
+          }
+      - name: package ngspice archive (unix)
+        if: "!startsWith(matrix.rid, 'win-')"
+        shell: bash
+        env:
+          CASCODE_HOME: ${{ github.workspace }}/build/ngspice-home/${{ matrix.rid }}
+        run: |
+          set -euo pipefail
+          ngspice_root="$CASCODE_HOME/tools/ngspice/${NGSPICE_VERSION}/${{ matrix.rid }}"
+          test -d "$ngspice_root/bin"
+          tar -czf "build/cascode-ngspice-${NGSPICE_VERSION}-${{ matrix.rid }}.tar.gz" -C "$ngspice_root" bin
+      - name: package ngspice archive (windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        env:
+          CASCODE_HOME: ${{ github.workspace }}\\build\\ngspice-home\\${{ matrix.rid }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ngspiceRoot = "$env:CASCODE_HOME\\tools\\ngspice\\$env:NGSPICE_VERSION\\${{ matrix.rid }}"
+          if (-not (Test-Path "$ngspiceRoot\\bin")) {
+            throw "ngspice bin directory missing: $ngspiceRoot\\bin"
+          }
+          Compress-Archive -Path "$ngspiceRoot\\bin" -DestinationPath "build/cascode-ngspice-$env:NGSPICE_VERSION-${{ matrix.rid }}.zip" -Force
       - uses: actions/upload-artifact@v4
         with:
           name: cascode-${{ matrix.rid }}
-          path: build/cascode-${{ matrix.rid }}.*
+          path: |
+            build/cascode-${{ matrix.rid }}.*
+            build/cascode-ngspice-${{ env.NGSPICE_VERSION }}-${{ matrix.rid }}.*
 
   github-release:
-    needs: build
+    needs: [build, version-check]
     runs-on: ubuntu-latest
+    env:
+      NGSPICE_VERSION: ${{ needs.version-check.outputs.ngspice_version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -130,6 +289,21 @@ jobs:
           pattern: cascode-*
           path: dist
           merge-multiple: true
+      - name: generate ngspice checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          shopt -s nullglob
+          files=(cascode-ngspice-${NGSPICE_VERSION}-*.tar.gz cascode-ngspice-${NGSPICE_VERSION}-*.zip)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No ngspice archives found to checksum." >&2
+            exit 1
+          fi
+          : > cascode-ngspice-${NGSPICE_VERSION}-sha256.txt
+          for file in "${files[@]}"; do
+            sha256sum "$file" >> cascode-ngspice-${NGSPICE_VERSION}-sha256.txt
+          done
       - name: create release
         uses: softprops/action-gh-release@v2
         with:
@@ -138,8 +312,59 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  npm-publish:
+  release-smoke-ngspice:
     needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: set tag
+        shell: bash
+        run: |
+          echo "TAG=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: download release cascode binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            -H "Accept: application/octet-stream" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://github.com/daniellovell/cascode/releases/download/v${TAG}/cascode-linux-x64.tar.gz" \
+            -o /tmp/cascode-linux-x64.tar.gz
+          mkdir -p /tmp/cascode-release-smoke
+          tar -xzf /tmp/cascode-linux-x64.tar.gz -C /tmp/cascode-release-smoke
+          chmod +x /tmp/cascode-release-smoke/cascode
+      - name: verify default ngspice install
+        shell: bash
+        env:
+          CASCODE_HOME: /tmp/cascode-release-smoke-home
+        run: |
+          set -euo pipefail
+          mkdir -p "$CASCODE_HOME"
+          json="$(/tmp/cascode-release-smoke/cascode install ngspice --force --json)"
+          echo "$json"
+          install_path="$(
+            INSTALL_JSON="$json" python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          try:
+              payload = json.loads(os.environ["INSTALL_JSON"])
+          except json.JSONDecodeError as ex:
+              print(f"Failed to parse installer JSON from INSTALL_JSON: {ex}", file=sys.stderr)
+              sys.exit(1)
+
+          install_path = payload.get("InstallPath")
+          if payload.get("Success") and install_path and payload.get("InstallMode") == "release-binary":
+              print(install_path, end="")
+          else:
+              print(payload.get("Message") or "install failed", file=sys.stderr)
+              sys.exit(1)
+          PY
+          )"
+          "$install_path" --version
+
+  npm-publish:
+    needs: [github-release, release-smoke-ngspice]
     runs-on: ubuntu-latest
     permissions:
       id-token: write  # Required for OIDC trusted publishing
@@ -162,13 +387,178 @@ jobs:
       - run: npm install --ignore-scripts
       - name: publish npm (prerelease)
         if: contains(github.ref_name, '-')
-        run: npm publish --access public --tag next
+        run: |
+          npm publish --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
       - name: publish npm (latest)
         if: ${{ !contains(github.ref_name, '-') }}
-        run: npm publish --access public
+        run: |
+          npm publish --access public 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
+
+  npm-publish-js-platforms:
+    needs: [github-release, release-smoke-ngspice]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            lib_name: Cascode.Native.so
+            template: cascode-js-linux-x64
+            package_name: "@cascode/cascode-js-linux-x64"
+          - os: windows-latest
+            rid: win-x64
+            lib_name: Cascode.Native.dll
+            template: cascode-js-win32-x64
+            package_name: "@cascode/cascode-js-win32-x64"
+          - os: macos-15-intel
+            rid: osx-x64
+            lib_name: Cascode.Native.dylib
+            template: cascode-js-darwin-x64
+            package_name: "@cascode/cascode-js-darwin-x64"
+          - os: macos-latest
+            rid: osx-arm64
+            lib_name: Cascode.Native.dylib
+            template: cascode-js-darwin-arm64
+            package_name: "@cascode/cascode-js-darwin-arm64"
+    runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: ensure npm 11.5.1+ for trusted publishing
+        run: npm install -g npm@latest
+      - name: publish native library
+        run: >
+          dotnet publish tools/native/Cascode.Native/Cascode.Native.csproj
+          --configuration Release
+          -r ${{ matrix.rid }}
+          -p:PublishAot=true
+          -p:EnableAotAnalyzer=false
+          -p:EnableTrimAnalyzer=false
+          -p:NoWarn=IL2026%3BIL3050%3BCS3021
+          -o build/native/${{ matrix.rid }}
+      - name: install node deps
+        run: npm install --omit=optional --ignore-scripts --no-package-lock
+        working-directory: editors/node
+      - name: build addon
+        run: npm run build
+        working-directory: editors/node
+      - name: stage platform package
+        run: >
+          node ./scripts/stage-platform-package.mjs
+          --package="${{ matrix.package_name }}"
+          --rid="${{ matrix.rid }}"
+          --lib="${{ matrix.lib_name }}"
+          --version="${{ github.ref_name }}"
+          --out="./.dist/${{ matrix.template }}"
+        working-directory: editors/node
+      - name: publish platform npm (prerelease)
+        if: contains(github.ref_name, '-')
+        shell: bash
+        run: |
+          npm publish ./editors/node/.dist/${{ matrix.template }} --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
+      - name: publish platform npm (latest)
+        if: ${{ !contains(github.ref_name, '-') }}
+        shell: bash
+        run: |
+          npm publish ./editors/node/.dist/${{ matrix.template }} --access public 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
+
+  npm-publish-js:
+    needs: [github-release, release-smoke-ngspice, npm-publish-js-platforms]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: editors/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - name: ensure npm 11.5.1+ for trusted publishing
+        run: npm install -g npm@latest
+      - name: set version from tag
+        run: |
+          TAG=${GITHUB_REF_NAME#v}
+          node -e "const fs=require('fs'); const p=require('./package.json'); const v='${TAG}'; p.version=v; for (const key of Object.keys(p.optionalDependencies ?? {})) p.optionalDependencies[key]=v; fs.writeFileSync('package.json', JSON.stringify(p,null,2)+'\n');"
+      - name: publish linux native library for integration test
+        run: >
+          dotnet publish ../../tools/native/Cascode.Native/Cascode.Native.csproj
+          --configuration Release
+          -r linux-x64
+          -p:PublishAot=true
+          -p:EnableAotAnalyzer=false
+          -p:EnableTrimAnalyzer=false
+          -p:NoWarn=IL2026%3BIL3050%3BCS3021
+          -o ../../build/native/linux-x64
+      - run: npm install --omit=optional --no-package-lock
+      - run: npm run build
+      - name: test native npm package
+        shell: bash
+        run: |
+          export CASCODE_NATIVE_LIB="$GITHUB_WORKSPACE/build/native/linux-x64/Cascode.Native.so"
+          npm test
+      - name: publish npm (prerelease)
+        if: contains(github.ref_name, '-')
+        run: |
+          npm publish --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
+      - name: publish npm (latest)
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: |
+          npm publish --access public 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
 
   nuget-publish:
-    needs: github-release
+    needs: [github-release, release-smoke-ngspice]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

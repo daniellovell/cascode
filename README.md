@@ -33,11 +33,11 @@ New to Cascode? Start here to understand the core concepts through a practical O
 - [Chapter 4 – Bench System](spec/language/Ch04_Bench_System.md)
 
 Practical usage guide:
-- `docs/language/README.md`
-- `docs/language/style.md`
-- `docs/language/bench-cookbook.md`
-- `docs/language/connectors.md`
-- `docs/language/troubleshooting.md`
+- [docs/language/README.md](docs/language/README.md)
+- [docs/language/style.md](docs/language/style.md)
+- [docs/language/bench-cookbook.md](docs/language/bench-cookbook.md)
+- [docs/language/connectors.md](docs/language/connectors.md)
+- [docs/language/troubleshooting.md](docs/language/troubleshooting.md)
 
 
 
@@ -71,6 +71,19 @@ cascode --version
 cascode --help
 ```
 
+Install ngspice for bench execution:
+
+```sh
+cascode install ngspice
+```
+
+`cascode install ngspice` installs the prebuilt ngspice package from the same GitHub release tag
+as your installed Cascode CLI version. If you need a local build instead, use:
+
+```sh
+cascode install ngspice --from-source
+```
+
 ### Latest vs pre-release
 
 - Stable (latest):
@@ -78,8 +91,8 @@ cascode --help
   - dotnet tool: `dotnet tool install -g Cascode.Cli`
 
 - Pre-release (release candidates, nightly tags):
-  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.5.0-rc.1`)
-  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.5.0-rc.1`
+  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.5.1-rc.1`)
+  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.5.1-rc.1`
   - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---
@@ -97,17 +110,18 @@ cascode --help
 ## 📝 Language at a Glance
 
 Cascode is a unified language: circuits, benches, and primitives share a single syntax. A small,
-self-contained example (from `tests/golden/cas/bench/RcLowpass.el.cai`) looks like this:
+self-contained example (from [tests/golden/cas/bench/RcLowpass.el.cai](tests/golden/cas/bench/RcLowpass.el.cai))
+looks like this:
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params { R = primSize.R }
 }
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Capacitor CapacitorIdeal(size primSize) {
   device "capacitor"
   params { C = primSize.C }
 }
@@ -143,8 +157,8 @@ circuit RcLowpass {
   ground GND
 
   fill {
-    Resistor R1 = new Ideal_Resistor(size(R=1k)) { .P--IN.P, .N--OUT }
-    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) { .P--OUT, .N--GND }
+    Resistor R1 = new ResistorIdeal(size(R=1k)) { .P--IN.P, .N--OUT }
+    Capacitor C1 = new CapacitorIdeal(size(C=1p)) { .P--OUT, .N--GND }
   }
 
   benches {
@@ -165,7 +179,7 @@ circuit RcLowpass {
 
 ## ⚙️ From `.cas` to `.cai` to SPICE
 
-1. `cascode link` resolves `include` directives and writes self-contained `.cai` output.
+1. `cascode link` resolves `include` directives and writes `.cai` output.
 2. `cascode emit` emits simulator netlists from EL circuits (source `.cas` or linked `.cai`).
 3. `cascode bench run` runs constraint-selected benches and writes `results.json` plus per-bench traces.
 4. `cascode verify` checks numeric constraints against results.
@@ -179,6 +193,8 @@ Roadmap stages (vision):
 
 - `cascode syn` consumes `.hl/.ml.cai` plus `<name>.synth.yaml` and produces `.el.cai` (topology selection and sizing).
 - `cascode par` consumes `.el.cai` and produces physical layout artifacts; `.cal` is reserved for Cascode Layout files (format specified separately).
+
+These are roadmap stages, not current CLI commands.
 
 ---
 
@@ -209,19 +225,18 @@ cascode/
 │  ├─ golden/              # Canonical Cascode fixtures and results (see below)
 │  ├─ integration/
 │  └─ unit/
-├─ editors/
-│  └─ vscode/
-└─ examples/
-   └─ harnesses/
+└─ editors/
+   ├─ vscode/
+   └─ node/
 ```
 
 ### Component Responsibilities
 
-- `tools/cli`: CLI entrypoints and UX (no core semantics).
-- `tools/language`: Grammar, parsing, linking, validation, and IR for the Cascode language.
-- `tools/bench`: Bench planning/runtime and bench-oriented SPICE emission support.
-- `tools/workspace`: PDK workspace scanning and persistence (`pdk.db`).
-- `tools/render`: Schematic/layout rendering from EL circuits.
+- [tools/cli](tools/cli): CLI entrypoints and UX (no core semantics).
+- [tools/language](tools/language): Grammar, parsing, linking, validation, emission, and bench runtime logic for the Cascode language.
+- [tools/bench](tools/bench): Shared bench-facing result and formatting types used by the CLI and runtime.
+- [tools/workspace](tools/workspace): PDK workspace scanning and persistence (`pdk.db`).
+- [tools/render](tools/render): Schematic/layout rendering from EL circuits.
 
 ### Notes
 
@@ -235,7 +250,7 @@ cascode/
 ### Building from source
 
 ```bash
-# Build everything (compiler, CLI, tests)
+# Build everything
 dotnet build
 
 # Run the CLI directly
@@ -261,20 +276,33 @@ After installation, ensure `~/.dotnet/tools` is on your PATH, then verify:
 cascode --version
 ```
 
+### Git hooks
+
+Install [pre-commit](https://pre-commit.com/) and enable the repo's hooks:
+
+```bash
+pre-commit install
+```
+
+This runs CSharpier on staged C# files before each commit, matching the CI format check.
+
 ## ♻️ Golden fixtures
 
-`tests/golden/` is the canonical store for regression assets that tie Cascode
+[`tests/golden`](tests/golden) is the canonical store for regression assets that tie Cascode
 inputs (`*.cai`) to expected emitted outputs and constraint-checking results.
 
 ---
 
 ## 💻 CLI (preview)
 
-> Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
+> Architecture, command modules, and shared tooling notes are documented in [tools/README.md](tools/README.md).
 
 ```bash
-# Link source (resolve includes) to self-contained .cai
+# Link source (resolve includes) to self-contained .cai (default mode)
 cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build
+
+# Link in include-pruned bench mode (preserve bench bindings, omit bench definitions, keep a minimal include set)
+cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build --no-link-benches
 
 # Emit simulator netlists from an EL circuit (source .cas or linked .cai)
 cascode emit tests/golden/cas/bench/RcLowpass.el.cai --backend ngspice --out build/rc-emit
@@ -303,11 +331,19 @@ cd editors\vscode; .\install.ps1
 
 Highlights keywords (`circuit`, `interface`, `bench`, `fill`, `constraints`, `harness`), typed quantities (`1.8V`, `15pF`, `50MHz`), the wire operator (`--`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
+For native editor/runtime integrations, see `@cascode/native` in [editors/node](editors/node):
+
+- Package docs: [editors/node/README.md](editors/node/README.md)
+- Runtime package: [editors/node/package.json](editors/node/package.json)
+- Platform package templates: [editors/node/platform-packages](editors/node/platform-packages)
+
+Maintainers: native npm package versions are release-tag aligned and validated in `.github/workflows/release.yml`.
+
 ---
 
 ## 🤝 Contributing
 
-* See `CONTRIBUTING.md` for coding standards, style, and the language conformance suite.
+* See [AGENTS.md](AGENTS.md) for coding standards, style, and required local checks.
 * Library authors: add minimal, runnable examples with each new circuit or interface.
 
 ---

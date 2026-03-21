@@ -32,6 +32,7 @@ internal sealed partial class CascodeAstBuilder
             Constraints = memberState.Constraints,
             Harness = memberState.Harness,
             Env = memberState.Env,
+            Render = memberState.Render,
             BenchBindings = memberState.BenchBindings,
             BenchBindingExtensions = memberState.BenchBindingExtensions,
             Synth = memberState.Synth,
@@ -39,6 +40,14 @@ internal sealed partial class CascodeAstBuilder
         };
     }
 
+    /// <summary>
+    /// Aggregates circuit-level members from a parse context into a CircuitMemberState.
+    /// </summary>
+    /// <param name="ctx">The parse tree context representing a circuit.</param>
+    /// <returns>
+    /// A CircuitMemberState populated with parsed members such as level, inline flag, package, supplies, grounds, ports,
+    /// slot, fill, constraints, harness, env, render, bench bindings and extensions, synth, and provenance blocks.
+    /// </returns>
     private CircuitMemberState ProcessCircuitMembers(CascodeParser.CircuitContext ctx)
     {
         var state = new CircuitMemberState();
@@ -101,6 +110,10 @@ internal sealed partial class CascodeAstBuilder
                     state.Env = BuildEnvBlock(envCtx);
                     break;
 
+                case CascodeParser.RenderSectionContext renderCtx:
+                    state.Render = BuildRenderBlock(renderCtx);
+                    break;
+
                 case CascodeParser.CircuitBenchesContext benchesCtx:
                     var section = benchesCtx.circuitBenchesSection();
                     state.BenchBindings.AddRange(BuildBenchBindings(section.benchBinding()));
@@ -133,6 +146,7 @@ internal sealed partial class CascodeAstBuilder
         public ConstraintsBlock? Constraints { get; set; }
         public HarnessBlock? Harness { get; set; }
         public EnvBlock? Env { get; set; }
+        public RenderBlock? Render { get; set; }
         public List<BenchBinding> BenchBindings { get; } = new();
         public List<BenchBindingExtension> BenchBindingExtensions { get; } = new();
         public SynthBlock? Synth { get; set; }

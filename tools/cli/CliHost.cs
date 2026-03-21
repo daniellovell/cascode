@@ -41,15 +41,30 @@ internal sealed class CliHost
         var output = new CliOutputProvider(_state, () => _isInteractive);
 
         new Commands.SystemCommandModule(_state, output).Register(_commands);
-        new Commands.PdkCommandModule(
+        var pdkEmitHandlers = new Commands.PdkEmitCommandHandlersImpl(
+            _state,
+            () => _isInteractive,
+            output
+        );
+        var pdkCharacterizationHandlers = new Commands.PdkCharacterizationCommandHandlersImpl(
+            _state,
+            () => _isInteractive,
+            output
+        );
+        var pdkModule = new Commands.PdkCommandModule(
             _state,
             _scanner,
             _config,
             _configStorage,
             _initialWorkspaceRoot,
             () => _isInteractive,
-            output
-        ).Register(_commands);
+            output,
+            pdkEmitHandlers,
+            pdkCharacterizationHandlers
+        );
+        pdkModule.Register(_commands);
+        new Commands.PdkEmitCommandModule(pdkModule).Register(_commands);
+        new Commands.PdkCharacterizationCommandModule(pdkModule).Register(_commands);
         new Commands.CharacterizationCommandModule(_state, output).Register(_commands);
         new Commands.BenchCommandModule(_state, output).Register(_commands);
         new Commands.LinkCommandModule(_state, output).Register(_commands);
@@ -58,6 +73,8 @@ internal sealed class CliHost
         new Commands.VerifyCommandModule(_state, output).Register(_commands);
         new Commands.ConvertCommandModule(_state, output).Register(_commands);
         new Commands.RenderCommandModule(_state, output).Register(_commands);
+        new Commands.UpdateCommandModule(output).Register(_commands);
+        new Commands.InstallCommandModule(output).Register(_commands);
     }
 
     public int RunInteractive()

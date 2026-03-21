@@ -14,18 +14,21 @@ declaration establishes a namespace, while `include` directives bring in depende
 during linking. Name resolution follows lexical scoping with library-qualified fallback, and
 shadowing rules are conventional unless explicitly stated.
 
-Linked outputs (`.cai`) are self-contained and include a `VERSION` header as the first line.
+Linked outputs (`.cai`) include a `VERSION` header as the first line. The default link mode is
+self-contained; include-pruned bench mode intentionally retains a minimal include set.
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 library lib.std.amp
 include lib.std.bench
 ```
 
-Includes are resolved during linking. The output of linking is a self-contained `.cai` file with no
-remaining `include` directives.
+Includes are resolved during linking. In default mode, the output is self-contained with no
+remaining `include` directives. In include-pruned bench mode (`--no-link-benches`), bench
+definitions are omitted and represented via deterministic include rewrites.
 
-Linking also applies namespace inheritance rules for library lookups: a file in `lib.std.bench` can
+Linking also applies namespace inheritance rules for library lookups: a file in
+[lib/std/bench](../../lib/std/bench) can
 resolve symbols from `lib.std` and `lib` without requiring explicit includes for those parent
 namespaces. Explicit `include` directives are still the primary way to communicate dependencies.
 
@@ -76,7 +79,8 @@ bundle Diff {
 ```
 
 Bundles are used as terminal types on circuits and interfaces (for example, `input IN : Diff`). They
-are also used as bench terminals (for example, `stim IN : Diff`).
+are also used as bench terminals (for example, `stim IN : Diff`), as shown in
+[tests/golden/cas/bench/RcLowpass.el.cai](../../tests/golden/cas/bench/RcLowpass.el.cai).
 
 ### 2.3.2 Directionality and Roles
 
@@ -96,6 +100,15 @@ An `interface` is a contract that circuits can implement. Interfaces typically d
 - a set of terminals (`supply`, `ground`, `input`, `output`, `io`)
 - optional connector mappings (`connectors { ... }`)
 - optional bench bindings (`benches { ... }`)
+
+An implementing circuit must satisfy the interface's declared terminal contract for every terminal named by the interface. Matching is structural: terminal name, terminal declaration kind (`input`, `output`, `io`, `supply`, or `ground`), leaf shape, and leaf types must agree for the interface-defined terminals. An interface terminal's declaration kind must equal the implementing circuit terminal's declaration kind, while the circuit may still declare additional terminals beyond the interface.
+
+Tooling enforces this contract on complete documents during `cascode link`, not only in later
+downstream commands. `cascode link` validates and rejects documents whose `implements`
+relationship cannot be resolved or whose declared circuit terminals do not match the referenced
+interface. When linking succeeds, it writes the referenced interface, the surviving `implements`
+relationship, and the declared circuit terminals into the generated `.cai` so downstream commands
+such as `cascode emit` and `cascode erc` can revalidate against the preserved contract.
 
 Connector mappings define how two interface views relate structurally. They are expressed using the
 same pin-reference and wire syntax as fill blocks:
@@ -158,7 +171,9 @@ Cascode uses three elaboration levels:
 - EL (electrical level): emission-ready; device choices and numeric values are sufficient for SPICE.
 
 SPICE emission requires EL-level circuits. The toolchain’s compilation stages are structured around
-linking (dependency resolution), synthesis (HL/ML → EL), and emission.
+linking (dependency resolution), synthesis (HL/ML → EL), and emission. The synthesis and physical
+design stages described later in this chapter are forward-looking stage contracts rather than
+currently shipped CLI commands.
 
 ---
 
@@ -400,7 +415,13 @@ Size packs (`size(...)`) support computed expressions (for example, `size(S.W, S
 The language also supports passive device categories (`Resistor`, `Capacitor`, `Inductor`, `Diode`)
 through the same primitive and device instantiation mechanism. A common pattern is to define
 “ideal” primitives for use in small circuits and testbenches (for example,
-`tests/golden/cas/bench/RcLowpass.el.cai`).
+[tests/golden/cas/bench/RcLowpass.el.cai](../../tests/golden/cas/bench/RcLowpass.el.cai)).
+
+The standard library also includes finite-Q reactive primitives: `CapacitorQ` and
+`InductorQ`. These accept `Q` and `freq` in addition to the reactive value (`C` or `L`). On
+SPICE emission, they emit the reactive element in series with a computed resistor:
+- Capacitors: `R = 1 / (2 * pi * freq * C * Q)`
+- Inductors: `R = (2 * pi * freq * L) / Q`
 
 ---
 
@@ -472,7 +493,7 @@ before EL emission; the emitter rejects unresolved bias values.
 
 `env { ... }` provides inputs to benches and analysis configuration. It is the right place to record
 values such as `SourceImpedance`, `LoadImpedance`, and common-mode ranges that are consumed by standard
-benches (for example, transfer and noise benches in `lib/std/bench`).
+benches (for example, transfer and noise benches in [lib/std/bench](../../lib/std/bench)).
 
 `harness { ... }` provides emission-time configuration such as supply values, applied biases, and
 explicit sweep points. In general, `env` describes what the bench assumes and `harness` describes what
@@ -616,21 +637,26 @@ analysis products) rather than being generic numeric arrays.
 | `Inductance` | `10nH` |
 | `Scalar` | `0.5`, `2` |
 
-Common structured types include `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `NoiseSpectrum`,
-`VoltageSpectrum`, `CurrentSpectrum`, `VoltageWaveform`, and `CurrentWaveform`.
+Common structured types include `TransferFunction`, `GainSpectrum`, `ScalarSpectrum`,
+`PhaseSpectrum`, `TimeSpectrum`, `NoiseSpectrum`, `ComplexVoltageSpectrum`,
+`ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`, `VoltageWaveform`,
+`CurrentWaveform`, and `SParameterMatrix`.
 
 ### Structured types
 
 | Type | How it is commonly produced |
 |------|------------------------------|
-| `TransferFunction` | `transfer(ac, stim, resp)` |
-| `GainSpectrum` | `H.Mag()`, `db20(...)`, `db10(...)` |
+| `TransferFunction` | `transfer(ac, stim, resp)`, `S.S(i, j)` |
+| `GainSpectrum` | `H.Mag()`, `db20(...)`, `db10(...)`, `S.ReturnLoss(port)` |
+| `ScalarSpectrum` | `S.VSWR(port)`, `S.StabilityK()`, `S.MuFactor()` |
 | `PhaseSpectrum` | `H.Phase()` |
+| `TimeSpectrum` | `S.GroupDelay(to, from)` |
 | `NoiseSpectrum` | `noise(noise_analysis, OUT)` and `input_referred_noise(...)` |
-| `VoltageSpectrum` | `voltage(ac, OUT)` |
-| `CurrentSpectrum` | `current(ac, harness.VDD.P)` |
+| `ComplexVoltageSpectrum` | `voltage(ac, OUT)` |
+| `ComplexCurrentSpectrum` | `current(ac, harness.VDD.P)` |
 | `VoltageWaveform` | `voltage(tran, OUT)` |
 | `CurrentWaveform` | `current(tran, harness.VDD.P)` |
+| `SParameterMatrix` | `sparam(sp)` |
 
 ### Common built-ins and methods
 
@@ -639,8 +665,9 @@ Built-in constructors and conversions commonly used in the standard library incl
 - `transfer(ac, stim, resp)` → `TransferFunction`
 - `noise(noise_analysis, terminal)` → `NoiseSpectrum`
 - `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` → `NoiseSpectrum`
-- `voltage(analysis, terminal)` → `VoltageSpectrum` or `VoltageWaveform`
-- `current(analysis, harness_pin)` → `CurrentSpectrum` or `CurrentWaveform`
+- `voltage(analysis, terminal)` → `ComplexVoltageSpectrum` or `VoltageWaveform`
+- `current(analysis, harness_pin)` → `ComplexCurrentSpectrum` or `CurrentWaveform`
+- `sparam(analysis)` → `SParameterMatrix`
 - `db20(GainSpectrum)` / `db10(GainSpectrum)` → `GainSpectrum` in dB
 - `quiescent_power(PWR, RET)` → rail power (for power benches)
 
@@ -649,3 +676,12 @@ Common post-processing methods:
 - `H.Mag()` and `H.Phase()` on `TransferFunction`
 - `S.ValueAt(x)` and `S.FindCrossing(...)` on spectra
 - `N.Integrate(from, to)` on `NoiseSpectrum` (returns integrated RMS noise)
+- `S.S(i, j)` and other element accessors on `SParameterMatrix`
+- `S.ReturnLoss(port)`, `S.VSWR(port)`, `S.StabilityK()`, and other derived metrics on `SParameterMatrix`
+
+For `ComplexVoltageSpectrum` and `ComplexCurrentSpectrum`, `ValueAt(x)` produces a complex sample interpolated in
+magnitude/phase space (with shortest-path phase interpolation). To get a real magnitude, call
+`.Mag()` explicitly before or after sampling: `voltage(ac, OUT).Mag().ValueAt(x)` or
+`voltage(ac, OUT).ValueAt(x).Mag()`. These two forms are equivalent for magnitude interpolation.
+When a neighboring complex endpoint has near-zero magnitude, `ValueAt(x)` uses the nearest
+non-zero endpoint phase.

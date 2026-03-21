@@ -325,6 +325,13 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitEnvSection([NotNull] CascodeParser.EnvSectionContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>RenderSection</c>
+	/// labeled alternative in <see cref="CascodeParser.circuitMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderSection([NotNull] CascodeParser.RenderSectionContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>CircuitBenches</c>
 	/// labeled alternative in <see cref="CascodeParser.circuitMember"/>.
 	/// </summary>
@@ -622,11 +629,83 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitPinRef([NotNull] CascodeParser.PinRefContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.renderEntity"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderEntity([NotNull] CascodeParser.RenderEntityContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.renderEntityRef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderEntityRef([NotNull] CascodeParser.RenderEntityRefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.renderOneLiner"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderOneLiner([NotNull] CascodeParser.RenderOneLinerContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.renderField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderField([NotNull] CascodeParser.RenderFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.strengthLevel"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitStrengthLevel([NotNull] CascodeParser.StrengthLevelContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.pointExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPointExpr([NotNull] CascodeParser.PointExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.absPoint"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAbsPoint([NotNull] CascodeParser.AbsPointContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.refPoint"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRefPoint([NotNull] CascodeParser.RefPointContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.relPoint"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRelPoint([NotNull] CascodeParser.RelPointContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.renderAnchorRef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitRenderAnchorRef([NotNull] CascodeParser.RenderAnchorRefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.signedInt"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSignedInt([NotNull] CascodeParser.SignedIntContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.signedQuantity"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitSignedQuantity([NotNull] CascodeParser.SignedQuantityContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.signedThreshold"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSignedThreshold([NotNull] CascodeParser.SignedThresholdContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>NumericSection</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.

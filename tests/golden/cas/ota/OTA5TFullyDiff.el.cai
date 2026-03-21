@@ -1,14 +1,14 @@
-VERSION 3.1
+VERSION 4.1
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Resistor ResistorIdeal(size primSize) {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -16,8 +16,8 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
-  device "level1_pmos"
+primitive PMOS PMOS_Level1(size primSize) {
+  device "pmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -41,52 +41,52 @@ circuit OTA5TFullyDiff implements FullyDiffOpAmp {
   fill {
     net tnode : analog
     net vcm_node : analog
-    NMOS dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS dp.M_N = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT.P
-      .G--IN.P
-      .S--tnode
-    }
-    NMOS dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
-      .B--GND
-      .D--OUT.N
       .G--IN.N
       .S--tnode
     }
-    NMOS dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+    NMOS dp.M_P = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT.N
+      .G--IN.P
+      .S--tnode
+    }
+    NMOS dp.M_TAIL = new NMOS_Level1(size(W=4u, L=180n, M=1)) {
       .B--GND
       .D--tnode
       .G--VTAIL
       .S--GND
     }
-    PMOS M_LOAD_P = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS M_LOAD_P = new PMOS_Level1(size(W=2u, L=180n, M=1)) {
       .B--VDD
       .D--OUT.P
       .G--vcm_node
       .S--VDD
     }
-    PMOS M_LOAD_N = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS M_LOAD_N = new PMOS_Level1(size(W=2u, L=180n, M=1)) {
       .B--VDD
       .D--OUT.N
       .G--vcm_node
       .S--VDD
     }
-    Resistor R_CMFB_P = new Ideal_Resistor(size(R=500k)) {
+    Resistor R_CMFB_P = new ResistorIdeal(size(R=500k)) {
       .P--OUT.P
       .N--vcm_node
     }
-    Resistor R_CMFB_N = new Ideal_Resistor(size(R=500k)) {
+    Resistor R_CMFB_N = new ResistorIdeal(size(R=500k)) {
       .P--OUT.N
       .N--vcm_node
     }
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth >= 20MHz
-      c_gain = ACBench::PassbandGain >= 30dB
-      c_pm = ACBench::PhaseMargin >= 60deg
-      c_pwr = DCBench::QuiescentPower <= 800uW
-      c_swing = TranBench::DifferentialOutputSwing >= 1.2Vpp
+      c_gbw = transfer_bench::GainBandwidth >= 20MHz
+      c_gain = transfer_bench::PassbandGain >= 30dB
+      c_pm = transfer_bench::PhaseMargin >= 60deg
+      c_pwr = vdd_pwr::QuiescentPower <= 800uW
+      c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() >= 1.2Vpp
     }
     tech {
       t_lmin : L >= 180nm on *

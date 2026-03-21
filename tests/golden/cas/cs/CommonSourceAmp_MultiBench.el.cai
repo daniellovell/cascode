@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 4.1
 
 
 circuit CommonSourceAmp_MultiBench implements SingleEndedAmp {
@@ -9,13 +9,13 @@ circuit CommonSourceAmp_MultiBench implements SingleEndedAmp {
   output OUT : analog
   input VBIAS : bias
   fill {
-    NMOS M_in = new Level1_NMOS(size(W=10u, L=180n, M=1)) {
+    NMOS M_in = new NMOS_Level1(size(W=10u, L=180n, M=1)) {
       .D--OUT
       .G--IN
       .S--GND
       .B--GND
     }
-    PMOS load.M = new Level1_PMOS(size(W=20u, L=180n, M=1)) {
+    PMOS load.M = new PMOS_Level1(size(W=20u, L=180n, M=1)) {
       .D--OUT
       .G--VBIAS
       .S--VDD
@@ -24,10 +24,10 @@ circuit CommonSourceAmp_MultiBench implements SingleEndedAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth at net::OUT >= 1kHz
-      c_gain = ACBench::PassbandGain at net::OUT >= 0dB
-      c_out_bias = DCBench::OutputDCBias at net::OUT >= 0V
-      c_power = DCBench::QuiescentPower <= 1W
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 1kHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 0dB
+      c_out_bias = dc_bias::OutputDCBias at net::OUT >= 0V
+      c_power = vdd_pwr::QuiescentPower <= 1W
     }
   }
   harness {

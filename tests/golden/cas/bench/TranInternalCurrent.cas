@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 4.1
 
 include lib.std
 
@@ -35,6 +35,13 @@ circuit TranInternalCurrent {
     }
   }
 
+  constraints {
+    numeric {
+      c_internal = tran::InternalNodePeak >= 0V
+      c_supply = tran::SupplyCurrentPeak >= 0A
+    }
+  }
+
   harness {
     supply VDD = 1.8V
     ground GND = 0V
@@ -42,8 +49,8 @@ circuit TranInternalCurrent {
 
   fill {
     net n : analog
-    Resistor R1 = new Ideal_Resistor(size(R=10k)) { .P--VDD, .N--n }
-    Resistor R2 = new Ideal_Resistor(size(R=10k)) { .P--IN, .N--n }
-    Capacitor C1 = new Ideal_Capacitor(size(C=1n)) { .P--n, .N--GND }
+    Resistor R1 = new ResistorIdeal(size(R=10k)) { .P--VDD, .N--n }
+    Resistor R2 = new ResistorIdeal(size(R=10k)) { .P--IN, .N--n }
+    Capacitor C1 = new CapacitorIdeal(size(C=1n)) { .P--n, .N--GND }
   }
 }

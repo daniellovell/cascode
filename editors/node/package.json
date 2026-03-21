@@ -1,0 +1,48 @@
+{
+  "name": "@cascode/cascode-js",
+  "version": "0.7.3",
+  "description": "Synchronous Node binding for libcascode",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "license": "BSD-3-Clause",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daniellovell/cascode.git",
+    "directory": "editors/node"
+  },
+  "files": [
+    "src/**/*",
+    "native/**/*",
+    "lib/std/**/*.cas",
+    "binding.gyp",
+    "README.md",
+    "platform-packages/**/*",
+    "scripts/**/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "gypfile": false,
+  "optionalDependencies": {
+    "@cascode/cascode-js-darwin-arm64": "0.7.3",
+    "@cascode/cascode-js-darwin-x64": "0.7.3",
+    "@cascode/cascode-js-linux-x64": "0.7.3",
+    "@cascode/cascode-js-win32-x64": "0.7.3"
+  },
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "stage:platform": "node ./scripts/stage-platform-package.mjs",
+    "prepack": "node ./scripts/sync-stdlib.mjs",
+    "test:integration": "node --test test/integration.test.mjs",
+    "test:types": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:integration && npm run test:types"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.1.0",
+    "typescript": "^5.9.2"
+  }
+}

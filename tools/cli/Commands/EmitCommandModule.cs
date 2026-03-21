@@ -46,7 +46,12 @@ internal sealed class EmitCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("emit", "Emit SPICE netlist from Cascode EL", EmitCommand)
+            new DelegateCliCommand(
+                "emit",
+                "Emit SPICE netlist from Cascode EL",
+                EmitCommand,
+                helpCategory: CommandHelpCategory.Design
+            )
         );
     }
 
@@ -172,8 +177,8 @@ internal sealed class EmitCommandModule : ICommandModule
                     return false;
                 }
 
-                return !deviceKey.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
-                    && !deviceKey.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase);
+                return !deviceKey.Equals("nmos_level1", StringComparison.OrdinalIgnoreCase)
+                    && !deviceKey.Equals("pmos_level1", StringComparison.OrdinalIgnoreCase);
             }) == true
         );
 

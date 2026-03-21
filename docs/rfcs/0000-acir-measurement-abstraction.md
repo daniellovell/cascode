@@ -1,12 +1,16 @@
 # RFC-0000: Cascode Language Unification and Declarative Bench System
 
-Status: Draft
+Status: Historical
 Authors: Daniel Lovell
 Created: 2026-01-25
 Last Updated: 2026-01-28
 Target Version: Cascode 1.0
 
 ---
+
+> Editor's note: this RFC is kept as historical design context. The current source of truth for
+> shipped behavior is [spec/language](../../spec/language/README.md) and
+> [docs/architecture](../architecture/README.md).
 
 ## Abstract
 
@@ -189,7 +193,7 @@ Human-authored Cascode source files use the `.cas` file extension. Tool-generate
 Cascode files may include a version header as the first line:
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 ```
 
 Version header requirements:
@@ -538,6 +542,18 @@ The `measurements {}` block defines typed measurement expressions:
 
 ```cascode
 measurements {
+  measurement Gain(Frequency f) : dB {
+    TransferFunction H = transfer(ac, IN, OUT)
+    GainSpectrum G = db20(H.Mag())
+    return G.ValueAt(f)
+  }
+
+  measurement Gain(Frequency from, Frequency to) : dB {
+    TransferFunction H = transfer(ac, IN, OUT)
+    GainSpectrum G = db20(H.Mag())
+    return G.From(from).To(to)
+  }
+
   measurement PassbandGain : dB {
     TransferFunction H = transfer(ac, IN, OUT)
     GainSpectrum G = db20(H.Mag())
@@ -596,7 +612,7 @@ measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
 
 **Invocation syntax (explicit call syntax always):**
 - Non-parameterized: `LowpassBandwidth()` (parentheses required)
-- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` (named arguments)
+- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` or `Gain(f=1MHz)` (named arguments)
 
 **In constraints:**
 ```cascode
@@ -907,6 +923,18 @@ bench DiffToSETransfer {
   }
 
   measurements {
+    measurement Gain(Frequency f) : dB {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.ValueAt(f)
+    }
+
+    measurement Gain(Frequency from, Frequency to) : dB {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.From(from).To(to)
+    }
+
     measurement PassbandGain : dB {
       TransferFunction H = transfer(ac, IN, OUT)
       GainSpectrum G = db20(H.Mag())
@@ -1192,7 +1220,7 @@ The following phases have been completed or are in progress:
 
 **PR 2.1: Physical Quantity Types**
 - Implement scalar types: `Frequency`, `VoltageRatio`, `Voltage`, `Current`, `Time`, `Phase`, `Scalar`
-- Implement compound types: `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`, `NoiseSpectrum`, `VoltageWaveform`, `CurrentWaveform`
+- Implement compound types: `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`, `NoiseSpectrum`, `VoltageWaveform`, `CurrentWaveform`
 - Implement type checking for variable declarations
 - Implement type inference for expressions
 
@@ -1271,9 +1299,9 @@ Constructor functions extract typed data from simulation analyses.
 | Function | Signature | Semantics |
 |----------|-----------|-----------|
 | `transfer(analysis, stim, resp)` | `(ACAnalysis, Terminal, Terminal) -> TransferFunction` | Complex voltage transfer function Vout/Vin(f) |
-| `voltage(analysis, terminal)` | `(ACAnalysis, Terminal) -> VoltageSpectrum` | Complex voltage spectrum V(f) |
+| `voltage(analysis, terminal)` | `(ACAnalysis, Terminal) -> ComplexVoltageSpectrum` | Complex voltage spectrum V(f) |
 | `voltage(analysis, terminal)` | `(TranAnalysis, Terminal) -> VoltageWaveform` | Voltage waveform V(t) |
-| `current(analysis, element)` | `(ACAnalysis, Element) -> CurrentSpectrum` | Complex current spectrum I(f) |
+| `current(analysis, element)` | `(ACAnalysis, Element) -> ComplexCurrentSpectrum` | Complex current spectrum I(f) |
 | `current(analysis, element)` | `(TranAnalysis, Element) -> CurrentWaveform` | Current waveform I(t) |
 | `noise(analysis, terminal)` | `(NoiseAnalysis, Terminal) -> NoiseSpectrum` | Noise spectral density V/√Hz(f) |
 | `input_referred_noise(noise, ac, stim, resp)` | `(NoiseAnalysis, ACAnalysis, Terminal, Terminal) -> NoiseSpectrum` | Input-referred noise from output noise and transfer function |
@@ -1304,7 +1332,7 @@ Methods on `TransferFunction` extract magnitude and phase components.
 
 ### 11.4 Spectrum Methods
 
-Methods available on frequency-domain spectrum types (`GainSpectrum`, `PhaseSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`).
+Methods available on frequency-domain spectrum types (`GainSpectrum`, `PhaseSpectrum`, `ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`).
 
 | Method | Signature | Semantics |
 |--------|-----------|-----------|
@@ -1380,7 +1408,6 @@ The measurement system uses semantic types representing physical quantities. All
 | `CurrentRatio` | linear | dB, A/A | Current gain or attenuation |
 | `Impedance` | Ohm | kOhm, MOhm | Complex impedance; supports `\|\|` for parallel combinations |
 | `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
-| `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
 | `Capacitance` | F | pF, fF, nF, uF | Capacitance values |
 | `Inductance` | H | nH, uH, mH | Inductance values |
 | `Voltage` | V | mV, uV, nV | Voltage values |
@@ -1404,8 +1431,8 @@ The measurement system provides compound types representing simulation data over
 | `TransferFunction` | Frequency | Complex | Complex voltage ratio Vout/Vin(f) |
 | `GainSpectrum` | Frequency | VoltageRatio | Magnitude \|Vout/Vin\|(f) from `tf.Mag()` |
 | `PhaseSpectrum` | Frequency | Phase | Phase angle arg(Vout/Vin)(f) from `tf.Phase()` |
-| `VoltageSpectrum` | Frequency | Complex Voltage | Voltage V(f) from `voltage(ac, terminal)` |
-| `CurrentSpectrum` | Frequency | Complex Current | Current I(f) from `current(ac, element)` |
+| `ComplexVoltageSpectrum` | Frequency | Complex Voltage | Voltage V(f) from `voltage(ac, terminal)` |
+| `ComplexCurrentSpectrum` | Frequency | Complex Current | Current I(f) from `current(ac, element)` |
 | `NoiseSpectrum` | Frequency | NoiseSpectralDensity | Noise density V/√Hz(f) from `noise(...)` |
 
 #### Time Domain Types
@@ -1461,9 +1488,9 @@ Constructor functions create compound types from simulation analyses:
 
 ```
 transfer(ACAnalysis, Terminal, Terminal) -> TransferFunction
-voltage(ACAnalysis, Terminal) -> VoltageSpectrum
+voltage(ACAnalysis, Terminal) -> ComplexVoltageSpectrum
 voltage(TranAnalysis, Terminal) -> VoltageWaveform
-current(ACAnalysis, Element) -> CurrentSpectrum
+current(ACAnalysis, Element) -> ComplexCurrentSpectrum
 current(TranAnalysis, Element) -> CurrentWaveform
 noise(NoiseAnalysis, Terminal) -> NoiseSpectrum
 input_referred_noise(NoiseAnalysis, ACAnalysis, Terminal, Terminal) -> NoiseSpectrum
@@ -1490,7 +1517,7 @@ TransferFunction.Mag() -> GainSpectrum
 TransferFunction.Phase() -> PhaseSpectrum
 ```
 
-Spectrum methods (GainSpectrum, PhaseSpectrum, VoltageSpectrum, CurrentSpectrum):
+Spectrum methods (GainSpectrum, PhaseSpectrum, ComplexVoltageSpectrum, ComplexCurrentSpectrum, VoltageSpectrum, CurrentSpectrum):
 ```
 Spectrum.ValueAt(Frequency) -> Scalar
 Spectrum.Max() -> Scalar
@@ -1703,8 +1730,8 @@ Measurements can access internal nodes of the DUT using the `dut.` prefix. This 
 ```cascode
 measurements {
   measurement InternalBias : V {
-    VoltageSpectrum v_dc = voltage(dc, dut.mirror_gate)  // Access internal node
-    return v_dc.ValueAt(0Hz)
+    ComplexVoltageSpectrum v_ac = voltage(ac, dut.mirror_gate)  // Access internal node
+    return v_ac.Mag().ValueAt(0Hz)
   }
 
   measurement InternalSwing : dB {
@@ -1890,6 +1917,8 @@ physicalType
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | COMPLEX_VOLTAGE_SPECTRUM_TYPE
+    | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
@@ -2197,6 +2226,8 @@ SCALAR_TYPE                 : 'Scalar' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
 GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
 PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+COMPLEX_VOLTAGE_SPECTRUM_TYPE : 'ComplexVoltageSpectrum' ;
+COMPLEX_CURRENT_SPECTRUM_TYPE : 'ComplexCurrentSpectrum' ;
 VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
 CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
 NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;
@@ -2303,10 +2334,10 @@ The standard library provides language-level primitives and interfaces. PDKs pro
 
 | Provided By | Contents | Examples |
 |-------------|----------|----------|
-| **Standard Library** | Bundles, interfaces, benches, built-in primitives | `Diff`, `SingleEndedOpAmp`, `DiffToSETransfer`, `Level1_NMOS` |
+| **Standard Library** | Bundles, interfaces, benches, built-in primitives | `Diff`, `SingleEndedOpAmp`, `DiffToSETransfer`, `NMOS_Level1` |
 | **PDK** | Device models, process-specific primitives | `sky130_fd_pr__nfet_01v8`, `gpdk045_nmos` |
 
-The stdlib `Devices.cas` provides ideal `Level1_NMOS` and `Level1_PMOS` primitives for simulation without a PDK. Real designs should use PDK-provided primitives for accurate modeling.
+The stdlib `Devices.cas` provides ideal `NMOS_Level1` and `PMOS_Level1` primitives for simulation without a PDK. Real designs should use PDK-provided primitives for accurate modeling.
 
 ### C.4 Common Bundles
 

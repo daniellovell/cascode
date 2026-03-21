@@ -37,7 +37,7 @@ internal static class TestCircuits
                     {
                         Id = "M1",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
@@ -81,7 +81,7 @@ internal static class TestCircuits
                     {
                         Id = "M_TAIL",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "tail_node",
@@ -129,7 +129,7 @@ internal static class TestCircuits
                     {
                         Id = "M_LOAD",
                         DeviceType = "pmos",
-                        Primitive = "Level1_PMOS",
+                        Primitive = "PMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
@@ -185,7 +185,7 @@ internal static class TestCircuits
                     {
                         Id = "M1",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
@@ -205,7 +205,7 @@ internal static class TestCircuits
                     {
                         Id = "M2",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
@@ -283,7 +283,7 @@ internal static class TestCircuits
                     {
                         Id = "M_INP",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "out_p_int",
@@ -303,7 +303,7 @@ internal static class TestCircuits
                     {
                         Id = "M_INN",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "out_n_int",
@@ -323,7 +323,7 @@ internal static class TestCircuits
                     {
                         Id = "M_TAIL",
                         DeviceType = "nmos",
-                        Primitive = "Level1_NMOS",
+                        Primitive = "NMOS_Level1",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "tail",
@@ -379,7 +379,7 @@ internal static class TestCircuits
                     {
                         Id = "R_CMFB_P",
                         DeviceType = "resistor",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             ["P"] = "OUT_P",
@@ -394,7 +394,7 @@ internal static class TestCircuits
                     {
                         Id = "R_CMFB_N",
                         DeviceType = "resistor",
-                        Primitive = "Ideal_Resistor",
+                        Primitive = "ResistorIdeal",
                         Bindings = new Dictionary<string, string>
                         {
                             ["P"] = "OUT_N",
@@ -409,6 +409,62 @@ internal static class TestCircuits
                 Nets = new List<NetDeclaration>
                 {
                     new() { Id = "vcm_sense", Domain = "signal" },
+                },
+            },
+        };
+
+    /// <summary>
+    /// RC lowpass filter: two passive devices (R1, C1) with no symmetric groups.
+    /// Matches the topology of a typical sample.cas file.
+    /// </summary>
+    public static Circuit RcLowpass() =>
+        new()
+        {
+            Name = "rc_lowpass",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "R1",
+                        DeviceType = "resistor",
+                        Primitive = "ResistorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "IN", ["N"] = "OUT" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { ["R"] = "4.5k" },
+                        },
+                    },
+                    new()
+                    {
+                        Id = "C1",
+                        DeviceType = "capacitor",
+                        Primitive = "CapacitorIdeal",
+                        Bindings = new Dictionary<string, string> { ["P"] = "OUT", ["N"] = "GND" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { ["C"] = "10n" },
+                        },
+                    },
                 },
             },
         };

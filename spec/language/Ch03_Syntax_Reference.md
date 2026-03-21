@@ -1,10 +1,12 @@
 # Chapter 3: Syntax Reference
 
 This chapter is a syntax-oriented reference for the unified Cascode language. Cascode source files
-use the `.cas` extension. Tool-linked, self-contained intermediate artifacts use `.cai`.
+use the `.cas` extension. Tool-linked intermediate artifacts use `.cai` (self-contained by default,
+or include-pruned when requested by linker mode).
 
-The authoritative grammar is `tools/language/Cascode.g4`. This chapter documents the surface syntax
-as it is used throughout the standard library (`lib/std/**`), examples, and golden tests.
+The authoritative grammar is [tools/language/Cascode.g4](../../tools/language/Cascode.g4). This
+chapter documents the surface syntax as it is used throughout the standard library under
+[lib/std](../../lib/std), fixture examples, and golden tests.
 
 ## Quick index
 
@@ -24,7 +26,7 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 
 | Construct | Example | Section |
 |----------|---------|---------|
-| `VERSION` header | `VERSION 3.0` | 3.1.1 |
+| `VERSION` header | `VERSION 4.0` | 3.1.1 |
 | `library` | `library lib.std.amp` | 3.1.2 |
 | `include` | `include lib.std` | 3.1.3 |
 | `wrap spice` | `wrap spice """...""" map { ... }` | 3.1.5 |
@@ -32,9 +34,10 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | `interface` | `interface SingleEndedOpAmp { ... }` | 3.6 |
 | `connectors` | `connectors { to X { A--B } }` | 3.6 |
 | `bench` | `bench DiffToSETransfer { ... }` | Chapter 4 |
+| `Port` (bench harness) | `Port p1 = new Port(N=1, Z=50Ohm, V=0V) { .P--P1, .N--gnd }` | Chapter 4 |
 | `function` | `function f(...) : Frequency { ... }` | 3.12 |
-| `primitive` | `primitive NMOS Level1_NMOS(size s) { ... }` | 3.8 |
-| device instance | `NMOS M1 = new Level1_NMOS(S) { ... }` | 3.9 |
+| `primitive` | `primitive NMOS NMOS_Level1(size s) { ... }` | 3.8 |
+| device instance | `NMOS M1 = new NMOS_Level1(S) { ... }` | 3.9 |
 | `circuit` | `circuit OTA5T implements SingleEndedOpAmp { ... }` | 3.7 |
 | `inline` | `inline` | 3.7 |
 | `slot` | `slot` (bare) or `slot { Some lna = new X() { ... } }` | 3.7 |
@@ -76,11 +79,12 @@ chapters that introduce those subsystems.
 Files may begin with a version header:
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 ```
 
 Source `.cas` files may omit the header, but tool-linked outputs are expected to include it.
-The canonical version is defined in `tools/language/CascodeVersion.cs`.
+The canonical version is defined in
+[tools/language/CascodeVersion.cs](../../tools/language/CascodeVersion.cs).
 
 ### 3.1.2 File Package (`library`)
 
@@ -99,10 +103,21 @@ Dependencies are expressed with `include`:
 ```cascode
 include lib.std
 include lib.std.bench
+include lib.pdk.sky130.devices.nfet_01v8
 ```
 
-`include` names are qualified identifiers (dot-separated). Includes are resolved during linking,
-and linked `.cai` outputs are self-contained by construction (they do not contain `include` lines).
+`include` names are qualified identifiers (dot-separated). The linker accepts both package-style
+includes (for example `include lib.std` or `include lib.pdk.sky130`) and symbol-level includes
+(for example `include lib.pdk.sky130.devices.nfet_01v8`).
+
+By default, `cascode link` produces a self-contained `.cai` and resolves includes by materializing
+required definitions into the output. With `--no-link-benches`, linking switches to an
+include-preserving mode for bench dependencies: bench bindings remain intact, bench definitions are
+omitted, and the output keeps a deterministic, pruned include set.
+
+For stricter experiments, `cascode link --include-policy=explicit-only` limits symbol availability
+to the explicit include closure (plus required transitive dependencies) and reports unresolved
+symbols with actionable include suggestions.
 
 ### 3.1.4 Strings
 
@@ -137,7 +152,7 @@ SPICE pin names of the embedded subcircuit.
 The following minimal example shows the main structural forms in a single file:
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 library examples.rc
 
 bundle Diff {
@@ -452,8 +467,8 @@ simulator/model implementation and its parameter mapping.
 ### 3.8.1 Syntax
 
 ```cascode
-primitive NMOS Level1_NMOS(size primSize) {
-  device "level1_nmos"
+primitive NMOS NMOS_Level1(size primSize) {
+  device "nmos_level1"
   params {
     W = primSize.W
     L = primSize.L
@@ -508,7 +523,7 @@ expression that names a primitive:
 
 ```cascode
 fill {
-  NMOS M_in = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+  NMOS M_in = new NMOS_Level1(size(W=2u, L=180n, M=1)) {
     .D--OUT
     .G--IN
     .S--GND
@@ -524,7 +539,7 @@ The primitive name supplies the backend/model mapping through the corresponding 
 The size argument may be:
 
 - A named `size` variable: `new nfet_01v8(InputPair)`
-- An inline size expression: `new Level1_NMOS(size(W=2u, L=180n, M=1))`
+- An inline size expression: `new NMOS_Level1(size(W=2u, L=180n, M=1))`
 
 The binding block uses `.Terminal--Net` syntax and may be written with comma-separated bindings or
 one binding per line.
@@ -642,7 +657,7 @@ constraints { numeric { c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20M
 Informally, a numeric constraint has the shape:
 
 ```
-<id> = <binding>(<bench-args>)? :: <measurement>(<measurement-args>)? (at <scope>::<pinRef>)? <op> <quantity>
+<id> = <binding>(<bench-args>)? :: <measurement>(<measurement-args>)? (at <scope>::<pinRef>)? <op> <threshold>
 ```
 
 Where:
@@ -652,13 +667,15 @@ Where:
 - `<measurement>` is a measurement name declared inside the bench.
 - `<measurement-args>` supply parameters for a parameterized measurement.
 - `at <scope>::<pinRef>` attaches the constraint to a node reference such as `net::OUT` or `port::IN.P`.
+- `<threshold>` is either a quantity literal (for example `20MHz`, `60deg`, `0dB`) or a bare scalar number (for example `1`, `-0.5`).
 
 The grammar-level building blocks are:
 
 ```
 benchMetricRef = IDENT ( "(" measurementArgList? ")" )? "::" IDENT ( "(" measurementArgList? ")" )?
 nodeRef        = (IDENT | "net" | "port") "::" pinRef
-numericConstraint = IDENT "=" benchMetricRef ("at" nodeRef)? COMPARISON_OP signedQuantity
+numericConstraint = IDENT "=" benchMetricRef ("at" nodeRef)? COMPARISON_OP signedThreshold
+signedThreshold  = signedQuantity | ["-"] NUMBER
 ```
 
 Parameter and call forms are supported both at the bench and measurement level:
@@ -737,5 +754,5 @@ function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
 ```
 
 Parameter types may be physical types (such as `Frequency`), analysis types (such as `ACAnalysis`),
-or terminal roles (`stim`, `resp`). A function body consists of variable declarations, `if/else`,
-and a `return` statement.
+or terminal roles (`stim`, `resp`). A function body consists of variable declarations,
+`if/else`, and a `return` statement.

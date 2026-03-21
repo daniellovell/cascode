@@ -14,6 +14,7 @@ internal sealed class CommandDescriptor
         string path,
         string description,
         CommandHandler handler,
+        CommandHelpCategory helpCategory = CommandHelpCategory.Uncategorized,
         bool hidden = false,
         bool isAlias = false,
         CommandDescriptor? canonical = null
@@ -32,6 +33,7 @@ internal sealed class CommandDescriptor
 
         Description = description ?? string.Empty;
         Handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        HelpCategory = canonical?.HelpCategory ?? helpCategory;
         Hidden = hidden;
         IsAlias = isAlias;
         Canonical = canonical;
@@ -39,6 +41,7 @@ internal sealed class CommandDescriptor
 
     public string Description { get; }
     public CommandHandler Handler { get; }
+    public CommandHelpCategory HelpCategory { get; }
     public bool Hidden { get; }
     public bool IsAlias { get; }
     public CommandDescriptor? Canonical { get; }
@@ -84,10 +87,11 @@ internal sealed class CommandRegistry
         string description,
         CommandHandler handler,
         bool hidden = false,
+        CommandHelpCategory helpCategory = CommandHelpCategory.Uncategorized,
         params string[] aliases
     )
     {
-        var descriptor = new CommandDescriptor(path, description, handler, hidden);
+        var descriptor = new CommandDescriptor(path, description, handler, helpCategory, hidden);
         AddDescriptor(descriptor);
 
         foreach (var alias in aliases ?? Array.Empty<string>())
@@ -101,6 +105,7 @@ internal sealed class CommandRegistry
                 alias,
                 description,
                 handler,
+                helpCategory,
                 hidden: true,
                 isAlias: true,
                 canonical: descriptor
@@ -121,6 +126,7 @@ internal sealed class CommandRegistry
             command.Description,
             command.Handler,
             command.Hidden,
+            command.HelpCategory,
             command.Aliases is null ? Array.Empty<string>() : command.Aliases.ToArray()
         );
     }

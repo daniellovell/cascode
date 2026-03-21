@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -69,7 +70,32 @@ public sealed class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_DesignOnlyCircuit_EmitsNoTestbenches()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cai");
+        var cascodePath = Path.Combine(_outputDir, "DesignOnly.el.cai");
+        await File.WriteAllTextAsync(
+            cascodePath,
+            $@"VERSION {CascodeVersion.Current}
+
+primitive Resistor ResistorIdeal(size primSize) {{
+  device ""resistor""
+  params {{
+    R = primSize.R
+  }}
+}}
+
+circuit DesignOnly {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  ground GND
+
+  fill {{
+    Resistor R1 = new ResistorIdeal(size(R=1k)) {{
+      .P--IN
+      .N--OUT
+    }}
+  }}
+}}"
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -83,8 +109,8 @@ public sealed class EmitVerifyFlowTests : IDisposable
         );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "CSAmpResistive.sp")));
-        Assert.False(File.Exists(Path.Combine(_outputDir, "CSAmpResistive_lp.sp")));
+        Assert.True(File.Exists(Path.Combine(_outputDir, "DesignOnly.sp")));
+        Assert.False(File.Exists(Path.Combine(_outputDir, "DesignOnly_transfer_bench.sp")));
         Assert.Contains("Emitted 1 design(s) and 0 testbench(es)", result.Stdout);
     }
 

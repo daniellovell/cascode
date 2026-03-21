@@ -44,6 +44,14 @@ public static class EmissionValidator
         { "inductor", new[] { "L" } },
     };
 
+    private static readonly Dictionary<string, string[]> RequiredParamsByPrimitiveDevice = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        { "capacitor_q", new[] { "C", "Q", "freq" } },
+        { "inductor_q", new[] { "L", "Q", "freq" } },
+    };
+
     private static readonly HashSet<string> KnownDeviceTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "nmos",
@@ -652,9 +660,26 @@ public static class EmissionValidator
             }
         }
 
-        // EMIT-003: Missing required parameters (passives only)
-        if (RequiredParams.TryGetValue(deviceType, out var requiredParams) && primitive is not null)
+        // EMIT-003: Missing required parameters (passives and specialized passive models)
+        if (primitive is not null)
         {
+            var requiredParams = new HashSet<string>(StringComparer.Ordinal);
+            if (RequiredParams.TryGetValue(deviceType, out var baseRequiredParams))
+            {
+                requiredParams.UnionWith(baseRequiredParams);
+            }
+
+            if (
+                !string.IsNullOrWhiteSpace(primitive.Device)
+                && RequiredParamsByPrimitiveDevice.TryGetValue(
+                    primitive.Device,
+                    out var specializedRequiredParams
+                )
+            )
+            {
+                requiredParams.UnionWith(specializedRequiredParams);
+            }
+
             foreach (var param in requiredParams)
             {
                 if (!primitive.Params.ContainsKey(param))
@@ -664,6 +689,8 @@ public static class EmissionValidator
                         "R" => "R=10k",
                         "C" => "C=1p",
                         "L" => "L=1u",
+                        "Q" => "Q=50",
+                        "freq" => "freq=1G",
                         _ => $"{param}=<value>",
                     };
 

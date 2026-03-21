@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Cascode.Language.Validation;
 
 namespace Cascode.Language;
 
 /// <summary>
 /// Writes Cascode documents to text format following canonical writer rules.
 /// </summary>
-public static class CascodeWriter
+public static partial class CascodeWriter
 {
     /// <summary>
     /// Writes an Cascode document to a text writer.
@@ -20,7 +21,7 @@ public static class CascodeWriter
         writer.WriteLine($"VERSION {CascodeVersion.Current}");
         writer.WriteLine();
 
-        // Include directives (source documents only; linked documents must not contain includes).
+        // Include directives (source docs and include-pruned linked outputs).
         foreach (var inc in document.Includes.OrderBy(i => i.Name, StringComparer.Ordinal))
         {
             writer.WriteLine($"include {inc.Name}");
@@ -94,6 +95,24 @@ public static class CascodeWriter
         // Ports
         foreach (var port in interfaceDef.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
+            if (
+                port.Direction == PortDirection.Io
+                && port.Type.Equals("supply", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                writer.WriteLine($"  supply {port.Name}");
+                continue;
+            }
+
+            if (
+                port.Direction == PortDirection.Io
+                && port.Type.Equals("ground", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                writer.WriteLine($"  ground {port.Name}");
+                continue;
+            }
+
             writer.WriteLine($"  {port.Direction.ToCascodeString()} {port.Name} : {port.Type}");
         }
 
@@ -223,6 +242,14 @@ public static class CascodeWriter
         writer.WriteLine("}");
     }
 
+    /// <summary>
+    /// Writes a Circuit to the provided TextWriter using the canonical Cascode textual representation.
+    /// </summary>
+    /// <remarks>
+    /// Emits the circuit header (name, size parameters, parameters, implemented traits) and then writes the circuit body sections in canonical order, including level/inline/library, supplies, grounds, ports, slot, fill, constraints, harness, env, any pruned render block, bench bindings/extensions, synth entries, and provenance.
+    /// </remarks>
+    /// <param name="circuit">The Circuit model to serialize.</param>
+    /// <param name="writer">The TextWriter to which the circuit text will be written.</param>
     private static void WriteCircuit(Circuit circuit, TextWriter writer)
     {
         // Circuit header
@@ -332,6 +359,12 @@ public static class CascodeWriter
                 writer.WriteLine($"    {entry.Key} = {entry.Value}");
             }
             writer.WriteLine("  }");
+        }
+
+        var prunedRender = RenderBlockValidator.Prune(circuit);
+        if (prunedRender is not null && prunedRender.Entities.Count > 0)
+        {
+            WriteRenderBlock(prunedRender, writer);
         }
 
         if (circuit.BenchBindings.Count > 0 || circuit.BenchBindingExtensions.Count > 0)

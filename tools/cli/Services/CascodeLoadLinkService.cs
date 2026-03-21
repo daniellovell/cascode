@@ -78,16 +78,21 @@ internal static class CascodeLoadLinkService
 
         var workspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(resolvedPath, workspaceRootHint);
 
-        if (
-            !resolvedPath.EndsWith(".cas", StringComparison.OrdinalIgnoreCase)
-            || doc.Includes.Count == 0
-        )
+        if (doc.Includes.Count == 0)
         {
             loaded = new LoadedCascode(resolvedPath, resolvedPath, workspaceRoot, doc);
             return true;
         }
 
-        // Source files with includes must be linked to a self-contained .cai before emission/simulation.
+        if (resolvedPath.EndsWith(".cai", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Input '{InputPath}' uses .cai and still contains include directives; treating it as an intermediate artifact and re-linking.",
+                resolvedPath
+            );
+        }
+
+        // Any document with includes must be linked before emission/simulation.
         // Prefer a caller-provided artifacts directory; otherwise use build/link.
         var outDir = string.IsNullOrWhiteSpace(linkArtifactsDir)
             ? Path.Combine(
@@ -98,7 +103,14 @@ internal static class CascodeLoadLinkService
             : Path.GetFullPath(linkArtifactsDir);
         Directory.CreateDirectory(outDir);
 
-        var link = CascodeLinker.LinkFile(resolvedPath, outDir, workspaceRoot, logger);
+        var searchRoots = BenchRunHelpers.BuildSearchRoots(workspaceRoot);
+        var link = CascodeLinker.LinkFile(
+            resolvedPath,
+            outDir,
+            searchRoots,
+            CascodeLinkOptions.Default,
+            logger
+        );
         if (!link.Success || string.IsNullOrWhiteSpace(link.LinkedCasPath))
         {
             diagnostics = link.Diagnostics;

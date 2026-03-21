@@ -14,6 +14,20 @@ interface SingleEndedOpAmp {
     bind QuiescentPower as vdd_pwr {
       bench.PWR--dut.VDD
       bench.RET--dut.GND
+
+      GND g = new GND() { .GND--gnd }
+      VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+      Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+      Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+    }
+
+    bind SEDCBias as dc_bias {
+      bench.OUT--dut.OUT
+
+      GND g = new GND() { .GND--gnd }
+      VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+      Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+      Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
     }
 
     bind DiffToSETransfer as transfer_bench {
@@ -38,6 +52,16 @@ interface SingleEndedOpAmp {
 
       measurements {
         measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
+
+    bind DiffToSECMRejection as cmrr_bench {
+      bench.CM--dut.IN.P
+      bench.CM--dut.IN.N
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
       }
     }
   }

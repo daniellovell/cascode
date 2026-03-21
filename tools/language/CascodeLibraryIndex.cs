@@ -20,27 +20,38 @@ internal sealed class CascodeLibraryIndex
 
     private CascodeLibraryIndex() { }
 
-    public static CascodeLibraryIndex Build(string workspaceRoot)
+    public static CascodeLibraryIndex Build(string workspaceRoot) => Build(new[] { workspaceRoot });
+
+    public static CascodeLibraryIndex Build(IReadOnlyList<string> roots)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
-        workspaceRoot = Path.GetFullPath(workspaceRoot);
+        if (roots is null || roots.Count == 0)
+            throw new ArgumentException("At least one search root is required.", nameof(roots));
 
         var index = new CascodeLibraryIndex();
 
-        foreach (var path in EnumerateCascodeSources(workspaceRoot))
+        foreach (var root in roots)
         {
-            var lib = TryReadFileLibraryHeader(path);
-            if (string.IsNullOrWhiteSpace(lib))
-            {
+            if (string.IsNullOrWhiteSpace(root))
                 continue;
-            }
 
-            if (!index._pathsByLibrary.TryGetValue(lib, out var list))
+            var fullRoot = Path.GetFullPath(root);
+            if (!Directory.Exists(fullRoot))
+                continue;
+
+            foreach (var path in EnumerateCascodeSources(fullRoot))
             {
-                list = new List<string>();
-                index._pathsByLibrary[lib] = list;
+                var lib = TryReadFileLibraryHeader(path);
+                if (string.IsNullOrWhiteSpace(lib))
+                    continue;
+
+                if (!index._pathsByLibrary.TryGetValue(lib, out var list))
+                {
+                    list = new List<string>();
+                    index._pathsByLibrary[lib] = list;
+                }
+                if (!list.Contains(path, StringComparer.OrdinalIgnoreCase))
+                    list.Add(path);
             }
-            list.Add(path);
         }
 
         foreach (var list in index._pathsByLibrary.Values)
@@ -80,6 +91,38 @@ internal sealed class CascodeLibraryIndex
 
         var key = NormalizeLibraryName(libraryName);
         return _pathsByLibrary.TryGetValue(key, out var list) ? list : Array.Empty<string>();
+    }
+
+    public IReadOnlyList<string> FindSymbolIncludeCandidates(string symbolName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(symbolName);
+
+        var includes = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var (library, paths) in _pathsByLibrary)
+        {
+            foreach (var path in paths)
+            {
+                string content;
+                try
+                {
+                    content = File.ReadAllText(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!CascodeSymbolUtils.MightDefineAnySymbol(content, symbolName))
+                {
+                    continue;
+                }
+
+                includes.Add($"{library}.{symbolName}");
+                break;
+            }
+        }
+
+        return includes.ToList();
     }
 
     public static string NormalizeLibraryName(string raw)

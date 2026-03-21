@@ -20,11 +20,11 @@ This RFC proposes an `abstract bench` mechanism that allows bench families to sh
 `lib/std/bench/TransferBenches.cas` defines five benches in 411 lines. Three of them — `DiffToSETransfer`, `DiffToDiffTransfer`, and `SEToSETransfer` — share the same structure:
 
 - Identical `analysis` blocks (an `ACAnalysis` with constraint-driven start/stop)
-- Identical `measurements` blocks (six measurements: `PassbandGain`, `GainBandwidth`, `PhaseMargin`, `LowpassBandwidth`, `HighpassBandwidth`, `BandpassBandwidth`)
+- Identical `measurements` blocks (seven declarations: `Gain`, `PassbandGain`, `GainBandwidth`, `PhaseMargin`, `LowpassBandwidth`, `HighpassBandwidth`, `BandpassBandwidth`)
 - Different `stim`/`resp` terminal type declarations
 - Different `fill` blocks that construct topology-appropriate stimulus and load circuits
 
-The analysis and measurement blocks are copied verbatim across all three benches. The only variation within measurements is that each bench passes its own `IN` and `OUT` terminals to the shared file-level helpers (`calc_passband_gain`, `calc_gain_bandwidth`, etc.). This is exactly the kind of reference that abstract terminals would resolve: the measurement expressions reference terminal names, and the extending bench provides the concrete typed terminals.
+The analysis and measurement blocks are copied verbatim across all three benches. The only variation within measurements is that each bench passes its own `IN` and `OUT` terminals either to the shared file-level helpers (`calc_passband_gain`, `calc_gain_bandwidth`, etc.) or directly to `transfer(ac, IN, OUT)` for spot and band gain. This is exactly the kind of reference that abstract terminals would resolve: the measurement expressions reference terminal names, and the extending bench provides the concrete typed terminals.
 
 Similarly, the two CM rejection benches (`DiffCMRejection` and `DiffToSECMRejection`) share identical analysis and measurement blocks but differ in terminal types and fill topology.
 
@@ -70,6 +70,14 @@ abstract bench AbstractTransfer {
   }
 
   measurements {
+    measurement Gain(Frequency f) : dB {
+      return db20(transfer(ac, IN, OUT).Mag()).ValueAt(f)
+    }
+
+    measurement Gain(Frequency from, Frequency to) : dB {
+      return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
+    }
+
     measurement PassbandGain : dB {
       return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
@@ -349,7 +357,7 @@ Each level in the chain can add terminals, parameters, analysis, measurements, a
 The following shows how `TransferBenches.cas` would be restructured using abstract benches. File-level helper functions remain unchanged.
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 
 library lib.std.bench
 
@@ -384,6 +392,14 @@ abstract bench AbstractTransfer {
   }
 
   measurements {
+    measurement Gain(Frequency f) : dB {
+      return db20(transfer(ac, IN, OUT).Mag()).ValueAt(f)
+    }
+
+    measurement Gain(Frequency from, Frequency to) : dB {
+      return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
+    }
+
     measurement PassbandGain : dB {
       return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }

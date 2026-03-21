@@ -326,10 +326,10 @@
       "cascode.cli": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[0.5.0, )",
-          "Cascode.Language": "[0.5.0, )",
-          "Cascode.Render": "[0.5.0, )",
-          "Cascode.Workspace": "[0.5.0, )",
+          "Cascode.Bench": "[0.7.1, )",
+          "Cascode.Language": "[0.7.1, )",
+          "Cascode.Render": "[0.7.1, )",
+          "Cascode.Workspace": "[0.7.1, )",
           "Microsoft.Extensions.Logging": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Console": "[10.0.1, )",
@@ -340,20 +340,21 @@
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )",
-          "Cascode.Bench": "[0.5.0, )",
+          "Cascode.Bench": "[0.7.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       },
       "cascode.render": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Language": "[0.5.0, )",
+          "Cascode.Language": "[0.7.1, )",
           "Google.OrTools": "[9.10.4067, )"
         }
       },
       "cascode.workspace": {
         "type": "Project",
         "dependencies": {
+          "Cascode.Language": "[0.7.1, )",
           "Microsoft.Data.Sqlite": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "SQLitePCLRaw.bundle_e_sqlite3": "[3.0.2, )",

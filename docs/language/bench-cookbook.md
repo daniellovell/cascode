@@ -10,8 +10,8 @@ emitted testbench.
 
 ## Quick references
 
-- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas)
-- Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas)
+- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
+- Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas), [`SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas), [`DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
 
@@ -20,7 +20,7 @@ emitted testbench.
 Bench `fill {}` blocks and binding bodies may instantiate a small set of harness primitives that the
 bench runtime emits as backend elements (see [Chapter 4, Section 4.3.2](../../spec/language/Ch04_Bench_System.md#432-harness-primitives)):
 
-- `GND`, `VDC`, `VAC`, `VSIN`, `Impedor` / `Impedance`
+- `GND`, `VDC`, `VAC`, `VSIN`, `Impedor` / `Impedance`, `Port`
 
 Prefer these primitives over backend-specific netlist syntax.
 
@@ -41,6 +41,20 @@ transfer function and spectrum post-processing:
 TransferFunction H = transfer(ac, IN, OUT)
 GainSpectrum G = db20(H.Mag())
 Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+Frequency f10 = G.Range(to=1MHz, from=100Hz).ValueAt(f=10kHz)
+Time tclk = period(f=1MHz)
+```
+
+Standard transfer benches also expose both spot and band gain measurements:
+
+```cascode
+measurement Gain(Frequency f) : dB {
+  return db20(transfer(ac, IN, OUT).Mag()).ValueAt(f)
+}
+
+measurement Gain(Frequency from, Frequency to) : dB {
+  return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
+}
 ```
 
 Reference implementations live in [`lib/std/bench/TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas):
@@ -163,6 +177,87 @@ interfaces](../../lib/std/amp/).
 
 - Ensure the circuit’s `harness { ... }` provides the referenced supply and return rails (for example
   `supply VDD = 1.8V` and `ground GND = 0V`) and that the bench is bound to those terminals.
+- The `QuiescentPower` bench is intentionally topology-agnostic: it only declares supply and return
+  terminals. If the DUT has analog inputs (gates), the binding must bias them to avoid floating nodes.
+  Without bias, transistors remain OFF and the bench reports 0 W. The standard amplifier interfaces
+  solve this with binding-scoped instances that apply a common-mode VDC and source impedance:
+
+```cascode
+bind QuiescentPower as vdd_pwr {
+  bench.PWR--dut.VDD
+  bench.RET--dut.GND
+
+  GND g = new GND() { .GND--gnd }
+  VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+  Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+  Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+}
+```
+
+  The same pattern applies to `SEDCBias` and `DiffDCBias` bindings, which also omit input terminals
+  from their bench definitions.
+
+## Recipe: S-parameter benches (forward gain, return loss, stability)
+
+### When to use
+
+Use an S-parameter bench when you need RF metrics derived from an `SPAnalysis`, such as forward
+gain, return loss, VSWR, isolation, stability factor, or group delay.
+
+### Minimal pattern
+
+S-parameter benches place `Port` harness primitives on the bench's response terminals. Each port
+declares a sequential index, a reference impedance, and a DC bias. The standard library's
+`TwoPortSParam` uses env-backed helpers to allow per-circuit impedance overrides with a `50Ohm`
+fallback:
+
+```cascode
+Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+  .P--P1
+  .N--gnd
+}
+
+Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+  .P--P2
+  .N--gnd
+}
+```
+
+Measurements are built from an `SParameterMatrix` extracted from the analysis:
+
+```cascode
+SParameterMatrix S = sparam(sp)
+return db20(S.S(2, 1).Mag()).ValueAt(f)
+```
+
+To constrain a full frequency band, return a sliced spectrum and apply a numeric constraint directly
+to that measurement. Numeric constraints on spectrums and waveforms are evaluated element-wise, so
+every sample in the selected band must satisfy the bound:
+
+```cascode
+measurement ForwardGain(Frequency from, Frequency to) : dB {
+  SParameterMatrix S = sparam(sp)
+  return db20(S.S(2, 1).Mag()).From(from).To(to)
+}
+```
+
+```cascode
+constraints {
+  numeric {
+    c_forward_gain = sparam_bench::ForwardGain(from=100kHz, to=10MHz) >= 10dB
+  }
+}
+```
+
+Reference implementation: [`lib/std/bench/SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas).
+
+> [!IMPORTANT]
+> Port reference impedances (`z0`) are real-valued. When the `Z` parameter resolves to a parallel
+> impedance expression such as `1GOhm || 15pF`, only the resistive terms contribute to `z0`;
+> reactive components (capacitance or inductance) are discarded. A purely reactive impedance with
+> no resistive term produces `z0=0`, which is invalid for simulator RF ports.
+
+- Port numbers must be sequential starting at 1. Gaps or duplicates are rejected at compile time.
 
 ## Recipe: Probing internal nodes and measuring harness currents
 
@@ -177,8 +272,8 @@ current/power behavior during AC or transient analysis.
 Internal DUT nets are accessed through `dut.<Name>` when the circuit declares the net:
 
 ```cascode
-VoltageSpectrum v = voltage(dc, dut.mid)
-return v.ValueAt(0Hz)
+ComplexVoltageSpectrum v = voltage(ac, dut.mid)
+return v.Mag().ValueAt(0Hz)
 ```
 
 Harness-injected rail currents are accessed through the harness element pin:
@@ -223,6 +318,8 @@ Reference interfaces:
 - [`lib/std/amp/SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas) (Diff in, analog out)
 - [`lib/std/amp/FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas) (Diff in, Diff out)
 - [`lib/std/amp/SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas) (analog in, analog out)
+- [`lib/std/filters/SingleEndedPassiveFilter.cas`](../../lib/std/filters/SingleEndedPassiveFilter.cas)
+- [`lib/std/filters/DifferentialPassiveFilter.cas`](../../lib/std/filters/DifferentialPassiveFilter.cas)
 
 ## Workflow: authoring and debugging benches
 

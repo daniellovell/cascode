@@ -6,6 +6,12 @@ using Cascode.Bench;
 
 namespace Cascode.Language;
 
+public enum ConstraintEvaluationMode
+{
+    BenchScoped,
+    AllDeclared,
+}
+
 /// <summary>
 /// Checks circuit constraints against bench measurement results.
 /// </summary>
@@ -18,7 +24,21 @@ public static class ComplianceChecker
     /// <param name="circuit">Circuit containing constraints.</param>
     /// <param name="results">Bench measurement results.</param>
     /// <returns>Compliance report with pass/fail status for each constraint.</returns>
-    public static ComplianceReport Check(Circuit circuit, BenchResult results)
+    public static ComplianceReport Check(Circuit circuit, BenchResult results) =>
+        Check(circuit, results, ConstraintEvaluationMode.BenchScoped);
+
+    /// <summary>
+    /// Checks numeric constraints from a circuit against measurement results.
+    /// </summary>
+    /// <param name="circuit">Circuit containing constraints.</param>
+    /// <param name="results">Bench measurement results.</param>
+    /// <param name="mode">Constraint evaluation mode.</param>
+    /// <returns>Compliance report with pass/fail status for each constraint.</returns>
+    public static ComplianceReport Check(
+        Circuit circuit,
+        BenchResult results,
+        ConstraintEvaluationMode mode
+    )
     {
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(results);
@@ -30,7 +50,7 @@ public static class ComplianceChecker
             return report;
         }
 
-        // "all" indicates combined results from multiple benches - check all constraints
+        // "all" indicates combined results from multiple benches.
         var isCombinedResults = string.Equals(
             results.Bench,
             "all",
@@ -41,9 +61,10 @@ public static class ComplianceChecker
         {
             var benchForConstraint = constraint.Bench;
 
-            // Skip filtering for combined results ("all") which should check all constraints
+            // Bench-scoped mode skips constraints measured by other benches.
             if (
-                !isCombinedResults
+                mode == ConstraintEvaluationMode.BenchScoped
+                && !isCombinedResults
                 && !string.IsNullOrWhiteSpace(benchForConstraint)
                 && !string.Equals(
                     benchForConstraint,
@@ -52,19 +73,7 @@ public static class ComplianceChecker
                 )
             )
             {
-                // This constraint belongs to a different bench - track as unchecked
-                if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
-                {
-                    uncheckedList = new List<UncheckedConstraint>();
-                    report.UncheckedByBench[benchForConstraint] = uncheckedList;
-                }
-                uncheckedList.Add(
-                    new UncheckedConstraint
-                    {
-                        Id = constraint.Id,
-                        Metric = FormatMetricKey(constraint),
-                    }
-                );
+                AddUncheckedConstraint(report, benchForConstraint, constraint);
                 continue;
             }
 
@@ -74,6 +83,23 @@ public static class ComplianceChecker
         }
 
         return report;
+    }
+
+    private static void AddUncheckedConstraint(
+        ComplianceReport report,
+        string benchForConstraint,
+        NumericConstraint constraint
+    )
+    {
+        if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
+        {
+            uncheckedList = new List<UncheckedConstraint>();
+            report.UncheckedByBench[benchForConstraint] = uncheckedList;
+        }
+
+        uncheckedList.Add(
+            new UncheckedConstraint { Id = constraint.Id, Metric = FormatMetricKey(constraint) }
+        );
     }
 
     private static ConstraintResult EvaluateConstraint(
@@ -96,17 +122,18 @@ public static class ComplianceChecker
                 Unit = constraint.Unit,
                 Operator = constraint.Op,
                 ExpectedRaw = constraint.Value,
-                Expected = ParseValue(constraint.Value, constraint.Unit),
+                Expected = ParseValue(constraint.Value),
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
+                FailureReason = ConstraintResult.NoMeasurement,
                 Message =
                     $"No measurement found for {metricKey}"
                     + (constraint.Node != null ? $" @ {constraint.Node}" : ""),
             };
         }
 
-        var expected = ParseValue(constraint.Value, constraint.Unit);
+        var expected = ParseValue(constraint.Value);
         var measurement = matchingMeasurement.Value.Value;
         if (!string.IsNullOrWhiteSpace(measurement.Error))
         {
@@ -122,10 +149,36 @@ public static class ComplianceChecker
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
+                FailureReason = ConstraintResult.BenchError,
                 Message = $"Measurement error: {measurement.Error}",
             };
         }
-        var actual = measurement.Value;
+
+        if (measurement.Values is not null)
+        {
+            return EvaluateSeriesConstraint(constraint, metricKey, expected, measurement);
+        }
+
+        if (!measurement.Value.HasValue)
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                FailureReason = ConstraintResult.NoMeasurement,
+                Message = $"Measurement '{metricKey}' did not provide a scalar value.",
+            };
+        }
+
+        var actual = measurement.Value.Value;
         if (!IsFinite(actual))
         {
             return new ConstraintResult
@@ -140,6 +193,7 @@ public static class ComplianceChecker
                 Actual = actual,
                 ActualUnit = measurement.Unit,
                 Passed = false,
+                FailureReason = ConstraintResult.NonFiniteValue,
                 Message =
                     $"Non-finite measurement value: {actual.ToString(CultureInfo.InvariantCulture)}",
             };
@@ -159,7 +213,98 @@ public static class ComplianceChecker
             Actual = actual,
             ActualUnit = measurement.Unit,
             Passed = passed,
+            FailureReason = passed ? null : ConstraintResult.ConstraintViolation,
             Message = passed ? "PASS" : "FAIL",
+        };
+    }
+
+    private static ConstraintResult EvaluateSeriesConstraint(
+        NumericConstraint constraint,
+        string metricKey,
+        double expected,
+        MeasurementResult measurement
+    )
+    {
+        var series = measurement.Values!;
+        if (series.Length == 0)
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                FailureReason = ConstraintResult.EmptySpectrum,
+                Message = $"Measurement '{metricKey}' returned no samples.",
+            };
+        }
+
+        if (series.Any(v => !IsFinite(v)))
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                FailureReason = ConstraintResult.NonFiniteValue,
+                Message = "Non-finite measurement value in spectrum/waveform.",
+            };
+        }
+
+        var passed = series.All(actual => EvaluateOperator(constraint.Op, actual, expected));
+        var worstCase = GetWorstCaseActual(constraint.Op, expected, series);
+
+        return new ConstraintResult
+        {
+            Id = constraint.Id,
+            Metric = metricKey,
+            Node = constraint.Node?.ToString(),
+            Unit = constraint.Unit,
+            Operator = constraint.Op,
+            ExpectedRaw = constraint.Value,
+            Expected = expected,
+            Actual = worstCase,
+            ActualUnit = measurement.Unit,
+            Passed = passed,
+            FailureReason = passed ? null : ConstraintResult.ConstraintViolation,
+            Message = passed ? "PASS" : "FAIL",
+        };
+    }
+
+    private static double GetWorstCaseActual(
+        string op,
+        double expected,
+        IReadOnlyList<double> values
+    )
+    {
+        if (values.Count == 0)
+        {
+            throw new InvalidOperationException("Series must contain at least one value.");
+        }
+
+        return op switch
+        {
+            ">=" or ">" => values.Min(),
+            "<=" or "<" => values.Max(),
+            "==" => values.Aggregate(
+                values[0],
+                (worst, current) =>
+                    Math.Abs(current - expected) > Math.Abs(worst - expected) ? current : worst
+            ),
+            _ => throw new InvalidOperationException($"Unknown operator: {op}"),
         };
     }
 
@@ -261,50 +406,8 @@ public static class ComplianceChecker
 
     private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
-    private static double ParseValue(string valueStr, string unit)
+    private static double ParseValue(string valueStr)
     {
-        // Parse numeric value with unit multipliers
-        // Examples: "100M" -> 100e6, "1.5k" -> 1.5e3, "500u" -> 500e-6
-        valueStr = valueStr.Trim();
-
-        // Extract numeric part and multiplier suffix
-        var multiplier = 1.0;
-        var numericPart = valueStr;
-
-        if (valueStr.Length > 0 && char.IsLetter(valueStr[^1]))
-        {
-            var suffix = valueStr[^1];
-            numericPart = valueStr[..^1];
-
-            multiplier = suffix switch
-            {
-                'k' or 'K' => 1e3,
-                'M' => 1e6,
-                'm' => 1e-3,
-                'G' or 'g' => 1e9,
-                'T' or 't' => 1e12,
-                'u' or 'U' => 1e-6,
-                'n' or 'N' => 1e-9,
-                'p' or 'P' => 1e-12,
-                'f' or 'F' => 1e-15,
-                _ => throw new FormatException(
-                    $"Unrecognized unit suffix '{suffix}' in value: {valueStr}"
-                ),
-            };
-        }
-
-        if (
-            !double.TryParse(
-                numericPart,
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var value
-            )
-        )
-        {
-            throw new FormatException($"Invalid numeric value: {valueStr}");
-        }
-
-        return value * multiplier;
+        return QuantityLiteral.ParseMagnitude(valueStr.Trim());
     }
 }

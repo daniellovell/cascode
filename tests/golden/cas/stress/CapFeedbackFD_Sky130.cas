@@ -1,0 +1,210 @@
+VERSION 4.1
+
+// Stress test: fully-differential OTA with capacitive feedback (fixed 10 V/V closed-loop gain).
+//
+// Primary purpose: exercise HighpassBandwidth constraints in the standard Diff->Diff transfer bench
+// for a PDK-backed fully-differential circuit.
+
+include lib.std
+include lib.pdk.sky130.devices.pfet_01v8
+include lib.pdk.sky130.devices.nfet_01v8
+
+circuit OTA5TFD_Sky130 implements FullyDifferentialOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input VTAIL : bias
+
+  env {
+    // Required by lib.std transfer/noise/tran/psrr benches.
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = (1GOhm || 100fF)
+  }
+
+  fill {
+    net tnode : analog
+    net vcm_node : analog
+    net vcm_ref : analog
+
+    // Resistive CMFB reference.
+    Resistor R_VCM_TOP = new ResistorIdeal(size(R=800k)) {
+      .P--VDD
+      .N--vcm_ref
+    }
+
+    Resistor R_VCM_BOT = new ResistorIdeal(size(R=1M)) {
+      .P--vcm_ref
+      .N--GND
+    }
+
+    // Bias the input gates for benches that don't drive inputs (e.g. dc_bias).
+    Resistor R_IN_BIAS_P = new ResistorIdeal(size(R=10M)) {
+      .P--IN.P
+      .N--vcm_ref
+    }
+
+    Resistor R_IN_BIAS_N = new ResistorIdeal(size(R=10M)) {
+      .P--IN.N
+      .N--vcm_ref
+    }
+
+    Resistor R_CMFB_REF = new ResistorIdeal(size(R=200k)) {
+      .P--vcm_ref
+      .N--vcm_node
+    }
+
+    NMOS M_IN_P = new nfet_01v8(size(W=20u, L=500n, M=2)) {
+      .B--GND
+      .D--OUT.P
+      .G--IN.P
+      .S--tnode
+    }
+
+    NMOS M_IN_N = new nfet_01v8(size(W=20u, L=500n, M=2)) {
+      .B--GND
+      .D--OUT.N
+      .G--IN.N
+      .S--tnode
+    }
+
+    NMOS M_TAIL = new nfet_01v8(size(W=40u, L=500n, M=2)) {
+      .B--GND
+      .D--tnode
+      .G--VTAIL
+      .S--GND
+    }
+
+    PMOS M_LOAD_P = new pfet_01v8(size(W=20u, L=500n, M=2)) {
+      .B--VDD
+      .D--OUT.P
+      .G--vcm_node
+      .S--VDD
+    }
+
+    PMOS M_LOAD_N = new pfet_01v8(size(W=20u, L=500n, M=2)) {
+      .B--VDD
+      .D--OUT.N
+      .G--vcm_node
+      .S--VDD
+    }
+
+    Resistor R_CMFB_P = new ResistorIdeal(size(R=2M)) {
+      .P--OUT.P
+      .N--vcm_node
+    }
+
+    Resistor R_CMFB_N = new ResistorIdeal(size(R=2M)) {
+      .P--OUT.N
+      .N--vcm_node
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 30dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 100MHz
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+    bias VTAIL = 0.6V
+  }
+}
+
+circuit CapFeedbackFD_Sky130 implements FullyDifferentialOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input VTAIL : bias
+
+  env {
+    // Required by lib.std transfer/noise/tran/psrr benches.
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = (1GOhm || 15pF)
+  }
+
+  fill {
+    net node_a : analog
+    net node_b : analog
+    net vcm : analog
+
+    // Generate an internal common-mode reference from the external input pins.
+    Resistor R_vcm_P = new ResistorIdeal(size(R=1M)) {
+      .P--IN.P
+      .N--vcm
+    }
+
+    Resistor R_vcm_N = new ResistorIdeal(size(R=1M)) {
+      .P--IN.N
+      .N--vcm
+    }
+
+    OTA5TFD_Sky130 OTA = new OTA5TFD_Sky130() {
+      .VDD--VDD
+      .GND--GND
+      .IN.P--node_b
+      .IN.N--node_a
+      .OUT--OUT
+      .VTAIL--VTAIL
+    }
+
+    Capacitor Cin_P = new CapacitorIdeal(size(C=10p)) {
+      .P--IN.P
+      .N--node_a
+    }
+
+    Capacitor Cin_N = new CapacitorIdeal(size(C=10p)) {
+      .P--IN.N
+      .N--node_b
+    }
+
+    Capacitor Cf_P = new CapacitorIdeal(size(C=1p)) {
+      .P--OUT.P
+      .N--node_a
+    }
+
+    Capacitor Cf_N = new CapacitorIdeal(size(C=1p)) {
+      .P--OUT.N
+      .N--node_b
+    }
+
+    Resistor R_bias_P = new ResistorIdeal(size(R=2M)) {
+      .P--node_a
+      .N--vcm
+    }
+
+    Resistor R_bias_N = new ResistorIdeal(size(R=2M)) {
+      .P--node_b
+      .N--vcm
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 20dB
+      c_hp = transfer_bench::HighpassBandwidth at net::OUT <= 10kHz
+      c_lp = transfer_bench::LowpassBandwidth at net::OUT >= 67kHz
+      c_cmrr = cmrr_bench::CMRR at net::OUT >= 20dB
+      c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 10mVrms
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 20mW
+      c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.2V
+      c_psrr = psrr_bench::PSRR at net::OUT >= -40dB
+      c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= -40dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+    bias VTAIL = 0.6V
+  }
+}

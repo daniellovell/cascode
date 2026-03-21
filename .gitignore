@@ -1,31 +1,49 @@
+# IDEs
 .vs/
 .vscode/
-dotnet-home/
-**/obj/**
 
-tools/**/bin/Debug/**
-
+# .NET SDK
 .dotnet/
 .local/
 .nuget/
-.cascode/
+dotnet-home/
 
-**/.cache/*
-**/bin/*
+# Build artifacts
 build/
-CASCODE_DESIGN_DOC.md
-MY_NOTES.md
-
-error.log
-
-.bashrc
+obj/
+bin/
+.cache/
 *.log
 
-# Testing files
+# ANTLR
+*.jar
+
+# Cascode home (local config/state)
+.cascode/
+
+# Testing
 *.trx
-.it/**
+.it/
+
+# Bench runtime artifacts
+*.wrdata
+
+# Native build artifacts
+editors/node/native/
 
 # Git SPR
 .spr.yml
-# Bench runtime artifacts (should live in build/, but ignore if they leak)
-*.wrdata
+
+# Scratch / temp
+tmp/
+
+# MacOS
+.DS_Store
+
+# Shell config
+.bashrc
+.zshrc
+
+# Personal notes
+CASCODE_DESIGN_DOC.md
+MY_NOTES.md

@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 4.1
 
 include lib.std
 
@@ -21,18 +21,6 @@ circuit HLSynthesisRequest implements SingleEndedOpAmp {
     InputCommonModeRange = 0.9V
     SourceImpedance = 50Ohm
     LoadImpedance = (1GOhm || 15pF)
-  }
-
-  benches {
-    bind DiffToSECMRejection as cmrr_bench {
-      bench.CM--dut.IN.P
-      bench.CM--dut.IN.N
-      bench.OUT--dut.OUT
-
-      measurements {
-        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
-      }
-    }
   }
 
   constraints {

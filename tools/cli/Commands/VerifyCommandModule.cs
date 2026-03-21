@@ -1,26 +1,33 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Bench;
 using Cascode.Cli.Output;
+using Cascode.Cli.Services;
 using Cascode.Language;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Commands;
 
 /// <summary>
 /// Command module for verifying constraint compliance against bench results.
 /// </summary>
-internal sealed class VerifyCommandModule : ICommandModule
+internal sealed partial class VerifyCommandModule : ICommandModule
 {
+    private sealed record VerifyArtifactEntry(
+        VerifyInput Input,
+        BenchResult Results,
+        Circuit Circuit
+    );
+
     private readonly ShellState _state;
     private readonly CliOutputProvider _output;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandModule"/> class.
     /// </summary>
-    /// <param name="state">Shell state for messaging.</param>
     public VerifyCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
@@ -30,14 +37,14 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <summary>
     /// Registers the verify command with the command registry.
     /// </summary>
-    /// <param name="registry">Command registry.</param>
     public void Register(CommandRegistry registry)
     {
         registry.Register(
             new DelegateCliCommand(
                 "verify",
                 "Verify constraint compliance from bench results",
-                VerifyCommand
+                VerifyCommand,
+                helpCategory: CommandHelpCategory.Bench
             )
         );
     }
@@ -45,284 +52,361 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <summary>
     /// Executes the verify command to check constraint compliance.
     /// </summary>
-    /// <param name="args">Command arguments: --cascode <file> --results <json>.</param>
-    /// <returns>Command result indicating success or failure.</returns>
     private CommandResult VerifyCommand(string[] args)
     {
         var output = _output.Get();
-        if (args.Length == 0)
+        if (args.Length == 0 || args.Any(a => a is "-h" or "--help"))
         {
-            output.WriteLine("Usage: verify <cascode_file> <results_json|trace_jsonl>");
-            output.WriteLine(
-                "       verify --cascode <cascode_file> (--results <results_json> | --trace <trace_jsonl>)"
-            );
-            output.WriteLine("");
-            output.WriteLine(
-                "Verifies numeric constraints from Cascode against bench measurement results."
-            );
+            ShowUsage(output);
             return CommandResult.Success;
         }
 
-        if (!ParseArguments(args, out var cascodePath, out var resultsPath, out var tracePath))
+        if (!TryParseArguments(args, out var parsed, out var parseError))
+        {
+            output.Error(parseError);
+            ShowUsage(output);
+            return CommandResult.Failure;
+        }
+
+        if (!TryBuildRunContext(parsed, output, out var runContext))
+        {
+            return CommandResult.Failure;
+        }
+
+        if (runContext.VerifiableCircuits.Count == 0 && !HasDirectArtifactInput(parsed))
         {
             output.Error(
-                "Error: provide an Cascode path plus either a results.json or trace.jsonl path."
+                "No EL-level circuits in the Cascode document produced constraint-driven bench invocations."
             );
             return CommandResult.Failure;
         }
 
-        if (!File.Exists(cascodePath))
+        var jsonOptions = new JsonSerializerOptions
         {
-            output.Error($"Cascode file '{cascodePath}' not found.");
-            return CommandResult.Failure;
-        }
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+        };
 
-        if (resultsPath != null && !File.Exists(resultsPath))
-        {
-            output.Error($"Results file '{resultsPath}' not found.");
-            return CommandResult.Failure;
-        }
-
-        if (tracePath != null && !File.Exists(tracePath))
-        {
-            output.Error($"Trace file '{tracePath}' not found.");
-            return CommandResult.Failure;
-        }
-
-        // Read Cascode document
-        CascodeReadResult readResult;
-        using (var reader = File.OpenText(cascodePath))
-        {
-            readResult = CascodeReader.TryRead(reader, cascodePath);
-        }
-
-        if (!readResult.Success)
-        {
-            foreach (
-                var diag in readResult.Diagnostics.Where(d =>
-                    d.Severity == DiagnosticSeverity.Error
-                )
+        if (
+            !TryResolveVerifyInputs(
+                parsed,
+                runContext,
+                preferredDirectory: null,
+                out var inputs,
+                out var resolutionNote
             )
-            {
-                output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
-            }
-            return CommandResult.Failure;
-        }
-
-        var doc = readResult.Document!;
-
-        // Find EL-level circuit (use first one, or match by name from results)
-        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
-        if (elCircuits.Count == 0)
+        )
         {
-            output.Error("No EL-level circuits found in Cascode document.");
+            return HandleMissingInputWithOptionalRun(
+                parsed,
+                runContext,
+                output,
+                jsonOptions,
+                resolutionNote
+            );
+        }
+
+        if (NeedsBenchRun(runContext.ResolvedCascodePath, inputs, out var runReason))
+        {
+            return RunThenVerify(parsed, runContext, output, jsonOptions, runReason);
+        }
+
+        return VerifyFromInputs(runContext, inputs, output, jsonOptions);
+    }
+
+    private CommandResult HandleMissingInputWithOptionalRun(
+        ParsedVerifyArgs parsed,
+        VerifyRunContext runContext,
+        ICliOutput output,
+        JsonSerializerOptions jsonOptions,
+        string resolutionNote
+    )
+    {
+        if (parsed.NoRun)
+        {
+            output.Error(
+                $"{resolutionNote} Auto-run is disabled by --no-run. Run `bench run` first or provide a results/trace artifact."
+            );
             return CommandResult.Failure;
         }
 
-        BenchResult? results;
+        output.Info(
+            $"{resolutionNote} Running bench pipeline to generate fresh verification artifacts."
+        );
+        return RunThenVerify(parsed, runContext, output, jsonOptions, resolutionNote);
+    }
+
+    private CommandResult RunThenVerify(
+        ParsedVerifyArgs parsed,
+        VerifyRunContext runContext,
+        ICliOutput output,
+        JsonSerializerOptions jsonOptions,
+        string runReason
+    )
+    {
+        if (parsed.NoRun)
+        {
+            output.Error(
+                $"Verification input is missing or stale ({runReason}), and --no-run was provided."
+            );
+            return CommandResult.Failure;
+        }
+
+        output.Info(
+            $"Verification input is missing or stale ({runReason}). Running bench pipeline."
+        );
+        BenchRunService.MultiCircuitBenchRunResult benchRunResult;
         try
         {
-            var jsonOptions = new JsonSerializerOptions
-            {
-                NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
-            };
-
-            if (resultsPath != null)
-            {
-                var jsonText = File.ReadAllText(resultsPath);
-                results =
-                    JsonSerializer.Deserialize<BenchResult>(jsonText, jsonOptions)
-                    ?? throw new InvalidOperationException("Failed to deserialize results JSON");
-            }
-            else
-            {
-                results = ReadResultsFromTrace(tracePath!, jsonOptions);
-            }
+            var outputDirHint = ResolveBenchOutputDirectoryHint(parsed);
+            benchRunResult = RunBenchPipeline(runContext.InputPath, outputDirHint, output);
+            output.Info("Bench pipeline completed. Rendering verification report.");
         }
         catch (Exception ex)
         {
-            output.Error($"Failed to read results file: {ex.Message}");
+            output.Error($"Auto bench pipeline failed: {ex.Message}");
             return CommandResult.Failure;
         }
 
-        // Find matching circuit by name
-        var circuit =
-            elCircuits.FirstOrDefault(c =>
-                c.Name.Equals(results.Circuit, StringComparison.OrdinalIgnoreCase)
-            ) ?? elCircuits[0];
+        if (
+            !TryResolveVerifyInputs(
+                parsed,
+                runContext,
+                benchRunResult.Summary.OutputDir,
+                out var refreshedInputs,
+                out var resolutionNote
+            )
+        )
+        {
+            output.Error(
+                $"Bench pipeline completed but verify could not find results to read. {resolutionNote}"
+            );
+            return CommandResult.Failure;
+        }
 
-        // Check compliance
-        var report = ComplianceChecker.Check(circuit, results);
-
-        DisplayComplianceReport(output, circuit, results.Bench, report);
-
-        return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
+        return VerifyFromInputs(runContext, refreshedInputs, output, jsonOptions);
     }
 
-    /// <summary>
-    /// Parses command-line arguments to extract Cascode and results file paths.
-    /// </summary>
-    /// <param name="args">Command arguments array.</param>
-    /// <param name="cascodePath">Output parameter for Cascode file path.</param>
-    /// <param name="resultsPath">Output parameter for results JSON file path.</param>
-    /// <returns>True if both arguments were found, false otherwise.</returns>
-    private static bool ParseArguments(
-        string[] args,
-        out string? cascodePath,
-        out string? resultsPath,
-        out string? tracePath
-    )
-    {
-        cascodePath = null;
-        resultsPath = null;
-        tracePath = null;
-        var positionals = new System.Collections.Generic.List<string>();
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i] == "--cascode" && i + 1 < args.Length)
-            {
-                cascodePath = args[i + 1];
-                i++;
-            }
-            else if (args[i] == "--results" && i + 1 < args.Length)
-            {
-                resultsPath = args[i + 1];
-                i++;
-            }
-            else if (args[i] == "--trace" && i + 1 < args.Length)
-            {
-                tracePath = args[i + 1];
-                i++;
-            }
-            else if (!args[i].StartsWith('-'))
-            {
-                positionals.Add(args[i]);
-            }
-        }
-
-        if (cascodePath == null && positionals.Count >= 1)
-        {
-            cascodePath = positionals[0];
-        }
-
-        if (resultsPath == null && tracePath == null && positionals.Count >= 2)
-        {
-            var path = positionals[1];
-            if (path.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase))
-            {
-                tracePath = path;
-            }
-            else
-            {
-                resultsPath = path;
-            }
-        }
-
-        return cascodePath != null && (resultsPath != null || tracePath != null);
-    }
-
-    private static BenchResult ReadResultsFromTrace(
-        string tracePath,
+    private CommandResult VerifyFromInputs(
+        VerifyRunContext runContext,
+        IReadOnlyList<VerifyInput> inputs,
+        ICliOutput output,
         JsonSerializerOptions jsonOptions
     )
     {
-        BenchResult? last = null;
-
-        foreach (var line in File.ReadLines(tracePath))
+        var artifacts = new List<VerifyArtifactEntry>(inputs.Count);
+        foreach (var input in inputs)
         {
-            if (string.IsNullOrWhiteSpace(line))
+            BenchResult results;
+            try
             {
-                continue;
+                results = input.Kind switch
+                {
+                    VerifyInputKind.Results => JsonSerializer.Deserialize<BenchResult>(
+                        System.IO.File.ReadAllText(input.Path),
+                        jsonOptions
+                    ) ?? throw new InvalidOperationException("Failed to deserialize results JSON"),
+                    VerifyInputKind.Trace => ReadResultsFromTrace(input.Path, jsonOptions),
+                    _ => throw new InvalidOperationException("Unsupported verify input kind"),
+                };
+            }
+            catch (Exception ex)
+            {
+                output.Error($"Failed to read verification input '{input.Path}': {ex.Message}");
+                return CommandResult.Failure;
             }
 
-            using var doc = JsonDocument.Parse(line);
-            if (
-                !doc.RootElement.TryGetProperty("type", out var typeEl)
-                || typeEl.GetString() != "summary"
-            )
+            Circuit circuit;
+            try
             {
-                continue;
+                circuit = ResolveResultCircuitOrThrow(runContext, results.Circuit);
+            }
+            catch (InvalidOperationException ex)
+            {
+                output.Error(ex.Message);
+                return CommandResult.Failure;
             }
 
-            if (!doc.RootElement.TryGetProperty("results", out var resultsEl))
-            {
-                continue;
-            }
-
-            last = JsonSerializer.Deserialize<BenchResult>(resultsEl.GetRawText(), jsonOptions);
+            artifacts.Add(new VerifyArtifactEntry(input, results, circuit));
         }
 
-        return last
-            ?? throw new InvalidOperationException(
-                "No summary record with results found in trace.jsonl."
-            );
+        var summary = BuildVerifySummary(artifacts);
+        if (summary.Global.TotalConstraints == 0)
+        {
+            output.Warning("No numeric constraints found in resolved circuits.");
+        }
+
+        VerifyReportRenderer.Render(output, summary);
+        return summary.Global.FailedCircuits == 0 ? CommandResult.Success : CommandResult.Failure;
     }
 
-    /// <summary>
-    /// Displays the compliance report for a circuit.
-    /// </summary>
-    /// <param name="circuit">The circuit being verified.</param>
-    /// <param name="benchName">Name of the bench that produced the results.</param>
-    /// <param name="report">The compliance report to display.</param>
-    private static void DisplayComplianceReport(
-        ICliOutput output,
-        Circuit circuit,
-        string benchName,
-        ComplianceReport report
+    private static Circuit ResolveResultCircuitOrThrow(
+        VerifyRunContext runContext,
+        string requestedCircuitName
     )
     {
-        var header = string.IsNullOrEmpty(benchName)
-            ? $"Constraint Compliance Report for {circuit.Name}"
-            : $"Constraint Compliance Report for {circuit.Name} ({benchName})";
-        output.WriteLine(header);
-        output.WriteLine(new string('-', 50));
-
-        if (report.TotalCount == 0 && report.UncheckedCount == 0)
+        var circuit = runContext.AllElCircuits.FirstOrDefault(c =>
+            c.Name.Equals(requestedCircuitName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (circuit is not null)
         {
-            output.Warning("No numeric constraints found in circuit.");
+            return circuit;
         }
 
-        foreach (var result in report.Results)
-        {
-            var status = result.Passed ? "PASS" : "FAIL";
-            var nodeStr = result.Node != null ? $" @ {result.Node}" : "";
-            var expectedStr = ValueFormatter.FormatValue(
-                result.Expected,
-                GetUnitFromConstraint(circuit, result.Id)
-            );
-            var actualStr = result.Actual.HasValue
-                ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
-                : " (not measured)";
+        var requested = string.IsNullOrWhiteSpace(requestedCircuitName)
+            ? "(empty circuit name)"
+            : requestedCircuitName;
+        var available = string.Join(
+            ", ",
+            runContext
+                .AllElCircuits.Select(c => c.Name)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+        );
+        throw new InvalidOperationException(
+            $"Verification results request circuit '{requested}', but no matching EL circuit was found in the Cascode source. Available EL circuits: {available}."
+        );
+    }
 
-            output.WriteLine(
-                $"{result.Id, -8} {result.Metric}{nodeStr} {result.Operator} {expectedStr, -12} {status}{actualStr}"
-            );
-        }
-
-        output.WriteLine(new string('-', 50));
-        output.WriteLine($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
-
-        // Show hint about unchecked constraints from other benches
-        if (report.UncheckedByBench.Count > 0)
-        {
-            output.WriteLine("");
-
-            foreach (var kvp in report.UncheckedByBench)
+    private static VerifyReport BuildVerifySummary(IReadOnlyList<VerifyArtifactEntry> artifacts)
+    {
+        var circuits = artifacts
+            .GroupBy(a => a.Circuit.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
             {
-                var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
-                var constraintWord = kvp.Value.Count == 1 ? "constraint" : "constraints";
-                output.WriteLine(
-                    $"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}."
+                var orderedArtifacts = group
+                    .OrderBy(a => a.Input.Path, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var benches = orderedArtifacts
+                    .Select(a => a.Results.Bench)
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var combinedResults = CombineResults(group.Key, benches, orderedArtifacts);
+                var compliance = ComplianceChecker.Check(
+                    orderedArtifacts[0].Circuit,
+                    combinedResults,
+                    ConstraintEvaluationMode.AllDeclared
                 );
-            }
-            output.Warning("Run `verify` with combined results to check all constraints.");
+                return new VerifyCircuitReport(
+                    group.Key,
+                    benches,
+                    orderedArtifacts.Select(a => a.Input.Path).ToArray(),
+                    compliance
+                );
+            })
+            .OrderBy(c => c.CircuitName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var passedCircuits = circuits.Count(c => c.Compliance.FailedCount == 0);
+        var totalConstraints = circuits.Sum(c => c.Compliance.TotalCount);
+        var passedConstraints = circuits.Sum(c => c.Compliance.PassedCount);
+        var global = new VerifyGlobalReport(
+            ArtifactCount: artifacts.Count,
+            TotalCircuits: circuits.Length,
+            PassedCircuits: passedCircuits,
+            FailedCircuits: circuits.Length - passedCircuits,
+            TotalConstraints: totalConstraints,
+            PassedConstraints: passedConstraints
+        );
+        return new VerifyReport(circuits, global);
+    }
+
+    private static BenchResult CombineResults(
+        string circuitName,
+        IReadOnlyList<string> benches,
+        IReadOnlyList<VerifyArtifactEntry> artifacts
+    )
+    {
+        var mergedMeasurements = new Dictionary<string, MeasurementResult>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        foreach (var artifact in artifacts)
+        {
+            BenchResultParser.MergeMeasurements(
+                mergedMeasurements,
+                artifact.Results.Measurements.Values
+            );
+        }
+
+        return BenchResultParser.CreateCombinedResults(circuitName, benches, mergedMeasurements);
+    }
+
+    private BenchRunService.MultiCircuitBenchRunResult RunBenchPipeline(
+        string cascodePath,
+        string? outputDir,
+        ICliOutput output
+    )
+    {
+        ILoggerFactory? localFactory = null;
+        try
+        {
+            var loggerFactory =
+                _state.LoggerFactory
+                ?? (
+                    localFactory = LoggerFactory.Create(builder =>
+                    {
+                        builder.SetMinimumLevel(LogLevel.Warning);
+                        builder.AddSimpleConsole(o => o.SingleLine = true);
+                    })
+                );
+
+            return output.RunWithMultiTaskProgress(progressCtx =>
+            {
+                var service = new BenchRunService(
+                    loggerFactory.CreateLogger<BenchRunService>(),
+                    progressCtx,
+                    output
+                );
+                var benchArgs = new BenchRunService.BenchRunArgs(
+                    CascodePath: cascodePath,
+                    BenchName: null,
+                    OutputDir: outputDir,
+                    Backend: BenchBackendType.Ngspice,
+                    Verbose: false,
+                    StrictCompliance: false,
+                    Parallelism: 0
+                );
+                return service.RunAll(_state.WorkspaceRoot, _state.PdkRoot, benchArgs);
+            });
+        }
+        finally
+        {
+            localFactory?.Dispose();
         }
     }
 
-    private static string GetUnitFromConstraint(Circuit circuit, string constraintId)
+    private static bool HasDirectArtifactInput(ParsedVerifyArgs parsed)
     {
-        var constraint = circuit.Constraints?.Numeric?.FirstOrDefault(c => c.Id == constraintId);
-        return constraint?.Unit ?? "";
+        if (!string.IsNullOrWhiteSpace(parsed.TracePath))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(parsed.ResultsPath))
+        {
+            return false;
+        }
+
+        var full = System.IO.Path.GetFullPath(parsed.ResultsPath);
+        if (System.IO.Directory.Exists(full) || LooksLikeDirectory(full))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void ShowUsage(ICliOutput output)
+    {
+        output.WriteLine(
+            "Usage: verify <cascode_file> [results_json|trace_jsonl|results_dir] [--no-run]"
+        );
+        output.WriteLine(
+            "       verify --cascode <cascode_file> [--results <results_json|results_dir> | --trace <trace_jsonl>] [--no-run]"
+        );
+        output.WriteLine(string.Empty);
+        output.WriteLine(
+            "Verifies numeric constraints against bench outputs. If results are missing or stale, verify automatically runs the bench pipeline unless --no-run is provided."
+        );
     }
 }

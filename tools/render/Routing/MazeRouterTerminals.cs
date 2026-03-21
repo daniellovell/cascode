@@ -31,7 +31,25 @@ public static partial class MazeRouter
 
             var deviceType = device.DeviceType.ToLowerInvariant();
 
-            if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
+            if (deviceType == "instance")
+            {
+                var blockInfo = graph.InstanceBlocks.FirstOrDefault(b => b.InstanceId == deviceId);
+                var signalPorts =
+                    blockInfo?.SignalPortNames ?? (IReadOnlyList<string>)Array.Empty<string>();
+                var bp = DeviceGeometry.GetInstanceBlockPlacement(
+                    cell.Row,
+                    cell.Column,
+                    signalPorts,
+                    graph.Supplies,
+                    graph.Grounds,
+                    device.Bindings
+                );
+                foreach (var (terminal, pos) in bp.Terminals)
+                {
+                    positions.Add(new TerminalPosition(deviceId, terminal, pos.X, pos.Y));
+                }
+            }
+            else if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
             {
                 var isPmos = deviceType is "pmos" or "pfet";
                 var p = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
@@ -46,7 +64,6 @@ public static partial class MazeRouter
             }
             else if (deviceType is "resistor" or "capacitor")
             {
-                // Check if this is a horizontal passive
                 var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
                 var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
 
@@ -75,7 +92,12 @@ public static partial class MazeRouter
 
         // Left ports (inputs, bias) - use average Y
         var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
-        var leftYs = ComputePortYPositions(leftPorts, terminalYByNet, preferMinY: false);
+        var leftYs = ComputePortYPositions(
+            leftPorts,
+            terminalYByNet,
+            preferMinY: false,
+            placement.PortYHints
+        );
         foreach (var port in leftPorts)
         {
             var y = leftYs.GetValueOrDefault(port, DeviceGeometry.RailMargin + 50);
@@ -86,7 +108,8 @@ public static partial class MazeRouter
         var rightYs = ComputePortYPositions(
             graph.OutputPorts.ToList(),
             terminalYByNet,
-            preferMinY: false
+            preferMinY: false,
+            placement.PortYHints
         );
         foreach (var port in graph.OutputPorts)
         {
@@ -132,7 +155,8 @@ public static partial class MazeRouter
     private static Dictionary<string, int> ComputePortYPositions(
         List<string> portNames,
         Dictionary<string, List<int>> terminalYByNet,
-        bool preferMinY
+        bool preferMinY,
+        IReadOnlyDictionary<string, int>? preferredYHints = null
     )
     {
         var result = new Dictionary<string, int>();
@@ -143,7 +167,11 @@ public static partial class MazeRouter
         {
             int y;
 
-            if (terminalYByNet.TryGetValue(port, out var ys) && ys.Count > 0)
+            if (preferredYHints != null && preferredYHints.TryGetValue(port, out var hintedY))
+            {
+                y = hintedY;
+            }
+            else if (terminalYByNet.TryGetValue(port, out var ys) && ys.Count > 0)
             {
                 // Use minimum Y when preferMinY is true, average Y when false (for balanced routing)
                 y = preferMinY ? ys.Min() : (int)ys.Average();

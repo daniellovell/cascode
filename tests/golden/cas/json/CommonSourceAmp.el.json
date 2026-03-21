@@ -1,10 +1,10 @@
 {
-  "cascodeVersion": "3.1",
+  "cascodeVersion": "4.1",
   "primitives": [
     {
-      "name": "Level1_NMOS",
+      "name": "NMOS_Level1",
       "kind": "NMOS",
-      "device": "level1_nmos",
+      "device": "nmos_level1",
       "sizeParam": "primSize",
       "params": {
         "W": "primSize.W",
@@ -13,9 +13,9 @@
       }
     },
     {
-      "name": "Level1_PMOS",
+      "name": "PMOS_Level1",
       "kind": "PMOS",
-      "device": "level1_pmos",
+      "device": "pmos_level1",
       "sizeParam": "primSize",
       "params": {
         "W": "primSize.W",
@@ -59,7 +59,7 @@
     {
       "kind": "NMOS",
       "name": "M_in",
-      "primitive": "Level1_NMOS",
+      "primitive": "NMOS_Level1",
       "connections": {
         "D": "OUT",
         "G": "IN",
@@ -75,7 +75,7 @@
     {
       "kind": "PMOS",
       "name": "load.M",
-      "primitive": "Level1_PMOS",
+      "primitive": "PMOS_Level1",
       "connections": {
         "D": "OUT",
         "G": "VBIAS",

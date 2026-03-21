@@ -201,6 +201,28 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
+                case CascodeParser.InterfaceSupplyContext supplyCtx:
+                    interfaceDef.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = supplyCtx.IDENT().GetText(),
+                            Type = "supply",
+                        }
+                    );
+                    break;
+
+                case CascodeParser.InterfaceGroundContext groundCtx:
+                    interfaceDef.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = groundCtx.IDENT().GetText(),
+                            Type = "ground",
+                        }
+                    );
+                    break;
+
                 case CascodeParser.InterfaceConnectorsContext connectorsCtx:
                     foreach (var connDefCtx in connectorsCtx.connectorDef())
                     {
@@ -241,11 +263,13 @@ internal sealed partial class CascodeAstBuilder
         var terminals = new List<BenchTerminal>();
         foreach (var t in body.terminalDecl())
         {
+            var role =
+                t.terminalRole().STIM_KW() != null
+                    ? BenchTerminalRole.Stim
+                    : BenchTerminalRole.Resp;
             terminals.Add(
                 new BenchTerminal(
-                    t.terminalRole().STIM_KW() != null
-                        ? BenchTerminalRole.Stim
-                        : BenchTerminalRole.Resp,
+                    role,
                     t.IDENT().GetText(),
                     t.terminalType()?.GetText(),
                     t.ABSTRACT_KW() is not null

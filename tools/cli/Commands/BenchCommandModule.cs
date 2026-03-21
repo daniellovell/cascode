@@ -20,13 +20,19 @@ internal sealed class BenchCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("bench", "Bench and harness commands", ShowBenchUsage)
+            new DelegateCliCommand(
+                "bench",
+                "Bench and harness commands",
+                ShowBenchUsage,
+                helpCategory: CommandHelpCategory.Bench
+            )
         );
         registry.Register(
             new DelegateCliCommand(
                 "bench run",
                 "Run a bench simulation and emit trace/results",
-                BenchRunCommand
+                BenchRunCommand,
+                helpCategory: CommandHelpCategory.Bench
             )
         );
     }
@@ -48,7 +54,7 @@ internal sealed class BenchCommandModule : ICommandModule
                 "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [--parallel <n>] [-v|--verbose] [--strict]"
             );
             output.WriteLine(
-                "Runs all benches for all circuits with benches (in dependency order)."
+                "Runs benches required by numeric constraints for all circuits with benches (in dependency order)."
             );
             output.WriteLine("Use --circuit to run benches for a specific circuit only.");
             output.WriteLine(

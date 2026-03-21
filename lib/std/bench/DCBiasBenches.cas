@@ -1,0 +1,41 @@
+VERSION 4.1
+
+library lib.std.bench
+
+abstract bench AbstractDCBias {
+  abstract resp OUT
+
+  analysis {
+    DCAnalysis dc = new DCAnalysis()
+  }
+
+  measurements {
+    measurement OutputDCCommonMode : V {
+      return voltage(dc, OUT)
+    }
+  }
+}
+
+bench SEDCBias extends AbstractDCBias {
+  resp OUT : analog
+
+  fill { }
+
+  measurements {
+    measurement OutputDCBias : V {
+      return voltage(dc, OUT)
+    }
+  }
+}
+
+bench DiffDCBias extends AbstractDCBias {
+  resp OUT : Diff
+
+  fill { }
+
+  measurements {
+    override measurement OutputDCCommonMode : V {
+      return (voltage(dc, OUT.P) + voltage(dc, OUT.N)) / 2
+    }
+  }
+}

@@ -160,4 +160,150 @@ public class RenderIntegrationTests
             $"Minimum vertical separation should be at least 50px, got {mosfetY - resistorY}"
         );
     }
+
+    [Theory]
+    [InlineData("tests/golden/cas/stress/RcLowpass.cas", "IN", "OUT")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.P", "OUT.P")]
+    [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai", "IN.N", "OUT.N")]
+    public async Task Render_FeedthroughPorts_AreVerticallyAligned(
+        string inputPath,
+        string leftPort,
+        string rightPort
+    )
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var home = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, "render_feedthrough");
+        var outputPath = Path.Combine(
+            home.Path,
+            $"feedthrough_{leftPort.Replace('.', '_')}_{rightPort.Replace('.', '_')}.svg"
+        );
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            home,
+            "render",
+            inputPath,
+            "--output",
+            outputPath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result);
+        var svgContent = await File.ReadAllTextAsync(outputPath);
+
+        var leftY = GetPortOriginY(svgContent, leftPort);
+        var rightY = GetPortOriginY(svgContent, rightPort);
+        Assert.Equal(leftY, rightY);
+    }
+
+    [Fact]
+    public async Task Render_RcLowpass_FeedthroughBoundaryWire_IsStraight()
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        using var home = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, "render_rc_lowpass");
+        var outputPath = Path.Combine(home.Path, "rc_lowpass.svg");
+        var inputPath = "tests/golden/cas/stress/RcLowpass.cas";
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            home,
+            "render",
+            inputPath,
+            "--output",
+            outputPath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result);
+        var svgContent = await File.ReadAllTextAsync(outputPath);
+
+        var inY = GetPortOriginY(svgContent, "IN");
+        var outY = GetPortOriginY(svgContent, "OUT");
+        Assert.Equal(inY, outY);
+
+        var inNetSegments = GetWireSegments(svgContent, "IN");
+        var outNetSegments = GetWireSegments(svgContent, "OUT");
+        Assert.NotEmpty(inNetSegments);
+        Assert.NotEmpty(outNetSegments);
+
+        var inBoundary = AnalyzeBoundary(inNetSegments, 0);
+        var outBoundaryX = outNetSegments.Max(s => Math.Max(s.X1, s.X2));
+        var outBoundary = AnalyzeBoundary(outNetSegments, outBoundaryX);
+
+        Assert.True(inBoundary.HasHorizontal, "IN must connect horizontally at the left boundary");
+        Assert.False(inBoundary.HasVertical, "IN must not jog vertically at the left boundary");
+        Assert.True(
+            outBoundary.HasHorizontal,
+            "OUT must connect horizontally at the right boundary"
+        );
+        Assert.False(outBoundary.HasVertical, "OUT must not jog vertically at the right boundary");
+        Assert.NotNull(inBoundary.HorizontalY);
+        Assert.NotNull(outBoundary.HorizontalY);
+        Assert.Equal(inBoundary.HorizontalY, outBoundary.HorizontalY);
+    }
+
+    private static double GetPortOriginY(string svgContent, string portName)
+    {
+        var escapedPort = Regex.Escape(portName);
+        var match = Regex.Match(
+            svgContent,
+            $@"<g class=""port"" data-port=""{escapedPort}""[^>]*transform=""translate\((-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\)"""
+        );
+
+        Assert.True(match.Success, $"Port '{portName}' transform should be found");
+        return double.Parse(match.Groups[2].Value);
+    }
+
+    private static List<SvgWireSegment> GetWireSegments(string svgContent, string netName)
+    {
+        var escapedNet = Regex.Escape(netName);
+        var netMatch = Regex.Match(
+            svgContent,
+            $@"<g class=""net"" data-net=""{escapedNet}"">(?<body>.*?)</g>",
+            RegexOptions.Singleline
+        );
+
+        Assert.True(netMatch.Success, $"Net '{netName}' should be present in SVG");
+
+        var segments = new List<SvgWireSegment>();
+        var lineMatches = Regex.Matches(
+            netMatch.Groups["body"].Value,
+            @"<line class=""wire"" x1=""(-?\d+(?:\.\d+)?)"" y1=""(-?\d+(?:\.\d+)?)"" x2=""(-?\d+(?:\.\d+)?)"" y2=""(-?\d+(?:\.\d+)?)""\s*/?>"
+        );
+
+        foreach (Match line in lineMatches)
+        {
+            segments.Add(
+                new SvgWireSegment(
+                    double.Parse(line.Groups[1].Value),
+                    double.Parse(line.Groups[2].Value),
+                    double.Parse(line.Groups[3].Value),
+                    double.Parse(line.Groups[4].Value)
+                )
+            );
+        }
+
+        return segments;
+    }
+
+    private static BoundaryAnalysis AnalyzeBoundary(List<SvgWireSegment> segments, double boundaryX)
+    {
+        const double epsilon = 1e-9;
+        var touching = segments
+            .Where(s =>
+                Math.Abs(s.X1 - boundaryX) < epsilon || Math.Abs(s.X2 - boundaryX) < epsilon
+            )
+            .ToList();
+        var horizontal = touching.Where(s => s.Y1 == s.Y2).ToList();
+        var hasVertical = touching.Any(s => s.X1 == s.X2);
+        var horizontalY = horizontal.Count > 0 ? horizontal[0].Y1 : (double?)null;
+
+        return new BoundaryAnalysis(horizontal.Count > 0, hasVertical, horizontalY);
+    }
+
+    private readonly record struct SvgWireSegment(double X1, double Y1, double X2, double Y2);
+
+    private readonly record struct BoundaryAnalysis(
+        bool HasHorizontal,
+        bool HasVertical,
+        double? HorizontalY
+    );
 }

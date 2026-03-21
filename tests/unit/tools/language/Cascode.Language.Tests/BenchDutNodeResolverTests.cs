@@ -14,7 +14,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.1
+            VERSION 4.0
 
             circuit Leaf {
               level EL
@@ -49,7 +49,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.1
+            VERSION 4.0
 
             circuit InlineLeaf {
               level EL
@@ -89,7 +89,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.1
+            VERSION 4.0
 
             circuit NonInlineLeaf {
               level EL
@@ -125,7 +125,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.1
+            VERSION 4.0
 
             circuit Leaf {
               level EL

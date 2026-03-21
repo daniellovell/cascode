@@ -63,13 +63,25 @@ public static class ObstacleMap
         if (deviceType is "resistor" or "capacitor")
         {
             var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-            // Passives are rotated 90°, so width/height swap
             return new Obstacle(
                 MinX: (int)p.X + Margin,
                 MinY: (int)p.Y + Margin,
                 MaxX: (int)(p.X + DeviceGeometry.PassiveHeight) - Margin,
                 MaxY: (int)(p.Y + DeviceGeometry.PassiveWidth) - Margin
             );
+        }
+
+        if (deviceType == "instance")
+        {
+            var cx = DeviceGeometry.GetCellCenterX(cell.Column);
+            var cy = DeviceGeometry.GetCellCenterY(cell.Row);
+            var x = cx - DeviceGeometry.InstanceBlockWidth / 2.0;
+            var y = cy - DeviceGeometry.InstanceBlockHeight / 2.0;
+            var minX = (int)Math.Floor(x) + Margin;
+            var minY = (int)Math.Floor(y) + Margin;
+            var maxX = (int)Math.Ceiling(x + DeviceGeometry.InstanceBlockWidth) - Margin;
+            var maxY = (int)Math.Ceiling(y + DeviceGeometry.InstanceBlockHeight) - Margin;
+            return new Obstacle(MinX: minX, MinY: minY, MaxX: maxX, MaxY: maxY);
         }
 
         return null;
