@@ -1,0 +1,20 @@
+vars: {
+  d2-config: {
+    layout-engine: tala
+  }
+}
+
+direction: right
+
+cas_hl: "Cascode HL\n(slots)"
+cas_ml: "Cascode ML\n(motifs)"
+cas_el: "Cascode EL\n(devices)"
+cal: "CAL\n(geometry)" {
+  style.stroke-width: 5
+}
+gds: "GDS/OASIS"
+
+cas_hl -> cas_ml -> cas_el -> cal -> gds
+gds -> drc: "DRC"
+gds -> lvs: "LVS"
+gds -> pex: "PEX/Sim"

@@ -1,0 +1,14 @@
+direction: down
+
+pipeline: "Cascode Data Flow: EL to CAL" {
+  grid-columns: 1
+  vertical-gap: 20
+
+  el_cai: "EL Cascode document (.el.cai)\nDevices, nets, connectivity" {style.fill: "#cfd2dd"}
+  par: "cascode par\nPlacement + routing decisions"
+  cal_doc: "CAL document (.cal)\nPDK-specific geometry" {style.fill: "#cfd2dd"}
+  expander: "CAL Expander\nResolve anchors + consts, instantiate P-cells, via expand, snap"
+  gds: "GDS-II / OASIS" {style.fill: "#cfd2dd"}
+}
+
+pipeline.el_cai -> pipeline.par -> pipeline.cal_doc -> pipeline.expander -> pipeline.gds

@@ -1,0 +1,23 @@
+direction: right
+
+cal: "CAL (.cal)" {style.fill: "#cfd2dd"}
+expander: "Expander"
+gds: "GDS" {style.fill: "#cfd2dd"}
+
+el_cai: "Cascode EL (.el.cai)" {style.fill: "#7fdbf8"}
+par: "cascode par"
+spicegen: "SPICE generator"
+spice_source_netlist: "SPICE source netlist" {style.fill: "#cfd2dd"}
+
+extractor: "Extractor"
+layout_netlist: "Extracted layout netlist" {style.fill: "#cfd2dd"}
+
+lvs: "LVS tool"
+results: "Results" {style.fill: "#e4dbff"}
+
+cal -> expander -> gds
+gds -> extractor -> layout_netlist -> lvs
+
+el_cai -> par -> cal
+el_cai -> spicegen -> spice_source_netlist -> lvs
+lvs -> results
