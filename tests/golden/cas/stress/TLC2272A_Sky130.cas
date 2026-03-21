@@ -3,8 +3,8 @@ VERSION 4.1
 // TLC2272A stress pin using the relevant datasheet metrics:
 // gain, GBW, phase margin, CMRR, PSRR, quiescent power, spot/input-referred noise,
 // integrated low-frequency input noise, and output swing.
-// Slew rate, offset, bias current, settling time, and VICR are intentionally omitted
-// because the current standard benches do not support them.
+// Slew rate, settling time, and VICR are still omitted because the current standard
+// benches do not support them.
 
 include lib.std
 include lib.pdk.sky130
@@ -52,6 +52,9 @@ circuit TLC2272A_Sky130 implements SingleEndedOpAmp {
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
       c_cmrr = cmrr_bench::CMRR at net::OUT >= 70dB
       c_psrr = psrr_bench::PSRR at net::OUT >= 80dB
+      c_vio = input_dc_bench(source_impedance=50Ohm)::InputReferredDCOffset <= 950uV
+      c_iib = input_dc_bench(source_impedance=50Ohm)::InputBiasCurrent <= 60pA
+      c_iio = input_dc_bench(source_impedance=50Ohm)::InputOffsetCurrent <= 60pA
       c_pwr = vdd_pwr::QuiescentPower <= 15mW
       c_spot_noise = noise_bench::InputReferredNoise at net::OUT <= 9nV/rtHz
       c_int_noise = noise_bench::IntegratedInputNoise(from=0.1Hz, to=10Hz) <= 300nVrms

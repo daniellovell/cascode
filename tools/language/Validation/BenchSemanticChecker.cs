@@ -1010,6 +1010,10 @@ public static class BenchSemanticChecker
                 {
                     return t;
                 }
+                if (LooksLikeElementPinPath(p.Path))
+                {
+                    return MeasurementType.ElementPin();
+                }
                 if (TryGetZeroArgMeasurementInfo(p.Path, measurementTypes, out var mt))
                 {
                     return mt!.ReturnType;
@@ -2276,6 +2280,24 @@ public static class BenchSemanticChecker
             type = MeasurementType.Scalar();
             return false;
         }
+    }
+
+    private static bool LooksLikeElementPinPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var dot = path.LastIndexOf('.');
+        if (dot <= 0 || dot >= path.Length - 1)
+        {
+            return false;
+        }
+
+        var pin = path[(dot + 1)..];
+        return pin.Equals("P", StringComparison.OrdinalIgnoreCase)
+            || pin.Equals("N", StringComparison.OrdinalIgnoreCase);
     }
 
     private enum MeasurementTypeKind

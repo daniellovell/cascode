@@ -54,10 +54,6 @@ public static class BenchPlanBuilder
 
         var dutSubcktName = SpiceEmitter.GetDefaultVariantName(circuit);
 
-        // Convert invocation args to BenchValue dictionary for use in expression evaluation.
-        var benchParams = ConvertInvocationArgsToBenchParams(invocationArgs);
-
-        // Used for evaluating analysis params and harness instance arguments.
         var evalRunner = new BenchMeasurementRunner(
             bench,
             functions,
@@ -70,6 +66,10 @@ public static class BenchPlanBuilder
             harnessCompilation.Constraints,
             dutNodeKeyByPinRef: terminalCompilation.DutNodeKeyByPinRef
         );
+
+        // Convert invocation args plus bench parameter defaults to BenchValue dictionary for use in
+        // analysis and harness expression evaluation.
+        var benchParams = BuildBenchParams(bench, invocationArgs, evalRunner);
 
         var analyses = BenchAnalysisCompiler.Compile(
             bench,
@@ -134,16 +134,47 @@ public static class BenchPlanBuilder
         return map;
     }
 
-    private static IReadOnlyDictionary<string, BenchValue> ConvertInvocationArgsToBenchParams(
-        IReadOnlyList<MetricCallArg> invocationArgs
+    private static IReadOnlyDictionary<string, BenchValue> BuildBenchParams(
+        BenchDefinition bench,
+        IReadOnlyList<MetricCallArg> invocationArgs,
+        BenchMeasurementRunner evalRunner
     )
     {
         var result = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase);
+        var invocationMap = invocationArgs.ToDictionary(
+            a => a.Name,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var parameter in bench.Parameters)
+        {
+            if (invocationMap.TryGetValue(parameter.Name, out var arg))
+            {
+                result[parameter.Name] = BenchQuantity.Parse(arg.Value);
+                continue;
+            }
+
+            if (parameter.Default is not null)
+            {
+                var value = evalRunner.EvaluateExpressionForPlan(parameter.Default, result);
+                if (value is BenchMissing)
+                {
+                    throw new InvalidOperationException(
+                        $"Bench '{bench.Name}' parameter '{parameter.Name}' did not resolve."
+                    );
+                }
+                result[parameter.Name] = value;
+            }
+        }
+
         foreach (var arg in invocationArgs)
         {
-            var value = BenchQuantity.Parse(arg.Value);
-            result[arg.Name] = value;
+            if (!result.ContainsKey(arg.Name))
+            {
+                result[arg.Name] = BenchQuantity.Parse(arg.Value);
+            }
         }
+
         return result;
     }
 }

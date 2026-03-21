@@ -218,6 +218,122 @@ bench DcVoltageBench {{
     }
 
     [Fact]
+    public void RunMetrics_DcInputCharacterization_UsesLocalSensePinsWithCorrectSigns()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench InputDcBench {{
+  stim INP : analog
+  stim INN : analog
+
+  fill {{
+    VDC senseP = new VDC(V=0V) {{ }}
+    VDC senseN = new VDC(V=0V) {{ }}
+  }}
+
+  analysis {{
+    DCAnalysis dc = new DCAnalysis()
+  }}
+
+  measurements {{
+    measurement InputReferredDCOffset : V {{
+      return abs(voltage(dc, INP) - voltage(dc, INN))
+    }}
+
+    measurement InputCurrentP : A {{
+      return abs(current(dc, senseP.N))
+    }}
+
+    measurement InputCurrentN : A {{
+      return abs(current(dc, senseN.N))
+    }}
+
+    measurement InputBiasCurrent : A {{
+      return abs((current(dc, senseP.N) + current(dc, senseN.N)) / 2)
+    }}
+
+    measurement InputOffsetCurrent : A {{
+      return abs(current(dc, senseP.N) - current(dc, senseN.N))
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "InputDcBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["dc"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "dc",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 0,
+                    Op: new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["INP"] = 0.9010,
+                        ["INN"] = 0.9002,
+                    }
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["INP"] = new BenchTerminalRef("INP", new[] { "INP" }),
+                ["INN"] = new BenchTerminalRef("INN", new[] { "INN" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements:
+            [
+                new BenchHarnessElement(
+                    Type: "VDC",
+                    Id: "senseP",
+                    Pins: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                    Parameters: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                ),
+                new BenchHarnessElement(
+                    Type: "VDC",
+                    Id: "senseN",
+                    Pins: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                    Parameters: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                ),
+            ],
+            sourceCurrentsByName: new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["VsenseP"] = 20e-12,
+                ["VsenseN"] = -50e-12,
+            }
+        );
+
+        var values = runner.RunMetrics([
+            "InputReferredDCOffset",
+            "InputCurrentP",
+            "InputCurrentN",
+            "InputBiasCurrent",
+            "InputOffsetCurrent",
+        ]);
+
+        Assert.Equal(0.8e-3, values["InputReferredDCOffset"].Value, precision: 12);
+        Assert.InRange(values["InputCurrentP"].Value, 19.999e-12, 20.001e-12);
+        Assert.InRange(values["InputCurrentN"].Value, 49.999e-12, 50.001e-12);
+        Assert.InRange(values["InputBiasCurrent"].Value, 14.999e-12, 15.001e-12);
+        Assert.InRange(values["InputOffsetCurrent"].Value, 69.999e-12, 70.001e-12);
+    }
+
+    [Fact]
     public void RunAll_AllowsZeroArgMeasurementCalls()
     {
         var cascode =

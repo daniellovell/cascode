@@ -4,6 +4,9 @@ include lib.std.bench
 // Interface: Fully-differential operational amplifier.
 //
 // Binds the standard library benches for common fully-differential amplifier metrics.
+// Differential directions are IN.P - IN.N and OUT.P - OUT.N.
+// The DC input characterization bench uses cross-coupled unity feedback and requires
+// output_cm when the circuit env does not define OutputCommonModeRange.
 interface FullyDifferentialOpAmp {
   supply VDD
   ground GND
@@ -28,6 +31,13 @@ interface FullyDifferentialOpAmp {
       VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
       Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
       Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+    }
+
+    bind DiffToDiffInputDCCharacterization as input_dc_bench {
+      bench.INP--dut.IN.P
+      bench.INN--dut.IN.N
+      bench.OUTP--dut.OUT.P
+      bench.OUTN--dut.OUT.N
     }
 
     bind DiffToDiffTransfer as transfer_bench {
