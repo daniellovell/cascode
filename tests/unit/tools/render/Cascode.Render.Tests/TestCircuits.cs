@@ -349,6 +349,70 @@ internal static class TestCircuits
             },
         };
 
+    public static Circuit StackedNmosPair() =>
+        new()
+        {
+            Name = "stacked_nmos_pair",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VBIAS",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "M_TOP",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "OUT",
+                            ["G"] = "VBIAS",
+                            ["S"] = "stack",
+                        },
+                    },
+                    new()
+                    {
+                        Id = "M_BOTTOM",
+                        DeviceType = "nmos",
+                        Primitive = "NMOS_Level1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            ["D"] = "stack",
+                            ["G"] = "IN",
+                            ["S"] = "GND",
+                        },
+                    },
+                },
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "stack", Domain = "signal" },
+                },
+            },
+        };
+
     public static Circuit CmfbResistors() =>
         new()
         {

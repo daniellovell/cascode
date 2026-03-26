@@ -14,6 +14,8 @@ public class RoutingSanityTests
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
     [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas")]
     public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeCascodePath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
@@ -36,6 +38,7 @@ public class RoutingSanityTests
         var terminalsByNet = MazeRouter.GetTerminalsByNet(placement, graph);
 
         AssertAllTerminalsConnected(routing, terminalsByNet);
+        AssertComponentTerminalsAreLeafEndpoints(routing, terminalsByNet, graph);
         AssertNoForeignTerminalIntersections(routing, terminalsByNet);
         AssertNoColinearOverlapsBetweenNets(routing);
     }
@@ -240,6 +243,48 @@ public class RoutingSanityTests
                         );
                     }
                 }
+            }
+        }
+    }
+
+    private static void AssertComponentTerminalsAreLeafEndpoints(
+        RoutingResult routing,
+        IReadOnlyDictionary<string, IReadOnlyList<TerminalPosition>> terminalsByNet,
+        CircuitGraph graph
+    )
+    {
+        foreach (var (netName, terminals) in terminalsByNet)
+        {
+            if (
+                graph.Supplies.Contains(netName)
+                || graph.Grounds.Contains(netName)
+                || !routing.SegmentsByNet.TryGetValue(netName, out var segments)
+            )
+            {
+                continue;
+            }
+
+            foreach (var terminal in terminals.Where(t => !t.DeviceId.StartsWith("PORT_")))
+            {
+                var point = new GridPoint(terminal.X, terminal.Y);
+                var containingSegments = segments
+                    .Where(segment => IsPointOnSegment(point, segment))
+                    .ToList();
+                var interiorSegments = containingSegments.Where(segment =>
+                    !point.Equals(segment.From) && !point.Equals(segment.To)
+                );
+                Assert.True(
+                    !interiorSegments.Any(),
+                    $"Net '{netName}' passes through component terminal {terminal.DeviceId}.{terminal.Terminal} at ({terminal.X}, {terminal.Y}). Segments: [{string.Join(", ", containingSegments.Select(segment => $"({segment.From.X},{segment.From.Y})->({segment.To.X},{segment.To.Y})"))}]"
+                );
+
+                var endpointCount = containingSegments.Count(segment =>
+                    point.Equals(segment.From) || point.Equals(segment.To)
+                );
+                Assert.True(
+                    endpointCount == 1,
+                    $"Component terminal {terminal.DeviceId}.{terminal.Terminal} on net '{netName}' should be a leaf endpoint but touches {endpointCount} routed segment endpoints. Segments: [{string.Join(", ", containingSegments.Select(segment => $"({segment.From.X},{segment.From.Y})->({segment.To.X},{segment.To.Y})"))}]"
+                );
             }
         }
     }

@@ -19,7 +19,8 @@ public static class PathFinder
         string netName,
         IReadOnlyList<Obstacle> obstacles,
         IOccupiedSegments occupied,
-        IReadOnlySet<GridPoint>? forbiddenPoints = null
+        IReadOnlySet<GridPoint>? forbiddenPoints = null,
+        bool preferHorizontalFirst = true
     )
     {
         forbiddenPoints ??= new HashSet<GridPoint>();
@@ -30,11 +31,6 @@ public static class PathFinder
             return new List<WireSegment>();
         }
 
-        // For cleaner schematics, prefer routing that aligns horizontal segments
-        // with destination terminal Y levels. When destination is below source,
-        // route vertical-first so horizontal segment is at destination's Y.
-        var preferVerticalFirst = to.Y > from.Y;
-
         // Try direct L-paths first (most common case)
         var path = TryLPath(
             from,
@@ -43,7 +39,7 @@ public static class PathFinder
             obstacles,
             occupied,
             forbiddenPoints,
-            horizontalFirst: !preferVerticalFirst
+            horizontalFirst: preferHorizontalFirst
         );
         if (path != null)
         {
@@ -57,7 +53,7 @@ public static class PathFinder
             obstacles,
             occupied,
             forbiddenPoints,
-            horizontalFirst: preferVerticalFirst
+            horizontalFirst: !preferHorizontalFirst
         );
         if (path != null)
         {
@@ -72,13 +68,13 @@ public static class PathFinder
         }
 
         // Fallback: try both L-path orientations, prefer one without forbidden point violations
-        var fallback1 = CreateLPath(from, to, netName, horizontalFirst: !preferVerticalFirst);
+        var fallback1 = CreateLPath(from, to, netName, horizontalFirst: preferHorizontalFirst);
         if (!PathViolatesForbiddenPoints(fallback1, forbiddenPoints))
         {
             return fallback1;
         }
 
-        var fallback2 = CreateLPath(from, to, netName, horizontalFirst: preferVerticalFirst);
+        var fallback2 = CreateLPath(from, to, netName, horizontalFirst: !preferHorizontalFirst);
         if (!PathViolatesForbiddenPoints(fallback2, forbiddenPoints))
         {
             return fallback2;
@@ -176,7 +172,21 @@ public static class PathFinder
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
-        var offsets = new[] { Pitch, -Pitch, 2 * Pitch, -2 * Pitch };
+        var offsets = new[]
+        {
+            Pitch,
+            -Pitch,
+            2 * Pitch,
+            -2 * Pitch,
+            3 * Pitch,
+            -3 * Pitch,
+            4 * Pitch,
+            -4 * Pitch,
+            5 * Pitch,
+            -5 * Pitch,
+            6 * Pitch,
+            -6 * Pitch,
+        };
 
         // Try horizontal jog (route via intermediate Y)
         foreach (var dy in offsets)

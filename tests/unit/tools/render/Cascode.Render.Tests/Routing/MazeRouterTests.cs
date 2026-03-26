@@ -144,7 +144,7 @@ public class MazeRouterTests
         return deviceType switch
         {
             "nmos" or "nfet" or "pmos" or "pfet" => new[] { "G", "D", "S" },
-            "resistor" or "capacitor" => new[] { "P", "N" },
+            "resistor" or "capacitor" or "inductor" => new[] { "P", "N" },
             _ => Array.Empty<string>(),
         };
     }
@@ -171,10 +171,9 @@ public class MazeRouterTests
             };
         }
 
-        if (deviceType is "resistor" or "capacitor")
+        if (deviceType is "resistor" or "capacitor" or "inductor")
         {
             var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
 
             if (isHorizontalPassive)
             {
@@ -182,7 +181,7 @@ public class MazeRouterTests
                     cell.Row,
                     cell.Column,
                     placement.ColumnCount,
-                    isLeftOfAxis
+                    pOnLeft: !cell.MirrorX
                 );
                 return terminal switch
                 {
@@ -379,6 +378,8 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
     [InlineData("tests/golden/render/filters/DiffRCFilter.el.cai")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas")]
     public void Route_NoOverlappingSegmentsWithinNet(string cascodePath)
     {
         // Arrange
@@ -1068,6 +1069,410 @@ public class MazeRouterTests
         }
     }
 
+    [Theory]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "ng",
+        "M1",
+        "G",
+        "Down"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "ng1",
+        "M1",
+        "G",
+        "Down"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "nmatch",
+        "CM",
+        "P",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "nmatch",
+        "CM",
+        "P",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "ng",
+        "LG",
+        "N",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "ng1",
+        "LG",
+        "N",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "nd",
+        "M2",
+        "D",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "nd1",
+        "M2",
+        "D",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "vcas",
+        "RCAS_BOT",
+        "P",
+        "Up"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "vcas1",
+        "RCAS1_BOT",
+        "P",
+        "Up"
+    )]
+    [InlineData("tests/golden/cas/stress/SST12LN01_Sky130.cas", "nd", "M2", "D", "Left|Up")]
+    public void Route_BranchLeafTerminals_MoveTowardTheRestOfTheirNet(
+        string cascodePath,
+        string netName,
+        string deviceId,
+        string terminalName,
+        string expectedDirections
+    )
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+        var terminal = result.TerminalPositions.Single(t =>
+            t.DeviceId == deviceId && t.Terminal == terminalName
+        );
+        var point = new GridPoint(terminal.X, terminal.Y);
+        var netSegments = result.SegmentsByNet[netName];
+        var terminalSegments = netSegments.Where(segment =>
+            point.Equals(segment.From) || point.Equals(segment.To)
+        );
+        var segment = Assert.Single(terminalSegments);
+        var direction = GetSegmentDirection(segment, point);
+
+        var allowedDirections = expectedDirections.Split(
+            '|',
+            StringSplitOptions.RemoveEmptyEntries
+        );
+        Assert.True(
+            allowedDirections.Contains(direction, StringComparer.Ordinal),
+            $"Expected {deviceId}.{terminalName} on net '{netName}' to leave toward [{string.Join(", ", allowedDirections)}] but routed {direction}. "
+                + $"Segments: [{string.Join(", ", netSegments.Select(netSegment => $"({netSegment.From.X},{netSegment.From.Y})->({netSegment.To.X},{netSegment.To.Y})"))}]"
+        );
+    }
+
+    [Theory]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas")]
+    public void Route_LnaMatchingNet_ReachesLgWithoutTurnback(string cascodePath)
+    {
+        var result = RouteCascode(cascodePath);
+        var lm = result.TerminalPositions.Single(t => t.DeviceId == "LM" && t.Terminal == "N");
+        var lg = result.TerminalPositions.Single(t => t.DeviceId == "LG" && t.Terminal == "P");
+
+        var pathPoints = FindPointPath(
+            result.SegmentsByNet["nmatch"],
+            new GridPoint(lm.X, lm.Y),
+            new GridPoint(lg.X, lg.Y)
+        );
+        Assert.NotEmpty(pathPoints);
+
+        var minAllowedX = Math.Min(lm.X, lg.X);
+        Assert.True(
+            pathPoints.All(point => point.X >= minAllowedX),
+            $"Expected the LM->LG route on nmatch to avoid turning back left of LG. Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+
+        var bendCount = CountPathBends(pathPoints);
+        Assert.True(
+            bendCount <= 2,
+            $"Expected the LM->LG route on nmatch to stay compact, but it used {bendCount} bends. Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    [Theory]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas")]
+    public void Route_LnaMatchingTrunk_StaysFlatBetweenLmAndLg(string cascodePath)
+    {
+        var result = RouteCascode(cascodePath);
+        var lm = result.TerminalPositions.Single(t => t.DeviceId == "LM" && t.Terminal == "N");
+        var lg = result.TerminalPositions.Single(t => t.DeviceId == "LG" && t.Terminal == "P");
+        var pathPoints = FindPointPath(
+            result.SegmentsByNet["nmatch"],
+            new GridPoint(lm.X, lm.Y),
+            new GridPoint(lg.X, lg.Y)
+        );
+
+        Assert.NotEmpty(pathPoints);
+        Assert.True(
+            pathPoints.All(point => point.Y == lm.Y),
+            $"Expected the LM->LG trunk on nmatch to stay flat instead of dipping between inline passives. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    [Theory]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas", "nd", 6)]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "nd1",
+        6
+    )]
+    public void Route_LnaM2Drain_KeepsClearanceFromForeignParallelSegments(
+        string cascodePath,
+        string drainNetName,
+        int minimumClearance
+    )
+    {
+        var result = RouteCascode(cascodePath);
+        var drain = result.TerminalPositions.Single(t => t.DeviceId == "M2" && t.Terminal == "D");
+        var drainPoint = new GridPoint(drain.X, drain.Y);
+        var drainSegments = result
+            .SegmentsByNet[drainNetName]
+            .Where(segment => SegmentIsNearPoint(segment, drainPoint, 80, 25))
+            .ToList();
+        var foreignSegments = result
+            .Segments.Where(segment =>
+                segment.NetName != drainNetName && SegmentIsNearPoint(segment, drainPoint, 80, 25)
+            )
+            .ToList();
+
+        Assert.NotEmpty(drainSegments);
+        Assert.NotEmpty(foreignSegments);
+
+        foreach (var own in drainSegments)
+        {
+            foreach (var other in foreignSegments)
+            {
+                if (
+                    !TryGetParallelClearance(own, other, out var overlapLength, out var clearance)
+                    || overlapLength <= 0
+                )
+                {
+                    continue;
+                }
+
+                Assert.True(
+                    clearance >= minimumClearance,
+                    $"Expected M2 drain routing on net '{drainNetName}' to keep at least {minimumClearance} units of clearance from foreign parallel segments, "
+                        + $"but {own.NetName} ({own.From.X},{own.From.Y})->({own.To.X},{own.To.Y}) and "
+                        + $"{other.NetName} ({other.From.X},{other.From.Y})->({other.To.X},{other.To.Y}) overlap for {overlapLength} units with clearance {clearance}."
+                );
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "OUT",
+        "COUT",
+        "N",
+        1
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "OUT",
+        "COUT",
+        "N",
+        1
+    )]
+    [InlineData("tests/golden/cas/stress/SST12LN01_Sky130.cas", "OUT", "COUT", "N", 1)]
+    public void Route_OutputCouplingLeaves_ReachTheirNetWithoutExtraBends(
+        string cascodePath,
+        string netName,
+        string deviceId,
+        string terminalName,
+        int maximumBends
+    )
+    {
+        var result = RouteCascode(cascodePath);
+        var terminal = result.TerminalPositions.Single(t =>
+            t.DeviceId == deviceId && t.Terminal == terminalName
+        );
+        var terminalPoint = new GridPoint(terminal.X, terminal.Y);
+        var pathPoints = FindPathToFirstBranchOrPeer(result.SegmentsByNet[netName], terminalPoint);
+
+        Assert.True(
+            pathPoints.Count >= 2,
+            $"{deviceId}.{terminalName} on net '{netName}' should connect to the rest of the route."
+        );
+
+        var bendCount = CountPathBends(pathPoints);
+        Assert.True(
+            bendCount <= maximumBends,
+            $"Expected {deviceId}.{terminalName} on net '{netName}' to reach the rest of its route within {maximumBends} bends, but used {bendCount}. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    [Theory]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "nd",
+        "M2"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "nd2",
+        "M3"
+    )]
+    public void Route_LnaOutputDrain_DoesNotTurnBackBeforeBranching(
+        string cascodePath,
+        string netName,
+        string mosDeviceId
+    )
+    {
+        var result = RouteCascode(cascodePath);
+        var drain = result.TerminalPositions.Single(t =>
+            t.DeviceId == mosDeviceId && t.Terminal == "D"
+        );
+        var drainPoint = new GridPoint(drain.X, drain.Y);
+        var pathPoints = FindPathToFirstBranchOrPeer(result.SegmentsByNet[netName], drainPoint);
+
+        Assert.True(
+            pathPoints.Count >= 2,
+            $"{mosDeviceId}.D on net '{netName}' should connect to the rest of the route."
+        );
+        Assert.True(
+            pathPoints.All(point => point.X >= drainPoint.X),
+            $"Expected {mosDeviceId}.D on net '{netName}' to avoid turning left before it branches toward the output path. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+
+        var bendCount = CountPathBends(pathPoints);
+        Assert.True(
+            bendCount <= 1,
+            $"Expected {mosDeviceId}.D on net '{netName}' to reach its first branch with at most one bend, but used {bendCount}. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    [Theory]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas",
+        "nd",
+        "M2"
+    )]
+    [InlineData(
+        "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas",
+        "nd2",
+        "M3"
+    )]
+    public void Route_LnaOutputDrain_ReachesOutputCouplingPassiveWithoutTurningLeft(
+        string cascodePath,
+        string netName,
+        string mosDeviceId
+    )
+    {
+        var result = RouteCascode(cascodePath);
+        var drain = result.TerminalPositions.Single(t =>
+            t.DeviceId == mosDeviceId && t.Terminal == "D"
+        );
+        var coupling = result.TerminalPositions.Single(t =>
+            t.DeviceId == "COUT" && t.Terminal == "P"
+        );
+        var drainPoint = new GridPoint(drain.X, drain.Y);
+        var couplingPoint = new GridPoint(coupling.X, coupling.Y);
+        var pathPoints = FindPointPath(result.SegmentsByNet[netName], drainPoint, couplingPoint);
+
+        Assert.NotEmpty(pathPoints);
+        Assert.True(
+            pathPoints.All(point => point.X >= drainPoint.X),
+            $"Expected {mosDeviceId}.D on net '{netName}' to reach COUT without turning left. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+
+        var bendCount = CountPathBends(pathPoints);
+        Assert.True(
+            bendCount <= 3,
+            $"Expected {mosDeviceId}.D on net '{netName}' to reach COUT without zig-zagging, but used {bendCount} bends. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    [Theory]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_Sky130.cas")]
+    [InlineData("tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas")]
+    public void Route_LnaMatchNode_ReachesCmWithoutZigZagging(string cascodePath)
+    {
+        var result = RouteCascode(cascodePath);
+        var lm = result.TerminalPositions.Single(t => t.DeviceId == "LM" && t.Terminal == "N");
+        var cm = result.TerminalPositions.Single(t => t.DeviceId == "CM" && t.Terminal == "P");
+        var lmPoint = new GridPoint(lm.X, lm.Y);
+        var cmPoint = new GridPoint(cm.X, cm.Y);
+        var pathPoints = FindPointPath(result.SegmentsByNet["nmatch"], lmPoint, cmPoint);
+
+        Assert.NotEmpty(pathPoints);
+        var maxAllowedX = Math.Max(lmPoint.X, cmPoint.X) + Layout.DeviceGeometry.RoutingPitch;
+        Assert.True(
+            pathPoints.All(point =>
+                point.X >= Math.Min(lmPoint.X, cmPoint.X) && point.X <= maxAllowedX
+            ),
+            $"Expected the LM->CM route on nmatch to stay within one breakout pitch of the matching trunk instead of making a long horizontal detour. Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+        var bendCount = CountPathBends(pathPoints);
+        Assert.True(
+            bendCount <= 3,
+            $"Expected the LM->CM route on nmatch to stay compact after its breakout, but used {bendCount} bends. Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    [Fact]
+    public void Route_InterstageCouplingPath_DoesNotZigZagThroughCint()
+    {
+        var result = RouteCascode(
+            "tests/golden/cas/stress/LNA_CSCascodeInductivelyDegenerated_TwoStage_Sky130.cas"
+        );
+        var cint = result.TerminalPositions.Single(t => t.DeviceId == "CINT" && t.Terminal == "N");
+        var m3 = result.TerminalPositions.Single(t => t.DeviceId == "M3" && t.Terminal == "G");
+        var pathPoints = FindPointPath(
+            result.SegmentsByNet["ng2"],
+            new GridPoint(cint.X, cint.Y),
+            new GridPoint(m3.X, m3.Y)
+        );
+
+        Assert.True(pathPoints.Count >= 2, "CINT.N should connect to M3.G.");
+        var bendCount = CountPathBends(pathPoints);
+        Assert.True(
+            bendCount <= 4,
+            $"Expected the interstage coupling path through CINT to stay compact after terminal breakouts, but used {bendCount} bends. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+
+        var firstHorizontalTurnY = FindFirstHorizontalTurnY(pathPoints);
+        Assert.True(
+            firstHorizontalTurnY is null
+                || Math.Abs(firstHorizontalTurnY.Value - cint.Y)
+                    <= 2 * Layout.DeviceGeometry.RoutingPitch,
+            $"Expected CINT.N to start heading toward M3 within two breakout pitches. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
     /// <summary>
     /// Tests that parallel horizontal paths with one-sided vertical coverage
     /// get connectors added on BOTH sides when needed, not just one.
@@ -1290,6 +1695,309 @@ public class MazeRouterTests
             "OUT should connect to the boundary with a horizontal lane"
         );
         Assert.False(hasVerticalAtPort, "OUT should not jog vertically at the output port");
+    }
+
+    private static RoutingResult RouteCascode(string cascodePath)
+    {
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        return MazeRouter.Route(placement, graph);
+    }
+
+    private static IReadOnlyList<GridPoint> FindPointPath(
+        IReadOnlyList<WireSegment> segments,
+        GridPoint start,
+        GridPoint end
+    )
+    {
+        var adjacency = new Dictionary<GridPoint, List<GridPoint>>();
+        foreach (var segment in segments)
+        {
+            if (!adjacency.TryGetValue(segment.From, out var fromNeighbors))
+            {
+                fromNeighbors = new List<GridPoint>();
+                adjacency[segment.From] = fromNeighbors;
+            }
+            fromNeighbors.Add(segment.To);
+
+            if (!adjacency.TryGetValue(segment.To, out var toNeighbors))
+            {
+                toNeighbors = new List<GridPoint>();
+                adjacency[segment.To] = toNeighbors;
+            }
+            toNeighbors.Add(segment.From);
+        }
+
+        var previous = new Dictionary<GridPoint, GridPoint>();
+        var queue = new Queue<GridPoint>();
+        var visited = new HashSet<GridPoint> { start };
+        queue.Enqueue(start);
+
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current.Equals(end))
+            {
+                break;
+            }
+
+            foreach (var next in adjacency.GetValueOrDefault(current, []))
+            {
+                if (!visited.Add(next))
+                {
+                    continue;
+                }
+
+                previous[next] = current;
+                queue.Enqueue(next);
+            }
+        }
+
+        if (!visited.Contains(end))
+        {
+            return Array.Empty<GridPoint>();
+        }
+
+        var path = new List<GridPoint> { end };
+        var step = end;
+        while (!step.Equals(start))
+        {
+            step = previous[step];
+            path.Add(step);
+        }
+
+        path.Reverse();
+        return path;
+    }
+
+    private static IReadOnlyList<GridPoint> FindPathToFirstBranchOrPeer(
+        IReadOnlyList<WireSegment> segments,
+        GridPoint start
+    )
+    {
+        var adjacency = new Dictionary<GridPoint, List<GridPoint>>();
+        foreach (var segment in segments)
+        {
+            if (!adjacency.TryGetValue(segment.From, out var fromNeighbors))
+            {
+                fromNeighbors = new List<GridPoint>();
+                adjacency[segment.From] = fromNeighbors;
+            }
+
+            if (!adjacency.TryGetValue(segment.To, out var toNeighbors))
+            {
+                toNeighbors = new List<GridPoint>();
+                adjacency[segment.To] = toNeighbors;
+            }
+
+            fromNeighbors.Add(segment.To);
+            toNeighbors.Add(segment.From);
+        }
+
+        var path = new List<GridPoint> { start };
+        if (!adjacency.TryGetValue(start, out var startNeighbors) || startNeighbors.Count == 0)
+        {
+            return path;
+        }
+
+        GridPoint? previous = null;
+        var current = start;
+        while (true)
+        {
+            var next = adjacency[current]
+                .FirstOrDefault(candidate => previous is null || !candidate.Equals(previous.Value));
+            if (
+                next == default
+                && adjacency[current]
+                    .All(candidate => previous is not null && candidate.Equals(previous.Value))
+            )
+            {
+                return path;
+            }
+
+            path.Add(next);
+            previous = current;
+            current = next;
+
+            var degree = adjacency[current].Count;
+            if (degree != 2)
+            {
+                return path;
+            }
+        }
+    }
+
+    private static int CountPathBends(IReadOnlyList<GridPoint> pathPoints)
+    {
+        var bendCount = 0;
+        string? previousDirection = null;
+        for (var i = 1; i < pathPoints.Count; i++)
+        {
+            var direction = GetDirectionBetween(pathPoints[i - 1], pathPoints[i]);
+            if (direction == "None")
+            {
+                continue;
+            }
+
+            if (previousDirection != null && previousDirection != direction)
+            {
+                bendCount++;
+            }
+
+            previousDirection = direction;
+        }
+
+        return bendCount;
+    }
+
+    private static string GetFirstDirection(IReadOnlyList<GridPoint> pathPoints)
+    {
+        for (var i = 1; i < pathPoints.Count; i++)
+        {
+            var direction = GetDirectionBetween(pathPoints[i - 1], pathPoints[i]);
+            if (direction != "None")
+            {
+                return direction;
+            }
+        }
+
+        return "None";
+    }
+
+    private static int? FindFirstHorizontalTurnY(IReadOnlyList<GridPoint> pathPoints)
+    {
+        for (var i = 1; i < pathPoints.Count; i++)
+        {
+            if (pathPoints[i].X != pathPoints[i - 1].X)
+            {
+                return pathPoints[i - 1].Y;
+            }
+        }
+
+        return null;
+    }
+
+    private static void AssertHorizontalTurnStartsNearSource(
+        RoutingResult result,
+        string netName,
+        TerminalPosition start,
+        TerminalPosition end,
+        int maxVerticalOffset
+    )
+    {
+        var pathPoints = FindPointPath(
+            result.SegmentsByNet[netName],
+            new GridPoint(start.X, start.Y),
+            new GridPoint(end.X, end.Y)
+        );
+        Assert.True(
+            pathPoints.Count >= 2,
+            $"{start.DeviceId}.{start.Terminal} should connect to {end.DeviceId}.{end.Terminal} on '{netName}'."
+        );
+
+        var firstHorizontalTurnY = FindFirstHorizontalTurnY(pathPoints);
+        Assert.True(
+            firstHorizontalTurnY is not null,
+            $"Expected a horizontal run from {start.DeviceId}.{start.Terminal} toward {end.DeviceId}.{end.Terminal}. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+        Assert.True(
+            Math.Abs(firstHorizontalTurnY.Value - start.Y) <= maxVerticalOffset,
+            $"Expected {start.DeviceId}.{start.Terminal} to start heading toward {end.DeviceId}.{end.Terminal} within {maxVerticalOffset} units. "
+                + $"Path: [{string.Join(", ", pathPoints.Select(point => $"({point.X},{point.Y})"))}]"
+        );
+    }
+
+    private static string GetDirectionBetween(GridPoint from, GridPoint to)
+    {
+        var dx = to.X - from.X;
+        var dy = to.Y - from.Y;
+
+        if (dx > 0)
+            return "Right";
+        if (dx < 0)
+            return "Left";
+        if (dy > 0)
+            return "Down";
+        if (dy < 0)
+            return "Up";
+        return "None";
+    }
+
+    private static bool SegmentIsNearPoint(
+        WireSegment segment,
+        GridPoint point,
+        int horizontalMargin,
+        int verticalMargin
+    )
+    {
+        var minX = Math.Min(segment.From.X, segment.To.X) - horizontalMargin;
+        var maxX = Math.Max(segment.From.X, segment.To.X) + horizontalMargin;
+        var minY = Math.Min(segment.From.Y, segment.To.Y) - verticalMargin;
+        var maxY = Math.Max(segment.From.Y, segment.To.Y) + verticalMargin;
+        return point.X >= minX && point.X <= maxX && point.Y >= minY && point.Y <= maxY;
+    }
+
+    private static bool TryGetParallelClearance(
+        WireSegment a,
+        WireSegment b,
+        out int overlapLength,
+        out int clearance
+    )
+    {
+        overlapLength = 0;
+        clearance = int.MaxValue;
+
+        var aHorizontal = a.From.Y == a.To.Y;
+        var bHorizontal = b.From.Y == b.To.Y;
+        if (aHorizontal && bHorizontal)
+        {
+            var aMinX = Math.Min(a.From.X, a.To.X);
+            var aMaxX = Math.Max(a.From.X, a.To.X);
+            var bMinX = Math.Min(b.From.X, b.To.X);
+            var bMaxX = Math.Max(b.From.X, b.To.X);
+            var overlapStart = Math.Max(aMinX, bMinX);
+            var overlapEnd = Math.Min(aMaxX, bMaxX);
+            if (overlapEnd <= overlapStart)
+            {
+                return false;
+            }
+
+            overlapLength = overlapEnd - overlapStart;
+            clearance = Math.Abs(a.From.Y - b.From.Y);
+            return true;
+        }
+
+        var aVertical = a.From.X == a.To.X;
+        var bVertical = b.From.X == b.To.X;
+        if (aVertical && bVertical)
+        {
+            var aMinY = Math.Min(a.From.Y, a.To.Y);
+            var aMaxY = Math.Max(a.From.Y, a.To.Y);
+            var bMinY = Math.Min(b.From.Y, b.To.Y);
+            var bMaxY = Math.Max(b.From.Y, b.To.Y);
+            var overlapStart = Math.Max(aMinY, bMinY);
+            var overlapEnd = Math.Min(aMaxY, bMaxY);
+            if (overlapEnd <= overlapStart)
+            {
+                return false;
+            }
+
+            overlapLength = overlapEnd - overlapStart;
+            clearance = Math.Abs(a.From.X - b.From.X);
+            return true;
+        }
+
+        return false;
     }
 
     private static string GetRepoRoot()

@@ -1,6 +1,6 @@
 DeviceId,Row,Column,MirrorX
-M_LOAD_P,0,0,true
-M_LOAD_N,0,4,false
+M_LOAD_N,0,0,true
+M_LOAD_P,0,4,false
 R_CMFB_P,1,1,false
 R_CMFB_N,1,3,true
 dp.M_P,2,0,false
