@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Cascode.Workspace;
 
@@ -15,6 +16,11 @@ namespace Cascode.Cli.Services;
 /// Result from executing an external command.
 /// </summary>
 internal readonly record struct CommandRunResult(int ExitCode, string Stdout, string Stderr);
+
+/// <summary>
+/// A single stdout/stderr line emitted by an external command.
+/// </summary>
+internal readonly record struct CommandOutputLine(bool IsError, string Text);
 
 /// <summary>
 /// Runtime abstraction used by <see cref="NgspiceInstaller"/> for command execution and IO.
@@ -31,7 +37,8 @@ internal interface INgspiceInstallerRuntime
     CommandRunResult RunCommand(
         string fileName,
         IReadOnlyList<string> args,
-        string? workingDirectory
+        string? workingDirectory,
+        Action<CommandOutputLine>? onOutput = null
     );
     void DownloadFile(string url, string destination);
     string ComputeSha256(string filePath);
@@ -64,7 +71,8 @@ internal sealed class DefaultNgspiceInstallerRuntime : INgspiceInstallerRuntime
     public CommandRunResult RunCommand(
         string fileName,
         IReadOnlyList<string> args,
-        string? workingDirectory
+        string? workingDirectory,
+        Action<CommandOutputLine>? onOutput = null
     )
     {
         var startInfo = new ProcessStartInfo
@@ -87,15 +95,31 @@ internal sealed class DefaultNgspiceInstallerRuntime : INgspiceInstallerRuntime
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
-        var stdoutTask = process.StandardOutput.ReadToEndAsync();
-        var stderrTask = process.StandardError.ReadToEndAsync();
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+        var stdoutTask = PumpOutputAsync(process.StandardOutput, isError: false, stdout, onOutput);
+        var stderrTask = PumpOutputAsync(process.StandardError, isError: true, stderr, onOutput);
         process.WaitForExit();
         Task.WaitAll(stdoutTask, stderrTask);
-        return new CommandRunResult(
-            process.ExitCode,
-            stdoutTask.GetAwaiter().GetResult(),
-            stderrTask.GetAwaiter().GetResult()
-        );
+        return new CommandRunResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+    }
+
+    private static async Task PumpOutputAsync(
+        StreamReader reader,
+        bool isError,
+        StringBuilder buffer,
+        Action<CommandOutputLine>? onOutput
+    )
+    {
+        while (true)
+        {
+            var line = await reader.ReadLineAsync().ConfigureAwait(false);
+            if (line is null)
+                break;
+
+            buffer.AppendLine(line);
+            onOutput?.Invoke(new CommandOutputLine(isError, line));
+        }
     }
 
     public void DownloadFile(string url, string destination)

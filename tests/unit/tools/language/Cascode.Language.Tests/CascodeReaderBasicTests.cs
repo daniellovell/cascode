@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Cascode.Language;
 
 namespace Cascode.Language.Tests;
@@ -804,6 +805,31 @@ bench ParameterShadowBench {{
             $"Unexpected diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Code + ":" + d.Message))}"
         );
         Assert.DoesNotContain(result.Diagnostics, d => d.Code == "CAS2007");
+    }
+
+    [Fact]
+    public void TryRead_NoiseDensityLiteralsInBenchMeasurements_ParseSuccessfully()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NoiseLiteralBench {{
+  measurements {{
+    measurement SpotNoiseTarget : V/rtHz {{
+      return 9nV/rtHz
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "noise_literal_bench.cas");
+
+        Assert.True(
+            result.Success,
+            $"Unexpected diagnostics: {string.Join(", ", result.Diagnostics.Select(d => d.Code + ":" + d.Message))}"
+        );
+        Assert.NotNull(result.Document);
     }
 
     #endregion

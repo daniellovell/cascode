@@ -474,6 +474,7 @@ circuit Outer {{
                 "HLSlotSome.hl.cai",
                 "LNASynthesisRequest.hl.cai",
                 "TLC2272A_SynthesisRequest.hl.cai",
+                "SST12LN01_SynthesisRequest.hl.cai",
             }.Select(name => Path.Combine(goldenDir, name))
         )
         {

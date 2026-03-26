@@ -503,6 +503,9 @@ measurements {
 }
 ```
 
+The standard transfer benches use the same arity-based overloading pattern for `Gain(f)` and
+`Gain(from, to)`.
+
 Declaring multiple measurements with the same name and the same parameter count is a semantic error.
 
 ---
@@ -788,6 +791,8 @@ constraints {
   numeric {
     c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
     c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
+    c_gain_at_1mhz = transfer_bench::Gain(f=1MHz) at net::OUT >= 35dB
+    c_gain_band = transfer_bench::Gain(from=100kHz, to=10MHz) at net::OUT >= 30dB
     c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
 
     c_int = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms

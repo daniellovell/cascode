@@ -95,7 +95,7 @@ public sealed class VerifyCommandIntegrationTests
     [Fact]
     public async Task Verify_WithOnlyCascode_AutoDiscoversDefaultResultsPath()
     {
-        using var setup = CreateVerifyFixture("verify-autodiscover-default");
+        using var setup = CreateCanonicalVerifyFixture("verify-autodiscover-default");
         using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
             setup.RepoRoot,
             "verify-autodiscover-default"
@@ -108,14 +108,15 @@ public sealed class VerifyCommandIntegrationTests
             setup.CascodePath
         );
 
-        Assert.NotEqual(0, verify.ExitCode);
-        Assert.Contains("Result: 1/5 constraints satisfied", verify.Stdout);
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify should discover default results");
+        Assert.Contains("Circuit: RcLowpass", verify.Stdout);
+        Assert.Contains("Result: 2/2 constraints satisfied", verify.Stdout);
     }
 
     [Fact]
     public async Task Verify_WithResultsDirectory_AutoDiscoversResultsFile()
     {
-        using var setup = CreateVerifyFixture("verify-autodiscover-dir");
+        using var setup = CreateCanonicalVerifyFixture("verify-autodiscover-dir");
         using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
             setup.RepoRoot,
             "verify-autodiscover-dir"
@@ -129,8 +130,12 @@ public sealed class VerifyCommandIntegrationTests
             setup.ResultsDir
         );
 
-        Assert.NotEqual(0, verify.ExitCode);
-        Assert.Contains("Result: 1/5 constraints satisfied", verify.Stdout);
+        CliIntegrationTestHelper.AssertSuccess(
+            verify,
+            "verify should discover canonical results from the provided directory"
+        );
+        Assert.Contains("Circuit: RcLowpass", verify.Stdout);
+        Assert.Contains("Result: 2/2 constraints satisfied", verify.Stdout);
     }
 
     [Fact]
@@ -321,6 +326,71 @@ public sealed class VerifyCommandIntegrationTests
         Assert.Contains("OTA5TSingleEnded", verify.Stderr);
     }
 
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Verify_WithInlineHelperCircuit_AutoRunIgnoresHelperArtifactTargets()
+    {
+        using var setup = CreateHierarchicalVerifyFixture("verify-inline-helper-auto-run");
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            setup.RepoRoot,
+            "verify-inline-helper-auto-run"
+        );
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            cascodeHome,
+            "verify",
+            setup.CascodePath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(
+            verify,
+            "verify should auto-run and only require the constrained top-level circuit"
+        );
+        Assert.Contains("Circuit: RcLowpassWithInlineHelper", verify.Stdout);
+        Assert.Contains("Result: 2/2 constraints satisfied", verify.Stdout);
+        Assert.DoesNotContain("InlineResistor", verify.Stdout);
+        Assert.DoesNotContain("Missing canonical results files", verify.Stderr);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Verify_WithInlineHelperCircuit_ResultsDirectoryIgnoresHelperArtifactTargets()
+    {
+        using var setup = CreateHierarchicalVerifyFixture("verify-inline-helper-dir");
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            setup.RepoRoot,
+            "verify-inline-helper-dir"
+        );
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            cascodeHome,
+            "bench",
+            "run",
+            setup.CascodePath,
+            "-o",
+            setup.ResultsDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            cascodeHome,
+            "verify",
+            setup.CascodePath,
+            setup.ResultsDir
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(
+            verify,
+            "verify should discover canonical results only for verifiable circuits"
+        );
+        Assert.Contains("Circuit: RcLowpassWithInlineHelper", verify.Stdout);
+        Assert.DoesNotContain("InlineResistor", verify.Stdout);
+        Assert.DoesNotContain("Missing canonical results files", verify.Stderr);
+    }
+
     private sealed class VerifyFixture : IDisposable
     {
         public VerifyFixture(
@@ -382,6 +452,99 @@ public sealed class VerifyCommandIntegrationTests
         File.WriteAllText(resultsPath, JsonSerializer.Serialize(normalized));
 
         // Keep results fresher than the Cascode source for tests that should not trigger auto-run.
+        File.SetLastWriteTimeUtc(resultsPath, DateTime.UtcNow.AddMinutes(1));
+
+        return new VerifyFixture(tempRoot, repoRoot, cascodePath, resultsPath, resultsDir);
+    }
+
+    private static VerifyFixture CreateHierarchicalVerifyFixture(string suffix)
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"{suffix}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        var sourceCas = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
+        var cascodePath = Path.Combine(tempRoot, "RcLowpassWithInlineHelper.el.cai");
+        var sourceText = File.ReadAllText(sourceCas);
+        var helperCircuit = """
+
+            circuit InlineResistor {
+              level EL
+              inline
+
+              input IN : analog
+              output OUT : analog
+
+              fill {
+                Resistor R1 = new ResistorIdeal(size(R=1k)) {
+                  .P--IN
+                  .N--OUT
+                }
+              }
+            }
+
+            circuit RcLowpassWithInlineHelper {
+            """;
+        var resistorBlock = """
+                Resistor R1 = new ResistorIdeal(size(R=1k)) {
+                  .P--IN.P
+                  .N--OUT
+                }
+            """;
+        var helperBlock = """
+                InlineResistor helper = new InlineResistor() {
+                  .IN--IN.P
+                  .OUT--OUT
+                }
+            """;
+        File.WriteAllText(
+            cascodePath,
+            sourceText
+                .Replace("circuit RcLowpass {", helperCircuit, StringComparison.Ordinal)
+                .Replace(resistorBlock, helperBlock, StringComparison.Ordinal)
+        );
+
+        var resultsDir = Path.Combine(tempRoot, "build", "bench", "RcLowpassWithInlineHelper");
+        var resultsPath = Path.Combine(resultsDir, "RcLowpassWithInlineHelper_results.json");
+        return new VerifyFixture(tempRoot, repoRoot, cascodePath, resultsPath, resultsDir);
+    }
+
+    private static VerifyFixture CreateCanonicalVerifyFixture(string suffix)
+    {
+        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"{suffix}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+
+        var sourceCas = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
+        var cascodePath = Path.Combine(tempRoot, "RcLowpass.el.cai");
+        File.Copy(sourceCas, cascodePath, overwrite: true);
+
+        var resultsDir = Path.Combine(tempRoot, "build", "bench", "RcLowpass");
+        Directory.CreateDirectory(resultsDir);
+        var resultsPath = Path.Combine(resultsDir, "RcLowpass_results.json");
+        var results = new BenchResult
+        {
+            Circuit = "RcLowpass",
+            Bench = "lp",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["LowpassBandwidth"] = new()
+                {
+                    Metric = "LowpassBandwidth",
+                    Value = 159_154_943.1,
+                    Unit = "Hz",
+                    Bench = "lp",
+                },
+                ["PassbandGain"] = new()
+                {
+                    Metric = "PassbandGain",
+                    Value = 0.0,
+                    Unit = "dB",
+                    Bench = "lp",
+                },
+            },
+        };
+        File.WriteAllText(resultsPath, JsonSerializer.Serialize(results));
         File.SetLastWriteTimeUtc(resultsPath, DateTime.UtcNow.AddMinutes(1));
 
         return new VerifyFixture(tempRoot, repoRoot, cascodePath, resultsPath, resultsDir);
